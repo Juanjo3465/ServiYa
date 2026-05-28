@@ -13,7 +13,7 @@ rem Execute SQL init script (if exist)
 if exist "create_database.sql" (
 
     echo " Excecute SQl init script..."
-    docker exec -i serviya-mysql mysql -u root -p${DB_PASSWORD_ROOT} ${DB_NAME} < ./create_database.sql
+    docker exec -i serviya-mysql mysql -u root -p${SPRING_DB_PASSWORD_ROOT} ${SPRING_DB_NAME} < ./create_database.sql
 
     echo " Script SQL excecuted successfully."
 ) else (
