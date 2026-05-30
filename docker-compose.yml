@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend/serviya
+    container_name: serviya-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/marketplace_services
+      DB_USER: root
+      DB_PASSWORD: dev
+    depends_on:
+      - mysql
+  mysql:
+    image: mysql:8.4
+    container_name: serviya-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: dev
+      MYSQL_DATABASE: marketplace_services
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql:/docker-entrypoint-initdb.d
+  frontend:
+    build:
+      context: ./frontend/serviya
+    container_name: serviya-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+volumes:
+  mysql_data:
