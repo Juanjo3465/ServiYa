@@ -5,6 +5,21 @@ spring:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    use-root-path: true
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  show-actuator: false
+  packages-to-scan: com.parosurvivors.serviya
