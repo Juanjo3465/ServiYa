@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.services.application.services;
 
 import com.parosurvivors.serviya.services.application.dto.ServiceRequest;
 import com.parosurvivors.serviya.services.application.dto.ServiceResponse;
+import com.parosurvivors.serviya.services.application.dto.ServiceSearchCriteria;
 import com.parosurvivors.serviya.services.application.mappers.ServiceMapper;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
@@ -55,6 +56,13 @@ public class MarketplaceService implements MarketplaceServicePort {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<ServiceResponse> search(ServiceSearchCriteria criteria) {
+        return persistencePort.search(criteria).stream()
+                .filter(s -> !s.isDeleted())
+                .map(mapper::toResponse)
+                .collect(Collectors.toList());
+    }
     @Override
     public ServiceResponse update(Long id, ServiceRequest request) {
         Service service = persistencePort.findById(id)
