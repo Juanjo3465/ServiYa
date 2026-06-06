@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "services")
@@ -25,6 +26,9 @@ public class ServiceEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(columnDefinition = "JSON")
+    private List<String> photos;
+
     @Column(name = "price_hourly", nullable = false)
     private BigDecimal priceHourly;
 
@@ -34,7 +38,7 @@ public class ServiceEntity {
     @Column(name = "average_duration_minutes")
     private Integer averageDurationMinutes;
 
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     private Boolean active;
 
     @Column(name = "operation_radius_km")
