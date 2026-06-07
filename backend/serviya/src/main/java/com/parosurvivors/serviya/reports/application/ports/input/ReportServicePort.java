@@ -14,17 +14,17 @@ import java.util.List;
  */
 public interface ReportServicePort {
 
-    Report createBaseReport(int reporterId, int reportedUserId, String type, String category, String reason);
+    Report createBaseReport(Long reporterId, Long reportedUserId, String type, String category, String reason);
 
-    ReportDetailResponse getReportDetail(int reportId);
+    ReportDetailResponse getReportDetail(Long reportId);
 
     Page<ReportResponse> getReports(String type, String category, String status, Pageable pageable);
 
-    List<ReportResponse> getReportsByReporter(int reporterId);
+    List<ReportResponse> getReportsByReporter(Long reporterId);
 
-    List<ReportResponse> getReportsByReportedUser(int reportedUserId);
+    List<ReportResponse> getReportsByReportedUser(Long reportedUserId);
 
-    int countReportsByReportedUser(int reportedUserId);
+    int countReportsByReportedUser(Long reportedUserId);
 
-    int countReportsByReporter(int reporterId);
+    int countReportsByReporter(Long reporterId);
 }

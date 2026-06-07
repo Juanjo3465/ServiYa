@@ -12,9 +12,9 @@ import java.util.Map;
  */
 public interface NotificationServicePort {
 
-    void notify(int userId, String type, String title, String message, String entityType, int entityId,
-                List<Integer> channelIds, Map<String, String> protectedData);
+    void notify(Long userId, String type, String title, String message, String entityType, Long entityId,
+                List<Long> channelIds, Map<String, String> protectedData);
 
-    Notification createNotification(int userId, String type, String title, String message,
-                                    String entityType, int entityId);
+    Notification createNotification(Long userId, String type, String title, String message,
+                                    String entityType, Long entityId);
 }

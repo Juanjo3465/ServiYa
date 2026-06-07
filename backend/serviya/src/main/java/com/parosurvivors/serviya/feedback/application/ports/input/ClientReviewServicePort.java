@@ -10,7 +10,7 @@ import java.util.List;
  */
 public interface ClientReviewServicePort {
 
-    ClientReview createReview(int offererId, int requestId, String comment, List<Integer> tagIds);
+    ClientReview createReview(Long offererId, Long requestId, String comment, List<Long> tagIds);
 
-    void deleteReview(int requestId, int offererId);
+    void deleteReview(Long requestId, Long offererId);
 }

@@ -14,17 +14,17 @@ import org.springframework.data.domain.Pageable;
  */
 public interface AdminServicePort {
 
-    User createUserByAdmin(int adminId, CreateUserRequest dto, String roleName);
+    User createUserByAdmin(Long adminId, CreateUserRequest dto, String roleName);
 
-    void grantAdminRole(int adminId, int userId);
+    void grantAdminRole(Long adminId, Long userId);
 
     Page<UserSummaryResponse> searchUsers(UserFilterRequest filters, Pageable pageable);
 
-    UserAdminDetailResponse getUserAdminDetail(int userId);
+    UserAdminDetailResponse getUserAdminDetail(Long userId);
 
-    void banUser(int adminId, int userId);
+    void banUser(Long adminId, Long userId);
 
-    void unbanUser(int adminId, int userId);
+    void unbanUser(Long adminId, Long userId);
 
-    void deleteUser(int adminId, int userId);
+    void deleteUser(Long adminId, Long userId);
 }

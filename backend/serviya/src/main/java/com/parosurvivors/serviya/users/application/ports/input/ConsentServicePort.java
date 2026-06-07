@@ -8,7 +8,7 @@ import com.parosurvivors.serviya.users.domain.Consent;
  */
 public interface ConsentServicePort {
 
-    Consent createConsent(int userId, boolean accepted);
+    Consent createConsent(Long userId, boolean accepted);
 
-    boolean hasConsented(int userId);
+    boolean hasConsented(Long userId);
 }

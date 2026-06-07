@@ -8,7 +8,7 @@ import com.parosurvivors.serviya.feedback.domain.ClientRating;
  */
 public interface ClientRatingServicePort {
 
-    ClientRating addRating(int offererId, int requestId, int clientId, int rating);
+    ClientRating addRating(Long offererId, Long requestId, Long clientId, int rating);
 
-    void deleteRating(int requestId, int offererId);
+    void deleteRating(Long requestId, Long offererId);
 }

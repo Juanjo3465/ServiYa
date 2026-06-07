@@ -10,13 +10,13 @@ import java.util.List;
  */
 public interface UserRoleServicePort {
 
-    List<Role> getUserRoles(int userId);
+    List<Role> getUserRoles(Long userId);
 
-    boolean hasRole(int userId, String roleName);
+    boolean hasRole(Long userId, String roleName);
 
-    void assignRole(int userId, int roleId);
+    void assignRole(Long userId, Long roleId);
 
-    void removeRole(int userId, int roleId);
+    void removeRole(Long userId, Long roleId);
 
-    void acquireRole(int userId, String roleName);
+    void acquireRole(Long userId, String roleName);
 }

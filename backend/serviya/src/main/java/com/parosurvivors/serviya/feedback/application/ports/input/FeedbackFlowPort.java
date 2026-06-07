@@ -10,7 +10,7 @@ import com.parosurvivors.serviya.feedback.application.dto.ReviewRequest;
  */
 public interface FeedbackFlowPort {
 
-    void submit(FeedbackParts parts, int requestId, Integer rating, ReviewRequest review);
+    void submit(FeedbackParts parts, Long requestId, Integer rating, ReviewRequest review);
 
-    void remove(FeedbackParts parts, int requestId);
+    void remove(FeedbackParts parts, Long requestId);
 }

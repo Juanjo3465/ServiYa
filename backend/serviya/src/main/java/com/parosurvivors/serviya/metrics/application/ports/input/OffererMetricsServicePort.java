@@ -10,7 +10,7 @@ import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
  */
 public interface OffererMetricsServicePort {
 
-    OffererMetrics getAllMetrics(int offererId);
+    OffererMetrics getAllMetrics(Long offererId);
 
-    OffererMetricsSummaryResponse getMainMetrics(int offererId);
+    OffererMetricsSummaryResponse getMainMetrics(Long offererId);
 }

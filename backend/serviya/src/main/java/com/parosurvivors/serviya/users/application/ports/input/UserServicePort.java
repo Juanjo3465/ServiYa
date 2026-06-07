@@ -10,11 +10,11 @@ public interface UserServicePort {
 
     User createUser(String email, String rawPassword);
 
-    void changePassword(int userId, String currentRaw, String newRaw);
+    void changePassword(Long userId, String currentRaw, String newRaw);
 
-    void changeEmail(int userId, String newEmail);
+    void changeEmail(Long userId, String newEmail);
 
-    void banUser(int userId);
+    void banUser(Long userId);
 
-    void unbanUser(int userId);
+    void unbanUser(Long userId);
 }

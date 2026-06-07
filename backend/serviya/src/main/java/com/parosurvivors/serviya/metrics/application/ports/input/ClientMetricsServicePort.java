@@ -10,7 +10,7 @@ import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
  */
 public interface ClientMetricsServicePort {
 
-    ClientMetrics getAllMetrics(int clientId);
+    ClientMetrics getAllMetrics(Long clientId);
 
-    ClientMetricsSummaryResponse getMainMetrics(int clientId);
+    ClientMetricsSummaryResponse getMainMetrics(Long clientId);
 }

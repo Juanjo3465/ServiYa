@@ -10,7 +10,7 @@ import java.util.List;
  */
 public interface ReportActionServicePort {
 
-    ReportAction createAction(int reportId, int adminId, String actionTaken);
+    ReportAction createAction(Long reportId, Long adminId, String actionTaken);
 
-    List<ReportAction> getActionsByReport(int reportId);
+    List<ReportAction> getActionsByReport(Long reportId);
 }

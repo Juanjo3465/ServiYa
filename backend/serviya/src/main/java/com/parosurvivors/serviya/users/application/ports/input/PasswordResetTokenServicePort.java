@@ -9,9 +9,9 @@ import com.parosurvivors.serviya.users.domain.PasswordResetToken;
  */
 public interface PasswordResetTokenServicePort {
 
-    PasswordResetToken createToken(int userId);
+    PasswordResetToken createToken(Long userId);
 
-    TokenValidationResult validateToken(int userId, String rawToken);
+    TokenValidationResult validateToken(Long userId, String rawToken);
 
-    void markTokenAsUsed(int tokenId);
+    void markTokenAsUsed(Long tokenId);
 }

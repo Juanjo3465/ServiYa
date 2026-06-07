@@ -9,15 +9,15 @@ import com.parosurvivors.serviya.admin.application.dto.CreateReportRequest;
  */
 public interface ModerationServicePort {
 
-    void warnUser(int reportId, int adminId);
+    void warnUser(Long reportId, Long adminId);
 
-    void banUserFromReport(int reportId, int adminId);
+    void banUserFromReport(Long reportId, Long adminId);
 
-    void revertFeedbackFromReport(int reportId, int adminId);
+    void revertFeedbackFromReport(Long reportId, Long adminId);
 
-    void removeFeedbackDirectly(int adminId, CreateReportRequest reportData);
+    void removeFeedbackDirectly(Long adminId, CreateReportRequest reportData);
 
-    void markRequestAsNotProvided(int reportId, int adminId);
+    void markRequestAsNotProvided(Long reportId, Long adminId);
 
-    void closeReport(int reportId, int adminId);
+    void closeReport(Long reportId, Long adminId);
 }

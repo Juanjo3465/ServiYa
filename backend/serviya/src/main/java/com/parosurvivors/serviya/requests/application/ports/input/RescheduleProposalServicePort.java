@@ -13,17 +13,17 @@ import java.util.List;
  */
 public interface RescheduleProposalServicePort {
 
-    RescheduleProposal createProposal(int requestId, int offererId, String reason, LocalDateTime proposedDate);
+    RescheduleProposal createProposal(Long requestId, Long offererId, String reason, LocalDateTime proposedDate);
 
-    ServiceRequest acceptProposal(int proposalId, int clientId, LocalDateTime confirmedDate);
+    ServiceRequest acceptProposal(Long proposalId, Long clientId, LocalDateTime confirmedDate);
 
-    void rejectProposal(int proposalId, int clientId);
+    void rejectProposal(Long proposalId, Long clientId);
 
-    void cancelProposal(int proposalId, int offererId);
+    void cancelProposal(Long proposalId, Long offererId);
 
-    List<RescheduleProposalResponse> getProposalsForClient(int clientId, List<String> statuses);
+    List<RescheduleProposalResponse> getProposalsForClient(Long clientId, List<String> statuses);
 
-    List<RescheduleProposalResponse> getProposalsByOfferer(int offererId, List<String> statuses);
+    List<RescheduleProposalResponse> getProposalsByOfferer(Long offererId, List<String> statuses);
 
-    List<RescheduleProposalResponse> getProposalsByRequest(int requestId);
+    List<RescheduleProposalResponse> getProposalsByRequest(Long requestId);
 }

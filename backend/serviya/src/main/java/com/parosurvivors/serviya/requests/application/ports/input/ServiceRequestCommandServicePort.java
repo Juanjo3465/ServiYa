@@ -10,23 +10,23 @@ import java.time.LocalDateTime;
  */
 public interface ServiceRequestCommandServicePort {
 
-    ServiceRequest createRequest(int clientId, int serviceId, int addressId, LocalDateTime scheduledDate);
+    ServiceRequest createRequest(Long clientId, Long serviceId, Long addressId, LocalDateTime scheduledDate);
 
-    boolean checkServiceAvailability(int serviceId, LocalDateTime scheduledDate);
+    boolean checkServiceAvailability(Long serviceId, LocalDateTime scheduledDate);
 
-    boolean checkWithinRadius(int serviceId, int clientAddressId);
+    boolean checkWithinRadius(Long serviceId, Long clientAddressId);
 
-    void acceptRequest(int requestId, int offererId);
+    void acceptRequest(Long requestId, Long offererId);
 
-    void rejectRequest(int requestId, int offererId);
+    void rejectRequest(Long requestId, Long offererId);
 
-    void markAsPresumablyCompleted(int requestId, int offererId);
+    void markAsPresumablyCompleted(Long requestId, Long offererId);
 
-    void confirmCompletion(int requestId, int clientId);
+    void confirmCompletion(Long requestId, Long clientId);
 
-    void markAsNotProvided(int requestId, int userId);
+    void markAsNotProvided(Long requestId, Long userId);
 
-    void cancelRequest(int requestId, int userId);
+    void cancelRequest(Long requestId, Long userId);
 
-    ServiceRequest rescheduleRequest(int requestId, LocalDateTime newDate);
+    ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate);
 }

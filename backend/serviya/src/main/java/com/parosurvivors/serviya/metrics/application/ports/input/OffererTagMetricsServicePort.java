@@ -11,5 +11,5 @@ import java.util.List;
  */
 public interface OffererTagMetricsServicePort {
 
-    List<OffererTagMetrics> getTagMetrics(int offererId);
+    List<OffererTagMetrics> getTagMetrics(Long offererId);
 }

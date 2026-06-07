@@ -11,13 +11,13 @@ import java.util.List;
  */
 public interface OffererAvailabilityServicePort {
 
-    List<OffererAvailability> getSchedule(int offererId);
+    List<OffererAvailability> getSchedule(Long offererId);
 
-    void setSchedule(int offererId, List<SlotRequest> slots);
+    void setSchedule(Long offererId, List<SlotRequest> slots);
 
-    void deleteSlot(int slotId);
+    void deleteSlot(Long slotId);
 
-    void activateSlot(int slotId);
+    void activateSlot(Long slotId);
 
-    void deactivateSlot(int slotId);
+    void deactivateSlot(Long slotId);
 }

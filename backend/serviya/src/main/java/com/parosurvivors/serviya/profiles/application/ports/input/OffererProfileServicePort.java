@@ -10,9 +10,9 @@ import com.parosurvivors.serviya.profiles.application.dto.PatchOffererProfileReq
  */
 public interface OffererProfileServicePort {
 
-    OffererProfilePublicResponse getPublicProfile(int userId);
+    OffererProfilePublicResponse getPublicProfile(Long userId);
 
-    OffererProfileSummaryResponse getProfileSummary(int userId);
+    OffererProfileSummaryResponse getProfileSummary(Long userId);
 
-    void patchOffererProfile(int userId, PatchOffererProfileRequest dto);
+    void patchOffererProfile(Long userId, PatchOffererProfileRequest dto);
 }

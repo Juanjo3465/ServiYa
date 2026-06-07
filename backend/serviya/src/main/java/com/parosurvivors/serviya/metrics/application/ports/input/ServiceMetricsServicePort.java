@@ -9,5 +9,5 @@ import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
  */
 public interface ServiceMetricsServicePort {
 
-    ServiceMetrics getMetrics(int serviceId);
+    ServiceMetrics getMetrics(Long serviceId);
 }

@@ -13,14 +13,14 @@ import java.util.Map;
  */
 public interface NotificationDeliveryServicePort {
 
-    NotificationDelivery deliver(int notificationId, int channelId, Map<String, String> protectedData);
+    NotificationDelivery deliver(Long notificationId, Long channelId, Map<String, String> protectedData);
 
-    Page<NotificationDeliveryResponse> getDeliveries(int userId, Boolean read, Integer channelId,
+    Page<NotificationDeliveryResponse> getDeliveries(Long userId, Boolean read, Long channelId,
                                                      String status, Pageable pageable);
 
-    String getDeliveryStatus(int notificationId, int channelId);
+    String getDeliveryStatus(Long notificationId, Long channelId);
 
-    boolean isRead(int notificationId, int channelId);
+    boolean isRead(Long notificationId, Long channelId);
 
-    void markAsRead(int deliveryId);
+    void markAsRead(Long deliveryId);
 }

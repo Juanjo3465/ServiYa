@@ -7,5 +7,5 @@ package com.parosurvivors.serviya.users.application.ports.input;
  */
 public interface UserDeletionServicePort {
 
-    void deleteUser(int userId);
+    void deleteUser(Long userId);
 }

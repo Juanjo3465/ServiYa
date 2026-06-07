@@ -11,13 +11,13 @@ import org.springframework.data.domain.Pageable;
  */
 public interface ClientFeedbackServicePort {
 
-    void submitClientFeedback(int offererId, int requestId, int clientId, Integer rating, ReviewRequest review);
+    void submitClientFeedback(Long offererId, Long requestId, Long clientId, Integer rating, ReviewRequest review);
 
-    ClientFeedbackResponse getClientFeedback(int requestId);
+    ClientFeedbackResponse getClientFeedback(Long requestId);
 
-    Page<ClientFeedbackResponse> getClientFeedbackList(int clientId, Pageable pageable);
+    Page<ClientFeedbackResponse> getClientFeedbackList(Long clientId, Pageable pageable);
 
-    Page<ClientFeedbackResponse> getClientFeedbackByOfferer(int offererId, Pageable pageable);
+    Page<ClientFeedbackResponse> getClientFeedbackByOfferer(Long offererId, Pageable pageable);
 
-    boolean revertFeedback(int requestId);
+    boolean revertFeedback(Long requestId);
 }

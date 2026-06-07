@@ -9,9 +9,9 @@ import com.parosurvivors.serviya.profiles.application.dto.UserProfileResponse;
  */
 public interface UserProfileServicePort {
 
-    UserProfileResponse getProfileInfo(int userId);
+    UserProfileResponse getProfileInfo(Long userId);
 
-    void patchProfile(int userId, PatchProfileRequest dto);
+    void patchProfile(Long userId, PatchProfileRequest dto);
 
-    void updateMainAddress(int userId, int addressId);
+    void updateMainAddress(Long userId, Long addressId);
 }

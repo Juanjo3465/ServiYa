@@ -13,13 +13,13 @@ import java.util.List;
  */
 public interface AddressServicePort {
 
-    List<Address> getUserAddresses(int userId);
+    List<Address> getUserAddresses(Long userId);
 
-    Address createAddress(int userId, CreateAddressRequest dto);
+    Address createAddress(Long userId, CreateAddressRequest dto);
 
-    void deleteAddress(int userId, int addressId);
+    void deleteAddress(Long userId, Long addressId);
 
-    Address updateAddress(int addressId, PatchAddressRequest dto);
+    Address updateAddress(Long addressId, PatchAddressRequest dto);
 
     boolean verifyAddress(String addressLine, String city);
 

@@ -15,17 +15,17 @@ import java.util.List;
  */
 public interface ServiceRequestQueryServicePort {
 
-    Page<ServiceRequestResponse> getClientRequests(int clientId, List<String> statuses, Pageable pageable);
+    Page<ServiceRequestResponse> getClientRequests(Long clientId, List<String> statuses, Pageable pageable);
 
-    Page<ServiceRequestResponse> getOffererRequests(int offererId, List<String> statuses, Pageable pageable);
+    Page<ServiceRequestResponse> getOffererRequests(Long offererId, List<String> statuses, Pageable pageable);
 
-    ServiceRequestDetailResponse getRequestDetailForParty(int requestId, int requesterId);
+    ServiceRequestDetailResponse getRequestDetailForParty(Long requestId, Long requesterId);
 
-    AdminRequestDetailResponse getRequestDetailForAdmin(int requestId);
+    AdminRequestDetailResponse getRequestDetailForAdmin(Long requestId);
 
-    List<RequestHistoryResponse> getRequestHistory(int requestId);
+    List<RequestHistoryResponse> getRequestHistory(Long requestId);
 
-    int countClientRequests(int clientId);
+    int countClientRequests(Long clientId);
 
-    int countOffererRequests(int offererId);
+    int countOffererRequests(Long offererId);
 }

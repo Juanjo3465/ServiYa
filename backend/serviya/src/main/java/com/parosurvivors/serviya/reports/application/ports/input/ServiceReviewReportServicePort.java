@@ -9,7 +9,7 @@ import com.parosurvivors.serviya.reports.domain.ServiceReviewReport;
  */
 public interface ServiceReviewReportServicePort {
 
-    ServiceReviewReport createReport(int reporterId, int reportedUserId, String category, String reason, int serviceReviewId);
+    ServiceReviewReport createReport(Long reporterId, Long reportedUserId, String category, String reason, Long serviceReviewId);
 
-    ServiceReviewReportDetailResponse getReportDetail(int reportId);
+    ServiceReviewReportDetailResponse getReportDetail(Long reportId);
 }
