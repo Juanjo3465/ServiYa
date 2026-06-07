@@ -4,18 +4,20 @@ services:
     container_name: serviya-backend
     ports:
       - "8080:8080"
+    env_file: .env
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/marketplace_services
-      DB_USER: root
-      DB_PASSWORD: dev
+      DB_URL: ${DB_URL}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
       - mysql
   mysql:
-    image: mysql:8.4
+    image: mysql
     container_name: serviya-mysql
+    env_file: .env
     environment:
-      MYSQL_ROOT_PASSWORD: dev
-      MYSQL_DATABASE: marketplace_services
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
     ports:
       - "3307:3306"
     volumes:
