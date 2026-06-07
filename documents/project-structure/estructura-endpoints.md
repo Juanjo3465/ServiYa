@@ -113,7 +113,7 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `POST` | `/api/v1/auth/password-reset/confirm` | `confirmPasswordReset(rawToken, newPassword)` | Público (con token) | RF-003 |
 
 **Notas**:
-- `register` recibe el rol deseado (`CLIENT` u `OFFERER` — nunca `ADMIN`) en el body. Devuelve el JWT.
+- `register` recibe el rol deseado (`CLIENT` u `OFFERER` — nunca `ADMIN`) en el body. Valida la entrada y delega la creación común (credenciales + perfil + roles + consentimiento) en `UserCreationService.createUserAccount`. Devuelve el JWT.
 - `password-reset/confirm` recibe el token en el body, no en query, porque es sensible (no debe quedar en logs de URL).
 
 ---
@@ -127,9 +127,12 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `PATCH` | `/api/v1/users/me/password` | `changePassword(userId, currentRaw, newRaw)` | Logged | RF-007 |
 | `PATCH` | `/api/v1/users/me/email` | `changeEmail(userId, newEmail)` | Logged | RF-007 |
 | `DELETE` | `/api/v1/users/me` | `UserDeletionService.deleteUser(userId)` | Logged | RF-008 |
-| `POST` | `/api/v1/users/me/roles/offerer` | `assignRole(userId, OFFERER)` | Logged (CLIENT) | RF-010 |
-| `POST` | `/api/v1/users/me/roles/client` | `assignRole(userId, CLIENT)` | Logged (OFFERER) | RF-011 |
+| `POST` | `/api/v1/users/me/roles/offerer` | `acquireRole(userId, OFFERER)` | Logged (CLIENT) | RF-010 |
+| `POST` | `/api/v1/users/me/roles/client` | `acquireRole(userId, CLIENT)` | Logged (OFFERER) | RF-011 |
 | `GET` | `/api/v1/users/me/roles` | `getUserRoles(userId)` | Logged | — |
+
+**Notas**:
+- La auto-asignación de rol usa `acquireRole`, que valida que el rol sea `CLIENT` u `OFFERER` (nunca `ADMIN`) y que el usuario se lo asigne a sí mismo; internamente delega en el mecanismo de bajo nivel `assignRole`.
 
 ---
 
@@ -222,13 +225,12 @@ El campo `fieldErrors` solo aparece en errores de validación.
 |---|---|---|---|---|
 | `GET` | `/api/v1/services/{id}/schedule` | `getServiceSchedule(serviceId)` | Público | — |
 | `PUT` | `/api/v1/services/{id}/schedule` | `setServiceSchedule(serviceId, slots)` | Dueño | RF-021 |
-| `POST` | `/api/v1/services/{id}/schedule/slots` | `createSlot(serviceId, ...)` | Dueño | RF-021 |
-| `PATCH` | `/api/v1/services/{id}/schedule/slots/{slotId}` | `updateSlot(slotId, ...)` | Dueño | RF-021 |
 | `DELETE` | `/api/v1/services/{id}/schedule/slots/{slotId}` | `deleteSlot(slotId)` | Dueño | RF-021 |
 | `POST` | `/api/v1/services/{id}/schedule/slots/{slotId}/activate` | `activateSlot(slotId)` | Dueño | RF-021 |
 | `POST` | `/api/v1/services/{id}/schedule/slots/{slotId}/deactivate` | `deactivateSlot(slotId)` | Dueño | RF-021 |
+| `POST` | `/api/v1/services/{id}/schedule/apply-offerer-template` | `applyOffererTemplate(serviceId, offererId)` | Dueño (OFFERER) | RF-021 |
 
-**Nota**: `PUT` reemplaza el horario completo (borra + inserta atómico). `POST/PATCH/DELETE` sobre slots permite edición puntual.
+**Nota**: `PUT` reemplaza el horario completo (borra + inserta atómico); la creación y edición de franjas se hace por ese reemplazo masivo. Sobre slots individuales solo quedan eliminar y activar/desactivar (se retiraron `createSlot`/`updateSlot`). `apply-offerer-template` inicializa el horario del servicio a partir de la plantilla general del oferente.
 
 ---
 
@@ -240,11 +242,11 @@ El campo `fieldErrors` solo aparece en errores de validación.
 |---|---|---|---|---|
 | `GET` | `/api/v1/offerers/me/availability` | `getSchedule(offererId)` | OFFERER | — |
 | `PUT` | `/api/v1/offerers/me/availability` | `setSchedule(offererId, slots)` | OFFERER | RF-072 |
-| `POST` | `/api/v1/offerers/me/availability/slots` | `createSlot(...)` | OFFERER | RF-072 |
-| `PATCH` | `/api/v1/offerers/me/availability/slots/{id}` | `updateSlot(...)` | Dueño | RF-072 |
 | `DELETE` | `/api/v1/offerers/me/availability/slots/{id}` | `deleteSlot(slotId)` | Dueño | RF-072 |
 | `POST` | `/api/v1/offerers/me/availability/slots/{id}/activate` | `activateSlot(slotId)` | Dueño | RF-072 |
 | `POST` | `/api/v1/offerers/me/availability/slots/{id}/deactivate` | `deactivateSlot(slotId)` | Dueño | RF-072 |
+
+**Nota**: la creación y edición de franjas se hace con `PUT` (reemplazo masivo); se retiraron `createSlot`/`updateSlot`. Sobre slots individuales solo quedan eliminar y activar/desactivar.
 
 ---
 
@@ -307,11 +309,13 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `POST` | `/api/v1/service-requests/{id}/feedback` | `submitServiceFeedback(clientId, requestId, rating, review)` | CLIENT | RF-041, RF-045 |
 | `GET` | `/api/v1/service-requests/{id}/feedback` | `getServiceFeedback(requestId)` | Parte involucrada | — |
 | `GET` | `/api/v1/services/{id}/feedback` | `getServiceFeedbackList(serviceId, pageable)` | Público | RF-040, RF-046 |
+| `GET` | `/api/v1/clients/{id}/service-feedback` | `getServiceFeedbackByClient(clientId, pageable)` | Dueño (propio) / ADMIN | — |
 | `GET` | `/api/v1/service-review-tags` | `getCatalog()` | Público | — |
 
 **Notas**:
 - Un solo POST agrupa rating + review (cualquiera puede venir null; si ambos vienen null, no hace nada).
 - Solo se permite calificar desde el estado "presuntamente cumplido" en adelante.
+- `GET /clients/{id}/service-feedback` lista todo el feedback que un cliente ha **dejado** sobre servicios (su historial como reseñador), distinto de `/services/{id}/feedback` que es el feedback **recibido** por un servicio.
 
 ---
 
@@ -324,7 +328,10 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `POST` | `/api/v1/service-requests/{id}/client-feedback` | `submitClientFeedback(offererId, requestId, clientId, rating, review)` | OFFERER | RF-043, RF-044 |
 | `GET` | `/api/v1/service-requests/{id}/client-feedback` | `getClientFeedback(requestId)` | Parte involucrada | — |
 | `GET` | `/api/v1/users/{id}/client-feedback` | `getClientFeedbackList(clientId, pageable)` | OFFERER (con solicitud común) / ADMIN | RF-047 |
+| `GET` | `/api/v1/offerers/{id}/client-feedback` | `getClientFeedbackByOfferer(offererId, pageable)` | Dueño (propio) / ADMIN | — |
 | `GET` | `/api/v1/client-review-tags` | `getCatalog()` | Público | — |
+
+**Nota**: `GET /offerers/{id}/client-feedback` lista todo el feedback que un oferente ha **dejado** sobre clientes (su historial como reseñador), distinto de `/users/{id}/client-feedback` que es el feedback **recibido** por un cliente.
 
 ---
 
@@ -356,7 +363,7 @@ El campo `fieldErrors` solo aparece en errores de validación.
 
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
-| `POST` | `/api/v1/reports/requests` | `RequestReportService.createRequestReport(...)` | Parte involucrada | RF-055, RF-057, RF-073 |
+| `POST` | `/api/v1/reports/requests` | `RequestReportService.createReport(...)` | Parte involucrada | RF-055, RF-057, RF-073 |
 | `POST` | `/api/v1/reports/service-reviews` | `ServiceReviewReportService.createReport(...)` | Logged | RF-056 |
 | `POST` | `/api/v1/reports/client-reviews` | `ClientReviewReportService.createReport(...)` | Logged | RF-056 |
 
@@ -380,9 +387,13 @@ El campo `fieldErrors` solo aparece en errores de validación.
 |---|---|---|---|---|
 | `POST` | `/api/v1/reports/{id}/actions/warn` | `warnUser(reportId, adminId)` | ADMIN | RF-060, RF-071 |
 | `POST` | `/api/v1/reports/{id}/actions/ban` | `banUserFromReport(reportId, adminId)` | ADMIN | RF-069, RF-063 |
-| `POST` | `/api/v1/reports/{id}/actions/revert-feedback` | `revertFeedback(reportId, adminId)` | ADMIN | RF-049 |
+| `POST` | `/api/v1/reports/{id}/actions/revert-feedback` | `revertFeedbackFromReport(reportId, adminId)` | ADMIN | RF-049 |
 | `POST` | `/api/v1/reports/{id}/actions/close` | `closeReport(reportId, adminId)` | ADMIN | RF-059 |
-| `POST` | `/api/v1/service-requests/{id}/admin/mark-not-provided` | `markAsNotProvided(...)` desde panel admin | ADMIN | RF-074 |
+| `POST` | `/api/v1/reports/{id}/actions/mark-not-provided` | `markRequestAsNotProvided(reportId, adminId)` | ADMIN | RF-074 |
+
+**Notas**:
+- Todas las acciones reciben el `reportId` y, tras ejecutar, cierran el reporte (paso común `finalizeReport`).
+- `revert-feedback` (`revertFeedbackFromReport`) delega en la fachada de feedback (`FeedbackFlow.remove`), que borra el rating/reseña y publica los eventos de borrado. `mark-not-provided` delega el cambio de estado en `ServiceRequestCommandService.markAsNotProvided`.
 
 ---
 
@@ -395,8 +406,8 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
 | `GET` | `/api/v1/admin/users` | `searchUsers(filters, pageable)` | ADMIN | RF-068 |
-| `GET` | `/api/v1/admin/users/{id}` | `getUserAdminDetail(userId)` | ADMIN | RF-067 |
-| `POST` | `/api/v1/admin/users` | `createAdmin(requestingAdminId, CreateAdminDTO)` | ADMIN | — |
+| `GET` | `/api/v1/admin/users/{id}` | `getUserAdminDetail(userId)` | ADMIN | RF-081 |
+| `POST` | `/api/v1/admin/users` | `createUserByAdmin(adminId, CreateUserDTO, roleName)` | ADMIN | — |
 | `POST` | `/api/v1/admin/users/{id}/ban` | `banUser(adminId, userId)` | ADMIN | RF-069, RF-063 |
 | `POST` | `/api/v1/admin/users/{id}/unban` | `unbanUser(adminId, userId)` | ADMIN | RF-070, RF-075 |
 | `DELETE` | `/api/v1/admin/users/{id}` | `deleteUser(adminId, userId)` | ADMIN | RF-068 |
@@ -408,16 +419,20 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `GET` | `/api/v1/admin/roles` | `RoleService.getRoles()` | ADMIN | — |
 | `GET` | `/api/v1/admin/users/{id}/roles` | `getUserRoles(userId)` | ADMIN | RF-067 |
 | `POST` | `/api/v1/admin/users/{id}/roles` | `assignRole(userId, roleId)` | ADMIN | RF-065 |
+| `POST` | `/api/v1/admin/users/{id}/roles/admin` | `grantAdminRole(adminId, userId)` | ADMIN | — |
 | `DELETE` | `/api/v1/admin/users/{id}/roles/{roleId}` | `removeRole(userId, roleId)` | ADMIN | RF-066 |
+
+**Nota**: la asignación genérica de roles del admin cubre `CLIENT`/`OFFERER`. La **promoción** de un usuario existente a `ADMIN` va por el método dedicado `grantAdminRole` (`POST .../roles/admin`), que hace comprobaciones y delega en `assignRole`; junto con `createUserByAdmin` (cuenta nueva) son los dos caminos hacia ADMIN. La auto-asignación de los usuarios (sección 2) está limitada a `CLIENT`/`OFFERER`.
 
 ### Servicios y reseñas (acciones directas)
 
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
 | `DELETE` | `/api/v1/admin/services/{id}` | `ServiceManagementService.deleteService(serviceId)` | ADMIN | RF-064 |
-| `GET` | `/api/v1/admin/reviews` | (búsqueda combinada de reseñas) | ADMIN | RF-048 |
-| `DELETE` | `/api/v1/admin/reviews/service/{id}` | `ServiceReviewService.deleteReview(...)` | ADMIN | RF-049 |
-| `DELETE` | `/api/v1/admin/reviews/client/{id}` | `ClientReviewService.deleteReview(...)` | ADMIN | RF-049 |
+| `GET` | `/api/v1/admin/reviews` | (búsqueda combinada; reutiliza los listados de feedback de las secciones 12–13) | ADMIN | RF-048 |
+| `POST` | `/api/v1/admin/reviews/remove` | `removeFeedbackDirectly(adminId, CreateReportDTO)` | ADMIN | RF-049 |
+
+**Nota**: la eliminación de una reseña inapropiada (RF-049) tiene dos vías, ambas pasan por el flujo de feedback (`FeedbackFlow.remove`) y dejan rastro de auditoría (reporte + `ReportAction`): (a) si la reseña fue reportada, la acción de moderación `POST /reports/{id}/actions/revert-feedback` (sección 16); (b) si no fue reportada, `POST /admin/reviews/remove` → `removeFeedbackDirectly`, que crea internamente un reporte (admin como reportante) y lo resuelve con `revertFeedbackFromReport`. Se retiraron los `DELETE /admin/reviews/...` directos (junto con `removeReview`).
 
 ---
 
