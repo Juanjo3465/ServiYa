@@ -12,7 +12,7 @@ Documento de referencia con la estructura completa de endpoints. Organizado por 
 
 - **Sustantivos en plural y kebab-case**: `/users`, `/services`, `/service-requests`, `/reschedule-proposals`. Nunca verbos en la URL. *(Microsoft Guidelines §7.3; Zalando §136, §129.)*
 - **Prefijo con versión**: todas las rutas viven bajo `/api/v1`. Cuando un cambio rompa el contrato, se crea `/api/v2` y los clientes migran a su ritmo. *(Microsoft Guidelines §12.1; Zalando §115. Existe debate sobre si versionar en URL o en header — esta guía elige URL por pragmatismo.)*
-- **Identificador de recurso en el path**: `/users/{id}`, nunca `/users?id=5`. *(REST: cada recurso tiene URI única — Fielding, 2000.)*
+- **Identificador de recurso en el path**: `/users/{id}`, nunca `/users?id=5`. Los identificadores de entidad son numéricos: `BIGINT` en MySQL / `Long` en Java. *(REST: cada recurso tiene URI única — Fielding, 2000.)*
 - **Recursos anidados cuando hay pertenencia**: `/users/{userId}/addresses` para las direcciones de un usuario. *(Google API Design Guide — Resource Naming.)*
 - **Sub-recursos de acción para operaciones no-CRUD**: `POST /service-requests/{id}/accept` en lugar de un PATCH genérico. Adecuado para transiciones de estado bien definidas (acepta, cancela, completa). *(Google API Design Guide — Custom Methods.)*
 - **`/me` para el usuario autenticado**: el backend extrae el id del JWT. Evita repetir el id propio en el path y refuerza la seguridad. *(Convención de facto: GitHub API, Slack API, Spotify Web API, Twitter/X API la usan.)*
