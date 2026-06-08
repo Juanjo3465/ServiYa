@@ -1,9 +1,30 @@
 package com.parosurvivors.serviya.feedback.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 /**
- * Placeholder de dominio. Catálogo de tags para reseñas de clientes (con sentiment P/N).
- * Ver documents/project-structure/estructura-servicios.docx (módulo 5).
- * TODO: modelar atributos y métodos de negocio.
+ * Etiqueta del catálogo para reseñas de clientes (con sentimiento P/N).
+ * Mapea la tabla {@code client_review_tags_catalog}.
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ClientReviewTagCatalog {
+    private Long id;
+    private String tagName;
+    private TagSentiment sentiment;
+
+    // =====================================================
+    // BUSINESS METHODS
+    // =====================================================
+
+    public boolean isPositive() {
+        return sentiment != null && sentiment.isPositive();
+    }
 }

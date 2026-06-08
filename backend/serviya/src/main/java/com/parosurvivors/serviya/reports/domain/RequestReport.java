@@ -1,9 +1,22 @@
 package com.parosurvivors.serviya.reports.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 /**
- * Placeholder de dominio. Subtipo de reporte sobre una solicitud de servicio.
- * Ver documents/project-structure/estructura-servicios.docx (módulo 7).
- * TODO: modelar (extiende Report en el diseño final).
+ * Extensión de un reporte de tipo REQUEST. Mapea la tabla {@code request_reports}
+ * (1:1 con un {@link Report} vía {@code reportId}).
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class RequestReport {
+    private Long id;
+    private Long reportId;
+    private Long requestId;
 }

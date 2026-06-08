@@ -1,9 +1,21 @@
 package com.parosurvivors.serviya.notifications.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 /**
- * Placeholder de dominio. Canal de notificación disponible (ej. INTERNAL, EMAIL).
- * Ver documents/project-structure/estructura-servicios.docx (módulo 8).
- * TODO: modelar atributos y métodos de negocio.
+ * Canal de notificación disponible (ej. INTERNAL, EMAIL). Mapea la tabla
+ * {@code notification_channels} (id TINYINT UNSIGNED).
  */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class NotificationChannel {
+    private Integer id;
+    private String name;
 }
