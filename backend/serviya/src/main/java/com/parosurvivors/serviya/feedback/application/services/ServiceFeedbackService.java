@@ -1,7 +1,7 @@
 package com.parosurvivors.serviya.feedback.application.services;
 
-import com.parosurvivors.serviya.feedback.application.dto.ReviewRequest;
-import com.parosurvivors.serviya.feedback.application.dto.ServiceFeedbackResponse;
+import com.parosurvivors.serviya.feedback.application.dto.command.SubmitServiceFeedbackCommand;
+import com.parosurvivors.serviya.feedback.application.dto.result.ServiceFeedbackResult;
 import com.parosurvivors.serviya.feedback.application.ports.input.FeedbackFlowPort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceRatingServicePort;
@@ -25,22 +25,22 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
     private final ServiceReviewServicePort serviceReviewServicePort;
 
     @Override
-    public void submitServiceFeedback(Long clientId, Long requestId, Integer rating, ReviewRequest review) {
+    public void submitServiceFeedback(SubmitServiceFeedbackCommand command) {
         throw new UnsupportedOperationException("TODO: submitServiceFeedback — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public ServiceFeedbackResponse getServiceFeedback(Long requestId) {
+    public ServiceFeedbackResult getServiceFeedback(Long requestId) {
         throw new UnsupportedOperationException("TODO: getServiceFeedback — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public Page<ServiceFeedbackResponse> getServiceFeedbackList(Long serviceId, Pageable pageable) {
+    public Page<ServiceFeedbackResult> getServiceFeedbackList(Long serviceId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getServiceFeedbackList — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public Page<ServiceFeedbackResponse> getServiceFeedbackByClient(Long clientId, Pageable pageable) {
+    public Page<ServiceFeedbackResult> getServiceFeedbackByClient(Long clientId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getServiceFeedbackByClient — placeholder, ver estructura-servicios.docx");
     }
 

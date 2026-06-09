@@ -1,19 +1,20 @@
 package com.parosurvivors.serviya.users.infrastructure.adapters.input.api;
 
-import com.parosurvivors.serviya.users.application.dto.AuthResponse;
-import com.parosurvivors.serviya.users.application.dto.RegisterRequest;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.ConfirmPasswordResetForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.LoginForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.RegisterUserForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.RequestPasswordResetForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 
-import java.util.Map;
-
 /**
  * Documentacion OpenAPI/Swagger del controlador de autenticacion (modulo 1).
  * Rutas publicas bajo /api/v1/auth/**. Ver documents/project-structure/estructura-endpoints.md (seccion 1).
+ * Convencion: docs de metodo aqui; las anotaciones de binding y @Parameter van en el controller.
  */
 @Tag(name = "Autenticacion", description = "Registro, login y recuperacion de contrasena (endpoints publicos)")
 public interface AuthApi {
@@ -25,23 +26,19 @@ public interface AuthApi {
             @ApiResponse(responseCode = "400", description = "Datos invalidos"),
             @ApiResponse(responseCode = "409", description = "Email ya registrado")
     })
-    ResponseEntity<AuthResponse> register(
-            @Parameter(description = "Rol deseado: CLIENT u OFFERER (nunca ADMIN)") String roleName,
-            RegisterRequest dto);
+    ResponseEntity<AuthResponse> register(RegisterUserForm form);
 
     @Operation(summary = "Iniciar sesion", description = "Verifica credenciales y devuelve el JWT. RF-001.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Login exitoso, devuelve JWT"),
             @ApiResponse(responseCode = "401", description = "Credenciales invalidas")
     })
-    ResponseEntity<AuthResponse> login(
-            @Parameter(description = "Cuerpo con 'email' y 'password'") Map<String, String> body);
+    ResponseEntity<AuthResponse> login(LoginForm form);
 
     @Operation(summary = "Solicitar recuperacion de contrasena",
             description = "Genera y envia el token de recuperacion por correo. RF-003.")
     @ApiResponse(responseCode = "202", description = "Solicitud aceptada (respuesta generica por seguridad)")
-    ResponseEntity<Void> requestPasswordReset(
-            @Parameter(description = "Cuerpo con 'email'") Map<String, String> body);
+    ResponseEntity<Void> requestPasswordReset(RequestPasswordResetForm form);
 
     @Operation(summary = "Confirmar recuperacion de contrasena",
             description = "Valida el token (enviado en el body, no en query) y cambia la contrasena. RF-003.")
@@ -49,6 +46,5 @@ public interface AuthApi {
             @ApiResponse(responseCode = "204", description = "Contrasena actualizada"),
             @ApiResponse(responseCode = "409", description = "Token invalido, usado o expirado")
     })
-    ResponseEntity<Void> confirmPasswordReset(
-            @Parameter(description = "Cuerpo con 'token' y 'newPassword'") Map<String, String> body);
+    ResponseEntity<Void> confirmPasswordReset(ConfirmPasswordResetForm form);
 }

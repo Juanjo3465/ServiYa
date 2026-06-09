@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.admin.application.services;
 
-import com.parosurvivors.serviya.admin.application.dto.CreateReportRequest;
+import com.parosurvivors.serviya.admin.application.dto.command.RemoveFeedbackCommand;
 import com.parosurvivors.serviya.admin.application.ports.input.ModerationServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
@@ -45,7 +45,7 @@ public class ModerationService implements ModerationServicePort {
     }
 
     @Override
-    public void removeFeedbackDirectly(Long adminId, CreateReportRequest reportData) {
+    public void removeFeedbackDirectly(RemoveFeedbackCommand command) {
         throw new UnsupportedOperationException("TODO: removeFeedbackDirectly — placeholder, ver estructura-servicios.docx");
     }
 

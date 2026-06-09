@@ -1,11 +1,11 @@
 package com.parosurvivors.serviya.requests.application.services;
 
-import com.parosurvivors.serviya.requests.application.dto.AdminRequestDetailResponse;
-import com.parosurvivors.serviya.requests.application.dto.RequestHistoryResponse;
-import com.parosurvivors.serviya.requests.application.dto.ServiceRequestDetailResponse;
-import com.parosurvivors.serviya.requests.application.dto.ServiceRequestResponse;
+import com.parosurvivors.serviya.requests.application.dto.item.RequestHistoryItem;
+import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
+import com.parosurvivors.serviya.requests.application.dto.result.ServiceRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
+import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,27 +24,27 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
 
     @Override
-    public Page<ServiceRequestResponse> getClientRequests(Long clientId, List<String> statuses, Pageable pageable) {
+    public Page<ServiceRequest> getClientRequests(Long clientId, List<String> statuses, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getClientRequests — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public Page<ServiceRequestResponse> getOffererRequests(Long offererId, List<String> statuses, Pageable pageable) {
+    public Page<ServiceRequest> getOffererRequests(Long offererId, List<String> statuses, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getOffererRequests — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public ServiceRequestDetailResponse getRequestDetailForParty(Long requestId, Long requesterId) {
+    public ServiceRequestDetailResult getRequestDetailForParty(Long requestId, Long requesterId) {
         throw new UnsupportedOperationException("TODO: getRequestDetailForParty — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public AdminRequestDetailResponse getRequestDetailForAdmin(Long requestId) {
+    public AdminRequestDetailResult getRequestDetailForAdmin(Long requestId) {
         throw new UnsupportedOperationException("TODO: getRequestDetailForAdmin — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public List<RequestHistoryResponse> getRequestHistory(Long requestId) {
+    public List<RequestHistoryItem> getRequestHistory(Long requestId) {
         throw new UnsupportedOperationException("TODO: getRequestHistory — placeholder, ver estructura-servicios.docx");
     }
 

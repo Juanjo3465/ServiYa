@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.requests.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.requests.application.dto.command.CreateServiceRequestCommand;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
@@ -21,7 +22,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     private final NotificationServicePort notificationServicePort;
 
     @Override
-    public ServiceRequest createRequest(Long clientId, Long serviceId, Long addressId, LocalDateTime scheduledDate) {
+    public ServiceRequest createRequest(CreateServiceRequestCommand command) {
         throw new UnsupportedOperationException("TODO: createRequest — placeholder, ver estructura-servicios.docx");
     }
 

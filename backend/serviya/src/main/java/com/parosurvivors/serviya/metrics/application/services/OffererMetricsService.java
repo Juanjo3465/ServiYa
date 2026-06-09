@@ -1,6 +1,5 @@
 package com.parosurvivors.serviya.metrics.application.services;
 
-import com.parosurvivors.serviya.metrics.application.dto.OffererMetricsSummaryResponse;
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.output.OffererMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
@@ -24,7 +23,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     }
 
     @Override
-    public OffererMetricsSummaryResponse getMainMetrics(Long offererId) {
+    public OffererMetrics getMainMetrics(Long offererId) {
         throw new UnsupportedOperationException("TODO: getMainMetrics — placeholder, ver estructura-servicios.docx");
     }
 }

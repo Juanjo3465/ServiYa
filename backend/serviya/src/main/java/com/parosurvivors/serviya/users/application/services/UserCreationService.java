@@ -1,7 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
-import com.parosurvivors.serviya.users.application.dto.CreateUserData;
+import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
 import com.parosurvivors.serviya.users.application.ports.input.ConsentServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
@@ -25,7 +25,7 @@ public class UserCreationService implements UserCreationServicePort {
     private final UserProfileServicePort userProfileServicePort;
 
     @Override
-    public User createUserAccount(CreateUserData data) {
+    public User createUserAccount(CreateUserAccountCommand command) {
         throw new UnsupportedOperationException("TODO: createUserAccount — placeholder, ver estructura-servicios.docx");
     }
 }

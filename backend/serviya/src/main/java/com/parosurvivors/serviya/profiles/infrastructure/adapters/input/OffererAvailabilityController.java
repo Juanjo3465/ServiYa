@@ -1,9 +1,10 @@
 package com.parosurvivors.serviya.profiles.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.profiles.application.dto.SlotRequest;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererAvailabilityServicePort;
-import com.parosurvivors.serviya.profiles.domain.OffererAvailability;
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.OffererAvailabilityApi;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.form.AvailabilitySlotForm;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AvailabilitySlotResponse;
+import com.parosurvivors.serviya.profiles.infrastructure.mappers.OffererAvailabilityWebMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,17 +29,18 @@ import java.util.List;
 public class OffererAvailabilityController implements OffererAvailabilityApi {
 
     private final OffererAvailabilityServicePort offererAvailabilityService;
+    private final OffererAvailabilityWebMapper mapper;
 
     @Override
     @GetMapping
-    public ResponseEntity<List<OffererAvailability>> getSchedule() {
-        return ResponseEntity.ok(offererAvailabilityService.getSchedule(currentUserId()));
+    public ResponseEntity<List<AvailabilitySlotResponse>> getSchedule() {
+        return ResponseEntity.ok(mapper.toResponses(offererAvailabilityService.getSchedule(currentUserId())));
     }
 
     @Override
     @PutMapping
-    public ResponseEntity<Void> setSchedule(@Valid @RequestBody List<SlotRequest> slots) {
-        offererAvailabilityService.setSchedule(currentUserId(), slots);
+    public ResponseEntity<Void> setSchedule(@Valid @RequestBody List<AvailabilitySlotForm> slots) {
+        offererAvailabilityService.setSchedule(currentUserId(), mapper.toCommands(slots));
         return ResponseEntity.noContent().build();
     }
 

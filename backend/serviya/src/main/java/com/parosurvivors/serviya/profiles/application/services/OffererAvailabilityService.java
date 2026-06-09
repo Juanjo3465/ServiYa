@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
-import com.parosurvivors.serviya.profiles.application.dto.SlotRequest;
+import com.parosurvivors.serviya.profiles.application.dto.command.SetAvailabilitySlotCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererAvailabilityServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.OffererAvailabilityPersistencePort;
 import com.parosurvivors.serviya.profiles.domain.OffererAvailability;
@@ -25,7 +25,7 @@ public class OffererAvailabilityService implements OffererAvailabilityServicePor
     }
 
     @Override
-    public void setSchedule(Long offererId, List<SlotRequest> slots) {
+    public void setSchedule(Long offererId, List<SetAvailabilitySlotCommand> slots) {
         throw new UnsupportedOperationException("TODO: setSchedule — placeholder, ver estructura-servicios.docx");
     }
 

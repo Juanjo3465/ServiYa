@@ -1,10 +1,11 @@
 package com.parosurvivors.serviya.profiles.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.profiles.application.dto.OffererProfilePublicResponse;
-import com.parosurvivors.serviya.profiles.application.dto.OffererProfileSummaryResponse;
-import com.parosurvivors.serviya.profiles.application.dto.PatchOffererProfileRequest;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.OffererProfileApi;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateOffererProfileForm;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererProfileSummaryResponse;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererPublicProfileResponse;
+import com.parosurvivors.serviya.profiles.infrastructure.mappers.OffererProfileWebMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,24 +25,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class OffererProfileController implements OffererProfileApi {
 
     private final OffererProfileServicePort offererProfileService;
+    private final OffererProfileWebMapper mapper;
 
     @Override
     @GetMapping("/{id}")
-    public ResponseEntity<OffererProfilePublicResponse> getPublicProfile(@PathVariable Long id) {
-        return ResponseEntity.ok(offererProfileService.getPublicProfile(id));
+    public ResponseEntity<OffererPublicProfileResponse> getPublicProfile(@PathVariable Long id) {
+        return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfile(id)));
     }
 
     @Override
     @GetMapping("/{id}/summary")
     public ResponseEntity<OffererProfileSummaryResponse> getProfileSummary(@PathVariable Long id) {
-        return ResponseEntity.ok(offererProfileService.getProfileSummary(id));
+        return ResponseEntity.ok(mapper.toResponse(offererProfileService.getProfileSummary(id)));
     }
 
     @Override
     @PatchMapping("/me")
-    public ResponseEntity<Void> patchOffererProfile(@Valid @RequestBody PatchOffererProfileRequest dto) {
-        offererProfileService.patchOffererProfile(currentUserId(), dto);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<OffererPublicProfileResponse> patchOffererProfile(
+            @Valid @RequestBody UpdateOffererProfileForm form) {
+        return ResponseEntity.ok(mapper.toResponse(
+                offererProfileService.patchOffererProfile(mapper.toCommand(form, currentUserId()))));
     }
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */

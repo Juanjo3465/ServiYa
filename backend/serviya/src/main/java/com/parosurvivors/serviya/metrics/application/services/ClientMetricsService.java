@@ -1,6 +1,5 @@
 package com.parosurvivors.serviya.metrics.application.services;
 
-import com.parosurvivors.serviya.metrics.application.dto.ClientMetricsSummaryResponse;
 import com.parosurvivors.serviya.metrics.application.ports.input.ClientMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.output.ClientMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
@@ -24,7 +23,7 @@ public class ClientMetricsService implements ClientMetricsServicePort {
     }
 
     @Override
-    public ClientMetricsSummaryResponse getMainMetrics(Long clientId) {
+    public ClientMetrics getMainMetrics(Long clientId) {
         throw new UnsupportedOperationException("TODO: getMainMetrics — placeholder, ver estructura-servicios.docx");
     }
 }

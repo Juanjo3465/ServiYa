@@ -1,5 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
+import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
+import com.parosurvivors.serviya.users.application.dto.command.ChangePasswordCommand;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
 import com.parosurvivors.serviya.users.domain.User;
@@ -23,12 +25,12 @@ public class UserService implements UserServicePort {
     }
 
     @Override
-    public void changePassword(Long userId, String currentRaw, String newRaw) {
+    public void changePassword(ChangePasswordCommand command) {
         throw new UnsupportedOperationException("TODO: changePassword — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public void changeEmail(Long userId, String newEmail) {
+    public void changeEmail(ChangeEmailCommand command) {
         throw new UnsupportedOperationException("TODO: changeEmail — placeholder, ver estructura-servicios.docx");
     }
 

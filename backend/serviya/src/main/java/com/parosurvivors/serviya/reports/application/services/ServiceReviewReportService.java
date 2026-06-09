@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.reports.application.services;
 
-import com.parosurvivors.serviya.reports.application.dto.ServiceReviewReportDetailResponse;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceReviewReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ServiceReviewReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ServiceReviewReportPersistencePort;
@@ -21,12 +22,12 @@ public class ServiceReviewReportService implements ServiceReviewReportServicePor
     private final ReportServicePort reportServicePort;
 
     @Override
-    public ServiceReviewReport createReport(Long reporterId, Long reportedUserId, String category, String reason, Long serviceReviewId) {
+    public ServiceReviewReport createReport(CreateServiceReviewReportCommand command) {
         throw new UnsupportedOperationException("TODO: createReport — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public ServiceReviewReportDetailResponse getReportDetail(Long reportId) {
+    public ReportDetailResult getReportDetail(Long reportId) {
         throw new UnsupportedOperationException("TODO: getReportDetail — placeholder, ver estructura-servicios.docx");
     }
 }

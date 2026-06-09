@@ -1,10 +1,14 @@
 package com.parosurvivors.serviya.profiles.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.profiles.application.dto.CreateAddressRequest;
-import com.parosurvivors.serviya.profiles.application.dto.PatchAddressRequest;
+import com.parosurvivors.serviya.profiles.application.dto.result.CoordinatesResult;
 import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
-import com.parosurvivors.serviya.profiles.domain.Address;
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.AddressApi;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.form.CreateAddressForm;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateAddressForm;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.form.VerifyAddressForm;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AddressResponse;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AddressVerificationResponse;
+import com.parosurvivors.serviya.profiles.infrastructure.mappers.AddressWebMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,9 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Adaptador de entrada (REST) de direcciones. Placeholder funcional; documentacion en {@link AddressApi}.
@@ -29,24 +31,28 @@ import java.util.Map;
 public class AddressController implements AddressApi {
 
     private final AddressServicePort addressService;
+    private final AddressWebMapper mapper;
 
     @Override
     @GetMapping("/api/v1/users/me/addresses")
-    public ResponseEntity<List<Address>> getUserAddresses() {
-        return ResponseEntity.ok(addressService.getUserAddresses(currentUserId()));
+    public ResponseEntity<List<AddressResponse>> getUserAddresses() {
+        return ResponseEntity.ok(mapper.toResponses(addressService.getUserAddresses(currentUserId())));
     }
 
     @Override
     @PostMapping("/api/v1/users/me/addresses")
-    public ResponseEntity<Address> createAddress(@Valid @RequestBody CreateAddressRequest dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(addressService.createAddress(currentUserId(), dto));
+    public ResponseEntity<AddressResponse> createAddress(@Valid @RequestBody CreateAddressForm form) {
+        AddressResponse response = mapper.toResponse(
+                addressService.createAddress(mapper.toCommand(form, currentUserId())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Override
     @PatchMapping("/api/v1/addresses/{id}")
-    public ResponseEntity<Address> updateAddress(@PathVariable Long id,
-                                                 @Valid @RequestBody PatchAddressRequest dto) {
-        return ResponseEntity.ok(addressService.updateAddress(id, dto));
+    public ResponseEntity<AddressResponse> updateAddress(@PathVariable Long id,
+                                                         @Valid @RequestBody UpdateAddressForm form) {
+        return ResponseEntity.ok(mapper.toResponse(
+                addressService.updateAddress(mapper.toCommand(form, id))));
     }
 
     @Override
@@ -58,13 +64,10 @@ public class AddressController implements AddressApi {
 
     @Override
     @PostMapping("/api/v1/addresses/verify")
-    public ResponseEntity<Map<String, Object>> verifyAddress(@RequestBody Map<String, String> body) {
-        String addressLine = body.get("addressLine");
-        String city = body.get("city");
-        Map<String, Object> result = new HashMap<>();
-        result.put("valid", addressService.verifyAddress(addressLine, city));
-        result.put("coordinates", addressService.getCoordinates(addressLine, city));
-        return ResponseEntity.ok(result);
+    public ResponseEntity<AddressVerificationResponse> verifyAddress(@Valid @RequestBody VerifyAddressForm form) {
+        boolean valid = addressService.verifyAddress(form.addressLine(), form.city());
+        CoordinatesResult coordinates = addressService.getCoordinates(form.addressLine(), form.city());
+        return ResponseEntity.ok(mapper.toVerificationResponse(valid, coordinates));
     }
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */

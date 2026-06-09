@@ -1,5 +1,7 @@
 package com.parosurvivors.serviya.users.application.ports.input;
 
+import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
+import com.parosurvivors.serviya.users.application.dto.command.ChangePasswordCommand;
 import com.parosurvivors.serviya.users.domain.User;
 
 /**
@@ -10,9 +12,9 @@ public interface UserServicePort {
 
     User createUser(String email, String rawPassword);
 
-    void changePassword(Long userId, String currentRaw, String newRaw);
+    void changePassword(ChangePasswordCommand command);
 
-    void changeEmail(Long userId, String newEmail);
+    void changeEmail(ChangeEmailCommand command);
 
     void banUser(Long userId);
 

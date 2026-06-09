@@ -1,12 +1,15 @@
 package com.parosurvivors.serviya.requests.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.requests.application.dto.RequestHistoryResponse;
-import com.parosurvivors.serviya.requests.application.dto.ServiceRequestDetailResponse;
-import com.parosurvivors.serviya.requests.application.dto.ServiceRequestResponse;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
-import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.requests.infrastructure.adapters.input.api.ServiceRequestApi;
+import com.parosurvivors.serviya.requests.infrastructure.dto.form.CreateServiceRequestForm;
+import com.parosurvivors.serviya.requests.infrastructure.dto.form.RescheduleRequestForm;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.RequestHistoryResponse;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestDetailResponse;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
+import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,13 +22,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Adaptador de entrada (REST) de solicitudes de servicio. Placeholder funcional;
- * documentacion en {@link ServiceRequestApi}.
+ * documentacion en {@link ServiceRequestApi}. Mapea Form->Command y dominio/Result/Item->Response.
  */
 @RestController
 @RequiredArgsConstructor
@@ -33,42 +34,42 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     private final ServiceRequestQueryServicePort queryService;
     private final ServiceRequestCommandServicePort commandService;
+    private final ServiceRequestWebMapper mapper;
 
     @Override
     @GetMapping("/api/v1/users/me/client-requests")
     public ResponseEntity<Page<ServiceRequestResponse>> getClientRequests(
             @RequestParam(required = false) List<String> statuses, Pageable pageable) {
-        return ResponseEntity.ok(queryService.getClientRequests(currentUserId(), statuses, pageable));
+        return ResponseEntity.ok(queryService.getClientRequests(currentUserId(), statuses, pageable)
+                .map(mapper::toResponse));
     }
 
     @Override
     @GetMapping("/api/v1/users/me/offerer-requests")
     public ResponseEntity<Page<ServiceRequestResponse>> getOffererRequests(
             @RequestParam(required = false) List<String> statuses, Pageable pageable) {
-        return ResponseEntity.ok(queryService.getOffererRequests(currentUserId(), statuses, pageable));
+        return ResponseEntity.ok(queryService.getOffererRequests(currentUserId(), statuses, pageable)
+                .map(mapper::toResponse));
     }
 
     @Override
     @GetMapping("/api/v1/service-requests/{id}")
     public ResponseEntity<ServiceRequestDetailResponse> getRequestDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(queryService.getRequestDetailForParty(id, currentUserId()));
+        return ResponseEntity.ok(mapper.toResponse(queryService.getRequestDetailForParty(id, currentUserId())));
     }
 
     @Override
     @GetMapping("/api/v1/service-requests/{id}/history")
     public ResponseEntity<List<RequestHistoryResponse>> getRequestHistory(@PathVariable Long id) {
-        return ResponseEntity.ok(queryService.getRequestHistory(id));
+        return ResponseEntity.ok(mapper.toHistoryResponses(queryService.getRequestHistory(id)));
     }
 
     @Override
     @PostMapping("/api/v1/service-requests")
-    public ResponseEntity<ServiceRequest> createRequest(@RequestBody Map<String, String> body) {
-        ServiceRequest created = commandService.createRequest(
-                currentUserId(),
-                Long.valueOf(body.get("serviceId")),
-                Long.valueOf(body.get("addressId")),
-                LocalDateTime.parse(body.get("scheduledDate")));
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<ServiceRequestResponse> createRequest(@Valid @RequestBody CreateServiceRequestForm form) {
+        ServiceRequestResponse response = mapper.toResponse(
+                commandService.createRequest(mapper.toCommand(form, currentUserId())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Override
@@ -115,10 +116,11 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/reschedule")
-    public ResponseEntity<ServiceRequest> rescheduleRequest(@PathVariable Long id,
-                                                            @RequestBody Map<String, String> body) {
-        ServiceRequest rescheduled = commandService.rescheduleRequest(id, LocalDateTime.parse(body.get("newDate")));
-        return ResponseEntity.status(HttpStatus.CREATED).body(rescheduled);
+    public ResponseEntity<ServiceRequestResponse> rescheduleRequest(@PathVariable Long id,
+                                                                    @Valid @RequestBody RescheduleRequestForm form) {
+        ServiceRequestResponse response = mapper.toResponse(
+                commandService.rescheduleRequest(id, form.newDate()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */

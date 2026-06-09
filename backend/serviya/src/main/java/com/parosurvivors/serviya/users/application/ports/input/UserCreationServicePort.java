@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.users.application.ports.input;
 
-import com.parosurvivors.serviya.users.application.dto.CreateUserData;
+import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
 import com.parosurvivors.serviya.users.domain.User;
 
 /**
@@ -10,5 +10,5 @@ import com.parosurvivors.serviya.users.domain.User;
  */
 public interface UserCreationServicePort {
 
-    User createUserAccount(CreateUserData data);
+    User createUserAccount(CreateUserAccountCommand command);
 }

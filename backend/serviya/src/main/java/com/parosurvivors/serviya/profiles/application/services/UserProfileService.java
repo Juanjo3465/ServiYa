@@ -1,10 +1,10 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
-import com.parosurvivors.serviya.profiles.application.dto.PatchProfileRequest;
-import com.parosurvivors.serviya.profiles.application.dto.UserProfileResponse;
+import com.parosurvivors.serviya.profiles.application.dto.command.UpdateProfileCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
+import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -21,12 +21,12 @@ public class UserProfileService implements UserProfileServicePort {
     private final AddressPersistencePort addressPersistencePort;
 
     @Override
-    public UserProfileResponse getProfileInfo(Long userId) {
+    public UserProfile getProfileInfo(Long userId) {
         throw new UnsupportedOperationException("TODO: getProfileInfo — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public void patchProfile(Long userId, PatchProfileRequest dto) {
+    public UserProfile patchProfile(UpdateProfileCommand command) {
         throw new UnsupportedOperationException("TODO: patchProfile — placeholder, ver estructura-servicios.docx");
     }
 

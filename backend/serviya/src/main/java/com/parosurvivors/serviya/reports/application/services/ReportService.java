@@ -1,7 +1,6 @@
 package com.parosurvivors.serviya.reports.application.services;
 
-import com.parosurvivors.serviya.reports.application.dto.ReportDetailResponse;
-import com.parosurvivors.serviya.reports.application.dto.ReportResponse;
+import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportPersistencePort;
 import com.parosurvivors.serviya.reports.domain.Report;
@@ -28,22 +27,22 @@ public class ReportService implements ReportServicePort {
     }
 
     @Override
-    public ReportDetailResponse getReportDetail(Long reportId) {
+    public ReportDetailResult getReportDetail(Long reportId) {
         throw new UnsupportedOperationException("TODO: getReportDetail — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public Page<ReportResponse> getReports(String type, String category, String status, Pageable pageable) {
+    public Page<Report> getReports(String type, String category, String status, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getReports — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public List<ReportResponse> getReportsByReporter(Long reporterId) {
+    public List<Report> getReportsByReporter(Long reporterId) {
         throw new UnsupportedOperationException("TODO: getReportsByReporter — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public List<ReportResponse> getReportsByReportedUser(Long reportedUserId) {
+    public List<Report> getReportsByReportedUser(Long reportedUserId) {
         throw new UnsupportedOperationException("TODO: getReportsByReportedUser — placeholder, ver estructura-servicios.docx");
     }
 

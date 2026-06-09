@@ -3,8 +3,12 @@ package com.parosurvivors.serviya.users.infrastructure.adapters.input;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
-import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.infrastructure.adapters.input.api.AccountApi;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangeEmailForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangePasswordForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.response.RoleResponse;
+import com.parosurvivors.serviya.users.infrastructure.mappers.UserWebMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Adaptador de entrada (REST) de gestion de cuenta del usuario autenticado. Placeholder funcional.
@@ -30,18 +33,19 @@ public class AccountController implements AccountApi {
     private final UserServicePort userService;
     private final UserDeletionServicePort userDeletionService;
     private final UserRoleServicePort userRoleService;
+    private final UserWebMapper mapper;
 
     @Override
     @PatchMapping("/password")
-    public ResponseEntity<Void> changePassword(@RequestBody Map<String, String> body) {
-        userService.changePassword(currentUserId(), body.get("currentPassword"), body.get("newPassword"));
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordForm form) {
+        userService.changePassword(mapper.toCommand(form, currentUserId()));
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PatchMapping("/email")
-    public ResponseEntity<Void> changeEmail(@RequestBody Map<String, String> body) {
-        userService.changeEmail(currentUserId(), body.get("newEmail"));
+    public ResponseEntity<Void> changeEmail(@Valid @RequestBody ChangeEmailForm form) {
+        userService.changeEmail(mapper.toCommand(form, currentUserId()));
         return ResponseEntity.noContent().build();
     }
 
@@ -68,8 +72,8 @@ public class AccountController implements AccountApi {
 
     @Override
     @GetMapping("/roles")
-    public ResponseEntity<List<Role>> getOwnRoles() {
-        return ResponseEntity.ok(userRoleService.getUserRoles(currentUserId()));
+    public ResponseEntity<List<RoleResponse>> getOwnRoles() {
+        return ResponseEntity.ok(mapper.toRoleResponses(userRoleService.getUserRoles(currentUserId())));
     }
 
     /** TODO: reemplazar por el id extraido del JWT autenticado (Spring Security aun no configurado). */

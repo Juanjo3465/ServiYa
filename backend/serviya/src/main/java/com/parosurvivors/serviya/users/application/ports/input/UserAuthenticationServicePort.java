@@ -1,20 +1,24 @@
 package com.parosurvivors.serviya.users.application.ports.input;
 
-import com.parosurvivors.serviya.users.application.dto.AuthResponse;
-import com.parosurvivors.serviya.users.application.dto.RegisterRequest;
+import com.parosurvivors.serviya.users.application.dto.command.ConfirmPasswordResetCommand;
+import com.parosurvivors.serviya.users.application.dto.command.LoginCommand;
+import com.parosurvivors.serviya.users.application.dto.command.RegisterUserCommand;
+import com.parosurvivors.serviya.users.application.dto.command.RequestPasswordResetCommand;
+import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
 
 /**
  * Puerto de entrada de UserAuthenticationService — orquestador de login, registro
- * y recuperación de contraseña.
+ * y recuperación de contraseña. Recibe Commands (capa aplicación) y devuelve AuthResult;
+ * nunca tipos web (Form/Response).
  * Ver documents/project-structure/estructura-servicios.docx (módulo 1).
  */
 public interface UserAuthenticationServicePort {
 
-    AuthResponse login(String email, String rawPassword);
+    AuthResult login(LoginCommand command);
 
-    AuthResponse register(RegisterRequest dto, String roleName);
+    AuthResult register(RegisterUserCommand command);
 
-    void requestPasswordReset(String email);
+    void requestPasswordReset(RequestPasswordResetCommand command);
 
-    void confirmPasswordReset(String rawToken, String newPassword);
+    void confirmPasswordReset(ConfirmPasswordResetCommand command);
 }

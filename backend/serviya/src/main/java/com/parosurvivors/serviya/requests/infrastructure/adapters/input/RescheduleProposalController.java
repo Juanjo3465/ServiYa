@@ -1,10 +1,14 @@
 package com.parosurvivors.serviya.requests.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.requests.application.dto.RescheduleProposalResponse;
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
-import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
-import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.requests.infrastructure.adapters.input.api.RescheduleProposalApi;
+import com.parosurvivors.serviya.requests.infrastructure.dto.form.AcceptProposalForm;
+import com.parosurvivors.serviya.requests.infrastructure.dto.form.CreateRescheduleProposalForm;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.RescheduleProposalResponse;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
+import com.parosurvivors.serviya.requests.infrastructure.mappers.RescheduleProposalWebMapper;
+import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,58 +19,58 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Adaptador de entrada (REST) de propuestas de reprogramacion. Placeholder funcional;
- * documentacion en {@link RescheduleProposalApi}.
+ * documentacion en {@link RescheduleProposalApi}. Mapea Form->Command y dominio->Response.
  */
 @RestController
 @RequiredArgsConstructor
 public class RescheduleProposalController implements RescheduleProposalApi {
 
     private final RescheduleProposalServicePort proposalService;
+    private final RescheduleProposalWebMapper mapper;
+    private final ServiceRequestWebMapper serviceRequestMapper;
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals")
-    public ResponseEntity<RescheduleProposal> createProposal(@RequestBody Map<String, String> body) {
-        RescheduleProposal created = proposalService.createProposal(
-                Long.valueOf(body.get("requestId")),
-                currentUserId(),
-                body.get("reason"),
-                LocalDateTime.parse(body.get("proposedDate")));
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<RescheduleProposalResponse> createProposal(
+            @Valid @RequestBody CreateRescheduleProposalForm form) {
+        RescheduleProposalResponse response = mapper.toResponse(
+                proposalService.createProposal(mapper.toCommand(form, currentUserId())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Override
     @GetMapping("/api/v1/users/me/proposals/received")
     public ResponseEntity<List<RescheduleProposalResponse>> getProposalsReceived(
             @RequestParam(required = false) List<String> statuses) {
-        return ResponseEntity.ok(proposalService.getProposalsForClient(currentUserId(), statuses));
+        return ResponseEntity.ok(mapper.toResponses(
+                proposalService.getProposalsForClient(currentUserId(), statuses)));
     }
 
     @Override
     @GetMapping("/api/v1/users/me/proposals/sent")
     public ResponseEntity<List<RescheduleProposalResponse>> getProposalsSent(
             @RequestParam(required = false) List<String> statuses) {
-        return ResponseEntity.ok(proposalService.getProposalsByOfferer(currentUserId(), statuses));
+        return ResponseEntity.ok(mapper.toResponses(
+                proposalService.getProposalsByOfferer(currentUserId(), statuses)));
     }
 
     @Override
     @GetMapping("/api/v1/service-requests/{id}/proposals")
     public ResponseEntity<List<RescheduleProposalResponse>> getProposalsByRequest(@PathVariable Long id) {
-        return ResponseEntity.ok(proposalService.getProposalsByRequest(id));
+        return ResponseEntity.ok(mapper.toResponses(proposalService.getProposalsByRequest(id)));
     }
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/accept")
-    public ResponseEntity<ServiceRequest> acceptProposal(@PathVariable Long id,
-                                                        @RequestBody Map<String, String> body) {
-        ServiceRequest result = proposalService.acceptProposal(id, currentUserId(),
-                LocalDateTime.parse(body.get("confirmedDate")));
-        return ResponseEntity.ok(result);
+    public ResponseEntity<ServiceRequestResponse> acceptProposal(@PathVariable Long id,
+                                                                 @Valid @RequestBody AcceptProposalForm form) {
+        ServiceRequestResponse response = serviceRequestMapper.toResponse(
+                proposalService.acceptProposal(id, currentUserId(), form.confirmedDate()));
+        return ResponseEntity.ok(response);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.parosurvivors.serviya.feedback.application.services;
 
-import com.parosurvivors.serviya.feedback.application.dto.ClientFeedbackResponse;
-import com.parosurvivors.serviya.feedback.application.dto.ReviewRequest;
+import com.parosurvivors.serviya.feedback.application.dto.command.SubmitClientFeedbackCommand;
+import com.parosurvivors.serviya.feedback.application.dto.result.ClientFeedbackResult;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientRatingServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientReviewServicePort;
@@ -25,22 +25,22 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
     private final ClientReviewServicePort clientReviewServicePort;
 
     @Override
-    public void submitClientFeedback(Long offererId, Long requestId, Long clientId, Integer rating, ReviewRequest review) {
+    public void submitClientFeedback(SubmitClientFeedbackCommand command) {
         throw new UnsupportedOperationException("TODO: submitClientFeedback — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public ClientFeedbackResponse getClientFeedback(Long requestId) {
+    public ClientFeedbackResult getClientFeedback(Long requestId) {
         throw new UnsupportedOperationException("TODO: getClientFeedback — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public Page<ClientFeedbackResponse> getClientFeedbackList(Long clientId, Pageable pageable) {
+    public Page<ClientFeedbackResult> getClientFeedbackList(Long clientId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getClientFeedbackList — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public Page<ClientFeedbackResponse> getClientFeedbackByOfferer(Long offererId, Pageable pageable) {
+    public Page<ClientFeedbackResult> getClientFeedbackByOfferer(Long offererId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getClientFeedbackByOfferer — placeholder, ver estructura-servicios.docx");
     }
 

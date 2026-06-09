@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.notifications.application.services;
 
-import com.parosurvivors.serviya.notifications.application.dto.NotificationDeliveryResponse;
+import com.parosurvivors.serviya.notifications.application.dto.result.NotificationDeliveryResult;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationDeliveryServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationChannelPersistencePort;
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationDeliveryPersistencePort;
@@ -29,7 +29,7 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
     }
 
     @Override
-    public Page<NotificationDeliveryResponse> getDeliveries(Long userId, Boolean read, Long channelId, String status, Pageable pageable) {
+    public Page<NotificationDeliveryResult> getDeliveries(Long userId, Boolean read, Long channelId, String status, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getDeliveries — placeholder, ver estructura-servicios.docx");
     }
 

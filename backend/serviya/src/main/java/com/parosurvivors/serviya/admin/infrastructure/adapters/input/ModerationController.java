@@ -1,8 +1,10 @@
 package com.parosurvivors.serviya.admin.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.admin.application.dto.CreateReportRequest;
 import com.parosurvivors.serviya.admin.application.ports.input.ModerationServicePort;
 import com.parosurvivors.serviya.admin.infrastructure.adapters.input.api.ModerationApi;
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.RemoveFeedbackForm;
+import com.parosurvivors.serviya.admin.infrastructure.mappers.AdminWebMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,12 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Adaptador de entrada (REST) de moderacion. Placeholder funcional; documentacion en {@link ModerationApi}.
+ * Mapea Form->Command via {@link AdminWebMapper}.
  */
 @RestController
 @RequiredArgsConstructor
 public class ModerationController implements ModerationApi {
 
     private final ModerationServicePort moderationService;
+    private final AdminWebMapper mapper;
 
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/warn")
@@ -56,8 +60,8 @@ public class ModerationController implements ModerationApi {
 
     @Override
     @PostMapping("/api/v1/admin/reviews/remove")
-    public ResponseEntity<Void> removeFeedbackDirectly(@RequestBody CreateReportRequest reportData) {
-        moderationService.removeFeedbackDirectly(currentAdminId(), reportData);
+    public ResponseEntity<Void> removeFeedbackDirectly(@Valid @RequestBody RemoveFeedbackForm form) {
+        moderationService.removeFeedbackDirectly(mapper.toCommand(form, currentAdminId()));
         return ResponseEntity.noContent().build();
     }
 

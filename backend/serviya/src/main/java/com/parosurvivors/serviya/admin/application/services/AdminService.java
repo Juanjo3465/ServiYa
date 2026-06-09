@@ -1,9 +1,8 @@
 package com.parosurvivors.serviya.admin.application.services;
 
-import com.parosurvivors.serviya.admin.application.dto.CreateUserRequest;
-import com.parosurvivors.serviya.admin.application.dto.UserAdminDetailResponse;
-import com.parosurvivors.serviya.admin.application.dto.UserFilterRequest;
-import com.parosurvivors.serviya.admin.application.dto.UserSummaryResponse;
+import com.parosurvivors.serviya.admin.application.dto.command.CreateUserByAdminCommand;
+import com.parosurvivors.serviya.admin.application.dto.query.SearchUsersQuery;
+import com.parosurvivors.serviya.admin.application.dto.result.UserAdminDetailResult;
 import com.parosurvivors.serviya.admin.application.ports.input.AdminServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
@@ -32,7 +31,7 @@ public class AdminService implements AdminServicePort {
     private final NotificationServicePort notificationServicePort;
 
     @Override
-    public User createUserByAdmin(Long adminId, CreateUserRequest dto, String roleName) {
+    public User createUserByAdmin(CreateUserByAdminCommand command) {
         throw new UnsupportedOperationException("TODO: createUserByAdmin — placeholder, ver estructura-servicios.docx");
     }
 
@@ -42,12 +41,12 @@ public class AdminService implements AdminServicePort {
     }
 
     @Override
-    public Page<UserSummaryResponse> searchUsers(UserFilterRequest filters, Pageable pageable) {
+    public Page<User> searchUsers(SearchUsersQuery query, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: searchUsers — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public UserAdminDetailResponse getUserAdminDetail(Long userId) {
+    public UserAdminDetailResult getUserAdminDetail(Long userId) {
         throw new UnsupportedOperationException("TODO: getUserAdminDetail — placeholder, ver estructura-servicios.docx");
     }
 

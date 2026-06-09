@@ -1,8 +1,8 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
-import com.parosurvivors.serviya.profiles.application.dto.CoordinatesDTO;
-import com.parosurvivors.serviya.profiles.application.dto.CreateAddressRequest;
-import com.parosurvivors.serviya.profiles.application.dto.PatchAddressRequest;
+import com.parosurvivors.serviya.profiles.application.dto.command.CreateAddressCommand;
+import com.parosurvivors.serviya.profiles.application.dto.command.UpdateAddressCommand;
+import com.parosurvivors.serviya.profiles.application.dto.result.CoordinatesResult;
 import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
 import com.parosurvivors.serviya.profiles.domain.Address;
@@ -27,7 +27,7 @@ public class AddressService implements AddressServicePort {
     }
 
     @Override
-    public Address createAddress(Long userId, CreateAddressRequest dto) {
+    public Address createAddress(CreateAddressCommand command) {
         throw new UnsupportedOperationException("TODO: createAddress — placeholder, ver estructura-servicios.docx");
     }
 
@@ -37,7 +37,7 @@ public class AddressService implements AddressServicePort {
     }
 
     @Override
-    public Address updateAddress(Long addressId, PatchAddressRequest dto) {
+    public Address updateAddress(UpdateAddressCommand command) {
         throw new UnsupportedOperationException("TODO: updateAddress — placeholder, ver estructura-servicios.docx");
     }
 
@@ -47,7 +47,7 @@ public class AddressService implements AddressServicePort {
     }
 
     @Override
-    public CoordinatesDTO getCoordinates(String addressLine, String city) {
+    public CoordinatesResult getCoordinates(String addressLine, String city) {
         throw new UnsupportedOperationException("TODO: getCoordinates — placeholder, ver estructura-servicios.docx");
     }
 }

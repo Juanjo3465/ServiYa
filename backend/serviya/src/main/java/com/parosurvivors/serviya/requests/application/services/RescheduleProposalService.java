@@ -1,7 +1,7 @@
 package com.parosurvivors.serviya.requests.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.requests.application.dto.RescheduleProposalResponse;
+import com.parosurvivors.serviya.requests.application.dto.command.CreateRescheduleProposalCommand;
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalPersistencePort;
@@ -28,7 +28,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     private final NotificationServicePort notificationServicePort;
 
     @Override
-    public RescheduleProposal createProposal(Long requestId, Long offererId, String reason, LocalDateTime proposedDate) {
+    public RescheduleProposal createProposal(CreateRescheduleProposalCommand command) {
         throw new UnsupportedOperationException("TODO: createProposal — placeholder, ver estructura-servicios.docx");
     }
 
@@ -48,17 +48,17 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     }
 
     @Override
-    public List<RescheduleProposalResponse> getProposalsForClient(Long clientId, List<String> statuses) {
+    public List<RescheduleProposal> getProposalsForClient(Long clientId, List<String> statuses) {
         throw new UnsupportedOperationException("TODO: getProposalsForClient — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public List<RescheduleProposalResponse> getProposalsByOfferer(Long offererId, List<String> statuses) {
+    public List<RescheduleProposal> getProposalsByOfferer(Long offererId, List<String> statuses) {
         throw new UnsupportedOperationException("TODO: getProposalsByOfferer — placeholder, ver estructura-servicios.docx");
     }
 
     @Override
-    public List<RescheduleProposalResponse> getProposalsByRequest(Long requestId) {
+    public List<RescheduleProposal> getProposalsByRequest(Long requestId) {
         throw new UnsupportedOperationException("TODO: getProposalsByRequest — placeholder, ver estructura-servicios.docx");
     }
 }
