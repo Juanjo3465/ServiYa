@@ -1,0 +1,390 @@
+================================================================================
+GUÍA DE DTOs — Marketplace de Servicios
+Convenciones, decisiones, flujo y mappers para implementar los DTOs del proyecto.
+Documento dirigido a Claude Code para generar PLACEHOLDERS de DTOs y mappers.
+================================================================================
+
+CÓMO USAR ESTE DOCUMENTO (para Claude Code)
+- Este archivo define reglas DETERMINISTAS. No improvises convenciones distintas.
+- Tu tarea es generar PLACEHOLDERS: la estructura de clases/records y mappers,
+  con campos y métodos de ejemplo marcados como // TODO. NO implementes lógica
+  de negocio ni mapeos reales todavía.
+- Si un dato concreto del proyecto no aparece aquí (p. ej. los campos exactos de
+  una entidad), créalo como placeholder con // TODO y sigue las convenciones.
+- Las rutas son RELATIVAS al paquete de cada módulo/feature. El paquete raíz ya
+  lo conoces; no se repite.
+
+--------------------------------------------------------------------------------
+0. CONTEXTO DEL PROYECTO (reglas fijas)
+--------------------------------------------------------------------------------
+- Java + Spring Boot 3.5.5. Arquitectura hexagonal, escuela "Clean Architecture"
+  (los PUERTOS viven en la capa de aplicación, NO en el dominio).
+- Organización: por FEATURE + CAPA ->  <feature>/{domain | application | infrastructure}
+- Mappers: MapStruct, siempre con @Mapper(componentModel = "spring").
+- TODOS los DTOs son records de Java (no clases con getters/setters).
+- REGLA DE NAMING ESPECIAL: el sufijo de los DTO de ENTRADA WEB es "Form"
+  (NO "Request"), porque "ServiceRequest" es una ENTIDAD de dominio y "Request"
+  como sufijo causaría colisión (CreateServiceRequestRequest). Usar SIEMPRE "Form".
+
+--------------------------------------------------------------------------------
+1. LOS CUATRO TIPOS DE DTO (qué son, sufijo, dónde viven)
+--------------------------------------------------------------------------------
+Hay cuatro tipos de DTO + un caso especial. El SUFIJO del nombre indica siempre
+la capa y la dirección. Cada tipo vive en SU PROPIA CARPETA, cuyo nombre es el
+del tipo (en minúscula).
+
+(1) ENTRADA WEB  -> sufijo "Form"
+    - Cuerpo JSON que llega del cliente. Lleva validación (Bean Validation) y,
+      opcionalmente, @Schema de OpenAPI.
+    - Ubicación: infrastructure/dto/form/
+    - Prefijo: VERBO imperativo. Ej: RegisterUserForm, UpdateProfileForm.
+
+(2) SALIDA WEB  -> sufijo "Response"
+    - JSON que se devuelve al cliente. Describe una representación del recurso.
+      Solo @Schema (descriptivo), nunca validación.
+    - Ubicación: infrastructure/dto/response/
+    - Prefijo: SUSTANTIVO/recurso (+ variante). Ej: UserResponse, ServiceSummaryResponse.
+
+(3) ENTRADA APLICACIÓN  -> sufijo "Command" (escritura) o "Query" (lectura)
+    - Intención que el controlador pasa al caso de uso. Sin anotaciones de web ni
+      de validación.
+    - Ubicación: application/dto/command/   (escritura)
+                 application/dto/query/     (lectura)
+    - Prefijo: VERBO imperativo. Ej: RegisterUserCommand, SearchServicesQuery.
+
+(4) SALIDA APLICACIÓN  -> sufijo "Result" o "Item"
+    - SOLO en lecturas CQRS-light (listados de pantalla sin lógica). Lo que devuelve
+      el caso de uso cuando NO se quiere pasar por una entidad de dominio completa.
+    - Ubicación: application/dto/result/    (resultado de un caso de uso)
+                 application/dto/item/      (fila de un listado)
+    - Prefijo: recurso (+ variante). Ej: ServiceSearchItem, UserMetricsResult.
+
+CASO ESPECIAL — READ MODEL DE DOMINIO (sin sufijo técnico)
+    - Lectura reducida que SÍ es parte del dominio (Opción 1 de lectura). NO es un
+      DTO; NO lleva sufijo ni va en dto/.
+    - Ubicación: domain/
+    - Nombre: recurso + variante, sin sufijo. Ej: UserSummary, ServiceListItem.
+
+--------------------------------------------------------------------------------
+2. CONVENCIÓN DE NOMBRES (exacta)
+--------------------------------------------------------------------------------
+2.1 DTOs (patrón <Prefijo><Sufijo>):
+  Form      ->  <Verbo><Entidad>Form         RegisterUserForm, CreateServiceForm
+  Response  ->  <Entidad>[Variante]Response  UserResponse, ServiceDetailResponse,
+                                              ServiceSummaryResponse, OffererPublicProfileResponse
+  Command   ->  <Verbo><Entidad>Command      RegisterUserCommand, AcceptServiceRequestCommand
+  Query     ->  <Verbo><Entidad>Query        SearchServicesQuery, GetUserMetricsQuery
+  Result    ->  <Entidad>[Variante]Result    UserMetricsResult, RegisterUserResult
+  Item      ->  <Entidad>[Variante]Item      ServiceSearchItem
+  (dominio) ->  <Entidad><Variante>          UserSummary  (sin sufijo)
+
+  Regla de prefijo:
+    - ENTRA (Form, Command, Query): VERBO imperativo (Register, Update, Create,
+      Accept, Cancel, Search, Get). Expresa intención.
+    - SALE (Response, Result, Item, read model): SUSTANTIVO/recurso. Describe forma.
+
+2.2 PUERTOS Y ADAPTADORES (no son DTOs, pero fijan el resto del esqueleto):
+  Puerto de entrada (caso de uso)  -> sufijo "Port"
+        <Verbo><Entidad>Port            RegisterUserPort, SearchServicesPort
+        Ubicación: application/port/in/
+  Puerto de salida (persistencia)  -> sufijo "PersistencePort"
+        <Entidad>PersistencePort        UserPersistencePort, ServicePersistencePort
+        Ubicación: application/port/out/
+  Adaptador de entrada (controller)
+        <Entidad>Controller             Ubicación: infrastructure/adapters/input/
+  Interfaz de documentación OpenAPI
+        <Entidad>Api                    Ubicación: infrastructure/adapters/input/api/
+  Adaptador de salida (persistencia)
+        <Entidad>PersistenceAdapter     Ubicación: infrastructure/adapters/output/
+  Repositorio Spring Data JPA
+        <Entidad>JpaRepository          Ubicación: infrastructure/repositories/
+  Entidad JPA
+        <Entidad>Entity                 Ubicación: infrastructure/entities/
+  Mapper web
+        <Entidad>WebMapper              Ubicación: infrastructure/mappers/
+  Mapper de persistencia
+        <Entidad>PersistenceMapper      Ubicación: infrastructure/mappers/
+  Servicio (implementa el/los Port de entrada)
+        <Entidad>Service                Ubicación: application/service/
+
+--------------------------------------------------------------------------------
+3. DECISIÓN: ¿CREAR UN DTO NUEVO O REUTILIZAR UNO EXISTENTE?
+--------------------------------------------------------------------------------
+Principio: UN DTO = UN CONTRATO (una forma + un significado). Reutilizar solo si el
+contrato es el mismo de verdad. La granularidad la dicta el contrato, no el método.
+
+3.1 FORMS (entrada web)  -> REGLA: uno por operación. NO reutilizar.
+    Cada operación tiene sus propios campos y validaciones. Ejemplos sobre "usuario":
+      RegisterUserForm   (email, password, fullName)
+      UpdateProfileForm  (campos editables del perfil, sin password)
+      ChangePasswordForm (oldPassword, newPassword)
+    PUT y PATCH del mismo recurso => Forms distintos (reemplazo total vs parcial).
+
+3.2 COMMANDS / QUERIES (entrada aplicación) -> uno por caso de uso (igual que Forms).
+    Normalmente hay un Command/Query por cada Form, con los mismos datos pero sin
+    anotaciones de web.
+
+3.3 RESPONSES (salida web) -> REUTILIZAR cuando aplica; crear nuevo cuando difiere.
+    REUTILIZAR el mismo Response si: misma forma de campos + mismo significado +
+    misma audiencia. (Ej.: el registro, GET /users/{id} y GET /users/me devuelven
+    el usuario igual => un único UserResponse.)
+
+    CREAR uno NUEVO si se cumple cualquiera de estas señales:
+      [ ] Difiere el conjunto de campos (uno trae campos que el otro no).
+      [ ] Difiere el nivel de detalle (resumen para listados vs. detalle completo)
+          -> ServiceSummaryResponse vs ServiceDetailResponse.
+      [ ] Difiere la audiencia / visibilidad (vista pública sin PII vs. vista propia)
+          -> OffererPublicProfileResponse vs UserResponse.
+      [ ] Hay campos obligatorios en un caso y opcionales/nulos en otro.
+      [ ] Los dos endpoints evolucionarán por separado (aunque hoy tengan los mismos
+          campos): NO reutilizar solo por coincidencia; reutilizar acopla.
+
+    ANTI-PATRÓN A EVITAR: un "God DTO" con muchos campos opcionales/nullables usado
+    en todos lados. Preferir varios DTOs pequeños y honestos.
+
+3.4 RESULTS / ITEMS (salida aplicación) -> uno por consulta de lectura.
+    Se crean solo cuando la lectura NO pasa por una entidad de dominio completa.
+
+--------------------------------------------------------------------------------
+4. FLUJO COMPLETO (request -> response). Sin ambigüedades.
+--------------------------------------------------------------------------------
+ESCRITURA (caso de uso con lógica de negocio):
+
+  1. Llega HTTP con JSON.
+  2. Controller recibe @Valid @RequestBody <Verbo><Entidad>Form  (validación de forma aquí).
+  3. Controller: WebMapper.toCommand(form) -> <Verbo><Entidad>Command.
+  4. Controller llama: port.<metodo>(command).   (port = puerto de entrada, <Verbo><Entidad>Port)
+  5. Service (implementa el Port): usa el Command, crea/usa la ENTIDAD DE DOMINIO,
+     llama al puerto de salida (<Entidad>PersistencePort). Devuelve la ENTIDAD DE DOMINIO.
+     >>> El Service NUNCA devuelve ni importa un Response/Form (eso es web). <<<
+  6. Controller: WebMapper.toResponse(<entidadDominio>) -> <Entidad>Response.
+  7. Controller devuelve ResponseEntity<<Entidad>Response>.
+
+LECTURA SIMPLE (un recurso, con reglas o identidad): igual que escritura; el Service
+  devuelve la entidad de dominio (o un read model de dominio), y el Controller la
+  mapea a Response.
+
+LECTURA DE LISTADO / PANTALLA (CQRS-light, sin lógica de negocio):
+
+  1. Controller recibe parámetros (query params) -> arma <Verbo><Entidad>Query.
+  2. Controller llama: port.<metodo>(query).
+  3. Service/consulta devuelve List<<Entidad>Item> o <Entidad>Result (capa application).
+  4. Controller: WebMapper.toResponse(item/result) -> <Entidad>Response
+     (o expone el Result directamente si coincide con el contrato web).
+
+REGLA DE ORO TRANSVERSAL (dirección de dependencias):
+  - El objeto que DEVUELVE un Service nunca es un tipo de infrastructure.
+  - application NO importa nada de infrastructure (no conoce Form ni Response).
+  - domain NO importa de application ni de infrastructure.
+
+--------------------------------------------------------------------------------
+5. MAPPERS NECESARIOS (cuáles, dónde, qué métodos)
+--------------------------------------------------------------------------------
+Dos mappers por feature, ambos MapStruct con @Mapper(componentModel = "spring").
+Ambos viven en infrastructure/mappers/.
+
+5.1 WebMapper  (traduce entre web y aplicación/dominio)
+    Ubicación: infrastructure/mappers/<Entidad>WebMapper
+    Métodos:
+      <Verbo><Entidad>Command toCommand(<Verbo><Entidad>Form form);
+      <Entidad>Response        toResponse(<Entidad> domainEntity);
+      // si hay lecturas CQRS-light:
+      <Entidad>Response        toResponse(<Entidad>Item item);   // o desde Result
+
+5.2 PersistenceMapper  (traduce entre dominio y entidad JPA)
+    Ubicación: infrastructure/mappers/<Entidad>PersistenceMapper
+    Métodos:
+      <Entidad>Entity toEntity(<Entidad> domainEntity);   // MapStruct copia campo a campo
+      <Entidad>       toDomain(<Entidad>Entity entity);
+
+    NOTA sobre dominio inmutable: si la entidad de dominio usa fábricas (create/restore)
+    y constructor privado, toDomain NO puede ser autogenerado; impleméntalo como
+    método default que llame a la fábrica de reconstrucción:
+      default <Entidad> toDomain(<Entidad>Entity e) {
+          return <Entidad>.restore(e.getId(), /* ...campos... */);   // TODO completar
+      }
+
+5.3 Reglas de mapeo automático
+    - Si Form y Command tienen los MISMOS nombres de campos, MapStruct mapea solo.
+    - Si los nombres difieren, anotar con @Mapping(source=..., target=...) // TODO.
+    - No mapear manualmente lo que MapStruct puede inferir por nombre.
+
+--------------------------------------------------------------------------------
+6. ESTRUCTURA DE CARPETAS POR FEATURE (crear exactamente así)
+--------------------------------------------------------------------------------
+<feature>
+├── domain
+│   ├── <Entidad>.java                         (entidad de dominio)
+│   ├── <Entidad>Summary.java                  (read model de dominio, OPCIONAL, sin sufijo)
+│   └── exception/
+├── application
+│   ├── dto
+│   │   ├── command
+│   │   │   └── <Verbo><Entidad>Command.java
+│   │   ├── query
+│   │   │   └── <Verbo><Entidad>Query.java
+│   │   ├── result
+│   │   │   └── <Entidad>Result.java
+│   │   └── item
+│   │       └── <Entidad>Item.java
+│   ├── port
+│   │   ├── in
+│   │   │   └── <Verbo><Entidad>Port.java       (caso de uso = puerto de entrada)
+│   │   └── out
+│   │       └── <Entidad>PersistencePort.java   (puerto de salida)
+│   └── service
+│       └── <Entidad>Service.java               (implementa los Port de entrada)
+└── infrastructure
+    ├── adapters
+    │   ├── input
+    │   │   ├── <Entidad>Controller.java
+    │   │   └── api
+    │   │       └── <Entidad>Api.java            (interfaz de documentación OpenAPI)
+    │   └── output
+    │       └── <Entidad>PersistenceAdapter.java (implementa <Entidad>PersistencePort)
+    ├── repositories
+    │   └── <Entidad>JpaRepository.java          (Spring Data JPA)
+    ├── entities
+    │   └── <Entidad>Entity.java                 (entidad JPA)
+    ├── mappers
+    │   ├── <Entidad>WebMapper.java
+    │   └── <Entidad>PersistenceMapper.java
+    └── dto
+        ├── form
+        │   └── <Verbo><Entidad>Form.java
+        └── response
+            └── <Entidad>Response.java
+
+NOTA — la capa infrastructure se organiza por tipo de artefacto: adapters/ (con
+input/ para el controller y su api/, y output/ para el adaptador de persistencia),
+repositories/ (repositorios Spring Data JPA), entities/ (entidades JPA), mappers/
+(web y persistencia) y dto/ (form y response).
+
+--------------------------------------------------------------------------------
+7. EJEMPLO DE REFERENCIA A (ESCRITURA): registrar usuario, feature "users"
+--------------------------------------------------------------------------------
+// --- infrastructure/dto/form/RegisterUserForm.java
+public record RegisterUserForm(
+        @NotBlank @Email String email,           // TODO revisar validaciones
+        @NotBlank @Size(min = 8) String password,
+        @NotBlank String fullName) {}
+
+// --- infrastructure/dto/response/UserResponse.java
+@Schema(description = "Datos públicos de un usuario")          // TODO revisar
+public record UserResponse(
+        @Schema(accessMode = Schema.AccessMode.READ_ONLY) Integer id,
+        String email,
+        String fullName) {}
+
+// --- application/dto/command/RegisterUserCommand.java
+public record RegisterUserCommand(String email, String password, String fullName) {}
+
+// --- application/port/in/RegisterUserPort.java    (caso de uso = puerto de entrada)
+public interface RegisterUserPort {
+    User register(RegisterUserCommand command);   // devuelve ENTIDAD DE DOMINIO
+}
+
+// --- application/port/out/UserPersistencePort.java   (puerto de salida)
+public interface UserPersistencePort {
+    boolean existsByEmail(String email);          // TODO según necesidad
+    User save(User user);
+}
+
+// --- infrastructure/mappers/UserWebMapper.java
+@Mapper(componentModel = "spring")
+public interface UserWebMapper {
+    RegisterUserCommand toCommand(RegisterUserForm form);
+    UserResponse toResponse(User user);
+}
+
+// --- infrastructure/mappers/UserPersistenceMapper.java
+@Mapper(componentModel = "spring")
+public interface UserPersistenceMapper {
+    UserEntity toEntity(User user);
+    default User toDomain(UserEntity e) {
+        return User.restore(e.getId(), e.getEmail(), e.getPasswordHash(), e.getFullName()); // TODO
+    }
+}
+
+// --- infrastructure/adapters/input/UserController.java  (flujo)
+@RestController
+public class UserController implements UserApi {          // UserApi en .../input/api/
+    private final RegisterUserPort registerUser;          // puerto de entrada
+    private final UserWebMapper mapper;
+    // constructor con inyección...
+    @Override @PostMapping("/api/v1/users")
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterUserForm form) {
+        User user = registerUser.register(mapper.toCommand(form));
+        return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(user));
+    }
+}
+
+// --- application/service/UserService.java  (implementa el puerto de entrada)
+@Service
+public class UserService implements RegisterUserPort {
+    private final UserPersistencePort userPersistence;    // puerto de salida
+    // constructor...
+    @Override
+    public User register(RegisterUserCommand command) {
+        // TODO lógica: validar, crear dominio, persistir
+        return userPersistence.save(/* User de dominio */ null); // TODO
+    }
+}
+
+--------------------------------------------------------------------------------
+8. EJEMPLO DE REFERENCIA B (LECTURA / CQRS-light): buscar servicios, feature "services"
+--------------------------------------------------------------------------------
+// --- application/dto/query/SearchServicesQuery.java   (entrada aplicación, lectura)
+public record SearchServicesQuery(
+        String text, String category, Integer minRating, Pageable pageable) {}  // TODO campos
+
+// --- application/dto/item/ServiceSearchItem.java      (salida aplicación, fila de listado)
+public record ServiceSearchItem(
+        Integer id, String name, String offererName, double avgRating, BigDecimal price) {} // TODO
+
+// --- application/port/in/SearchServicesPort.java
+public interface SearchServicesPort {
+    List<ServiceSearchItem> search(SearchServicesQuery query);   // NO pasa por dominio
+}
+
+// --- infrastructure/dto/response/ServiceSummaryResponse.java
+public record ServiceSummaryResponse(
+        Integer id, String name, String offererName, double avgRating, BigDecimal price) {} // TODO
+
+// --- infrastructure/mappers/ServiceWebMapper.java
+@Mapper(componentModel = "spring")
+public interface ServiceWebMapper {
+    ServiceSummaryResponse toResponse(ServiceSearchItem item);
+    // (otros métodos para escrituras de la feature services)
+}
+
+--------------------------------------------------------------------------------
+9. INSTRUCCIONES CONCRETAS PARA GENERAR LOS PLACEHOLDERS
+--------------------------------------------------------------------------------
+Por cada CASO DE USO de una feature, generar:
+  [ ] El Form (si tiene entrada de cliente)         -> infrastructure/dto/form
+  [ ] El Command (escritura) o Query (lectura)       -> application/dto/command | query
+  [ ] El Response                                    -> infrastructure/dto/response
+  [ ] El Result/Item SOLO si es lectura CQRS-light   -> application/dto/result | item
+  [ ] El puerto de entrada <Verbo><Entidad>Port      -> application/port/in
+  [ ] El puerto de salida <Entidad>PersistencePort   -> application/port/out (si toca persistencia)
+  [ ] Métodos correspondientes en el WebMapper        -> infrastructure/mappers
+  [ ] Métodos correspondientes en el PersistenceMapper-> infrastructure/mappers
+
+Reglas para los placeholders:
+  [ ] Todos los DTOs como records.
+  [ ] Forms: incluir anotaciones de validación de ejemplo + // TODO.
+  [ ] Responses: incluir @Schema de ejemplo + // TODO; nada de validación.
+  [ ] Campos desconocidos: declararlos como placeholder con // TODO (no inventar
+      reglas de negocio).
+  [ ] NO implementar lógica en los Service: dejar el método con // TODO.
+  [ ] Respetar la dirección de dependencias del punto 4 (regla de oro).
+  [ ] Respetar EXACTAMENTE el naming del punto 2 y las carpetas del punto 6.
+  [ ] Recordar: sufijo de entrada web = "Form" (nunca "Request").
+  [ ] Puerto de entrada = sufijo "Port"; puerto de salida = sufijo "PersistencePort".
+  [ ] Cada tipo de DTO en su carpeta: form, response (infrastructure/dto) y
+      command, query, result, item (application/dto).
+
+================================================================================
+FIN DE LA GUÍA
+================================================================================

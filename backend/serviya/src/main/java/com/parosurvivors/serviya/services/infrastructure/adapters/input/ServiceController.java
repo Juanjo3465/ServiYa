@@ -1,14 +1,13 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.services.application.dto.ServiceRequest;
-import com.parosurvivors.serviya.services.application.dto.ServiceResponse;
-import com.parosurvivors.serviya.services.application.dto.ServiceSearchCriteria;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
-import io.swagger.v3.oas.annotations.Operation;
+import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
+import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
+import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
+import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
+import com.parosurvivors.serviya.services.application.dto.ServiceSearchCriteria;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,59 +17,52 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.math.BigDecimal;
 
+/**
+ * Adaptador de entrada (REST) de servicios. Placeholder funcional: enruta, mapea Form->Command y
+ * dominio->Response (ServiceWebMapper) y delega en {@link MarketplaceServicePort}. La documentacion
+ * vive en {@link ServiceApi}. Cubre la parte de gestion de MarketplaceService; los servicios del
+ * modulo-3 (busqueda, categorias, horario) aun no tienen puerto (ver NOTAS.txt).
+ */
 @RestController
-@RequestMapping("/services")
 @RequiredArgsConstructor
-@Tag(name = "Services", description = "API de gestión de servicios del marketplace")
-public class ServiceController {
-    
-    private final MarketplaceServicePort marketplaceService;
+public class ServiceController implements ServiceApi {
 
-    @PostMapping
-    @Operation(summary = "Crear un nuevo servicio")
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Servicio creado exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos")
-    })
-    public ResponseEntity<ServiceResponse> create(@Valid @RequestBody ServiceRequest request) {
-        ServiceResponse response = marketplaceService.create(request);
+    private final MarketplaceServicePort marketplaceService;
+    private final ServiceWebMapper mapper;
+
+    @Override
+    @PostMapping("/api/v1/services")
+    public ResponseEntity<ServiceResponse> create(@Valid @RequestBody CreateServiceForm form) {
+        ServiceResponse response = mapper.toResponse(
+                marketplaceService.create(mapper.toCommand(form, currentOffererId())));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Obtener un servicio por ID")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Servicio encontrado"),
-        @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
-    })
+    @Override
+    @GetMapping("/api/v1/services/{id}")
     public ResponseEntity<ServiceResponse> getById(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         return marketplaceService.getById(id)
+                .map(mapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping
-    @Operation(summary = "Listar todos los servicios activos")
-    @ApiResponse(responseCode = "200", description = "Lista de servicios")
+    @Override
+    @GetMapping("/api/v1/services")
     public ResponseEntity<List<ServiceResponse>> getAll() {
-        List<ServiceResponse> services = marketplaceService.getAll();
-        return ResponseEntity.ok(services);
+        return ResponseEntity.ok(mapper.toResponses(marketplaceService.getAll()));
     }
 
-    @GetMapping("/offerer/{offererId}")
-    @Operation(summary = "Listar servicios de un oferente")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de servicios del oferente")
-    })
+    @Override
+    @GetMapping("/api/v1/offerers/{offererId}/services")
     public ResponseEntity<List<ServiceResponse>> getByOffererId(
             @Parameter(description = "ID del oferente") @PathVariable Long offererId) {
-        List<ServiceResponse> services = marketplaceService.getByOffererId(offererId);
-        return ResponseEntity.ok(services);
+        return ResponseEntity.ok(mapper.toResponses(marketplaceService.getByOffererId(offererId)));
     }
 
-    @GetMapping("/search")
-    @Operation(summary = "Buscar servicios con filtros")
+    @Override
+    @GetMapping("/api/v1/services/search")
     public ResponseEntity<List<ServiceResponse>> search(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long categoryId,
@@ -99,70 +91,52 @@ public class ServiceController {
                 .longitude(longitude)
                 .maxDistanceKm(maxDistanceKm)
                 .build();
-
-        List<ServiceResponse> services = marketplaceService.search(criteria);
-        return ResponseEntity.ok(services);
+        return ResponseEntity.ok(mapper.toResponses(marketplaceService.search(criteria)));
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Actualizar un servicio")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Servicio actualizado"),
-        @ApiResponse(responseCode = "404", description = "Servicio no encontrado"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos")
-    })
+    @Override
+    @PatchMapping("/api/v1/services/{id}")
     public ResponseEntity<ServiceResponse> update(
             @Parameter(description = "ID del servicio") @PathVariable Long id,
-            @Valid @RequestBody ServiceRequest request) {
-        ServiceResponse response = marketplaceService.update(id, request);
-        return ResponseEntity.ok(response);
+            @Valid @RequestBody UpdateServiceForm form) {
+        return ResponseEntity.ok(mapper.toResponse(
+                marketplaceService.update(mapper.toCommand(form, id))));
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar un servicio (eliminación física)")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Servicio eliminado"),
-        @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
-    })
+    @Override
+    @DeleteMapping("/api/v1/services/{id}")
     public ResponseEntity<Void> delete(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         marketplaceService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/soft-delete")
-    @Operation(summary = "Marcar servicio como eliminado (soft delete)")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Servicio marcado como eliminado"),
-        @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
-    })
+    @Override
+    @PatchMapping("/api/v1/services/{id}/soft-delete")
     public ResponseEntity<Void> softDelete(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         marketplaceService.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/activate")
-    @Operation(summary = "Activar un servicio")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Servicio activado"),
-        @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
-    })
+    @Override
+    @PostMapping("/api/v1/services/{id}/activate")
     public ResponseEntity<Void> activate(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         marketplaceService.activate(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PatchMapping("/{id}/deactivate")
-    @Operation(summary = "Desactivar un servicio")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Servicio desactivado"),
-        @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
-    })
+    @Override
+    @PostMapping("/api/v1/services/{id}/deactivate")
     public ResponseEntity<Void> deactivate(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         marketplaceService.deactivate(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /** TODO: reemplazar por el id extraido del JWT autenticado (Spring Security aun no configurado). */
+    private Long currentOffererId() {
+        return 0L;
     }
 }
