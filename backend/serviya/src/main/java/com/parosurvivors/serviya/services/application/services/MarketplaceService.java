@@ -5,7 +5,7 @@ import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceC
 import com.parosurvivors.serviya.services.application.mappers.ServiceCommandMapper;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.application.dto.ServiceSearchCriteria;
+import com.parosurvivors.serviya.services.application.dto.SearchServiceQuery;
 import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +58,7 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public List<Service> search(ServiceSearchCriteria criteria) {
+    public List<Service> search(SearchServiceQuery criteria) {
         return persistencePort.search(criteria).stream()
                 .filter(s -> !s.isDeleted())
                 .collect(Collectors.toList());

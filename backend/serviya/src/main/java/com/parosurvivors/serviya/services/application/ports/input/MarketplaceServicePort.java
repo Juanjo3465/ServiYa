@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.services.application.ports.input;
 
-import com.parosurvivors.serviya.services.application.dto.ServiceSearchCriteria;
+import com.parosurvivors.serviya.services.application.dto.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.domain.Service;
@@ -20,11 +20,10 @@ public interface MarketplaceServicePort {
     List<Service> getAll();
     List<Service> getByOffererId(Long offererId);
     Service update(UpdateServiceCommand command);
-
-    List<Service> search(ServiceSearchCriteria criteria);
-
+    List<Service> search(SearchServiceQuery criteria);
     void delete(Long id);
     void softDelete(Long id);
     void activate(Long id);
     void deactivate(Long id);
+    
 }
