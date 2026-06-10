@@ -47,6 +47,23 @@ public class ServicePersistenceAdapter implements ServicePersistencePort {
     }
 
     @Override
+    public List<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria){
+    java.math.BigDecimal minPrice = criteria.minPrice();
+    java.math.BigDecimal maxPrice = criteria.maxPrice();
+    List<com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity> entities = repository.search(
+        criteria.name(),
+        criteria.categoryId(),
+        criteria.offererId(),
+        minPrice,
+        maxPrice,
+        criteria.available()
+    );
+    return entities.stream()
+        .map(mapper::toDomain)
+        .collect(Collectors.toList());
+    }
+    
+    @Override
     public void deleteById(Long id) {
         repository.deleteById(id);
     }

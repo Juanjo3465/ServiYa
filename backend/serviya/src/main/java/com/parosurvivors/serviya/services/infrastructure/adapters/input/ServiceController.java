@@ -1,11 +1,13 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
+import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
+
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 /**
  * Adaptador de entrada (REST) de servicios. Placeholder funcional: enruta, mapea Form->Command y
@@ -57,6 +60,39 @@ public class ServiceController implements ServiceApi {
     public ResponseEntity<List<ServiceResponse>> getByOffererId(
             @Parameter(description = "ID del oferente") @PathVariable Long offererId) {
         return ResponseEntity.ok(mapper.toResponses(marketplaceService.getByOffererId(offererId)));
+    }
+
+    @Override
+    @GetMapping("/api/v1/services/search")
+    public ResponseEntity<List<ServiceResponse>> search(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long offererId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) Double minRating,
+            @RequestParam(required = false) Double maxRating,
+            @RequestParam(required = false) String offererType,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Double maxDistanceKm
+    ) {
+        SearchServiceQuery criteria = SearchServiceQuery.builder()
+                .name(name)
+                .categoryId(categoryId)
+                .offererId(offererId)
+                .minPrice(minPrice)
+                .maxPrice(maxPrice)
+                .available(available)
+                .minRating(minRating)
+                .maxRating(maxRating)
+                .offererType(offererType)
+                .latitude(latitude)
+                .longitude(longitude)
+                .maxDistanceKm(maxDistanceKm)
+                .build();
+        return ResponseEntity.ok(mapper.toResponses(marketplaceService.search(criteria)));
     }
 
     @Override

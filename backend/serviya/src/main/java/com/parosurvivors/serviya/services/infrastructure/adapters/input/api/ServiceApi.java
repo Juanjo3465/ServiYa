@@ -8,8 +8,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 /**
  * Documentacion OpenAPI/Swagger del controlador de servicios (gestion via MarketplaceService).
@@ -76,4 +78,25 @@ public interface ServiceApi {
             @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
     })
     ResponseEntity<Void> deactivate(Long id);
+
+    @Operation(summary = "Obtener un servicio por ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Servicios encontrado"),
+            @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
+    })
+    public ResponseEntity<List<ServiceResponse>> search(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long offererId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) Double minRating,
+            @RequestParam(required = false) Double maxRating,
+            @RequestParam(required = false) String offererType,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Double maxDistanceKm
+    );
+
 }
