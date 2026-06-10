@@ -5,7 +5,7 @@ package com.parosurvivors.serviya.users.application.dto.command;
  * El userId proviene del JWT (lo inyecta el controller), nunca del body.
  */
 public record ChangePasswordCommand(
-        Long userId,
-        String currentPassword,
-        String newPassword) {
+    Long userId,
+    String currentPassword,
+    String newPassword) {
 }

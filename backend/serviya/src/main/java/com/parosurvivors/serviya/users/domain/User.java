@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+
+import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
+
 /**
  * Cuenta de usuario (credenciales y estado de la cuenta). Mapea la tabla {@code users}.
  * Los roles son una vista de conveniencia (tabla puente {@code user_roles}); no son una
@@ -24,7 +27,8 @@ public class User {
     private Long id;
     private String email;
     private String passwordHash;
-    private Boolean banned;
+    @Builder.Default
+    private Boolean banned = false;
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
 
@@ -62,6 +66,9 @@ public class User {
     }
 
     public void changeEmail(String newEmail) {
+        if (newEmail == null || !newEmail.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            throw new InvalidStateException("Invalid email format");
+        }
         this.email = newEmail;
     }
 

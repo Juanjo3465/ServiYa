@@ -78,6 +78,6 @@ public class AccountController implements AccountApi {
 
     /** TODO: reemplazar por el id extraido del JWT autenticado (Spring Security aun no configurado). */
     private Long currentUserId() {
-        return 0L;
+        return 1L;
     }
 }
