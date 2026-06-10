@@ -1,8 +1,8 @@
 package com.parosurvivors.serviya.services.application.services;
 
-import com.parosurvivors.serviya.services.application.dto.CategoryRequest;
-import com.parosurvivors.serviya.services.application.dto.CategoryResponse;
-import com.parosurvivors.serviya.services.application.mappers.CategoryMapper;
+
+import com.parosurvivors.serviya.services.application.dto.command.CreateCategoryCommand;
+import com.parosurvivors.serviya.services.application.mappers.CategoryCommandMapper;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
 import com.parosurvivors.serviya.services.domain.Category;
@@ -18,26 +18,23 @@ import java.util.stream.Collectors;
 public class MarketplaceCategory implements MarketplaceCategoryPort {
     
     private final CategoryPersistencePort persistencePort;
-    private final CategoryMapper mapper;
+    private final CategoryCommandMapper mapper;
     
     @Override
-    public CategoryResponse create(CategoryRequest request) {
-        Category category = mapper.toDomain(request);
+    public Category create(CreateCategoryCommand command) {
+        Category category = mapper.toDomain(command);
         
-        Category saved = persistencePort.save(category);
-        return mapper.toResponse(saved);
+        return persistencePort.save(category);
     }
 
     @Override
-    public Optional<CategoryResponse> getById(Long id) {
-        return persistencePort.findById(id)
-                .map(mapper::toResponse);
+    public Optional<Category> getById(Long id) {
+        return persistencePort.findById(id);
     }
 
     @Override
-    public List<CategoryResponse> getAll() {
+    public List<Category> getAll() {
         return persistencePort.findAll().stream()
-                .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }
     

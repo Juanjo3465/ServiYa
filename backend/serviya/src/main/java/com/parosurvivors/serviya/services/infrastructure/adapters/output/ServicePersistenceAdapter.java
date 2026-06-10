@@ -47,7 +47,7 @@ public class ServicePersistenceAdapter implements ServicePersistencePort {
     }
 
     @Override
-    public List<Service> search(com.parosurvivors.serviya.services.application.dto.SearchServiceQuery criteria){
+    public List<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria){
     java.math.BigDecimal minPrice = criteria.minPrice();
     java.math.BigDecimal maxPrice = criteria.maxPrice();
     List<com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity> entities = repository.search(

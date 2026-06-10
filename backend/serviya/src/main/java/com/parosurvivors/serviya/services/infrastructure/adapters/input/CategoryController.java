@@ -11,56 +11,51 @@ import org.springframework.http.ResponseEntity;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
-import com.parosurvivors.serviya.services.application.dto.CategoryRequest;
-import com.parosurvivors.serviya.services.application.dto.CategoryResponse;
+import com.parosurvivors.serviya.services.infrastructure.mappers.CategoryWebMapper;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.CategoryResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateCategoryForm;
+import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.CategoryApi;
 
 import java.util.List;
 
 
 @RestController
-@RequestMapping("/categories")
+@RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
 @Tag(name = "Categories", description = "API de gestión de categorías del marketplace")
-public class CategoryController {
+public class CategoryController implements CategoryApi {
     
     private final MarketplaceCategoryPort marketplaceCategory;
+    private final CategoryWebMapper mapper;
 
+    @Override
     @PostMapping
-    @Operation(summary = "Crear una nueva categoría")
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Categoría creada exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos")
-    })
-    public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CategoryRequest request) {
-        CategoryResponse response = marketplaceCategory.create(request);
+    public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CreateCategoryForm form) {
+        CategoryResponse response = mapper.toResponse(
+            marketplaceCategory.create(mapper.toCommand(form))
+        );
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Override
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener una categoría por su ID")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Categoría encontrada"),
-        @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
-    })
     public ResponseEntity<CategoryResponse> getById(
         @Parameter(description = "ID de la categoría") @PathVariable Long id) {
         return marketplaceCategory.getById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+            .map(mapper::toResponse)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
     }
 
+    @Override
     @GetMapping
-    @Operation(summary = "Listar todas las categorías")
-    @ApiResponse(responseCode = "200", description = "Lista de categorías")
     public ResponseEntity<List<CategoryResponse>> getAll() {
-        List<CategoryResponse> categories = marketplaceCategory.getAll();
+        List<CategoryResponse> categories = mapper.toResponses(marketplaceCategory.getAll());
         return ResponseEntity.ok(categories);
     }
 }

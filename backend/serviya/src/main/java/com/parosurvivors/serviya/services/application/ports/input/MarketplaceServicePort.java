@@ -1,8 +1,8 @@
 package com.parosurvivors.serviya.services.application.ports.input;
 
-import com.parosurvivors.serviya.services.application.dto.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
+import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.domain.Service;
 
 import java.util.List;

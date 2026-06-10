@@ -10,7 +10,7 @@ public interface ServicePersistencePort {
     Optional<Service> findById(Long id);
     List<Service> findAll();
     List<Service> findByOffererId(Long offererId);
-    List<Service> search(com.parosurvivors.serviya.services.application.dto.SearchServiceQuery criteria);
+    List<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria);
     void deleteById(Long id);
     Service update(Service service);
 }

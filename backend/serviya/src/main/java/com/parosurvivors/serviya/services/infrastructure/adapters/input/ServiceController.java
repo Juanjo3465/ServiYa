@@ -1,12 +1,13 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
+import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
-import com.parosurvivors.serviya.services.application.dto.ServiceSearchCriteria;
+
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -77,7 +78,7 @@ public class ServiceController implements ServiceApi {
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double maxDistanceKm
     ) {
-        ServiceSearchCriteria criteria = ServiceSearchCriteria.builder()
+        SearchServiceQuery criteria = SearchServiceQuery.builder()
                 .name(name)
                 .categoryId(categoryId)
                 .offererId(offererId)
