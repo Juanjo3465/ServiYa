@@ -10,7 +10,8 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
   mysql:
     image: mysql
     container_name: serviya-mysql
@@ -23,6 +24,12 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 10
+      interval: 3s
+
   frontend:
     build:
       context: ./frontend/serviya

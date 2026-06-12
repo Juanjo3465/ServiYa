@@ -12,6 +12,7 @@ import lombok.Setter;
 public class RoleEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "INT UNSIGNED")
     private Integer id;
 
     @Enumerated(EnumType.STRING)

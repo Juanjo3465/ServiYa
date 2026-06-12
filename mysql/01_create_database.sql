@@ -23,14 +23,14 @@ CREATE TABLE users (
 );
 
 CREATE TABLE roles (
-    id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name ENUM('CLIENT', 'OFFERER', 'ADMIN') NOT NULL UNIQUE
 );
 
 CREATE TABLE user_roles (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
-    role_id TINYINT UNSIGNED NOT NULL,
+    role_id INT UNSIGNED NOT NULL,
     assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT uq_user_role UNIQUE (user_id, role_id),
@@ -837,7 +837,7 @@ CREATE TABLE notifications (
 );
 
 CREATE TABLE notification_channels (
-    id TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     name VARCHAR(50) NOT NULL UNIQUE
 );
@@ -847,7 +847,7 @@ CREATE TABLE notification_deliveries (
 
     notification_id BIGINT UNSIGNED NOT NULL,
 
-    channel_id TINYINT UNSIGNED NOT NULL,
+    channel_id INT UNSIGNED NOT NULL,
 
     delivery_status ENUM(
         'PENDING',

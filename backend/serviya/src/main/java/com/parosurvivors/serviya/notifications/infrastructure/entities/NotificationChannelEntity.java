@@ -11,7 +11,8 @@ import lombok.Setter;
 public class NotificationChannelEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    @Column(columnDefinition = "INT UNSIGNED")
+    private Long id;
 
     @Column(nullable = false, unique = true, length = 50)
     private String name;
