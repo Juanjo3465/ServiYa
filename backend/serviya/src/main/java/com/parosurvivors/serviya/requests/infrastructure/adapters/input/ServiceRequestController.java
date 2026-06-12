@@ -123,8 +123,25 @@ public class ServiceRequestController implements ServiceRequestApi {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
+    
+
+    @Override
+    @GetMapping("/api/v1/users/me/client-agenda")
+    public ResponseEntity<Page<ServiceRequestResponse>> getClientAgenda(Pageable pageable) {
+        return ResponseEntity.ok(queryService.getClientFutureRequests(currentUserId(), pageable)
+                .map(mapper::toResponse));
+    }
+
+    @Override
+    @GetMapping("/api/v1/users/me/offerer-agenda")
+    public ResponseEntity<Page<ServiceRequestResponse>> getOffererAgenda(Pageable pageable) {
+        return ResponseEntity.ok(queryService.getOffererFutureRequests(currentUserId(), pageable)
+                .map(mapper::toResponse));
+    }
+
+
+        /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 0L;
+        return 1L;
     }
 }

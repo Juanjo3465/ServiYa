@@ -34,6 +34,18 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
     }
 
     @Override
+    public Page<ServiceRequest> getClientFutureRequests(Long clientId, Pageable pageable) {
+        //throw new UnsupportedOperationException("TODO: getClientFutureRequests — placeholder, ver estructura-servicios.docx");
+        return serviceRequestPersistencePort.findClientFutureRequests(clientId, List.of("ACCEPTED", "PENDING"), pageable);
+    }
+
+    @Override
+    public Page<ServiceRequest> getOffererFutureRequests(Long offererId, Pageable pageable) {
+        //throw new UnsupportedOperationException("TODO: getOffererFutureRequests — placeholder, ver estructura-servicios.docx");
+        return serviceRequestPersistencePort.findOffererFutureRequests(offererId, List.of("ACCEPTED"), pageable);
+    }
+
+    @Override
     public ServiceRequestDetailResult getRequestDetailForParty(Long requestId, Long requesterId) {
         throw new UnsupportedOperationException("TODO: getRequestDetailForParty — placeholder, ver estructura-servicios.docx");
     }

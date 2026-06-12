@@ -7,8 +7,13 @@ import com.parosurvivors.serviya.requests.infrastructure.entities.ServiceRequest
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestPersistenceMapper;
 import com.parosurvivors.serviya.requests.infrastructure.repositories.ServiceRequestRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -78,5 +83,21 @@ public class ServiceRequestPersistenceAdapter implements ServiceRequestPersisten
     @Override
     public long countByOffererId(Long offererId) {
         return repository.countByOffererId(offererId);
+    }
+
+    @Override
+    public Page<ServiceRequest> findOffererFutureRequests(Long offererId, List<String> statuses, Pageable pageable) {
+        return repository.findByOffererIdAndScheduledDateAfter(offererId, LocalDateTime.now()).stream()
+                .filter(entity -> statuses.contains(entity.getStatus().name()))
+                .map(mapper::toDomain)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), list -> new PageImpl<>(list, pageable, list.size())));
+    }
+
+    @Override
+    public Page<ServiceRequest> findClientFutureRequests(Long clientId, List<String> statuses, Pageable pageable) {
+    return repository.findByClientIdAndScheduledDateAfter(clientId, LocalDateTime.now()).stream()
+                .filter(entity -> statuses.contains(entity.getStatus().name()))
+                .map(mapper::toDomain)
+                .collect(Collectors.collectingAndThen(Collectors.toList(), list -> new PageImpl<>(list, pageable, list.size())));
     }
 }

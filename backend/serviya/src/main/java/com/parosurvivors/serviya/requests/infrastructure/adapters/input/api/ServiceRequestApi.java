@@ -82,4 +82,15 @@ public interface ServiceRequestApi {
             description = "Crea una nueva solicitud enlazada via previousRequestId. RF-033.")
     @ApiResponse(responseCode = "201", description = "Nueva solicitud enlazada creada")
     ResponseEntity<ServiceRequestResponse> rescheduleRequest(Long id, RescheduleRequestForm form);
+
+    @Operation(summary = "Listar las solicitudes propias como cliente en agenda",
+            description = "Filtrables por estados. RF-030, RF-032, RF-038.")
+    @ApiResponse(responseCode = "200", description = "Pagina de solicitudes")
+    ResponseEntity<Page<ServiceRequestResponse>> getClientAgenda(Pageable pageable);
+
+
+    @Operation(summary = "Listar las solicitudes propias como oferente en agenda",
+            description = "Filtrables por estados. RF-030, RF-032, RF-038.")
+    @ApiResponse(responseCode = "200", description = "Pagina de solicitudes")
+    ResponseEntity<Page<ServiceRequestResponse>> getOffererAgenda(Pageable pageable);
 }

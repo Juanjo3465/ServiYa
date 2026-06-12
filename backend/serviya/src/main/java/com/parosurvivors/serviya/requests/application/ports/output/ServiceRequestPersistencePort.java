@@ -6,6 +6,9 @@ import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface ServiceRequestPersistencePort {
     ServiceRequest save(ServiceRequest request);
     ServiceRequest update(ServiceRequest request);
@@ -17,4 +20,7 @@ public interface ServiceRequestPersistencePort {
     Optional<ServiceRequest> findByPreviousRequestId(Long previousRequestId);
     long countByClientId(Long clientId);
     long countByOffererId(Long offererId);
+    //These next two methods are meant for the Agenda feature. Will return future requests, and not completed.
+    Page<ServiceRequest> findClientFutureRequests(Long clientId, List<String> statuses, Pageable pageable);
+    Page<ServiceRequest> findOffererFutureRequests(Long offererId, List<String> statuses, Pageable pageable);
 }

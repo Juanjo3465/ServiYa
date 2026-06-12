@@ -20,6 +20,11 @@ public interface ServiceRequestQueryServicePort {
 
     Page<ServiceRequest> getOffererRequests(Long offererId, List<String> statuses, Pageable pageable);
 
+    //Next two methods area meant for the Agenda feature. Will return future requests, and not completed.
+    Page<ServiceRequest> getClientFutureRequests(Long clientId, Pageable pageable);
+
+    Page<ServiceRequest> getOffererFutureRequests(Long offererId, Pageable pageable);
+
     ServiceRequestDetailResult getRequestDetailForParty(Long requestId, Long requesterId);
 
     AdminRequestDetailResult getRequestDetailForAdmin(Long requestId);

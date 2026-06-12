@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.requests.infrastructure.entities.ServiceRequest
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,4 +18,8 @@ public interface ServiceRequestRepository extends JpaRepository<ServiceRequestEn
     Optional<ServiceRequestEntity> findByPreviousRequestId(Long previousRequestId);
     long countByClientId(Long clientId);
     long countByOffererId(Long offererId);
+    //These next two methods are meant for the Agenda feature. Will return future requests, and not completed.
+    List<ServiceRequestEntity> findByClientIdAndScheduledDateAfter(Long clientId, LocalDateTime tomorrowOrNow);
+    List<ServiceRequestEntity> findByOffererIdAndScheduledDateAfter(Long offererId, LocalDateTime tomorrowOrNow);
+    
 }
