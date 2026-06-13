@@ -60,6 +60,6 @@ public class OffererAvailabilityPersistenceAdapter implements OffererAvailabilit
 
     @Override
     public void deleteByOffererId(Long offererId) {
-        repository.deleteAll(repository.findByOffererId(offererId));
+        repository.deleteByOffererId(offererId);
     }
 }

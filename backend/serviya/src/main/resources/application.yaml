@@ -11,6 +11,16 @@ spring:
       ddl-auto: update
     show-sql: false
 
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: DEBUG
+
+server:
+  error:
+    include-stacktrace: always
+    include-message: always
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
