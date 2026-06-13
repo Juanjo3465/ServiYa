@@ -5,7 +5,10 @@ import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServicePersistenceMapper;
 import com.parosurvivors.serviya.services.infrastructure.repositories.ServiceRepository;
+import com.parosurvivors.serviya.services.infrastructure.repositories.ServiceSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -47,20 +50,11 @@ public class ServicePersistenceAdapter implements ServicePersistencePort {
     }
 
     @Override
-    public List<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria){
-    java.math.BigDecimal minPrice = criteria.minPrice();
-    java.math.BigDecimal maxPrice = criteria.maxPrice();
-    List<com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity> entities = repository.search(
-        criteria.name(),
-        criteria.categoryId(),
-        criteria.offererId(),
-        minPrice,
-        maxPrice,
-        criteria.available()
-    );
-    return entities.stream()
-        .map(mapper::toDomain)
-        .collect(Collectors.toList());
+    public Page<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria,
+                                Pageable pageable) {
+        return repository
+                .findAll(ServiceSpecification.fromQuery(criteria), pageable)
+                .map(mapper::toDomain);
     }
     
     @Override
