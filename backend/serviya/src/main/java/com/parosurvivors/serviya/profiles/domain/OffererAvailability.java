@@ -20,6 +20,7 @@ import java.time.LocalTime;
 public class OffererAvailability {
     private Long id;
     private Long offererId;
+    // Weekday is an integer with an ID for day, 0 for monday 6 for sunday
     private Integer weekDay;
     private LocalTime startTime;
     private LocalTime endTime;

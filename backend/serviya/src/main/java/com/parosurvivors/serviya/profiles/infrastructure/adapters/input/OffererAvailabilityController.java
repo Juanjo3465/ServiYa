@@ -5,7 +5,7 @@ import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.Offe
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.AvailabilitySlotForm;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AvailabilitySlotResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.mappers.OffererAvailabilityWebMapper;
-import jakarta.validation.Valid;
+//import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,10 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
 /**
  * Adaptador de entrada (REST) de la disponibilidad general del oferente. Placeholder funcional;
  * documentacion en {@link OffererAvailabilityApi}.
- */
+*/
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/offerers/me/availability")
 @RequiredArgsConstructor
@@ -39,7 +41,7 @@ public class OffererAvailabilityController implements OffererAvailabilityApi {
 
     @Override
     @PutMapping
-    public ResponseEntity<Void> setSchedule(@Valid @RequestBody List<AvailabilitySlotForm> slots) {
+    public ResponseEntity<Void> setSchedule(@RequestBody List<AvailabilitySlotForm> slots) {
         offererAvailabilityService.setSchedule(currentUserId(), mapper.toCommands(slots));
         return ResponseEntity.noContent().build();
     }
@@ -67,6 +69,6 @@ public class OffererAvailabilityController implements OffererAvailabilityApi {
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 0L;
+        return 1L;
     }
 }
