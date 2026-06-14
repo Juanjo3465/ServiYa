@@ -19,3 +19,25 @@ INSERT INTO users (email, password_hash, is_banned, deleted_at, created_at) VALU
 ('rachel.young@example.com', '$2y$12$3n4o5p6q7r8s9t0v9R8xK3m1N7qL2pB5vE8uO9zXyW1vB2c3d4e5', FALSE, NULL, '2026-05-20 09:15:30'),
 ('sam.king@example.com', '$2y$12$1s2d3f4g5h6Zq2w3e4r5t6y7u8i9o0pO1w2e3r4t5y6u7i8o9p0a', FALSE, NULL, '2026-06-01 11:00:00'),
 ('tara.wright@example.com', '$2y$12$z2a1sQWERTyuioPASDFGhjklZXCVBnm987654321oP5vE8uO9zX', FALSE, NULL, '2026-06-05 16:50:22');
+
+INSERT INTO user_profiles (user_id, full_name, document_type, document_number, phone_number, primary_address_id, profile_photo_url, bio, profile_type) VALUES
+(1, 'Alice Johnson', 'DNI', '12345678A', '+1234567890', NULL, 'https://example.com/photos/alice.jpg', 'Experienced handyman specializing in home repairs and maintenance.', 'NATURAL'),
+(2, 'Bob Smith', 'DNI', '87654321B', '+0987654321', NULL, 'https://example.com/photos/bob.jpg', 'Professional cleaner with over 10 years of experience in residential and commercial cleaning.', 'NATURAL'),
+(3, 'Charlie Brown', 'DNI', '11223344C', '+1122334455', NULL, 'https://example.com/photos/charlie.jpg', 'Skilled gardener offering landscaping and lawn care services.', 'NATURAL'),
+(4, 'David Miller', 'DNI', '44332211D', '+5566778899', NULL, 'https://example.com/photos/david.jpg', 'Certified electrician providing safe and reliable electrical services.', 'NATURAL'),
+(5, 'Emma Davis', 'DNI', '55667788E', '+6677889900', NULL, 'https://example.com/photos/emma.jpg', 'Experienced tutor specializing in math and science subjects for high school students.', 'NATURAL'),
+(6, 'Frank Wilson', 'DNI', '99887766F', '+7788990011', NULL, 'https://example.com/photos/frank.jpg', 'Professional pet sitter offering dog walking and pet care services.', 'NATURAL'),
+(7, 'Grace Lee', 'DNI', '33445566G', '+8899001122', NULL, 'https://example.com/photos/grace.jpg', 'Skilled photographer specializing in portrait and event photography.', 'NATURAL'),
+(8, 'Henry Jones', 'DNI', '66778899H', '+9900112233', NULL, 'https://example.com/photos/henry.jpg', 'Experienced chef offering private cooking classes and catering services.', 'NATURAL'),
+(9, 'Isabella Clark', 'DNI', '77665544I', '+1011121314', NULL, 'https://example.com/photos/isabella.jpg', 'Professional personal trainer providing fitness coaching and workout plans.', 'NATURAL'),
+(10, 'Jack Taylor', 'DNI', '55443322J', '+1213141516', NULL, 'https://example.com/photos/jack.jpg', 'Skilled carpenter offering custom furniture building and home improvement services.', 'NATURAL'),
+(11, 'Karen White', 'DNI', '22334455K', '+1314151617', NULL, 'https://example.com/photos/karen.jpg', 'Experienced graphic designer specializing in branding and digital design.', 'NATURAL'),
+(12, 'Leo Harris', 'DNI', '66554433L', '+1415161718', NULL, 'https://example.com/photos/leo.jpg', 'Professional translator offering translation services for documents and websites.', 'NATURAL'),
+(13, 'Mia Martin', 'DNI', '33442211M', '+1516171819', NULL, 'https://example.com/photos/mia.jpg', 'Skilled makeup artist providing makeup services for weddings and special events.', 'NATURAL'),
+(14, 'Nathan Clark', 'DNI', '77889900N', '+1617181920', NULL, 'https://example.com/photos/nathan.jpg', 'Experienced software developer offering freelance programming and web development services.', 'NATURAL'),
+(15, 'Olivia Lewis', 'DNI', '11224433O', '+1718192021', NULL, 'https://example.com/photos/olivia.jpg', 'Professional event planner specializing in corporate events and weddings.', 'NATURAL'),
+(16, 'Peter Walker', 'DNI', '55667788P', '+1819202122', NULL, 'https://example.com/photos/peter.jpg', 'Skilled mechanic offering car repair and maintenance services.', 'NATURAL'),
+(17, 'Quinn Allen', 'DNI', '44332211Q', '+1920212223', NULL, 'https://example.com/photos/quinn.jpg', 'Experienced virtual assistant providing administrative support and customer service.', 'NATURAL'),
+(18, 'Rachel Young', 'DNI', '66778899R', '+2021222324', NULL, 'https://example.com/photos/rachel.jpg', 'Professional interior designer offering home staging and interior decorating services.', 'NATURAL'),
+(19, 'Sam King', 'DNI', '99887766S', '+2122232425', NULL, 'https://example.com/photos/sam.jpg', 'Skilled plumber providing plumbing repair and installation services.', 'NATURAL'),
+(20, 'Tara Wright', 'DNI', '77889900T', '+2223242526', NULL, 'https://example.com/photos/tara.jpg', 'Experienced yoga instructor offering private and group yoga classes.', 'NATURAL');

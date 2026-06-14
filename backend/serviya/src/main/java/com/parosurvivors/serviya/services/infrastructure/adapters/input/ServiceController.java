@@ -1,10 +1,18 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
+import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
+import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
+import com.parosurvivors.serviya.profiles.domain.OffererProfile;
+import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
 
@@ -33,6 +41,9 @@ import java.util.List;
 public class ServiceController implements ServiceApi {
 
     private final MarketplaceServicePort marketplaceService;
+    private final MarketplaceCategoryPort marketplaceCategoryPort;
+    private final OffererProfileServicePort offererProfileService;
+    private final OffererMetricsServicePort offererMetricsService;
     private final ServiceWebMapper mapper;
 
     @Override
@@ -51,6 +62,26 @@ public class ServiceController implements ServiceApi {
                 .map(mapper::toResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Override
+    @GetMapping("/api/v1/services/{id}/detail")
+    public ResponseEntity<ServiceDetailResponse> getDetail(
+            @Parameter(description = "ID del servicio") @PathVariable Long id) {
+        return marketplaceService.getById(id).map(service -> {
+            // Modulo services: categoria
+            var category = marketplaceCategoryPort.getById(service.getCategoryId()).orElse(null);
+
+            // Modulo profiles: perfil publico + resumen del oferente
+            OffererProfile profile       = offererProfileService.getPublicProfile(service.getOffererId());
+            OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
+
+            // Modulo metrics: metricas del oferente
+            OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
+
+            OffererProfileResponse offerer = mapper.toOffererResponse(summary, profile, metrics);
+            return ResponseEntity.ok(mapper.toDetailResponse(service, offerer, category));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @Override
