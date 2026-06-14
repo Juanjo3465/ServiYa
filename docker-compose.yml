@@ -12,6 +12,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+
   mysql:
     image: mysql
     container_name: serviya-mysql
@@ -37,6 +38,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "5173:5173"
+      - "8081:80"
+
 volumes:
   mysql_data:
