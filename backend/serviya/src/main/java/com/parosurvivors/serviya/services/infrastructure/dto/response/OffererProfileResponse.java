@@ -15,5 +15,6 @@ public record OffererProfileResponse(
         String profilePhotoUrl,
         String publicDescription,
         String specialty,
-        BigDecimal averageRating) {
+        BigDecimal averageRating,
+        Integer totalServices) {
 }

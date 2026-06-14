@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
 import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
+import com.parosurvivors.serviya.services.domain.Category;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
@@ -70,7 +71,7 @@ public class ServiceController implements ServiceApi {
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         return marketplaceService.getById(id).map(service -> {
             // Modulo services: categoria
-            var category = marketplaceCategoryPort.getById(service.getCategoryId()).orElse(null);
+            Category category = marketplaceCategoryPort.getById(service.getCategoryId()).orElse(null);
 
             // Modulo profiles: perfil publico + resumen del oferente
             OffererProfile profile       = offererProfileService.getPublicProfile(service.getOffererId());

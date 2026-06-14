@@ -886,3 +886,33 @@ INSERT INTO notification_channels(name)
 VALUES
 ('INTERNAL'),
 ('EMAIL');
+
+
+
+create view view_service_details as select 
+    services.id,
+    services.title,
+    services.description,
+    services.photos,
+    services.price_hourly,
+    services.average_duration_minutes,
+    services.is_active,
+    services.deleted_at,
+    services.operation_radius_km,
+    services.created_at,
+    offerer_profiles.id as offerer_id,
+    user_profiles.full_name as offerer_full_name,
+    offerer_profiles.whatsapp_number as offerer_phone_number,
+    user_profiles.profile_photo_url as offerer_profile_photo_url,
+    offerer_profiles.public_description,
+    offerer_profiles.specialty,
+    user_profiles.bio as offerer_bio,
+    offerer_metrics.average_rating as offerer_average_rating,
+    offerer_metrics.total_completed_services as offerer_total_completed_services,
+    categories.name as category_name
+    from services 
+        join categories on (services.category_id = categories.id) 
+        join offerer_profiles on (services.offerer_id = offerer_profiles.user_id) 
+        left join offerer_metrics on (services.offerer_id = offerer_metrics.offerer_id) 
+        join user_profiles on (services.offerer_id = user_profiles.user_id) 
+    ;
