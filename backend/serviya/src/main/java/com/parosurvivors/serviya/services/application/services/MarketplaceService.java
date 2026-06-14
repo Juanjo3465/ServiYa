@@ -9,6 +9,8 @@ import com.parosurvivors.serviya.services.application.ports.output.ServicePersis
 import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -58,10 +60,8 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public List<Service> search(SearchServiceQuery criteria) {
-        return persistencePort.search(criteria).stream()
-                .filter(s -> !s.isDeleted())
-                .collect(Collectors.toList());
+    public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
+        return persistencePort.search(criteria, pageable);
     }
     @Override
     public Service update(UpdateServiceCommand command) {

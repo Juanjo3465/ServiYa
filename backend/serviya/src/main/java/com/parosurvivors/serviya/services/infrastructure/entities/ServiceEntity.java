@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,7 +29,9 @@ public class ServiceEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(columnDefinition = "JSON")
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "json")
     private List<String> photos;
 
     @Column(name = "price_hourly", nullable = false)

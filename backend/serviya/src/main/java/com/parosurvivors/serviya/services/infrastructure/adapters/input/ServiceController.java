@@ -11,12 +11,16 @@ import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMappe
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Adaptador de entrada (REST) de servicios. Placeholder funcional: enruta, mapea Form->Command y
@@ -64,7 +68,7 @@ public class ServiceController implements ServiceApi {
 
     @Override
     @GetMapping("/api/v1/services/search")
-    public ResponseEntity<List<ServiceResponse>> search(
+    public ResponseEntity<Page<ServiceResponse>> search(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long offererId,
@@ -76,7 +80,9 @@ public class ServiceController implements ServiceApi {
             @RequestParam(required = false) String offererType,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
-            @RequestParam(required = false) Double maxDistanceKm
+            @RequestParam(required = false) Double maxDistanceKm,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
     ) {
         SearchServiceQuery criteria = SearchServiceQuery.builder()
                 .name(name)
@@ -92,7 +98,9 @@ public class ServiceController implements ServiceApi {
                 .longitude(longitude)
                 .maxDistanceKm(maxDistanceKm)
                 .build();
-        return ResponseEntity.ok(mapper.toResponses(marketplaceService.search(criteria)));
+        Page<ServiceResponse> page = marketplaceService.search(criteria, pageable)
+                .map(mapper::toResponse);
+        return ResponseEntity.ok(page);
     }
 
     @Override

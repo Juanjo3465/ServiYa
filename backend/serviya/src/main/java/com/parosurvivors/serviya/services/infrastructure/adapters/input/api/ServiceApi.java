@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -79,12 +81,12 @@ public interface ServiceApi {
     })
     ResponseEntity<Void> deactivate(Long id);
 
-    @Operation(summary = "Obtener un servicio por ID")
+    @Operation(summary = "Buscar servicios con filtros y paginación")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Servicios encontrado"),
+            @ApiResponse(responseCode = "200", description = "Página de servicios encontrados"),
             @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
     })
-    public ResponseEntity<List<ServiceResponse>> search(
+    ResponseEntity<Page<ServiceResponse>> search(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long offererId,
@@ -96,7 +98,8 @@ public interface ServiceApi {
             @RequestParam(required = false) String offererType,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
-            @RequestParam(required = false) Double maxDistanceKm
+            @RequestParam(required = false) Double maxDistanceKm,
+            Pageable pageable
     );
 
 }
