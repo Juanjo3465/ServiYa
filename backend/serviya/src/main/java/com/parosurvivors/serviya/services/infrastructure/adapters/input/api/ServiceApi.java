@@ -103,7 +103,6 @@ public interface ServiceApi {
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) Double maxRating,
-            @RequestParam(required = false) String offererType,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double maxDistanceKm,

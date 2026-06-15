@@ -109,7 +109,6 @@ public class ServiceController implements ServiceApi {
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) Double maxRating,
-            @RequestParam(required = false) String offererType,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double maxDistanceKm,
@@ -125,7 +124,6 @@ public class ServiceController implements ServiceApi {
                 .available(available)
                 .minRating(minRating)
                 .maxRating(maxRating)
-                .offererType(offererType)
                 .latitude(latitude)
                 .longitude(longitude)
                 .maxDistanceKm(maxDistanceKm)

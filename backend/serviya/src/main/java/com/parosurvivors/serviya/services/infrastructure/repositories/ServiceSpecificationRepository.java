@@ -4,7 +4,6 @@ import com.parosurvivors.serviya.metrics.infrastructure.entities.ServiceMetricsE
 import com.parosurvivors.serviya.profiles.infrastructure.entities.UserProfileEntity;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity;
-import com.parosurvivors.serviya.services.infrastructure.entities.ServiceDetailEntity;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -26,9 +25,9 @@ import java.util.List;
  * Pendiente: filtros de geolocalización (latitude/longitude/maxDistanceKm) requieren
  * que ServiceEntity tenga coordenadas o un JOIN con addresses.
  */
-public class ServiceSpecification {
+public class ServiceSpecificationRepository {
 
-    private ServiceSpecification() {}
+    private ServiceSpecificationRepository() {}
 
     public static Specification<ServiceEntity> fromQuery(SearchServiceQuery q) {
         return (root, query, cb) -> {
@@ -44,10 +43,13 @@ public class ServiceSpecification {
 
             // ── Filtros sobre services ────────────────────────────────────────
             if (q.name() != null && !q.name().isBlank()) {
+                Join<ServiceEntity, UserProfileEntity> profile = root.join("offererProfile", JoinType.LEFT);
                 String pattern = "%" + q.name().toLowerCase() + "%";
+
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("title")), pattern),
-                        cb.like(cb.lower(root.get("description")), pattern)
+                        cb.like(cb.lower(root.get("description")), pattern),
+                        cb.like(cb.lower(profile.get("fullName")), pattern)
                 ));
             }
 
@@ -91,17 +93,6 @@ public class ServiceSpecification {
                 }
             }
 
-            // ── JOIN con user_profiles → offererType ──────────────────────────
-            // offererType mapea al campo profileType de UserProfileEntity
-            if (q.offererType() != null && !q.offererType().isBlank()) {
-                Join<ServiceEntity, UserProfileEntity> profile =
-                        root.join("offererProfile", JoinType.LEFT);
-                predicates.add(cb.equal(
-                        cb.lower(profile.get("profileType").as(String.class)),
-                        q.offererType().toLowerCase()
-                ));
-            }
-
             // ── Geolocalización: pendiente ────────────────────────────────────
             // latitude, longitude, maxDistanceKm no se aplican aún porque ServiceEntity
             // no tiene coordenadas. Se implementará cuando se agregue ese campo o el
@@ -111,88 +102,4 @@ public class ServiceSpecification {
         };
     }
 
-    public static Specification<ServiceDetailEntity> fromQueryView(
-        SearchServiceQuery q) {
-
-        return (root, query, cb) -> {
-
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (q.name() != null && !q.name().isBlank()) {
-                String pattern = "%" + q.name().toLowerCase() + "%";
-
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("title")), pattern),
-                        cb.like(cb.lower(root.get("description")), pattern)
-                ));
-            }
-
-            if (q.categoryId() != null) {
-                predicates.add(
-                        cb.equal(root.get("categoryId"), q.categoryId())
-                );
-            }
-
-            if (q.offererId() != null) {
-                predicates.add(
-                        cb.equal(root.get("offererId"), q.offererId())
-                );
-            }
-
-            if (q.minPrice() != null) {
-                predicates.add(
-                        cb.greaterThanOrEqualTo(
-                                root.get("priceHourly"),
-                                q.minPrice()
-                        )
-                );
-            }
-
-            if (q.maxPrice() != null) {
-                predicates.add(
-                        cb.lessThanOrEqualTo(
-                                root.get("priceHourly"),
-                                q.maxPrice()
-                        )
-                );
-            }
-
-            if (q.available() != null) {
-                predicates.add(
-                        cb.equal(root.get("active"), q.available())
-                );
-            }
-
-            if (q.minRating() != null) {
-                predicates.add(
-                        cb.greaterThanOrEqualTo(
-                                root.get("averageRating"),
-                                BigDecimal.valueOf(q.minRating())
-                        )
-                );
-            }
-
-            if (q.maxRating() != null) {
-                predicates.add(
-                        cb.lessThanOrEqualTo(
-                                root.get("averageRating"),
-                                BigDecimal.valueOf(q.maxRating())
-                        )
-                );
-            }
-
-            if (q.offererType() != null &&
-                    !q.offererType().isBlank()) {
-
-                predicates.add(
-                        cb.equal(
-                                cb.lower(root.get("profileType")),
-                                q.offererType().toLowerCase()
-                        )
-                );
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-    }
 }
