@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { ToastContainer } from '../../../shared/components/Toast/Toast';
-import { useToast } from '../../../shared/hooks/useToast';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useToast } from '../../../../shared/hooks/useToast';
+import { useNavigate } from 'react-router-dom';
 
 import "./Hero.css";
 

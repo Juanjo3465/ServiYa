@@ -1,5 +1,3 @@
-import React from 'react';
-
 const TOAST_TYPES = {
   info: { bg: '#0F172A', ico: <><path d="M12 8v4m0 4h.01"/><circle cx="12" cy="12" r="10"/></> },
   success: { bg: '#065F46', ico: <path d="M20 6 9 17l-5-5"/> },

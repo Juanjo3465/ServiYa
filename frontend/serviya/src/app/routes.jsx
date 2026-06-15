@@ -1,23 +1,56 @@
 import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
-import { HomePage } from "../modules/services";
-import { AdminReportsPage } from "../modules/admin";
+
+import { HomePage, SearchPage, ServiceDetailPage, OffererServicesPage, AvailabilityPage } from "../modules/services";
+import { LoginPage, RegisterPage, RecoverPasswordPage } from "../modules/users";
+import { ProfilePage, OffererProfilePage } from "../modules/profiles";
+import {
+    ClientDashboardPage,
+    OffererDashboardPage,
+    ClientRequestsPage,
+    ReschedulesPage,
+    ClientSchedulePage,
+    OffererSchedulePage,
+    ClientHistoryPage,
+    OffererHistoryPage,
+    RequestServicePage,
+} from "../modules/requests";
+import { NotificationsPage } from "../modules/notifications";
+import { AdminDashboardPage, AdminUsersPage, AdminReportsPage } from "../modules/admin";
+
+const page = (element) => ({ element: <App>{element}</App> });
 
 export const router = createBrowserRouter([
-    {
-        path: "/",
-        element: (
-            <App>
-                <HomePage />
-            </App>
-        ),
-    },
-    {
-        path: "/admin/reports",
-        element: (
-            <App>
-                <AdminReportsPage />
-            </App>
-        ),
-    },
+    // Public
+    { path: "/", ...page(<HomePage />) },
+    { path: "/login", ...page(<LoginPage />) },
+    { path: "/register", ...page(<RegisterPage />) },
+    { path: "/recover", ...page(<RecoverPasswordPage />) },
+    { path: "/services", ...page(<SearchPage />) },
+    { path: "/services/:id", ...page(<ServiceDetailPage />) },
+    { path: "/offerers/:id", ...page(<OffererProfilePage />) },
+    { path: "/request-service", ...page(<RequestServicePage />) },
+
+    // Account (shared by roles)
+    { path: "/profile", ...page(<ProfilePage />) },
+    { path: "/notifications", ...page(<NotificationsPage />) },
+
+    // Client
+    { path: "/dashboard", ...page(<ClientDashboardPage />) },
+    { path: "/requests", ...page(<ClientRequestsPage />) },
+    { path: "/reschedules", ...page(<ReschedulesPage />) },
+    { path: "/schedule", ...page(<ClientSchedulePage />) },
+    { path: "/history", ...page(<ClientHistoryPage />) },
+
+    // Offerer
+    { path: "/offerer/dashboard", ...page(<OffererDashboardPage />) },
+    { path: "/offerer/services", ...page(<OffererServicesPage />) },
+    { path: "/offerer/availability", ...page(<AvailabilityPage />) },
+    { path: "/offerer/schedule", ...page(<OffererSchedulePage />) },
+    { path: "/offerer/history", ...page(<OffererHistoryPage />) },
+
+    // Admin
+    { path: "/admin/dashboard", ...page(<AdminDashboardPage />) },
+    { path: "/admin/users", ...page(<AdminUsersPage />) },
+    { path: "/admin/reports", ...page(<AdminReportsPage />) },
 ]);

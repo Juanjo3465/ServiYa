@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { AdminNavbar } from '../../components/AdminNavbar';
-import { AdminSidebar } from '../../components/AdminSidebar';
-import { ReportCard } from '../../components/ReportCard';
-import { ManagementModal } from '../../components/ManagementModal';
+import { useState } from "react";
+import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
+import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
+import { ReportCard } from '../../components/ReportCard/ReportCard';
+import { ManagementModal } from '../../components/ManagementModal/ManagementModal';
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
 import { useToast } from '../../../../shared/hooks/useToast';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import './ReportCard.css';
 
 export function ReportCard({ report, onManage, onNotify, onDelete }) {

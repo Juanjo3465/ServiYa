@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { Navbar } from '../../../shared/components/Navbar/Navbar';
-import { Footer } from '../../../shared/components/Footer/Footer';
-import { ToastContainer } from '../../../shared/components/Toast/Toast';
-import { useToast } from '../../../shared/hooks/useToast';
-import { CategoryCard } from '../components/CategoryCard';
-import { ServiceCard } from '../components/ServiceCard';
-import { Hero } from '../components/Hero';
+import { Navbar } from '../../../../shared/components/Navbar/Navbar';
+import { Footer } from '../../../../shared/components/Footer/Footer';
+import { ToastContainer } from '../../../../shared/components/Toast/Toast';
+import { useToast } from '../../../../shared/hooks/useToast';
+import { CategoryCard } from '../../components/CategoryCard/CategoryCard';
+import { ServiceCard } from '../../components/ServiceCard/ServiceCard';
+import { Hero } from '../../components/Hero/Hero';
 import { Link } from 'react-router-dom';
 
 import "./HomePage.css";

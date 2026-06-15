@@ -1,4 +1,3 @@
-import React from 'react';
 import './ManagementModal.css';
 
 export function ManagementModal({ report, onClose, onExecute }) {
