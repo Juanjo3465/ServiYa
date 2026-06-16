@@ -392,6 +392,8 @@ CREATE TABLE service_reviews (
 
     request_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
+    service_id BIGINT UNSIGNED NOT NULL,
+
     client_id BIGINT UNSIGNED NOT NULL,
 
     comment TEXT NOT NULL,
@@ -403,6 +405,10 @@ CREATE TABLE service_reviews (
         REFERENCES service_requests(id)
         ON DELETE CASCADE,
 
+    CONSTRAINT fk_service_reviews_service
+        FOREIGN KEY (service_id)
+        REFERENCES services(id),
+        
     CONSTRAINT fk_service_reviews_client
         FOREIGN KEY (client_id)
         REFERENCES users(id)
