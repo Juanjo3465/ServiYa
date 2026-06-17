@@ -1,17 +1,20 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
+import com.parosurvivors.serviya.profiles.application.dto.command.CreateUserProfileCommand;
 import com.parosurvivors.serviya.profiles.application.dto.command.UpdateProfileCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementacion placeholder de UserProfileServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
+ * Servicio del perfil personal. {@code createProfile} crea la fila de user_profiles durante el
+ * registro (RF-002) y {@code getProfileInfo} expone la informacion del usuario autenticado
+ * (RF-005). Ver documents/project-structure/estructura-servicios.docx.
  */
 @Component
 @RequiredArgsConstructor
@@ -21,8 +24,23 @@ public class UserProfileService implements UserProfileServicePort {
     private final AddressPersistencePort addressPersistencePort;
 
     @Override
+    public UserProfile createProfile(CreateUserProfileCommand command) {
+        UserProfile profile = UserProfile.builder()
+                .userId(command.userId())
+                .fullName(command.fullName())
+                .documentType(command.documentType())
+                .documentNumber(command.documentNumber())
+                .phoneNumber(command.phoneNumber())
+                .profileType(command.profileType())
+                .createdAt(LocalDateTime.now())
+                .build();
+        return userProfilePersistencePort.save(profile);
+    }
+
+    @Override
     public UserProfile getProfileInfo(Long userId) {
-        throw new UnsupportedOperationException("TODO: getProfileInfo — placeholder, ver estructura-servicios.docx");
+        return userProfilePersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for user: " + userId));
     }
 
     @Override
