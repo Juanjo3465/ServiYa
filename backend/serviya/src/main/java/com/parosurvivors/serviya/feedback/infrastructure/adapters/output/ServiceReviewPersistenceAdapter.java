@@ -46,4 +46,18 @@ public class ServiceReviewPersistenceAdapter implements ServiceReviewPersistence
     public void deleteById(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public List<ServiceReview> findByServiceId(Long serviceId) {
+        return repository.findByServiceId(serviceId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ServiceReview> findTop3ByServiceId(Long serviceId) {
+        return repository.findTop3ByServiceId(serviceId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }

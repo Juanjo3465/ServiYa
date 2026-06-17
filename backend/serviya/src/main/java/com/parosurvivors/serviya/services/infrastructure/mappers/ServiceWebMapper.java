@@ -1,15 +1,14 @@
 package com.parosurvivors.serviya.services.infrastructure.mappers;
 
-import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
-import com.parosurvivors.serviya.profiles.domain.OffererProfile;
-import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
-import com.parosurvivors.serviya.services.domain.Category;
+import com.parosurvivors.serviya.services.domain.ReviewUser;
 import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.domain.ServiceDetail;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewsResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import org.mapstruct.Mapper;
@@ -33,18 +32,21 @@ public interface ServiceWebMapper {
 
     ServiceResponse toResponse(Service service);
 
-    @Mapping(target = "id",       source = "service.id")
-    @Mapping(target = "offerer",   source = "offerer")
-    @Mapping(target = "category",  source = "category")
-    ServiceDetailResponse toDetailResponse(Service service, OffererProfileResponse offerer, Category category);
+    @Mapping(target = "id", source = "review.id")
+    @Mapping(target = "requestId", source = "review.requestId")
+    @Mapping(target = "comment", source = "review.comment")
+    @Mapping(target = "createdAt", source = "review.createdAt")
+    @Mapping(target = "userName", source = "user.fullName")
+    @Mapping(target = "userPhotoUrl", source = "user.profilePhotoUrl")
+    ReviewResponse toReviewResponse(ReviewUser reviewUser);
 
-    @Mapping(target = "userId",            source = "summary.userId")
-    @Mapping(target = "fullName",          source = "summary.fullName")
-    @Mapping(target = "profilePhotoUrl",   source = "summary.profilePhotoUrl")
-    @Mapping(target = "specialty",         source = "summary.specialty")
-    @Mapping(target = "averageRating",     source = "summary.averageRating")
-    @Mapping(target = "publicDescription", source = "profile.publicDescription")
-    OffererProfileResponse toOffererResponse(OffererProfileSummary summary, OffererProfile profile, OffererMetrics metrics);
+    default ReviewsResponse toReviewsResponse(List<ReviewUser> reviews) {
+        if (reviews == null) return null;
+        return new ReviewsResponse(reviews.stream().map(this::toReviewResponse).toList());
+    }
+
+    
+    ServiceDetailResponse toDetailResponse(ServiceDetail detail);
 
     List<ServiceResponse> toResponses(List<Service> services);
 }

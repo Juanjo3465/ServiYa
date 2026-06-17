@@ -31,4 +31,14 @@ public class ServiceReviewService implements ServiceReviewServicePort {
     public void deleteReview(Long requestId, Long clientId) {
         throw new UnsupportedOperationException("TODO: deleteReview — placeholder, ver estructura-servicios.docx");
     }
+
+    @Override
+    public List<ServiceReview> getByServiceId(Long serviceId) {
+        return serviceReviewPersistencePort.findByServiceId(serviceId);
+    }
+
+    @Override
+    public List<ServiceReview> getByServiceIdThree(Long serviceId) {
+        return serviceReviewPersistencePort.findTop3ByServiceId(serviceId);
+    }
 }

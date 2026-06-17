@@ -1,12 +1,27 @@
 package com.parosurvivors.serviya.services.application.services;
 
+import com.parosurvivors.serviya.feedback.application.ports.input.ServiceReviewServicePort;
+import com.parosurvivors.serviya.feedback.domain.ServiceReview;
+import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
+import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
+import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
+import com.parosurvivors.serviya.profiles.domain.OffererProfile;
+import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
+import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.mappers.ServiceCommandMapper;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.domain.Category;
+import com.parosurvivors.serviya.services.domain.ServiceDetail;
+import com.parosurvivors.serviya.services.domain.ReviewUser;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,6 +29,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,6 +44,11 @@ import java.util.stream.Collectors;
 public class MarketplaceService implements MarketplaceServicePort {
 
     private final ServicePersistencePort persistencePort;
+    private final MarketplaceCategoryPort categoryPort;
+    private final OffererProfileServicePort offererProfileService;
+    private final OffererMetricsServicePort offererMetricsService;
+    private final ServiceReviewServicePort serviceReviewService;
+    private final UserProfileServicePort userProfileService;
     private final ServiceCommandMapper commandMapper;
 
     @Override
@@ -59,6 +80,7 @@ public class MarketplaceService implements MarketplaceServicePort {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
         return persistencePort.search(criteria, pageable);
@@ -73,6 +95,36 @@ public class MarketplaceService implements MarketplaceServicePort {
         service.setUpdatedAt(LocalDateTime.now());
 
         return persistencePort.update(service);
+    }
+
+    @Override
+    public Optional<ServiceDetail> getDetailById(Long id) {
+        
+        Service service = getById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
+        Category category = categoryPort.getById(service.getCategoryId())
+            .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada con id: " + service.getCategoryId()));
+        OffererProfile offererProfile = offererProfileService.getPublicProfile(service.getOffererId());
+        OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
+        OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
+
+        // Parece que o el ServiceReview esta mal diseñado o se debe consultar de otra manera
+        List<ServiceReview> serviceReviews = serviceReviewService.getByServiceIdThree(service.getId());
+
+        List<ReviewUser> reviewsResponse = new ArrayList<>();
+
+        for(ServiceReview review : serviceReviews) {
+            // consultar a user profile
+            UserProfile user = userProfileService.getProfileInfo(review.getClientId());
+            ReviewUser reviewUser = new ReviewUser(review, user);
+            reviewsResponse.add(reviewUser);
+        }
+
+        // TODO: Implement ReviewsResponse and AvailabilityResponse
+            //ReviewsResponse reviews = reviewMapper.toResponse(serviceMetrics);
+            // AvailabilityResponse availability = new AvailabilityResponse(marketplaceService.getAvailabilityByServiceId(service.getId()));
+
+        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, reviewsResponse));
     }
 
     @Override
@@ -112,4 +164,6 @@ public class MarketplaceService implements MarketplaceServicePort {
         service.setUpdatedAt(LocalDateTime.now());
         persistencePort.update(service);
     }
+
+    
 }

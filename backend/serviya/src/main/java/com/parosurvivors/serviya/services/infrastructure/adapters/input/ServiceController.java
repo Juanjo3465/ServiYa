@@ -2,8 +2,12 @@ package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.feedback.application.ports.input.ServiceReviewServicePort;
+import com.parosurvivors.serviya.feedback.domain.ServiceReview;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
+import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
+import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
 import com.parosurvivors.serviya.services.domain.Category;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
@@ -14,8 +18,11 @@ import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceF
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewsResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
+import com.parosurvivors.serviya.services.infrastructure.mappers.ReviewWebMapper;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -30,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Adaptador de entrada (REST) de servicios. Placeholder funcional: enruta, mapea Form->Command y
@@ -43,9 +51,8 @@ public class ServiceController implements ServiceApi {
 
     private final MarketplaceServicePort marketplaceService;
     private final MarketplaceCategoryPort marketplaceCategoryPort;
-    private final OffererProfileServicePort offererProfileService;
-    private final OffererMetricsServicePort offererMetricsService;
     private final ServiceWebMapper mapper;
+    private final ReviewWebMapper reviewMapper;
 
     @Override
     @PostMapping("/api/v1/services")
@@ -69,20 +76,10 @@ public class ServiceController implements ServiceApi {
     @GetMapping("/api/v1/services/{id}/detail")
     public ResponseEntity<ServiceDetailResponse> getDetail(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
-        return marketplaceService.getById(id).map(service -> {
-            // Modulo services: categoria
-            Category category = marketplaceCategoryPort.getById(service.getCategoryId()).orElse(null);
-
-            // Modulo profiles: perfil publico + resumen del oferente
-            OffererProfile profile       = offererProfileService.getPublicProfile(service.getOffererId());
-            OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
-
-            // Modulo metrics: metricas del oferente
-            OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
-
-            OffererProfileResponse offerer = mapper.toOffererResponse(summary, profile, metrics);
-            return ResponseEntity.ok(mapper.toDetailResponse(service, offerer, category));
-        }).orElse(ResponseEntity.notFound().build());
+        return marketplaceService.getDetailById(id)
+                .map(mapper::toDetailResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Override
