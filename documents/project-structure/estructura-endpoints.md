@@ -357,15 +357,15 @@ El campo `fieldErrors` solo aparece en errores de validación.
 
 ## 15. Reportes
 
-`ReportService` · `RequestReportService` · `ServiceReviewReportService` · `ClientReviewReportService` · `ReportActionService`
+`ReportService` · `RequestReportService` · `ServiceFeedbackReportService` · `ClientFeedbackReportService` · `ReportActionService`
 
 ### Creación
 
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
 | `POST` | `/api/v1/reports/requests` | `RequestReportService.createReport(...)` | Parte involucrada | RF-055, RF-057, RF-073 |
-| `POST` | `/api/v1/reports/service-reviews` | `ServiceReviewReportService.createReport(...)` | Logged | RF-056 |
-| `POST` | `/api/v1/reports/client-reviews` | `ClientReviewReportService.createReport(...)` | Logged | RF-056 |
+| `POST` | `/api/v1/reports/service-feedback` | `ServiceFeedbackReportService.createReport(...)` | Logged | RF-056 |
+| `POST` | `/api/v1/reports/client-feedback` | `ClientFeedbackReportService.createReport(...)` | Logged | RF-056 |
 
 ### Consulta
 

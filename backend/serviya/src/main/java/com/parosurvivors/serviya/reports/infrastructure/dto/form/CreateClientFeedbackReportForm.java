@@ -5,14 +5,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * Entrada web (Form) para reportar una resena de servicio. POST /api/v1/reports/service-reviews (RF-056).
+ * Entrada web (Form) para reportar una resena de cliente. POST /api/v1/reports/client-feedback (RF-056).
  * El reporterId se extrae del JWT.
  * TODO: revisar validaciones.
  */
-@Schema(description = "Datos para reportar una resena de servicio")
-public record CreateServiceReviewReportForm(
+@Schema(description = "Datos para reportar una resena de cliente")
+public record CreateClientFeedbackReportForm(
         @NotNull Long reportedUserId,
         @NotBlank String category,
         String reason,
-        @NotNull Long serviceReviewId) {
+        @NotNull Long clientFeedbackId) {
 }

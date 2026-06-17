@@ -5,10 +5,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "client_review_reports")
+@Table(name = "client_feedback_reports")
 @Getter
 @Setter
-public class ClientReviewReportEntity {
+public class ClientFeedbackReportEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -16,6 +16,6 @@ public class ClientReviewReportEntity {
     @Column(name = "report_id", nullable = false, unique = true)
     private Long reportId;
 
-    @Column(name = "review_id", nullable = false)
-    private Long reviewId;
+    @Column(name = "feedback_id", nullable = false)
+    private Long feedbackId;
 }

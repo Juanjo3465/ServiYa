@@ -672,8 +672,8 @@ CREATE TABLE reports (
 
     report_type ENUM(
         'REQUEST',
-        'SERVICE_REVIEW',
-        'CLIENT_REVIEW'
+        'SERVICE_FEEDBACK',
+        'CLIENT_FEEDBACK'
     ) NOT NULL,
 
     category VARCHAR(150) NOT NULL,
@@ -724,37 +724,37 @@ CREATE TABLE request_reports (
         REFERENCES service_requests(id)
 );
 
-CREATE TABLE service_review_reports (
+CREATE TABLE service_feedback_reports (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     report_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
-    review_id BIGINT UNSIGNED NOT NULL,
+    feedback_id BIGINT UNSIGNED NOT NULL,
 
-    CONSTRAINT fk_service_review_reports_report
+    CONSTRAINT fk_service_feedback_reports_report
         FOREIGN KEY (report_id)
         REFERENCES reports(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_service_review_reports_review
-        FOREIGN KEY (review_id)
+    CONSTRAINT fk_service_feedback_reports_feedback
+        FOREIGN KEY (feedback_id)
         REFERENCES service_feedback(id)
 );
 
-CREATE TABLE client_review_reports (
+CREATE TABLE client_feedback_reports (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     report_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
-    review_id BIGINT UNSIGNED NOT NULL,
+    feedback_id BIGINT UNSIGNED NOT NULL,
 
-    CONSTRAINT fk_client_review_reports_report
+    CONSTRAINT fk_client_feedback_reports_report
         FOREIGN KEY (report_id)
         REFERENCES reports(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_client_review_reports_review
-        FOREIGN KEY (review_id)
+    CONSTRAINT fk_client_feedback_reports_feedback
+        FOREIGN KEY (feedback_id)
         REFERENCES client_feedback(id)
 );
 

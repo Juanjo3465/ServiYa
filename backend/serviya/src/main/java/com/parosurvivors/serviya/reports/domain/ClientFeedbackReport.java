@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Extensión de un reporte de tipo CLIENT_REVIEW. Mapea la tabla {@code client_review_reports}
+ * Extensión de un reporte de tipo CLIENT_FEEDBACK. Mapea la tabla {@code client_feedback_reports}
  * (1:1 con un {@link Report} vía {@code reportId}).
  */
 @Getter
@@ -15,8 +15,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ClientReviewReport {
+public class ClientFeedbackReport {
     private Long id;
     private Long reportId;
-    private Long reviewId;
+    private Long feedbackId;
 }

@@ -1,28 +1,28 @@
 package com.parosurvivors.serviya.reports.application.services;
 
-import com.parosurvivors.serviya.reports.application.dto.command.CreateClientReviewReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceFeedbackReportCommand;
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
-import com.parosurvivors.serviya.reports.application.ports.input.ClientReviewReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
-import com.parosurvivors.serviya.reports.application.ports.output.ClientReviewReportPersistencePort;
-import com.parosurvivors.serviya.reports.domain.ClientReviewReport;
+import com.parosurvivors.serviya.reports.application.ports.input.ServiceFeedbackReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.output.ServiceFeedbackReportPersistencePort;
+import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementacion placeholder de ClientReviewReportServicePort.
+ * Implementacion placeholder de ServiceFeedbackReportServicePort.
  * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
  * Ver documents/project-structure/estructura-servicios.docx.
  */
 @Component
 @RequiredArgsConstructor
-public class ClientReviewReportService implements ClientReviewReportServicePort {
+public class ServiceFeedbackReportService implements ServiceFeedbackReportServicePort {
 
-    private final ClientReviewReportPersistencePort clientReviewReportPersistencePort;
+    private final ServiceFeedbackReportPersistencePort serviceFeedbackReportPersistencePort;
     private final ReportServicePort reportServicePort;
 
     @Override
-    public ClientReviewReport createReport(CreateClientReviewReportCommand command) {
+    public ServiceFeedbackReport createReport(CreateServiceFeedbackReportCommand command) {
         throw new UnsupportedOperationException("TODO: createReport — placeholder, ver estructura-servicios.docx");
     }
 

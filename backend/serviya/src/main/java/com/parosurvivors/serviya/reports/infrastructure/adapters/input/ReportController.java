@@ -1,20 +1,20 @@
 package com.parosurvivors.serviya.reports.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.reports.application.ports.input.ClientReviewReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ClientFeedbackReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportActionServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.RequestReportServicePort;
-import com.parosurvivors.serviya.reports.application.ports.input.ServiceReviewReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ServiceFeedbackReportServicePort;
 import com.parosurvivors.serviya.reports.infrastructure.adapters.input.api.ReportApi;
-import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateClientReviewReportForm;
+import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateClientFeedbackReportForm;
 import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateRequestReportForm;
-import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateServiceReviewReportForm;
-import com.parosurvivors.serviya.reports.infrastructure.dto.response.ClientReviewReportResponse;
+import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateServiceFeedbackReportForm;
+import com.parosurvivors.serviya.reports.infrastructure.dto.response.ClientFeedbackReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportActionResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportDetailResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.RequestReportResponse;
-import com.parosurvivors.serviya.reports.infrastructure.dto.response.ServiceReviewReportResponse;
+import com.parosurvivors.serviya.reports.infrastructure.dto.response.ServiceFeedbackReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.mappers.ReportWebMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,8 +41,8 @@ public class ReportController implements ReportApi {
 
     private final ReportServicePort reportService;
     private final RequestReportServicePort requestReportService;
-    private final ServiceReviewReportServicePort serviceReviewReportService;
-    private final ClientReviewReportServicePort clientReviewReportService;
+    private final ServiceFeedbackReportServicePort serviceFeedbackReportService;
+    private final ClientFeedbackReportServicePort clientFeedbackReportService;
     private final ReportActionServicePort reportActionService;
     private final ReportWebMapper mapper;
 
@@ -56,20 +56,20 @@ public class ReportController implements ReportApi {
     }
 
     @Override
-    @PostMapping("/api/v1/reports/service-reviews")
-    public ResponseEntity<ServiceReviewReportResponse> createServiceReviewReport(
-            @Valid @RequestBody CreateServiceReviewReportForm form) {
-        ServiceReviewReportResponse response = mapper.toResponse(
-                serviceReviewReportService.createReport(mapper.toCommand(form, currentUserId())));
+    @PostMapping("/api/v1/reports/service-feedback")
+    public ResponseEntity<ServiceFeedbackReportResponse> createServiceFeedbackReport(
+            @Valid @RequestBody CreateServiceFeedbackReportForm form) {
+        ServiceFeedbackReportResponse response = mapper.toResponse(
+                serviceFeedbackReportService.createReport(mapper.toCommand(form, currentUserId())));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Override
-    @PostMapping("/api/v1/reports/client-reviews")
-    public ResponseEntity<ClientReviewReportResponse> createClientReviewReport(
-            @Valid @RequestBody CreateClientReviewReportForm form) {
-        ClientReviewReportResponse response = mapper.toResponse(
-                clientReviewReportService.createReport(mapper.toCommand(form, currentUserId())));
+    @PostMapping("/api/v1/reports/client-feedback")
+    public ResponseEntity<ClientFeedbackReportResponse> createClientFeedbackReport(
+            @Valid @RequestBody CreateClientFeedbackReportForm form) {
+        ClientFeedbackReportResponse response = mapper.toResponse(
+                clientFeedbackReportService.createReport(mapper.toCommand(form, currentUserId())));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

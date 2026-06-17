@@ -1,23 +1,23 @@
 package com.parosurvivors.serviya.reports.infrastructure.mappers;
 
-import com.parosurvivors.serviya.reports.application.dto.command.CreateClientReviewReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateClientFeedbackReportCommand;
 import com.parosurvivors.serviya.reports.application.dto.command.CreateRequestReportCommand;
-import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceReviewReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceFeedbackReportCommand;
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
-import com.parosurvivors.serviya.reports.domain.ClientReviewReport;
+import com.parosurvivors.serviya.reports.domain.ClientFeedbackReport;
 import com.parosurvivors.serviya.reports.domain.Report;
 import com.parosurvivors.serviya.reports.domain.ReportAction;
 import com.parosurvivors.serviya.reports.domain.RequestReport;
-import com.parosurvivors.serviya.reports.domain.ServiceReviewReport;
-import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateClientReviewReportForm;
+import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
+import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateClientFeedbackReportForm;
 import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateRequestReportForm;
-import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateServiceReviewReportForm;
-import com.parosurvivors.serviya.reports.infrastructure.dto.response.ClientReviewReportResponse;
+import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateServiceFeedbackReportForm;
+import com.parosurvivors.serviya.reports.infrastructure.dto.response.ClientFeedbackReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportActionResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportDetailResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.RequestReportResponse;
-import com.parosurvivors.serviya.reports.infrastructure.dto.response.ServiceReviewReportResponse;
+import com.parosurvivors.serviya.reports.infrastructure.dto.response.ServiceFeedbackReportResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -34,10 +34,10 @@ public interface ReportWebMapper {
     CreateRequestReportCommand toCommand(CreateRequestReportForm form, Long reporterId);
 
     @Mapping(target = "reporterId", source = "reporterId")
-    CreateServiceReviewReportCommand toCommand(CreateServiceReviewReportForm form, Long reporterId);
+    CreateServiceFeedbackReportCommand toCommand(CreateServiceFeedbackReportForm form, Long reporterId);
 
     @Mapping(target = "reporterId", source = "reporterId")
-    CreateClientReviewReportCommand toCommand(CreateClientReviewReportForm form, Long reporterId);
+    CreateClientFeedbackReportCommand toCommand(CreateClientFeedbackReportForm form, Long reporterId);
 
     ReportResponse toResponse(Report report);
 
@@ -47,9 +47,9 @@ public interface ReportWebMapper {
 
     RequestReportResponse toResponse(RequestReport report);
 
-    ServiceReviewReportResponse toResponse(ServiceReviewReport report);
+    ServiceFeedbackReportResponse toResponse(ServiceFeedbackReport report);
 
-    ClientReviewReportResponse toResponse(ClientReviewReport report);
+    ClientFeedbackReportResponse toResponse(ClientFeedbackReport report);
 
     List<ReportResponse> toReportResponses(List<Report> reports);
 

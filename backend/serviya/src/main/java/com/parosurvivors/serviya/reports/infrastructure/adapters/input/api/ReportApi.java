@@ -1,14 +1,14 @@
 package com.parosurvivors.serviya.reports.infrastructure.adapters.input.api;
 
-import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateClientReviewReportForm;
+import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateClientFeedbackReportForm;
 import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateRequestReportForm;
-import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateServiceReviewReportForm;
-import com.parosurvivors.serviya.reports.infrastructure.dto.response.ClientReviewReportResponse;
+import com.parosurvivors.serviya.reports.infrastructure.dto.form.CreateServiceFeedbackReportForm;
+import com.parosurvivors.serviya.reports.infrastructure.dto.response.ClientFeedbackReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportActionResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportDetailResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.ReportResponse;
 import com.parosurvivors.serviya.reports.infrastructure.dto.response.RequestReportResponse;
-import com.parosurvivors.serviya.reports.infrastructure.dto.response.ServiceReviewReportResponse;
+import com.parosurvivors.serviya.reports.infrastructure.dto.response.ServiceFeedbackReportResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,11 +33,11 @@ public interface ReportApi {
 
     @Operation(summary = "Crear un reporte sobre una resena de servicio", description = "RF-056.")
     @ApiResponse(responseCode = "201", description = "Reporte de resena de servicio creado")
-    ResponseEntity<ServiceReviewReportResponse> createServiceReviewReport(CreateServiceReviewReportForm form);
+    ResponseEntity<ServiceFeedbackReportResponse> createServiceFeedbackReport(CreateServiceFeedbackReportForm form);
 
     @Operation(summary = "Crear un reporte sobre una resena de cliente", description = "RF-056.")
     @ApiResponse(responseCode = "201", description = "Reporte de resena de cliente creado")
-    ResponseEntity<ClientReviewReportResponse> createClientReviewReport(CreateClientReviewReportForm form);
+    ResponseEntity<ClientFeedbackReportResponse> createClientFeedbackReport(CreateClientFeedbackReportForm form);
 
     @Operation(summary = "Listar reportes para el panel admin", description = "RF-058.")
     @ApiResponse(responseCode = "200", description = "Pagina de reportes")
