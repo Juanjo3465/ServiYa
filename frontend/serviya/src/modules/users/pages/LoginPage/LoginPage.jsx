@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { Icon } from '../../../../shared';
+import { Icon, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
 
 import './auth.css';
 import './LoginPage.css';
@@ -28,14 +28,28 @@ export function LoginPage() {
     const [role, setRole] = useState('cliente');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState(false);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!email || !password) {
-            setError(true);
+            setError('Ingresa tu correo y contraseña.');
             return;
         }
-        navigate(ROLE_HOME[role]);
+        setLoading(true);
+        setError('');
+        try {
+            // RF-001: el backend valida la contraseña (bcrypt) y bloquea cuentas baneadas/eliminadas.
+            const auth = await authApi.login(email, password);
+            saveToken(auth.token);
+            // Navega según el rol real que viene en el JWT; si no, usa la pestaña elegida.
+            const roles = rolesFromToken(auth.token);
+            navigate(roles.length ? homePathForRoles(roles) : ROLE_HOME[role]);
+        } catch (e) {
+            setError(e.message || 'Correo o contraseña incorrectos.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -85,7 +99,7 @@ export function LoginPage() {
                     {error && (
                         <div className="err-box">
                             <Icon name="xCircle" size={15} />
-                            Correo o contraseña incorrectos.
+                            {error}
                         </div>
                     )}
 
@@ -109,9 +123,9 @@ export function LoginPage() {
                         <Link className="forgot" to="/recover">¿Olvidaste tu contraseña?</Link>
                     </div>
 
-                    <button className="btn btn-primary btn-full btn-lg" onClick={handleLogin} style={{ marginBottom: '14px' }}>
+                    <button className="btn btn-primary btn-full btn-lg" onClick={handleLogin} disabled={loading} style={{ marginBottom: '14px' }}>
                         <Icon name="login" size={17} />
-                        Iniciar sesión
+                        {loading ? 'Ingresando…' : 'Iniciar sesión'}
                     </button>
                     <div className="or-line">o continúa con</div>
                     <button className="google-btn">

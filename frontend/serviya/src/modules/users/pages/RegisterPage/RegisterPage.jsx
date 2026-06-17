@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { Icon, ToastContainer, useToast } from '../../../../shared';
+import { Icon, ToastContainer, useToast, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
 
 import './RegisterPage.css';
 
@@ -11,14 +11,58 @@ export function RegisterPage() {
     const [type, setType] = useState('c');
     const [terms, setTerms] = useState(false);
     const [dataConsent, setDataConsent] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    const handleRegister = () => {
+    // Datos del paso 2
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    const handleRegister = async () => {
+        // RF-004: el consentimiento de datos es obligatorio.
         if (!terms || !dataConsent) {
-            showToast('Debes aceptar los términos y política de datos', 'danger');
+            showToast('Debes aceptar los términos y la política de datos', 'danger');
             return;
         }
-        showToast('¡Cuenta creada! Redirigiendo...', 'success');
-        setTimeout(() => navigate('/dashboard'), 1200);
+        if (!firstName || !email || !password) {
+            showToast('Completa nombre, correo y contraseña (paso 2)', 'danger');
+            setStep(2);
+            return;
+        }
+        if (password.length < 8) {
+            showToast('La contraseña debe tener al menos 8 caracteres', 'danger');
+            setStep(2);
+            return;
+        }
+        if (password !== confirmPassword) {
+            showToast('Las contraseñas no coinciden', 'danger');
+            setStep(2);
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            // RF-002: solo CLIENT u OFFERER desde el registro público.
+            const auth = await authApi.register({
+                email,
+                password,
+                fullName: `${firstName} ${lastName}`.trim(),
+                role: type === 'o' ? 'OFFERER' : 'CLIENT',
+                phone,
+                acceptedTerms: dataConsent,
+            });
+            saveToken(auth.token);
+            showToast('¡Cuenta creada! Redirigiendo...', 'success');
+            const roles = rolesFromToken(auth.token);
+            setTimeout(() => navigate(roles.length ? homePathForRoles(roles) : '/dashboard'), 1200);
+        } catch (e) {
+            showToast(e.message || 'No se pudo crear la cuenta', 'danger');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -71,24 +115,24 @@ export function RegisterPage() {
                     {step === 2 && (
                         <div>
                             <div className="g2">
-                                <div className="input-group"><label className="label">Nombre</label><input className="input" placeholder="Juan" /></div>
-                                <div className="input-group"><label className="label">Apellido</label><input className="input" placeholder="Pérez" /></div>
+                                <div className="input-group"><label className="label">Nombre</label><input className="input" placeholder="Juan" value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
+                                <div className="input-group"><label className="label">Apellido</label><input className="input" placeholder="Pérez" value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
                             </div>
                             <div className="input-group">
                                 <label className="label">Correo electrónico</label>
-                                <div className="input-wrap"><div className="input-ico"><Icon name="mail" size={15} /></div><input className="input" type="email" placeholder="tucorreo@ejemplo.com" /></div>
+                                <div className="input-wrap"><div className="input-ico"><Icon name="mail" size={15} /></div><input className="input" type="email" placeholder="tucorreo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                             </div>
                             <div className="input-group">
                                 <label className="label">Teléfono</label>
-                                <div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" type="tel" placeholder="+57 300 000 0000" /></div>
+                                <div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" type="tel" placeholder="+57 300 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
                             </div>
                             <div className="input-group">
                                 <label className="label">Contraseña</label>
-                                <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Mínimo 8 caracteres" /></div>
+                                <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
                             </div>
                             <div className="input-group" style={{ marginBottom: '20px' }}>
                                 <label className="label">Confirmar contraseña</label>
-                                <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Repite tu contraseña" /></div>
+                                <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Repite tu contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className="btn btn-ghost btn-full" onClick={() => setStep(1)}><Icon name="chevronLeft" size={15} />Atrás</button>
@@ -111,7 +155,7 @@ export function RegisterPage() {
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                                 <button className="btn btn-ghost btn-full" onClick={() => setStep(2)}><Icon name="chevronLeft" size={15} />Atrás</button>
-                                <button className="btn btn-primary btn-full btn-lg" onClick={handleRegister}><Icon name="check" size={17} />Crear cuenta</button>
+                                <button className="btn btn-primary btn-full btn-lg" onClick={handleRegister} disabled={submitting}><Icon name="check" size={17} />{submitting ? 'Creando…' : 'Crear cuenta'}</button>
                             </div>
                             <div className="or-line">o regístrate con</div>
                             <button className="google-reg-btn" onClick={() => showToast('Google OAuth no disponible en mockup', 'warn')}>
