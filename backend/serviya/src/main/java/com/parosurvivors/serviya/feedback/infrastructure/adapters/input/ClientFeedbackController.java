@@ -1,11 +1,11 @@
 package com.parosurvivors.serviya.feedback.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackServicePort;
-import com.parosurvivors.serviya.feedback.application.ports.input.ClientReviewTagCatalogServicePort;
+import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackTagCatalogServicePort;
 import com.parosurvivors.serviya.feedback.infrastructure.adapters.input.api.ClientFeedbackApi;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.form.SubmitClientFeedbackForm;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientFeedbackResponse;
-import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientReviewTagResponse;
+import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientFeedbackTagResponse;
 import com.parosurvivors.serviya.feedback.infrastructure.mappers.ClientFeedbackWebMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.List;
 public class ClientFeedbackController implements ClientFeedbackApi {
 
     private final ClientFeedbackServicePort clientFeedbackService;
-    private final ClientReviewTagCatalogServicePort clientReviewTagCatalogService;
+    private final ClientFeedbackTagCatalogServicePort clientFeedbackTagCatalogService;
     private final ClientFeedbackWebMapper mapper;
 
     @Override
@@ -63,9 +63,9 @@ public class ClientFeedbackController implements ClientFeedbackApi {
     }
 
     @Override
-    @GetMapping("/api/v1/client-review-tags")
-    public ResponseEntity<List<ClientReviewTagResponse>> getCatalog() {
-        return ResponseEntity.ok(mapper.toTagResponses(clientReviewTagCatalogService.getCatalog()));
+    @GetMapping("/api/v1/client-feedback-tags")
+    public ResponseEntity<List<ClientFeedbackTagResponse>> getCatalog() {
+        return ResponseEntity.ok(mapper.toTagResponses(clientFeedbackTagCatalogService.getCatalog()));
     }
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */

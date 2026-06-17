@@ -1,0 +1,56 @@
+package com.parosurvivors.serviya.feedback.infrastructure.adapters.output;
+
+import com.parosurvivors.serviya.feedback.application.ports.output.ClientFeedbackPersistencePort;
+import com.parosurvivors.serviya.feedback.domain.ClientFeedback;
+import com.parosurvivors.serviya.feedback.infrastructure.entities.ClientFeedbackEntity;
+import com.parosurvivors.serviya.feedback.infrastructure.mappers.ClientFeedbackPersistenceMapper;
+import com.parosurvivors.serviya.feedback.infrastructure.repositories.ClientFeedbackRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Component
+@RequiredArgsConstructor
+public class ClientFeedbackPersistenceAdapter implements ClientFeedbackPersistencePort {
+
+    private final ClientFeedbackRepository repository;
+    private final ClientFeedbackPersistenceMapper mapper;
+
+    @Override
+    public ClientFeedback save(ClientFeedback feedback) {
+        ClientFeedbackEntity saved = repository.save(mapper.toEntity(feedback));
+        return mapper.toDomain(saved);
+    }
+
+    @Override
+    public Optional<ClientFeedback> findById(Long id) {
+        return repository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<ClientFeedback> findByRequestId(Long requestId) {
+        return repository.findByRequestId(requestId).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<ClientFeedback> findByClientId(Long clientId) {
+        return repository.findByClientId(clientId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ClientFeedback> findByOffererId(Long offererId) {
+        return repository.findByOffererId(offererId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        repository.deleteById(id);
+    }
+}

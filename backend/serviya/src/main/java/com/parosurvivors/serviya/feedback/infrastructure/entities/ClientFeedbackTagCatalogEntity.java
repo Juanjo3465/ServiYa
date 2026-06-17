@@ -1,0 +1,23 @@
+package com.parosurvivors.serviya.feedback.infrastructure.entities;
+
+import com.parosurvivors.serviya.feedback.domain.TagSentiment;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(name = "client_feedback_tags_catalog")
+@Getter
+@Setter
+public class ClientFeedbackTagCatalogEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "tag_name", nullable = false, unique = true, length = 150)
+    private String tagName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TagSentiment sentiment;
+}
