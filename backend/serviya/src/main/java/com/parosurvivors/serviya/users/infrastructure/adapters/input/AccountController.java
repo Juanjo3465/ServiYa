@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.users.infrastructure.adapters.input;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.users.infrastructure.adapters.input.api.AccountApi;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangeEmailForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangePasswordForm;
@@ -76,8 +77,8 @@ public class AccountController implements AccountApi {
         return ResponseEntity.ok(mapper.toRoleResponses(userRoleService.getUserRoles(currentUserId())));
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado (Spring Security aun no configurado). */
+    /** Id del usuario autenticado, extraido del JWT por el contexto de seguridad. */
     private Long currentUserId() {
-        return 1L;
+        return CurrentUser.id();
     }
 }

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, isAuthenticated } from '../../../../shared';
 
 import './ProfilePage.css';
 
@@ -29,9 +29,26 @@ export function ProfilePage() {
     const [tab, setTab] = useState(0);
     const [addrOpen, setAddrOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [profile, setProfile] = useState(null);
+
+    // RF-005: carga la información personal del usuario autenticado (identidad tomada del JWT).
+    useEffect(() => {
+        if (!isAuthenticated()) {
+            navigate('/login');
+            return;
+        }
+        profileApi.getMyProfile()
+            .then(setProfile)
+            .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Iniciales para el avatar a partir del nombre completo.
+    const initials = (profile?.fullName || 'U')
+        .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
     return (
-        <DashboardLayout sections={CLIENT_NAV} avatar="JP">
+        <DashboardLayout sections={CLIENT_NAV} avatar={initials}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
 
             <div className="tabs">
@@ -44,25 +61,25 @@ export function ProfilePage() {
                 <div className="card">
                     <div className="profile-id">
                         <div style={{ position: 'relative' }}>
-                            <div className="av av-xl">JP</div>
+                            <div className="av av-xl">{initials}</div>
                             <button className="avatar-edit" onClick={() => showToast('Foto actualizada', 'success')}><Icon name="camera" size={12} strokeWidth={2.5} /></button>
                         </div>
                         <div>
-                            <div style={{ fontSize: '18px', fontWeight: 700 }}>Juan Pablo Bernal</div>
-                            <div style={{ fontSize: '13px', color: 'var(--c-mid)' }}>jp@email.com · Cliente</div>
+                            <div style={{ fontSize: '18px', fontWeight: 700 }}>{profile?.fullName ?? 'Cargando…'}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--c-mid)' }}>{profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'}</div>
                             <span className="badge badge-success" style={{ marginTop: '4px' }}>Cuenta activa</span>
                         </div>
                     </div>
                     <div className="g2">
-                        <div className="input-group"><label className="label">Nombre</label><input className="input" defaultValue="Juan Pablo" /></div>
-                        <div className="input-group"><label className="label">Apellido</label><input className="input" defaultValue="Bernal Orjuela" /></div>
+                        <div className="input-group"><label className="label">Nombre completo</label><input className="input" value={profile?.fullName ?? ''} readOnly /></div>
+                        <div className="input-group"><label className="label">Teléfono</label><div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" value={profile?.phoneNumber ?? ''} readOnly /></div></div>
                     </div>
                     <div className="g2">
-                        <div className="input-group"><label className="label">Teléfono</label><div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" defaultValue="+57 300 000 0000" /></div></div>
-                        <div className="input-group"><label className="label">Tipo de perfil</label><select className="input"><option>Persona natural</option><option>Empresa</option></select></div>
+                        <div className="input-group"><label className="label">Tipo de documento</label><input className="input" value={profile?.documentType ?? ''} readOnly /></div>
+                        <div className="input-group"><label className="label">Número de documento</label><input className="input" value={profile?.documentNumber ?? ''} readOnly /></div>
                     </div>
-                    <div className="input-group"><label className="label">Descripción personal</label><textarea className="input" rows="3" defaultValue="Residente en Bogotá, apasionado por mantener mi hogar en perfectas condiciones." /></div>
-                    <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos no editables:</strong> Tipo y número de documento — establecidos al registrarse por seguridad (AES-256-GCM).</div>
+                    <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly /></div>
+                    <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos protegidos:</strong> Tu documento y teléfono se almacenan cifrados (AES-256-GCM) y solo tú puedes verlos aquí (RF-005).</div>
                     <button className="btn btn-primary" onClick={() => showToast('Perfil actualizado', 'success')}><Icon name="save" size={15} />Guardar cambios</button>
                 </div>
             )}

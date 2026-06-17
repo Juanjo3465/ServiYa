@@ -8,6 +8,8 @@ import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
 import com.parosurvivors.serviya.users.domain.User;
 
+import java.time.LocalDateTime;
+
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,7 +29,16 @@ public class UserService implements UserServicePort {
 
     @Override
     public User createUser(String email, String rawPassword) {
-        throw new UnsupportedOperationException("TODO: createUser — placeholder, ver estructura-servicios.docx");
+        if (userPersistencePort.existsByEmail(email)) {
+            throw new InvalidStateException("Email is already registered: " + email);
+        }
+        User user = User.builder()
+                .email(email)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .banned(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        return userPersistencePort.save(user);
     }
 
     @Override
