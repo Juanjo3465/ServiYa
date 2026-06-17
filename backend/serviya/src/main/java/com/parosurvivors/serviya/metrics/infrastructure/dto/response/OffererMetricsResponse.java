@@ -14,7 +14,7 @@ public record OffererMetricsResponse(
         Long offererId,
         BigDecimal averageRating,
         Integer totalRatings,
-        Integer totalReviews,
+        Integer totalComments,
         Integer totalPositiveTags,
         Integer totalNegativeTags,
         Integer totalAcceptedRequests,

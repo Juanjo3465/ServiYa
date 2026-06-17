@@ -28,7 +28,7 @@ public class ServiceMetrics {
     @Builder.Default
     private Integer totalRatings = 0;
     @Builder.Default
-    private Integer totalReviews = 0;
+    private Integer totalComments = 0;
     private LocalDateTime updatedAt;
 
     // =====================================================
@@ -56,14 +56,14 @@ public class ServiceMetrics {
         touch();
     }
 
-    public void incrementReviews() {
-        totalReviews++;
+    public void incrementComments() {
+        totalComments++;
         touch();
     }
 
-    public void decrementReviews() {
-        if (totalReviews > 0) {
-            totalReviews--;
+    public void decrementComments() {
+        if (totalComments > 0) {
+            totalComments--;
         }
         touch();
     }

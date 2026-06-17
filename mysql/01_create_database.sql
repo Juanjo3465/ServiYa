@@ -506,7 +506,7 @@ CREATE TABLE service_metrics (
 
     total_ratings INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_reviews INT UNSIGNED NOT NULL DEFAULT 0,
+    total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
@@ -552,7 +552,7 @@ CREATE TABLE offerer_metrics (
 
     total_ratings INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_reviews INT UNSIGNED NOT NULL DEFAULT 0,
+    total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_positive_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -586,7 +586,7 @@ CREATE TABLE client_metrics (
 
     total_ratings INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_reviews INT UNSIGNED NOT NULL DEFAULT 0,
+    total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_positive_tags INT UNSIGNED NOT NULL DEFAULT 0,
 

@@ -25,8 +25,8 @@ public class OffererMetricsEntity {
     @Column(name = "total_ratings", nullable = false)
     private Integer totalRatings;
 
-    @Column(name = "total_reviews", nullable = false)
-    private Integer totalReviews;
+    @Column(name = "total_comments", nullable = false)
+    private Integer totalComments;
 
     @Column(name = "total_positive_tags", nullable = false)
     private Integer totalPositiveTags;
