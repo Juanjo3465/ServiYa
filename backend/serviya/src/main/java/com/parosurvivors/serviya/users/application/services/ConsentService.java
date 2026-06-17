@@ -3,13 +3,14 @@ package com.parosurvivors.serviya.users.application.services;
 import com.parosurvivors.serviya.users.application.ports.input.ConsentServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.ConsentPersistencePort;
 import com.parosurvivors.serviya.users.domain.Consent;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementacion placeholder de ConsentServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
+ * Registro del consentimiento de uso de datos personales (RF-004). La validacion de que el
+ * consentimiento sea aceptado antes de crear la cuenta vive en UserCreationService; aqui solo
+ * se persiste la aceptacion con su fecha/hora.
  */
 @Component
 @RequiredArgsConstructor
@@ -19,11 +20,18 @@ public class ConsentService implements ConsentServicePort {
 
     @Override
     public Consent createConsent(Long userId, boolean accepted) {
-        throw new UnsupportedOperationException("TODO: createConsent — placeholder, ver estructura-servicios.docx");
+        Consent consent = Consent.builder()
+                .userId(userId)
+                .accepted(accepted)
+                .consentedAt(LocalDateTime.now())
+                .build();
+        return consentPersistencePort.save(consent);
     }
 
     @Override
     public boolean hasConsented(Long userId) {
-        throw new UnsupportedOperationException("TODO: hasConsented — placeholder, ver estructura-servicios.docx");
+        return consentPersistencePort.findByUserId(userId)
+                .map(Consent::isAccepted)
+                .orElse(false);
     }
 }

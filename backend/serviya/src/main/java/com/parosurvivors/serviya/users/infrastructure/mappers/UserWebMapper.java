@@ -45,8 +45,9 @@ public interface UserWebMapper {
     ChangeEmailCommand toCommand(ChangeEmailForm form, Long userId);
 
     // ---- Result/dominio -> Response ----
-    @Mapping(target = "tokenType", ignore = true) // TODO constante "Bearer"
-    @Mapping(target = "expiresIn", ignore = true) // TODO derivar de expiresAt
+    @Mapping(target = "tokenType", constant = "Bearer")
+    @Mapping(target = "expiresIn", expression = "java(result.expiresAt() == null ? null "
+            + ": java.time.Duration.between(java.time.LocalDateTime.now(), result.expiresAt()).getSeconds())")
     AuthResponse toResponse(AuthResult result);
 
     RoleResponse toResponse(Role role);

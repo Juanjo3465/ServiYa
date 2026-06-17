@@ -1,0 +1,96 @@
+import { Navbar } from '../../../../shared/components/Navbar/Navbar';
+import { Footer } from '../../../../shared/components/Footer/Footer';
+import { ToastContainer } from '../../../../shared/components/Toast/Toast';
+import { useToast } from '../../../../shared/hooks/useToast';
+import { CategoryCard } from '../../components/CategoryCard/CategoryCard';
+import { ServiceCard } from '../../components/ServiceCard/ServiceCard';
+import { Hero } from '../../components/Hero/Hero';
+import { Link } from 'react-router-dom';
+
+import "./HomePage.css";
+
+const CATEGORIES = [
+    { name: 'Plomería', icon: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /> },
+    { name: 'Electricidad', icon: <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /> },
+    { name: 'Limpieza', icon: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></> },
+    { name: 'Jardinería', icon: <path d="M12 22V12m0 0C12 7 7 4 7 4s0 5 5 8zm0 0c0-5 5-8 5-8s0 5-5 8z" /> },
+    { name: 'Pintura', icon: <path d="m2 12 10-8 10 8v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" /> },
+    { name: 'Carpintería', icon: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></> },
+    { name: 'Cerrajería', icon: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></> },
+    { name: 'Aires A/C', icon: <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3m-1-4-1-4-4 4-4-4-1 4" /> },
+    { name: 'Vidrios', icon: <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></> },
+    { name: 'Mudanzas', icon: <path d="M5 8h14M5 12h14M5 16h14" /> }
+];
+
+const FEAT_SERVICES = [
+    { name: 'Reparación de tuberías', provider: 'Carlos M.', category: 'Plomería', price: '$50k', rating: 4.9, availability: 'Hoy', icon: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /> },
+    { name: 'Instalación eléctrica', provider: 'Ana R.', category: 'Electricidad', price: '$80k', rating: 4.7, availability: 'Hoy', icon: <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /> },
+    { name: 'Limpieza de hogar', provider: 'María L.', category: 'Limpieza', price: '$60k', rating: 5.0, availability: 'Hoy', icon: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /> },
+    { name: 'Poda y jardinería', provider: 'Pedro G.', category: 'Jardinería', price: '$45k', rating: 4.5, availability: 'Mañana', icon: <path d="M12 22V12m0 0C12 7 7 4 7 4s0 5 5 8zm0 0c0-5 5-8 5-8s0 5-5 8z" /> },
+];
+
+function HomePage() {
+    const { toasts } = useToast();
+    return (
+        <>
+            <Navbar />
+            <Hero />
+            {/* Stats Bar */}
+            <div className="stats-bar">
+                <div className="stat-it"><div className="stat-big">+500</div><div className="stat-lbl">Oferentes activos</div></div>
+                <div className="stat-it"><div className="stat-big">+2.000</div><div className="stat-lbl">Servicios realizados</div></div>
+                <div className="stat-it"><div className="stat-big">4.8 ★</div><div className="stat-lbl">Calificación promedio</div></div>
+                <div className="stat-it"><div className="stat-big">15+</div><div className="stat-lbl">Categorías</div></div>
+            </div>
+            {/* Categorías */}
+            <section className="sec">
+                <div className="sec-title">Categorías</div>
+                <div className="sec-sub">Encuentra el especialista que necesitas</div>
+                <div className="cats-grid">
+                    {CATEGORIES.map((cat, index) => (
+                        <CategoryCard key={index} name={cat.name} icon={cat.icon} />
+                    ))}
+                </div>
+            </section>
+            {/* Servicios Destacados */}
+            <section className="sec sec-gray">
+                <div className="sec-title">Servicios destacados</div>
+                <div className="sec-sub">Los más solicitados esta semana</div>
+                <div className="s-cards">
+                    {FEAT_SERVICES.map((service, index) => (
+                        <ServiceCard key={index} {...service} />
+                    ))}
+                </div>
+            </section>
+            {/* Cómo funciona */}
+            <section className="sec" id="como">
+                <div className="sec-title" style={{ textAlign: 'center' }}>¿Cómo funciona?</div>
+                <div className="sec-sub" style={{ textAlign: 'center' }}>En 3 simples pasos</div>
+                <div className="how-grid">
+                    <div className="how-step"><div className="how-num">1</div><div className="how-title">Busca el servicio</div><div className="how-desc">Filtra por categoría, cercanía, precio y disponibilidad. Encuentra al profesional ideal.</div></div>
+                    <div className="how-step"><div className="how-num">2</div><div className="how-title">Solicita y agenda</div><div className="how-desc">Elige fecha, hora y dirección. El oferente recibe tu solicitud y la confirma.</div></div>
+                    <div className="how-step"><div className="how-num">3</div><div className="how-title">Confirma y califica</div><div className="how-desc">Confirma que el servicio fue realizado y deja tu reseña para ayudar a la comunidad.</div></div>
+                </div>
+            </section>
+            {/* CTA Band */}
+            <div className="cta-band">
+                <h2>¿Ofreces servicios para el hogar?</h2>
+                <p>Únete a ServiYa y llega a cientos de clientes cerca de ti. Gratis para empezar.</p>
+                <div className="cta-btns">
+                    <Link
+                        to="/register"
+                        className="btn btn-primary btn-lg">
+                        Registrarme como oferente
+                    </Link>
+                    <Link to="/register" className="btn btn-lg" style={{ background: 'rgba(255,255,255,.1)', color: 'white', border: '2px solid rgba(255,255,255,.25)' }}>
+                        Registrarme como cliente
+                    </Link>
+                </div>
+            </div>
+            <Footer />
+            <ToastContainer toasts={toasts} />
+        </>
+    );
+}
+
+export default HomePage;

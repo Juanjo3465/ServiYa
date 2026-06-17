@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.profiles.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.UserProfileApi;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateMainAddressForm;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateProfileForm;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.UserProfileResponse;
@@ -47,8 +48,8 @@ public class UserProfileController implements UserProfileApi {
         return ResponseEntity.noContent().build();
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
+    /** Id del usuario autenticado, extraido del JWT por el contexto de seguridad. */
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

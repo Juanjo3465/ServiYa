@@ -1,0 +1,123 @@
+import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast } from '../../../../shared';
+
+import './OffererProfilePage.css';
+
+const SERVICES = [
+    { name: 'Reparación de tuberías', rating: 4.9, avail: 'Hoy', price: 'desde $50k' },
+    { name: 'Instalación de grifos', rating: 4.8, avail: 'Hoy', price: 'desde $70k' },
+    { name: 'Destape de cañerías', rating: 5.0, avail: 'Mañana', price: 'desde $35k' },
+];
+
+const REVIEWS = [
+    { initials: 'MA', name: 'María A.', rating: 5, time: '2 días', text: 'Excelente servicio. Llegó puntual y resolvió el problema rápidamente.' },
+    { initials: 'RL', name: 'Roberto L.', rating: 4, time: '1 semana', text: 'Buen trabajo, el resultado fue perfecto. Lo volvería a contratar.' },
+];
+
+const PROFILE_TABS = ['Servicios', 'Reseñas', 'Métricas', 'Sobre mí'];
+
+export function OffererProfilePage() {
+    const navigate = useNavigate();
+    const { toasts, showToast } = useToast();
+    const [tab, setTab] = useState(0);
+
+    return (
+        <>
+            <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+
+            <div className="profile-hero">
+                <div className="profile-top">
+                    <div className="profile-av-wrap">
+                        <div className="av av-xl">CM</div>
+                        <div className="profile-verified"><Icon name="check" size={12} strokeWidth={2.5} /></div>
+                    </div>
+                    <div className="profile-info">
+                        <div className="profile-name">Carlos Martínez</div>
+                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>Plomero profesional · Persona natural</div>
+                        <div className="profile-meta">
+                            <span className="pm-item"><Stars rating={5} size={11} />&nbsp;<strong style={{ color: 'var(--c-text)' }}>4.9</strong>&nbsp;(32 reseñas)</span>
+                            <span className="pm-item"><Icon name="mapPin" size={13} />Bogotá, Colombia</span>
+                            <span className="pm-item"><Icon name="clock" size={13} />8 años de experiencia</span>
+                            <span className="pm-item"><Icon name="check" size={13} />42 servicios realizados</span>
+                        </div>
+                    </div>
+                    <div className="profile-cta">
+                        <WhatsAppButton label="WhatsApp" onClick={() => showToast('Abriendo WhatsApp...', 'success')} />
+                        <button className="btn btn-primary" onClick={() => navigate('/services/1')}>Contratar servicio</button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="profile-tabs-bar">
+                <div className="profile-tabs-inner">
+                    <div className="tabs" style={{ border: 'none', margin: 0 }}>
+                        {PROFILE_TABS.map((t, i) => (
+                            <div key={t} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="profile-body">
+                <div>
+                    <div className="card" style={{ marginBottom: '14px' }}>
+                        <div className="card-h">Servicios ofrecidos</div>
+                        {SERVICES.map((s) => (
+                            <div className="service-row" key={s.name} onClick={() => navigate('/services/1')}>
+                                <div className="s-row-ico"><Icon name="wrench" size={18} /></div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.name}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--c-mid)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <Stars rating={s.rating} showValue size={11} />
+                                        <span className={`badge ${s.avail === 'Hoy' ? 'badge-success' : 'badge-warn'}`} style={{ fontSize: '10px' }}>{s.avail}</span>
+                                    </div>
+                                </div>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--c-primary-d)' }}>{s.price}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="card">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                            <div className="card-h" style={{ margin: 0 }}>Reseñas (32)</div>
+                            <div style={{ textAlign: 'center' }}><div style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1 }}>4.9</div><Stars rating={5} /></div>
+                        </div>
+                        {REVIEWS.map((r) => (
+                            <div className="orev" key={r.initials}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '6px' }}>
+                                    <div className="av av-sm">{r.initials}</div>
+                                    <strong style={{ fontSize: '13px' }}>{r.name}</strong>
+                                    <Stars rating={r.rating} size={11} />
+                                    <span style={{ fontSize: '11px', color: 'var(--c-soft)', marginLeft: 'auto' }}>{r.time}</span>
+                                </div>
+                                <div style={{ fontSize: '13px', color: 'var(--c-mid)', lineHeight: 1.6 }}>{r.text}</div>
+                            </div>
+                        ))}
+                        <button className="btn btn-ghost btn-full" style={{ border: '1px solid var(--c-border)', marginTop: '4px' }}>Ver todas las reseñas →</button>
+                    </div>
+                </div>
+                <div>
+                    <div className="m-grid">
+                        <div className="m-box"><div className="m-val">98%</div><div className="m-lbl">Cumplimiento</div></div>
+                        <div className="m-box"><div className="m-val">2%</div><div className="m-lbl">Cancelaciones</div></div>
+                        <div className="m-box"><div className="m-val">5%</div><div className="m-lbl">Reprogramados</div></div>
+                        <div className="m-box"><div className="m-val">42</div><div className="m-lbl">Servicios</div></div>
+                    </div>
+                    <div className="contact-card">
+                        <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '3px' }}>¿Te interesa contratar?</div>
+                        <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '14px' }}>Solicita el servicio o contáctalo directamente</div>
+                        <button className="btn btn-primary btn-full" style={{ marginBottom: '8px' }} onClick={() => navigate('/services/1')}>Ver servicios y solicitar</button>
+                        <WhatsAppButton block label="Contactar por WhatsApp" onClick={() => showToast('Abriendo WhatsApp...', 'success')} />
+                        <div className="divider" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--c-mid)' }}>
+                            <Icon name="shield" size={13} style={{ color: 'var(--c-success)' }} />Perfil verificado por ServiYa
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <ToastContainer toasts={toasts} />
+        </>
+    );
+}
+
+export default OffererProfilePage;

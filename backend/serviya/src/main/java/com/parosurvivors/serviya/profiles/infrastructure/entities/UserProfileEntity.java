@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.profiles.infrastructure.entities;
 
 import com.parosurvivors.serviya.profiles.domain.ProfileType;
+import com.parosurvivors.serviya.shared.security.PiiAttributeConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,13 +26,15 @@ public class UserProfileEntity {
     @Column(name = "document_type", nullable = false, length = 50)
     private String documentType;
 
-    /** Cifrado AES-256-GCM. Pendiente el AttributeConverter de cifrado (ver NOTAS.txt). */
+    /** Cifrado AES-256-GCM en BD (VARBINARY); en claro como String via {@link PiiAttributeConverter}. */
+    @Convert(converter = PiiAttributeConverter.class)
     @Column(name = "document_number", nullable = false, columnDefinition = "VARBINARY(512)")
-    private byte[] documentNumber;
+    private String documentNumber;
 
-    /** Cifrado AES-256-GCM. Pendiente el AttributeConverter de cifrado (ver NOTAS.txt). */
+    /** Cifrado AES-256-GCM en BD (VARBINARY); en claro como String via {@link PiiAttributeConverter}. */
+    @Convert(converter = PiiAttributeConverter.class)
     @Column(name = "phone_number", nullable = false, columnDefinition = "VARBINARY(512)")
-    private byte[] phoneNumber;
+    private String phoneNumber;
 
     @Column(name = "primary_address_id")
     private Long primaryAddressId;

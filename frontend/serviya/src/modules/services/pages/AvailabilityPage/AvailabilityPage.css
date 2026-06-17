@@ -1,0 +1,58 @@
+.avail-banner {
+    background: var(--c-primary-xl);
+    border: 1px solid var(--c-primary-l);
+    border-radius: var(--r-lg);
+    padding: 14px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: var(--c-text);
+}
+
+.day-row {
+    background: white;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+}
+
+.day-inner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.day-name {
+    font-size: 14px;
+    font-weight: 700;
+    min-width: 90px;
+}
+
+.slot-list {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.slot-btn {
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--c-border);
+    background: var(--c-bg-s);
+    color: var(--c-mid);
+    transition: all .15s;
+}
+
+.slot-btn.on {
+    border-color: var(--c-primary);
+    background: var(--c-primary-l);
+    color: var(--c-primary-d);
+}
+
+.slot-btn:hover {
+    border-color: var(--c-primary);
+}
