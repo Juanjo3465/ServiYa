@@ -13,8 +13,9 @@ public record OffererProfileResponse(
         Long userId,
         String fullName,
         String profilePhotoUrl,
-        String publicDescription,
         String specialty,
-        BigDecimal averageRating,
-        Integer totalCompletedServices) {
-}
+        String whatsappNumber,
+        String publicDescription,
+        BigDecimal averageRating
+        // Integer totalCompletedServices
+) {}

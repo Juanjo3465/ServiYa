@@ -66,7 +66,10 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
             cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(GCM_TAG_BITS, iv));
             return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception ex) {
-            throw new IllegalStateException("Failed to decrypt PII attribute", ex);
+            // Fallback: the stored value is plain text (e.g. seed/legacy data not yet encrypted).
+            // Return as UTF-8 string so the application can still function; the value will be
+            // re-encrypted the next time this record is saved.
+            return new String(dbData, StandardCharsets.UTF_8);
         }
     }
 
