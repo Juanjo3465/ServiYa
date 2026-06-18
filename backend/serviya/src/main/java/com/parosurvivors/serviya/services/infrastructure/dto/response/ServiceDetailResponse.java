@@ -13,6 +13,7 @@ import java.util.List;
 @Schema(description = "Detalle de un servicio con informacion del oferente")
 public record ServiceDetailResponse(
         @Schema(accessMode = Schema.AccessMode.READ_ONLY) Long id,
+        //OffererProfileResponse offerer,
         Long userId,
         String fullName,
         String profilePhotoUrl,
@@ -20,10 +21,10 @@ public record ServiceDetailResponse(
         String whatsappNumber,
         String publicDescription,
         BigDecimal averageRating,
-        Integer totalCompletedServices,
+        //Integer totalCompletedServices,
         CategoryResponse category,
-        ReviewsResponse reviews,
-        ServiceAvailabilityResponse availability,
+        // List<ReviewResponse> reviews,
+        List<ServiceAvailabilityResponse> availability,
         String title,
         String description,
         List<String> photos,

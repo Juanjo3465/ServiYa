@@ -2,7 +2,6 @@ package com.parosurvivors.serviya.services.domain;
 
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
 import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
-import com.parosurvivors.serviya.profiles.domain.OffererAvailability;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,5 +22,6 @@ public class ServiceDetail {
     private OffererProfile offererProfile;
     private OffererProfileSummary offererSummary;
     private List<ReviewUser> reviewsUsers;
-    // private OffererAvailability availability;
+    private List<ServiceAvailability> availability;
+    //private Integer totalCompletedServices;
 }

@@ -14,12 +14,14 @@ import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceC
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.mappers.ServiceCommandMapper;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
+import com.parosurvivors.serviya.services.application.ports.input.ServiceAvailabilityServicePort;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.services.domain.Category;
 import com.parosurvivors.serviya.services.domain.ServiceDetail;
 import com.parosurvivors.serviya.services.domain.ReviewUser;
+import com.parosurvivors.serviya.services.domain.ServiceAvailability;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
@@ -49,6 +51,7 @@ public class MarketplaceService implements MarketplaceServicePort {
     private final OffererMetricsServicePort offererMetricsService;
     private final ServiceReviewServicePort serviceReviewService;
     private final UserProfileServicePort userProfileService;
+    private final ServiceAvailabilityServicePort serviceAvailabilityService;
     private final ServiceCommandMapper commandMapper;
 
     @Override
@@ -125,9 +128,10 @@ public class MarketplaceService implements MarketplaceServicePort {
 
         // TODO: Implement ReviewsResponse and AvailabilityResponse
             //ReviewsResponse reviews = reviewMapper.toResponse(serviceMetrics);
-            // AvailabilityResponse availability = new AvailabilityResponse(marketplaceService.getAvailabilityByServiceId(service.getId()));
+            List<ServiceAvailability> availability = serviceAvailabilityService.getByServiceId(service.getId());
+            //AvailabilityResponse availability = new AvailabilityResponse(marketplaceService.getAvailabilityByServiceId(service.getId()));
 
-        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, null));
+        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, null, availability));
     }
 
     @Override

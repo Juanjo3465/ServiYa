@@ -2,7 +2,6 @@ package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
 
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
-import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
@@ -10,7 +9,6 @@ import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceF
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
-import com.parosurvivors.serviya.services.infrastructure.mappers.ReviewWebMapper;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;

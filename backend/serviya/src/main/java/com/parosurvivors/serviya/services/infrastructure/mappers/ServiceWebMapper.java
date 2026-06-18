@@ -8,7 +8,6 @@ import com.parosurvivors.serviya.services.domain.ServiceDetail;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewsResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import org.mapstruct.Mapper;
@@ -40,12 +39,27 @@ public interface ServiceWebMapper {
     @Mapping(target = "userPhotoUrl", source = "user.profilePhotoUrl")
     ReviewResponse toReviewResponse(ReviewUser reviewUser);
 
-    default ReviewsResponse toReviewsResponse(List<ReviewUser> reviews) {
-        if (reviews == null) return null;
-        return new ReviewsResponse(reviews.stream().map(this::toReviewResponse).toList());
-    }
 
-    
+    @Mapping(target = "id", source = "service.id")
+    @Mapping(target = "userId", source = "service.offererId")
+    @Mapping(target = "fullName", source = "offererSummary.fullName")
+    @Mapping(target = "profilePhotoUrl", source = "offererSummary.profilePhotoUrl")
+    @Mapping(target = "specialty", source = "offererSummary.specialty")
+    @Mapping(target = "whatsappNumber", source = "offererProfile.whatsappNumber")
+    @Mapping(target = "publicDescription", source = "offererProfile.publicDescription")
+    @Mapping(target = "averageRating", source = "offererSummary.averageRating")
+    // @Mapping(target = "totalCompletedServices", source = "offererProfile.totalCompletedServices")
+    // @Mapping(target = "reviews", source = "offererProfile.reviews")
+    @Mapping(target = "title", source = "service.title")
+    @Mapping(target = "description", source = "service.description")
+    @Mapping(target = "photos", source = "service.photos")
+    @Mapping(target = "priceHourly", source = "service.priceHourly")
+    @Mapping(target = "averageDurationMinutes", source = "service.averageDurationMinutes")
+    @Mapping(target = "active", source = "service.active")
+    @Mapping(target = "operationRadiusKm", source = "service.operationRadiusKm")
+    @Mapping(target = "createdAt", source = "service.createdAt")
+    @Mapping(target = "updatedAt", source = "service.updatedAt")
+    @Mapping(target = "deletedAt", source = "service.deletedAt")
     ServiceDetailResponse toDetailResponse(ServiceDetail detail);
 
     List<ServiceResponse> toResponses(List<Service> services);
