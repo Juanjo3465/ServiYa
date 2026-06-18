@@ -8,7 +8,6 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ServicePersistenceMapper {
 
-    @Mapping(target = "offererProfile", ignore = true)
     ServiceEntity toEntity(Service domain);
 
     Service toDomain(ServiceEntity entity);

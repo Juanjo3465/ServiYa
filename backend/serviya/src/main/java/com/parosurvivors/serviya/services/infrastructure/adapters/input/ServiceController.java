@@ -37,9 +37,7 @@ import java.util.List;
 public class ServiceController implements ServiceApi {
 
     private final MarketplaceServicePort marketplaceService;
-    private final MarketplaceCategoryPort marketplaceCategoryPort;
     private final ServiceWebMapper mapper;
-    private final ReviewWebMapper reviewMapper;
 
     @Override
     @PostMapping("/api/v1/services")

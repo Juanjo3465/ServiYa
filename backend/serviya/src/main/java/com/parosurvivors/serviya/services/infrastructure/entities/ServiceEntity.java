@@ -1,6 +1,5 @@
 package com.parosurvivors.serviya.services.infrastructure.entities;
 
-import com.parosurvivors.serviya.profiles.infrastructure.entities.UserProfileEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -58,9 +57,4 @@ public class ServiceEntity {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
-
-    /** Join de solo lectura: services.offerer_id -> user_profiles.user_id */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "offerer_id", referencedColumnName = "user_id", insertable = false, updatable = false)
-    private UserProfileEntity offererProfile;
 }
