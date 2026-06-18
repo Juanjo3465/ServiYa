@@ -1,26 +1,14 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
-import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
-import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
-import com.parosurvivors.serviya.feedback.application.ports.input.ServiceReviewServicePort;
-import com.parosurvivors.serviya.feedback.domain.ServiceReview;
-import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
-import com.parosurvivors.serviya.profiles.domain.OffererProfile;
-import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
-import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
-import com.parosurvivors.serviya.services.domain.Category;
+
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewsResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ReviewWebMapper;
 
@@ -37,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.ArrayList;
 
 /**
  * Adaptador de entrada (REST) de servicios. Placeholder funcional: enruta, mapea Form->Command y

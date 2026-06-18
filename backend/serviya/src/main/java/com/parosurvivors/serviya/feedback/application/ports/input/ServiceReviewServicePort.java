@@ -13,8 +13,4 @@ public interface ServiceReviewServicePort {
     ServiceReview createReview(Long clientId, Long requestId, String comment, List<Long> tagIds);
 
     void deleteReview(Long requestId, Long clientId);
-
-    List<ServiceReview> getByServiceId(Long serviceId);
-
-    List<ServiceReview> getByServiceIdThree(Long serviceId);
 }

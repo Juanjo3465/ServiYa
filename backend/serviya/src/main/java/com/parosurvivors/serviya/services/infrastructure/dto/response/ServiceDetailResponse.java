@@ -23,7 +23,7 @@ public record ServiceDetailResponse(
         Integer totalCompletedServices,
         CategoryResponse category,
         ReviewsResponse reviews,
-        AvailabilityResponse availability,
+        ServiceAvailabilityResponse availability,
         String title,
         String description,
         List<String> photos,

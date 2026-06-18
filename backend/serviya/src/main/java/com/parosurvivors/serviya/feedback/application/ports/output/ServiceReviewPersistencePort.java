@@ -10,7 +10,5 @@ public interface ServiceReviewPersistencePort {
     Optional<ServiceReview> findById(Long id);
     Optional<ServiceReview> findByRequestId(Long requestId);
     List<ServiceReview> findByClientId(Long clientId);
-    List<ServiceReview> findByServiceId(Long serviceId);
-    List<ServiceReview> findTop3ByServiceId(Long serviceId);
     void deleteById(Long id);
 }

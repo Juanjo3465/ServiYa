@@ -11,6 +11,4 @@ import java.util.Optional;
 public interface ServiceReviewRepository extends JpaRepository<ServiceReviewEntity, Long> {
     Optional<ServiceReviewEntity> findByRequestId(Long requestId);
     List<ServiceReviewEntity> findByClientId(Long clientId);
-    List<ServiceReviewEntity> findByServiceId(Long serviceId);
-    List<ServiceReviewEntity> findTop3ByServiceId(Long serviceId);
 }

@@ -102,29 +102,32 @@ public class MarketplaceService implements MarketplaceServicePort {
         
         Service service = getById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
+
         Category category = categoryPort.getById(service.getCategoryId())
             .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada con id: " + service.getCategoryId()));
+
         OffererProfile offererProfile = offererProfileService.getPublicProfile(service.getOffererId());
         OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
         OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
 
-        // Parece que o el ServiceReview esta mal diseñado o se debe consultar de otra manera
-        List<ServiceReview> serviceReviews = serviceReviewService.getByServiceIdThree(service.getId());
+        // pendiente la parte de los comentarios, a la espera, del modificacion en la db
+        
+        // List<ServiceReview> serviceReviews = serviceReviewService.getByServiceIdThree(service.getId());
 
-        List<ReviewUser> reviewsResponse = new ArrayList<>();
+        // List<ReviewUser> reviewsResponse = new ArrayList<>();
 
-        for(ServiceReview review : serviceReviews) {
-            // consultar a user profile
-            UserProfile user = userProfileService.getProfileInfo(review.getClientId());
-            ReviewUser reviewUser = new ReviewUser(review, user);
-            reviewsResponse.add(reviewUser);
-        }
+        // for(ServiceReview review : serviceReviews) {
+        //     // consultar a user profile
+        //     UserProfile user = userProfileService.getProfileInfo(review.getClientId());
+        //     ReviewUser reviewUser = new ReviewUser(review, user);
+        //     reviewsResponse.add(reviewUser);
+        // }
 
         // TODO: Implement ReviewsResponse and AvailabilityResponse
             //ReviewsResponse reviews = reviewMapper.toResponse(serviceMetrics);
             // AvailabilityResponse availability = new AvailabilityResponse(marketplaceService.getAvailabilityByServiceId(service.getId()));
 
-        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, reviewsResponse));
+        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, null));
     }
 
     @Override
