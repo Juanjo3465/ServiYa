@@ -7,6 +7,8 @@ import com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
@@ -43,13 +45,20 @@ public class ServiceSpecificationRepository {
 
             // ── Filtros sobre services ────────────────────────────────────────
             if (q.name() != null && !q.name().isBlank()) {
-                Join<ServiceEntity, UserProfileEntity> profile = root.join("offererProfile", JoinType.LEFT);
                 String pattern = "%" + q.name().toLowerCase() + "%";
+
+                // Subquery para buscar oferentes cuyo fullName coincida,
+                // evitando un JOIN directo sobre columna no-PK (offerer_id → user_id)
+                // que Hibernate no puede hacer lazy y provocaría carga del PiiAttributeConverter.
+                Subquery<Long> offererSubquery = query.subquery(Long.class);
+                Root<UserProfileEntity> profileRoot = offererSubquery.from(UserProfileEntity.class);
+                offererSubquery.select(profileRoot.get("userId"))
+                        .where(cb.like(cb.lower(profileRoot.get("fullName")), pattern));
 
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("title")), pattern),
                         cb.like(cb.lower(root.get("description")), pattern),
-                        cb.like(cb.lower(profile.get("fullName")), pattern)
+                        root.get("offererId").in(offererSubquery)
                 ));
             }
 
