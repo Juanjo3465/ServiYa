@@ -18,7 +18,6 @@ public record SearchServiceQuery(
         Boolean available,
         Double minRating,
         Double maxRating,
-        String offererType,
         Double latitude,
         Double longitude,
         Double maxDistanceKm

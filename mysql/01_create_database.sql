@@ -402,7 +402,7 @@ CREATE TABLE service_reviews (
         FOREIGN KEY (request_id)
         REFERENCES service_requests(id)
         ON DELETE CASCADE,
-
+        
     CONSTRAINT fk_service_reviews_client
         FOREIGN KEY (client_id)
         REFERENCES users(id)

@@ -3,14 +3,10 @@ package com.parosurvivors.serviya.metrics.application.services;
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.output.OffererMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Implementacion placeholder de OffererMetricsServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
- */
 @Component
 @RequiredArgsConstructor
 public class OffererMetricsService implements OffererMetricsServicePort {
@@ -19,11 +15,14 @@ public class OffererMetricsService implements OffererMetricsServicePort {
 
     @Override
     public OffererMetrics getAllMetrics(Long offererId) {
-        throw new UnsupportedOperationException("TODO: getAllMetrics — placeholder, ver estructura-servicios.docx");
+        return offererMetricsPersistencePort.findByOffererId(offererId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Offerer metrics not found for offererId: " + offererId));
     }
 
     @Override
     public OffererMetrics getMainMetrics(Long offererId) {
-        throw new UnsupportedOperationException("TODO: getMainMetrics — placeholder, ver estructura-servicios.docx");
+        return offererMetricsPersistencePort.findByOffererId(offererId)
+                .orElse(OffererMetrics.builder().offererId(offererId).build());
     }
 }

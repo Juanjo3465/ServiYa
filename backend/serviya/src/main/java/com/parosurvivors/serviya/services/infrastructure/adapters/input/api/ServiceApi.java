@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.services.infrastructure.adapters.input.api;
 
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -36,6 +37,13 @@ public interface ServiceApi {
             @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
     })
     ResponseEntity<ServiceResponse> getById(Long id);
+
+    @Operation(summary = "Obtener el detalle completo de un servicio (incluye datos del oferente y categoría)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Detalle del servicio"),
+            @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
+    })
+    ResponseEntity<ServiceDetailResponse> getDetail(Long id);
 
     @Operation(summary = "Listar todos los servicios activos")
     @ApiResponse(responseCode = "200", description = "Lista de servicios")
@@ -95,7 +103,6 @@ public interface ServiceApi {
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) Double maxRating,
-            @RequestParam(required = false) String offererType,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double maxDistanceKm,

@@ -1,12 +1,16 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
+
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
+import com.parosurvivors.serviya.services.infrastructure.mappers.ReviewWebMapper;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -33,7 +37,9 @@ import java.util.List;
 public class ServiceController implements ServiceApi {
 
     private final MarketplaceServicePort marketplaceService;
+    private final MarketplaceCategoryPort marketplaceCategoryPort;
     private final ServiceWebMapper mapper;
+    private final ReviewWebMapper reviewMapper;
 
     @Override
     @PostMapping("/api/v1/services")
@@ -49,6 +55,16 @@ public class ServiceController implements ServiceApi {
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
         return marketplaceService.getById(id)
                 .map(mapper::toResponse)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Override
+    @GetMapping("/api/v1/services/{id}/detail")
+    public ResponseEntity<ServiceDetailResponse> getDetail(
+            @Parameter(description = "ID del servicio") @PathVariable Long id) {
+        return marketplaceService.getDetailById(id)
+                .map(mapper::toDetailResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -77,7 +93,6 @@ public class ServiceController implements ServiceApi {
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) Double maxRating,
-            @RequestParam(required = false) String offererType,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Double maxDistanceKm,
@@ -93,7 +108,6 @@ public class ServiceController implements ServiceApi {
                 .available(available)
                 .minRating(minRating)
                 .maxRating(maxRating)
-                .offererType(offererType)
                 .latitude(latitude)
                 .longitude(longitude)
                 .maxDistanceKm(maxDistanceKm)

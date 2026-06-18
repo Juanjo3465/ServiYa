@@ -5,7 +5,7 @@ import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServicePersistenceMapper;
 import com.parosurvivors.serviya.services.infrastructure.repositories.ServiceRepository;
-import com.parosurvivors.serviya.services.infrastructure.repositories.ServiceSpecification;
+import com.parosurvivors.serviya.services.infrastructure.repositories.ServiceSpecificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,7 +53,7 @@ public class ServicePersistenceAdapter implements ServicePersistencePort {
     public Page<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria,
                                 Pageable pageable) {
         return repository
-                .findAll(ServiceSpecification.fromQuery(criteria), pageable)
+                .findAll(ServiceSpecificationRepository.fromQuery(criteria), pageable)
                 .map(mapper::toDomain);
     }
     

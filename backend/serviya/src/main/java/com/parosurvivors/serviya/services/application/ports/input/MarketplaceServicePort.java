@@ -4,6 +4,8 @@ import com.parosurvivors.serviya.services.application.dto.command.CreateServiceC
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.domain.ServiceDetail;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -21,6 +23,7 @@ public interface MarketplaceServicePort {
     Optional<Service> getById(Long id);
     List<Service> getAll();
     List<Service> getByOffererId(Long offererId);
+    Optional<ServiceDetail> getDetailById(Long id);
     Service update(UpdateServiceCommand command);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);
     void delete(Long id);

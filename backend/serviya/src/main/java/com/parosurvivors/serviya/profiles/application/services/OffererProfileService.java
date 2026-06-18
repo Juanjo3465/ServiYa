@@ -3,30 +3,44 @@ package com.parosurvivors.serviya.profiles.application.services;
 import com.parosurvivors.serviya.profiles.application.dto.command.UpdateOffererProfileCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.OffererProfilePersistencePort;
+import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
 import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
+import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Implementacion placeholder de OffererProfileServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
- */
 @Component
 @RequiredArgsConstructor
 public class OffererProfileService implements OffererProfileServicePort {
 
     private final OffererProfilePersistencePort offererProfilePersistencePort;
+    private final UserProfilePersistencePort userProfilePersistencePort;
 
     @Override
     public OffererProfile getPublicProfile(Long userId) {
-        throw new UnsupportedOperationException("TODO: getPublicProfile — placeholder, ver estructura-servicios.docx");
+        return offererProfilePersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Offerer profile not found for userId: " + userId));
     }
 
     @Override
     public OffererProfileSummary getProfileSummary(Long userId) {
-        throw new UnsupportedOperationException("TODO: getProfileSummary — placeholder, ver estructura-servicios.docx");
+        OffererProfile offererProfile = offererProfilePersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Offerer profile not found for userId: " + userId));
+
+        UserProfile userProfile = userProfilePersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User profile not found for userId: " + userId));
+
+        return new OffererProfileSummary(
+                userId,
+                userProfile.getFullName(),
+                userProfile.getProfilePhotoUrl(),
+                offererProfile.getSpecialty(),
+                null);
     }
 
     @Override
