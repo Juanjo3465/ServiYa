@@ -360,55 +360,42 @@ CREATE TABLE reschedule_proposals (
 );
 
 -- =========================================================
--- SERVICE REVIEWS & RATINGS
+-- SERVICE FEEDBACK (rating + reseña unificados)
 -- =========================================================
 
-CREATE TABLE service_ratings (
+-- Un feedback por solicitud: agrupa la calificación (opcional) y la reseña
+-- (opcional) que el cliente deja a un servicio. Al menos uno de los dos debe
+-- venir presente (chk_service_feedback_present).
+CREATE TABLE service_feedback (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     request_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
     client_id BIGINT UNSIGNED NOT NULL,
 
-    rating TINYINT UNSIGNED NOT NULL,
+    rating TINYINT UNSIGNED NULL,
+
+    comment TEXT NULL,
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT chk_service_rating
-        CHECK (rating BETWEEN 1 AND 5),
+    CONSTRAINT chk_service_feedback_rating
+        CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
 
-    CONSTRAINT fk_service_ratings_request
+    CONSTRAINT chk_service_feedback_present
+        CHECK (rating IS NOT NULL OR comment IS NOT NULL),
+
+    CONSTRAINT fk_service_feedback_request
         FOREIGN KEY (request_id)
         REFERENCES service_requests(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_service_ratings_client
+    CONSTRAINT fk_service_feedback_client
         FOREIGN KEY (client_id)
         REFERENCES users(id)
 );
 
-CREATE TABLE service_reviews (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    request_id BIGINT UNSIGNED NOT NULL UNIQUE,
-
-    client_id BIGINT UNSIGNED NOT NULL,
-
-    comment TEXT NOT NULL,
-
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_service_reviews_request
-        FOREIGN KEY (request_id)
-        REFERENCES service_requests(id)
-        ON DELETE CASCADE,
-        
-    CONSTRAINT fk_service_reviews_client
-        FOREIGN KEY (client_id)
-        REFERENCES users(id)
-);
-
-CREATE TABLE service_review_tags_catalog (
+CREATE TABLE service_feedback_tags_catalog (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     tag_name VARCHAR(150) NOT NULL UNIQUE,
@@ -416,31 +403,34 @@ CREATE TABLE service_review_tags_catalog (
     sentiment ENUM('P', 'N') NOT NULL
 );
 
-CREATE TABLE service_review_tags (
+CREATE TABLE service_feedback_tags (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
-    review_id BIGINT UNSIGNED NOT NULL,
+    feedback_id BIGINT UNSIGNED NOT NULL,
 
     tag_id BIGINT UNSIGNED NOT NULL,
 
-    CONSTRAINT uq_service_review_tag UNIQUE (review_id, tag_id),
+    CONSTRAINT uq_service_feedback_tag UNIQUE (feedback_id, tag_id),
 
-    CONSTRAINT fk_service_review_tags_review
-        FOREIGN KEY (review_id)
-        REFERENCES service_reviews(id)
+    CONSTRAINT fk_service_feedback_tags_feedback
+        FOREIGN KEY (feedback_id)
+        REFERENCES service_feedback(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_service_review_tags_tag
+    CONSTRAINT fk_service_feedback_tags_tag
         FOREIGN KEY (tag_id)
-        REFERENCES service_review_tags_catalog(id)
+        REFERENCES service_feedback_tags_catalog(id)
         ON DELETE CASCADE
 );
 
 -- =========================================================
--- CLIENT REVIEWS & RATINGS
+-- CLIENT FEEDBACK (rating + reseña unificados)
 -- =========================================================
 
-CREATE TABLE client_ratings (
+-- Un feedback por solicitud: agrupa la calificación (opcional) y la reseña
+-- (opcional) que el oferente deja al cliente. offerer_id = autor, client_id =
+-- calificado. Al menos uno de los dos debe venir presente.
+CREATE TABLE client_feedback (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     request_id BIGINT UNSIGNED NOT NULL UNIQUE,
@@ -449,49 +439,33 @@ CREATE TABLE client_ratings (
 
     client_id BIGINT UNSIGNED NOT NULL,
 
-    rating TINYINT UNSIGNED NOT NULL,
+    rating TINYINT UNSIGNED NULL,
+
+    comment TEXT NULL,
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT chk_client_rating
-        CHECK (rating BETWEEN 1 AND 5),
+    CONSTRAINT chk_client_feedback_rating
+        CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
 
-    CONSTRAINT fk_client_ratings_request
+    CONSTRAINT chk_client_feedback_present
+        CHECK (rating IS NOT NULL OR comment IS NOT NULL),
+
+    CONSTRAINT fk_client_feedback_request
         FOREIGN KEY (request_id)
         REFERENCES service_requests(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_client_ratings_offerer
+    CONSTRAINT fk_client_feedback_offerer
         FOREIGN KEY (offerer_id)
         REFERENCES users(id),
 
-    CONSTRAINT fk_client_ratings_client
+    CONSTRAINT fk_client_feedback_client
         FOREIGN KEY (client_id)
         REFERENCES users(id)
 );
 
-CREATE TABLE client_reviews (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    request_id BIGINT UNSIGNED NOT NULL UNIQUE,
-
-    offerer_id BIGINT UNSIGNED NOT NULL,
-
-    comment TEXT NOT NULL,
-
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_client_reviews_request
-        FOREIGN KEY (request_id)
-        REFERENCES service_requests(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_client_reviews_offerer
-        FOREIGN KEY (offerer_id)
-        REFERENCES users(id)
-);
-
-CREATE TABLE client_review_tags_catalog (
+CREATE TABLE client_feedback_tags_catalog (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     tag_name VARCHAR(150) NOT NULL UNIQUE,
@@ -499,23 +473,23 @@ CREATE TABLE client_review_tags_catalog (
     sentiment ENUM('P', 'N') NOT NULL
 );
 
-CREATE TABLE client_review_tags (
+CREATE TABLE client_feedback_tags (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
-    review_id BIGINT UNSIGNED NOT NULL,
+    feedback_id BIGINT UNSIGNED NOT NULL,
 
     tag_id BIGINT UNSIGNED NOT NULL,
 
-    CONSTRAINT uq_client_review_tag UNIQUE (review_id, tag_id),
+    CONSTRAINT uq_client_feedback_tag UNIQUE (feedback_id, tag_id),
 
-    CONSTRAINT fk_client_review_tags_review
-        FOREIGN KEY (review_id)
-        REFERENCES client_reviews(id)
+    CONSTRAINT fk_client_feedback_tags_feedback
+        FOREIGN KEY (feedback_id)
+        REFERENCES client_feedback(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_client_review_tags_tag
+    CONSTRAINT fk_client_feedback_tags_tag
         FOREIGN KEY (tag_id)
-        REFERENCES client_review_tags_catalog(id)
+        REFERENCES client_feedback_tags_catalog(id)
         ON DELETE CASCADE
 );
 
@@ -532,7 +506,7 @@ CREATE TABLE service_metrics (
 
     total_ratings INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_reviews INT UNSIGNED NOT NULL DEFAULT 0,
+    total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
@@ -560,7 +534,7 @@ CREATE TABLE service_tag_metrics (
 
     CONSTRAINT fk_service_tag_metrics_tag
         FOREIGN KEY (tag_id)
-        REFERENCES service_review_tags_catalog(id)
+        REFERENCES service_feedback_tags_catalog(id)
         ON DELETE CASCADE,
 
     CONSTRAINT fk_service_tag_metrics_service
@@ -578,7 +552,7 @@ CREATE TABLE offerer_metrics (
 
     total_ratings INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_reviews INT UNSIGNED NOT NULL DEFAULT 0,
+    total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_positive_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -612,7 +586,7 @@ CREATE TABLE client_metrics (
 
     total_ratings INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_reviews INT UNSIGNED NOT NULL DEFAULT 0,
+    total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_positive_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -657,7 +631,7 @@ CREATE TABLE offerer_tag_metrics (
 
     CONSTRAINT fk_offerer_tag_metrics_tag
         FOREIGN KEY (tag_id)
-        REFERENCES service_review_tags_catalog(id)
+        REFERENCES service_feedback_tags_catalog(id)
         ON DELETE CASCADE
 );
 
@@ -681,7 +655,7 @@ CREATE TABLE client_tag_metrics (
 
     CONSTRAINT fk_client_tag_metrics_tag
         FOREIGN KEY (tag_id)
-        REFERENCES client_review_tags_catalog(id)
+        REFERENCES client_feedback_tags_catalog(id)
         ON DELETE CASCADE
 );
 
@@ -698,8 +672,8 @@ CREATE TABLE reports (
 
     report_type ENUM(
         'REQUEST',
-        'SERVICE_REVIEW',
-        'CLIENT_REVIEW'
+        'SERVICE_FEEDBACK',
+        'CLIENT_FEEDBACK'
     ) NOT NULL,
 
     category VARCHAR(150) NOT NULL,
@@ -750,38 +724,38 @@ CREATE TABLE request_reports (
         REFERENCES service_requests(id)
 );
 
-CREATE TABLE service_review_reports (
+CREATE TABLE service_feedback_reports (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     report_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
-    review_id BIGINT UNSIGNED NOT NULL,
+    feedback_id BIGINT UNSIGNED NOT NULL,
 
-    CONSTRAINT fk_service_review_reports_report
+    CONSTRAINT fk_service_feedback_reports_report
         FOREIGN KEY (report_id)
         REFERENCES reports(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_service_review_reports_review
-        FOREIGN KEY (review_id)
-        REFERENCES service_reviews(id)
+    CONSTRAINT fk_service_feedback_reports_feedback
+        FOREIGN KEY (feedback_id)
+        REFERENCES service_feedback(id)
 );
 
-CREATE TABLE client_review_reports (
+CREATE TABLE client_feedback_reports (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     report_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
-    review_id BIGINT UNSIGNED NOT NULL,
+    feedback_id BIGINT UNSIGNED NOT NULL,
 
-    CONSTRAINT fk_client_review_reports_report
+    CONSTRAINT fk_client_feedback_reports_report
         FOREIGN KEY (report_id)
         REFERENCES reports(id)
         ON DELETE CASCADE,
 
-    CONSTRAINT fk_client_review_reports_review
-        FOREIGN KEY (review_id)
-        REFERENCES client_reviews(id)
+    CONSTRAINT fk_client_feedback_reports_feedback
+        FOREIGN KEY (feedback_id)
+        REFERENCES client_feedback(id)
 );
 
 CREATE TABLE report_actions (

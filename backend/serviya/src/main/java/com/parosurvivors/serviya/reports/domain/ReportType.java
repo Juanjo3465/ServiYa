@@ -5,6 +5,6 @@ package com.parosurvivors.serviya.reports.domain;
  */
 public enum ReportType {
     REQUEST,
-    SERVICE_REVIEW,
-    CLIENT_REVIEW
+    SERVICE_FEEDBACK,
+    CLIENT_FEEDBACK
 }

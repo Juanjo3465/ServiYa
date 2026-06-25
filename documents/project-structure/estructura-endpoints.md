@@ -302,7 +302,7 @@ El campo `fieldErrors` solo aparece en errores de validación.
 
 ## 12. Calificaciones y reseñas del servicio
 
-`ServiceFeedbackService` · `ServiceReviewTagCatalogService`
+`ServiceFeedbackService` · `ServiceFeedbackTagCatalogService`
 
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
@@ -310,7 +310,7 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `GET` | `/api/v1/service-requests/{id}/feedback` | `getServiceFeedback(requestId)` | Parte involucrada | — |
 | `GET` | `/api/v1/services/{id}/feedback` | `getServiceFeedbackList(serviceId, pageable)` | Público | RF-040, RF-046 |
 | `GET` | `/api/v1/clients/{id}/service-feedback` | `getServiceFeedbackByClient(clientId, pageable)` | Dueño (propio) / ADMIN | — |
-| `GET` | `/api/v1/service-review-tags` | `getCatalog()` | Público | — |
+| `GET` | `/api/v1/service-feedback-tags` | `getCatalog()` | Público | — |
 
 **Notas**:
 - Un solo POST agrupa rating + review (cualquiera puede venir null; si ambos vienen null, no hace nada).
@@ -321,7 +321,7 @@ El campo `fieldErrors` solo aparece en errores de validación.
 
 ## 13. Calificaciones y reseñas al cliente
 
-`ClientFeedbackService` · `ClientReviewTagCatalogService`
+`ClientFeedbackService` · `ClientFeedbackTagCatalogService`
 
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
@@ -329,7 +329,7 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | `GET` | `/api/v1/service-requests/{id}/client-feedback` | `getClientFeedback(requestId)` | Parte involucrada | — |
 | `GET` | `/api/v1/users/{id}/client-feedback` | `getClientFeedbackList(clientId, pageable)` | OFFERER (con solicitud común) / ADMIN | RF-047 |
 | `GET` | `/api/v1/offerers/{id}/client-feedback` | `getClientFeedbackByOfferer(offererId, pageable)` | Dueño (propio) / ADMIN | — |
-| `GET` | `/api/v1/client-review-tags` | `getCatalog()` | Público | — |
+| `GET` | `/api/v1/client-feedback-tags` | `getCatalog()` | Público | — |
 
 **Nota**: `GET /offerers/{id}/client-feedback` lista todo el feedback que un oferente ha **dejado** sobre clientes (su historial como reseñador), distinto de `/users/{id}/client-feedback` que es el feedback **recibido** por un cliente.
 
@@ -357,15 +357,15 @@ El campo `fieldErrors` solo aparece en errores de validación.
 
 ## 15. Reportes
 
-`ReportService` · `RequestReportService` · `ServiceReviewReportService` · `ClientReviewReportService` · `ReportActionService`
+`ReportService` · `RequestReportService` · `ServiceFeedbackReportService` · `ClientFeedbackReportService` · `ReportActionService`
 
 ### Creación
 
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
 | `POST` | `/api/v1/reports/requests` | `RequestReportService.createReport(...)` | Parte involucrada | RF-055, RF-057, RF-073 |
-| `POST` | `/api/v1/reports/service-reviews` | `ServiceReviewReportService.createReport(...)` | Logged | RF-056 |
-| `POST` | `/api/v1/reports/client-reviews` | `ClientReviewReportService.createReport(...)` | Logged | RF-056 |
+| `POST` | `/api/v1/reports/service-feedback` | `ServiceFeedbackReportService.createReport(...)` | Logged | RF-056 |
+| `POST` | `/api/v1/reports/client-feedback` | `ClientFeedbackReportService.createReport(...)` | Logged | RF-056 |
 
 ### Consulta
 

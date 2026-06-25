@@ -1,11 +1,11 @@
 package com.parosurvivors.serviya.feedback.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
-import com.parosurvivors.serviya.feedback.application.ports.input.ServiceReviewTagCatalogServicePort;
+import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackTagCatalogServicePort;
 import com.parosurvivors.serviya.feedback.infrastructure.adapters.input.api.ServiceFeedbackApi;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.form.SubmitServiceFeedbackForm;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceFeedbackResponse;
-import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceReviewTagResponse;
+import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceFeedbackTagResponse;
 import com.parosurvivors.serviya.feedback.infrastructure.mappers.ServiceFeedbackWebMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import java.util.List;
 public class ServiceFeedbackController implements ServiceFeedbackApi {
 
     private final ServiceFeedbackServicePort serviceFeedbackService;
-    private final ServiceReviewTagCatalogServicePort serviceReviewTagCatalogService;
+    private final ServiceFeedbackTagCatalogServicePort serviceFeedbackTagCatalogService;
     private final ServiceFeedbackWebMapper mapper;
 
     @Override
@@ -63,9 +63,9 @@ public class ServiceFeedbackController implements ServiceFeedbackApi {
     }
 
     @Override
-    @GetMapping("/api/v1/service-review-tags")
-    public ResponseEntity<List<ServiceReviewTagResponse>> getCatalog() {
-        return ResponseEntity.ok(mapper.toTagResponses(serviceReviewTagCatalogService.getCatalog()));
+    @GetMapping("/api/v1/service-feedback-tags")
+    public ResponseEntity<List<ServiceFeedbackTagResponse>> getCatalog() {
+        return ResponseEntity.ok(mapper.toTagResponses(serviceFeedbackTagCatalogService.getCatalog()));
     }
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */

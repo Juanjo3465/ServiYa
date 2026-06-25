@@ -1,12 +1,12 @@
 package com.parosurvivors.serviya.reports.application.mappers;
 
-import com.parosurvivors.serviya.reports.application.dto.command.CreateClientReviewReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateClientFeedbackReportCommand;
 import com.parosurvivors.serviya.reports.application.dto.command.CreateRequestReportCommand;
-import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceReviewReportCommand;
-import com.parosurvivors.serviya.reports.domain.ClientReviewReport;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceFeedbackReportCommand;
+import com.parosurvivors.serviya.reports.domain.ClientFeedbackReport;
 import com.parosurvivors.serviya.reports.domain.Report;
 import com.parosurvivors.serviya.reports.domain.RequestReport;
-import com.parosurvivors.serviya.reports.domain.ServiceReviewReport;
+import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -28,20 +28,20 @@ public interface ReportCommandMapper {
     Report toBaseReport(CreateRequestReportCommand command);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "reportType", ignore = true) // TODO SERVICE_REVIEW
+    @Mapping(target = "reportType", ignore = true) // TODO SERVICE_FEEDBACK
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "priority", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    Report toBaseReport(CreateServiceReviewReportCommand command);
+    Report toBaseReport(CreateServiceFeedbackReportCommand command);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "reportType", ignore = true) // TODO CLIENT_REVIEW
+    @Mapping(target = "reportType", ignore = true) // TODO CLIENT_FEEDBACK
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "priority", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    Report toBaseReport(CreateClientReviewReportCommand command);
+    Report toBaseReport(CreateClientFeedbackReportCommand command);
 
     // ---- Enlaces de subtipo ----
     @Mapping(target = "id", ignore = true)
@@ -50,11 +50,11 @@ public interface ReportCommandMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "reportId", ignore = true)
-    @Mapping(target = "reviewId", source = "serviceReviewId")
-    ServiceReviewReport toServiceReviewReport(CreateServiceReviewReportCommand command);
+    @Mapping(target = "feedbackId", source = "serviceFeedbackId")
+    ServiceFeedbackReport toServiceFeedbackReport(CreateServiceFeedbackReportCommand command);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "reportId", ignore = true)
-    @Mapping(target = "reviewId", source = "clientReviewId")
-    ClientReviewReport toClientReviewReport(CreateClientReviewReportCommand command);
+    @Mapping(target = "feedbackId", source = "clientFeedbackId")
+    ClientFeedbackReport toClientFeedbackReport(CreateClientFeedbackReportCommand command);
 }
