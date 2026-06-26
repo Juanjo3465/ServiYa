@@ -1,5 +1,5 @@
 -- =====================================================
--- OFFERER PROFILE FOR USER 1
+-- PERFIL DE OFERENTE DEL USUARIO 1 (requiere users)
 -- =====================================================
 
 INSERT INTO offerer_profiles (
@@ -16,15 +16,8 @@ VALUES (
 );
 
 -- =====================================================
--- AVAILABILITY SLOTS
--- week_day:
--- 0 = Sunday
--- 1 = Monday
--- 2 = Tuesday
--- 3 = Wednesday
--- 4 = Thursday
--- 5 = Friday
--- 6 = Saturday
+-- DISPONIBILIDAD DEL OFERENTE (offerer_id -> users.id)
+-- week_day: 0=Domingo 1=Lunes ... 6=Sábado
 -- =====================================================
 
 INSERT INTO offerer_availabilities (

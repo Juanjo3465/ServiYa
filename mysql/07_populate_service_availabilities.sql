@@ -1,3 +1,8 @@
+-- =====================================================
+-- DISPONIBILIDAD POR SERVICIO (requiere services)
+-- week_day: 0=Domingo 1=Lunes ... 6=Sábado
+-- =====================================================
+
 insert into service_availabilities (service_id, week_day, start_time, end_time, is_active) values
 (1, 1, '08:00:00', '17:00:00', true),
 (1, 2, '08:00:00', '17:00:00', true),
