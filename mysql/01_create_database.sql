@@ -373,11 +373,18 @@ CREATE TABLE service_feedback (
 
     client_id BIGINT UNSIGNED NOT NULL,
 
+    -- Denormalizado desde service_requests(service_id): el feedback ya se enlaza por
+    -- request_id, pero guardar service_id evita el JOIN/subconsulta al listar las
+    -- reseñas de un servicio (detalle del servicio). Se deriva de la solicitud al crear.
+    service_id BIGINT UNSIGNED NOT NULL,
+
     rating TINYINT UNSIGNED NULL,
 
     comment TEXT NULL,
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_service_feedback_service (service_id),
 
     CONSTRAINT chk_service_feedback_rating
         CHECK (rating IS NULL OR rating BETWEEN 1 AND 5),
@@ -392,7 +399,12 @@ CREATE TABLE service_feedback (
 
     CONSTRAINT fk_service_feedback_client
         FOREIGN KEY (client_id)
-        REFERENCES users(id)
+        REFERENCES users(id),
+
+    CONSTRAINT fk_service_feedback_service
+        FOREIGN KEY (service_id)
+        REFERENCES services(id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE service_feedback_tags_catalog (

@@ -20,7 +20,7 @@ import java.util.List;
 public interface ServiceFeedbackApi {
 
     @Operation(summary = "Enviar feedback de servicio (rating y/o resena)",
-            description = "Un solo POST agrupa rating + review (cualquiera puede venir null). RF-041, RF-045.")
+            description = "Un solo POST agrupa rating + comentario (cualquiera puede venir null). RF-041, RF-045.")
     @ApiResponse(responseCode = "204", description = "Feedback registrado")
     ResponseEntity<Void> submitServiceFeedback(Long id, SubmitServiceFeedbackForm form);
 

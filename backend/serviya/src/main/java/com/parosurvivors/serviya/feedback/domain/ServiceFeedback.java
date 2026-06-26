@@ -26,6 +26,8 @@ public class ServiceFeedback {
     private Long id;
     private Long requestId;
     private Long clientId;
+    /** Servicio reseñado, denormalizado desde la solicitud para listar reseñas por servicio sin JOIN. */
+    private Long serviceId;
     private Integer rating;
     private String comment;
     private LocalDateTime createdAt;

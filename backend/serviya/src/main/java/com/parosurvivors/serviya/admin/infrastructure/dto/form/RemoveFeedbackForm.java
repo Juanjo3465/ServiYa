@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * Entrada web (Form) para eliminar feedback inapropiado no reportado (admin). POST /api/v1/admin/reviews/remove
+ * Entrada web (Form) para eliminar feedback inapropiado no reportado (admin). POST /api/v1/admin/feedback/remove
  * (RF-049). Crea internamente un reporte (admin como reportante) y lo resuelve via revertFeedbackFromReport.
  * El adminId se extrae del JWT.
  * TODO: revisar campos exactos (que identifican la resena a eliminar) y validaciones.

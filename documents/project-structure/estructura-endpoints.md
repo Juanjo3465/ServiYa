@@ -429,10 +429,10 @@ El campo `fieldErrors` solo aparece en errores de validación.
 | Método | Ruta | Servicio | Acceso | Requisito |
 |---|---|---|---|---|
 | `DELETE` | `/api/v1/admin/services/{id}` | `ServiceManagementService.deleteService(serviceId)` | ADMIN | RF-064 |
-| `GET` | `/api/v1/admin/reviews` | (búsqueda combinada; reutiliza los listados de feedback de las secciones 12–13) | ADMIN | RF-048 |
-| `POST` | `/api/v1/admin/reviews/remove` | `removeFeedbackDirectly(adminId, CreateReportDTO)` | ADMIN | RF-049 |
+| `GET` | `/api/v1/admin/feedback` | (búsqueda combinada; reutiliza los listados de feedback de las secciones 12–13) | ADMIN | RF-048 |
+| `POST` | `/api/v1/admin/feedback/remove` | `removeFeedbackDirectly(adminId, CreateReportDTO)` | ADMIN | RF-049 |
 
-**Nota**: la eliminación de una reseña inapropiada (RF-049) tiene dos vías, ambas pasan por el flujo de feedback (`FeedbackFlow.remove`) y dejan rastro de auditoría (reporte + `ReportAction`): (a) si la reseña fue reportada, la acción de moderación `POST /reports/{id}/actions/revert-feedback` (sección 16); (b) si no fue reportada, `POST /admin/reviews/remove` → `removeFeedbackDirectly`, que crea internamente un reporte (admin como reportante) y lo resuelve con `revertFeedbackFromReport`. Se retiraron los `DELETE /admin/reviews/...` directos (junto con `removeReview`).
+**Nota**: la eliminación de una reseña inapropiada (RF-049) tiene dos vías, ambas pasan por el flujo de feedback (`FeedbackFlow.remove`) y dejan rastro de auditoría (reporte + `ReportAction`): (a) si la reseña fue reportada, la acción de moderación `POST /reports/{id}/actions/revert-feedback` (sección 16); (b) si no fue reportada, `POST /admin/feedback/remove` → `removeFeedbackDirectly`, que crea internamente un reporte (admin como reportante) y lo resuelve con `revertFeedbackFromReport`. Se retiraron los `DELETE /admin/feedback/...` directos.
 
 ---
 

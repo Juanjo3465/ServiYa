@@ -23,7 +23,7 @@ public record ServiceDetailResponse(
         BigDecimal averageRating,
         //Integer totalCompletedServices,
         CategoryResponse category,
-        // List<ReviewResponse> reviews,
+        List<FeedbackResponse> feedbacks,
         List<ServiceAvailabilityResponse> availability,
         String title,
         String description,

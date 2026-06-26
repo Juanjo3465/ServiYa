@@ -7,11 +7,14 @@ import com.parosurvivors.serviya.feedback.application.ports.input.FeedbackFlowPo
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.output.ServiceFeedbackPersistencePort;
 import com.parosurvivors.serviya.feedback.application.ports.output.ServiceFeedbackTagPersistencePort;
+import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * Implementacion placeholder de ServiceFeedbackServicePort — fachada del feedback del cliente
@@ -47,6 +50,14 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
     @Override
     public Page<ServiceFeedbackResult> getServiceFeedbackByClient(Long clientId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getServiceFeedbackByClient — placeholder, ver estructura-servicios.docx");
+    }
+
+    @Override
+    public List<ServiceFeedback> getRecentServiceFeedback(Long serviceId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return serviceFeedbackPersistencePort.findRecentByServiceId(serviceId, limit);
     }
 
     @Override

@@ -21,7 +21,7 @@ public class ServiceDetail {
     private Category category;
     private OffererProfile offererProfile;
     private OffererProfileSummary offererSummary;
-    private List<ReviewUser> reviewsUsers;
+    private List<FeedbackUser> feedbackUsers;
     private List<ServiceAvailability> availability;
     //private Integer totalCompletedServices;
 }

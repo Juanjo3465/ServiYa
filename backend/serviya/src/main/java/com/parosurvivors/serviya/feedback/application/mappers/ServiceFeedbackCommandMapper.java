@@ -13,7 +13,10 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ServiceFeedbackCommandMapper {
 
+    // serviceId se deriva de la solicitud (service_requests.service_id) en el servicio al enviar
+    // el feedback; no viene en el command, por eso se ignora aquí.
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "serviceId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     ServiceFeedback toFeedback(SubmitServiceFeedbackCommand command);
 }

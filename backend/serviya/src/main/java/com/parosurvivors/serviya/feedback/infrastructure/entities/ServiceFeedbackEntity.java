@@ -25,6 +25,10 @@ public class ServiceFeedbackEntity {
     @Column(name = "client_id", nullable = false)
     private Long clientId;
 
+    /** Denormalizado desde la solicitud (service_requests.service_id) para listar reseñas por servicio sin JOIN. */
+    @Column(name = "service_id", nullable = false)
+    private Long serviceId;
+
     @Column
     private Integer rating;
 
