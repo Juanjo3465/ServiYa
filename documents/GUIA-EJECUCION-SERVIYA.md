@@ -108,7 +108,36 @@ En **desarrollo** normalmente no necesitas reconstruir: el hot-reload refleja lo
 
 ---
 
-## Cambiar dependencias del frontend (`package.json`) — gotcha del volumen anónimo
+## Añadir o actualizar dependencias (backend y frontend)
+
+Cuando cambias las dependencias hay que **relanzar el contenedor afectado** para que se
+apliquen. Cómo hacerlo depende del servicio y del modo (dev/prod), porque cada uno resuelve
+sus dependencias de forma distinta.
+
+### Backend (`pom.xml`)
+
+Tras añadir/actualizar una dependencia en `backend/serviya/pom.xml`:
+
+**En desarrollo** — el `pom.xml` está montado y el volumen `maven_repo` persiste, así que
+basta con **reiniciar el backend**: al rearrancar, `mvn spring-boot:run` vuelve a resolver
+el `pom.xml` y descarga la dependencia nueva a `maven_repo`. No hace falta `--build`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml restart backend
+```
+
+> La primera vez que arranca con la dependencia nueva la **descarga** (puede tardar).
+> Espera a ver `Started ServiyaApplication in X seconds` en el log antes de probar
+> (`logs -f backend`).
+
+**En producción** — la dependencia se compila dentro del `.jar` al construir la imagen,
+así que **hay que reconstruir** la imagen del backend:
+
+```bash
+docker compose up -d --build backend
+```
+
+### Frontend (`package.json`) — gotcha del volumen anónimo
 
 Cuando **añades o actualizas una dependencia del frontend** (p. ej. `react-router-dom`) y estás en **desarrollo**, reconstruir con `--build` **no basta**. Hay que recrear los volúmenes anónimos con el flag `-V` (`--renew-anon-volumes`):
 
@@ -130,6 +159,13 @@ El flag `-V` descarta el volumen anónimo viejo y lo repuebla desde la imagen re
 
 > Alternativa equivalente: `docker compose ... down` (sin `-v`, para no borrar la DB) y volver a levantar con `--build`. Pero `-V` es más directo y no requiere bajar todo el stack.
 
+**En producción** el frontend se compila (`npm run build`) y lo sirve Nginx, así que no hay
+volumen anónimo de por medio: basta con **reconstruir** la imagen del frontend:
+
+```bash
+docker compose up -d --build frontend
+```
+
 ---
 
 ## Base de datos
@@ -143,6 +179,43 @@ El flag `-V` descarta el volumen anónimo viejo y lo repuebla desde la imagen re
 
 > La base de datos se llama `marketplace_services` (variable `DB_NAME` en `.env`) y la
 > contraseña de root es `MYSQL_ROOT_PASSWORD` (también en `.env`).
+
+### Aplicar cambios en los scripts SQL tras un `git pull`
+
+> **Léelo si acabas de bajar cambios del repo y la BD no refleja los datos nuevos.** Los
+> scripts de `mysql/` corren **solo cuando el volumen de datos está vacío** (ver la
+> siguiente sección). Si ya levantaste el proyecto antes, tu volumen tiene los datos
+> viejos y **un `git pull` o un `--build` NO los actualiza** — aunque renombremos,
+> añadamos o editemos un `*.sql`, MySQL los ignora porque el volumen ya existe. Para que
+> los cambios se apliquen hay que **borrar el volumen de MySQL y volver a levantar** para
+> que la init corra desde cero.
+
+**En desarrollo** (recomendado: borra solo el volumen de MySQL y conserva la caché de Maven):
+
+```bash
+# 1) Baja los cambios
+git pull
+
+# 2) Borra el contenedor y el volumen de datos de MySQL (NO toca maven_repo)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml rm -sf mysql
+docker volume rm serviya_mysql_data
+
+# 3) Vuelve a levantar: los scripts de mysql/ se ejecutan de nuevo desde cero
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+**En producción** (no hay `maven_repo`, así que el `down -v` es la vía directa):
+
+```bash
+git pull
+docker compose down -v          # elimina los contenedores y TODOS los volúmenes (incl. la BD)
+docker compose up -d --build    # reconstruye y re-ejecuta los scripts de mysql/
+```
+
+> Verifica con `docker volume ls` que el volumen se llame `serviya_mysql_data`
+> (`<proyecto>_<volumen>`). Si los seeds fallan al re-ejecutarse, el contenedor `mysql`
+> queda `Exited (1)` y la BD a medias — mira el log (`logs --tail 40 mysql`) y revisa el
+> "Gotcha" más abajo. Detalle ampliado en **"Resetear SOLO la base de datos"**.
 
 ### Cómo funcionan los scripts de la carpeta `mysql/`
 
@@ -251,8 +324,18 @@ docker compose logs -f
 # Detener todo
 docker compose down
 
-# Reaplicar los seeds de mysql/ SIN re-descargar Maven (reset solo de la BD)
+# Aplicar cambios en los scripts SQL tras un `git pull` (reset de la BD, conserva Maven)
+git pull
 docker compose -f docker-compose.yml -f docker-compose.dev.yml rm -sf mysql
 docker volume rm serviya_mysql_data
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+# Aplicar una dependencia NUEVA del backend (pom.xml) en DESARROLLO
+docker compose -f docker-compose.yml -f docker-compose.dev.yml restart backend
+
+# Aplicar una dependencia NUEVA del frontend (package.json) en DESARROLLO (flag -V)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build -V
+
+# En PRODUCCIÓN, una dependencia nueva (backend o frontend) se aplica reconstruyendo
+docker compose up -d --build backend   # o: ... --build frontend
 ```
