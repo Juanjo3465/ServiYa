@@ -16,6 +16,21 @@ Con hot-reload en el backend (Spring Boot DevTools) y en el frontend (Vite HMR):
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 
+> **En desarrollo el backend tarda en estar listo — espera antes de probar.** A
+> diferencia de producción (que arranca un `.jar` ya compilado en segundos), en
+> desarrollo el backend corre `mvn spring-boot:run` sobre el código montado: tiene que
+> resolver dependencias (el primer arranque baja todo Maven a `maven_repo`, varios
+> minutos), **compilar** y recién entonces levantar Spring Boot. Hasta que no veas
+> `Started ServiyaApplication in X seconds` en el log, el puerto `8080` **no acepta
+> conexiones** y Postman/el navegador darán "no response" (no es un bug). Espera a esa
+> línea siguiendo el log:
+>
+> ```bash
+> docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f backend
+> ```
+>
+> (sales del visor con `Ctrl+C`, sin detener el contenedor).
+
 ### Producción
 
 Backend como `.jar` optimizado y frontend compilado y servido por Nginx:
