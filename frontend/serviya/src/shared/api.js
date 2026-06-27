@@ -65,6 +65,14 @@ export const authApi = {
 export const profileApi = {
     // RF-005 — identidad tomada del JWT por el backend
     getMyProfile: () => request('/api/v1/users/me/profile', { auth: true }),
+ 
+    // RF-007 — cambia la contraseña del usuario autenticado
+    changePassword: (currentPassword, newPassword) =>
+        request('/api/v1/users/me/password', {
+            method: 'PATCH',
+            auth: true,
+            body: { currentPassword, newPassword },
+        }),
 };
 
 // Ruta de inicio según el rol devuelto por el backend.

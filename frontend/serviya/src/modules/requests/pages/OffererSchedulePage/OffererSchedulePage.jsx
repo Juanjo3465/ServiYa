@@ -1,44 +1,126 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
 
-const DAYS = [
-    {
-        title: 'Lunes 12 de mayo',
-        events: [{ hour: '9:00', ampm: 'AM', name: 'Reparación de tuberías', sub: 'Juan P. · Calle 45 #12-34', phone: '+57 310 555 1234', badge: 'badge-warn', label: 'Pendiente aceptar', accept: true }],
-    },
-    {
-        title: 'Miércoles 14 de mayo',
-        events: [{ hour: '10:00', ampm: 'AM', name: 'Reparación de tuberías', sub: 'Sandra R. · Carrera 7 #80-21', badge: 'badge-success', label: 'Aceptada' }],
-    },
-    {
-        title: 'Viernes 16 de mayo',
-        events: [{ hour: '2:00', ampm: 'PM', name: 'Destape de cañerías', sub: 'Mario V. · Usaquén', badge: 'badge-success', label: 'Aceptada' }],
-    },
+const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MONTH_NAMES = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
+
+const STATUS_BADGE = {
+    PENDING: { className: 'badge-warn', label: 'Pendiente aceptar' },
+    ACCEPTED: { className: 'badge-success', label: 'Aceptada' },
+};
+
+function dayKey(date) {
+    // local date key, not UTC, so it matches what the user sees on the calendar
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function formatDayTitle(date) {
+    const weekday = WEEKDAY_NAMES[date.getDay()];
+    const month = MONTH_NAMES[date.getMonth()];
+    return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${date.getDate()} de ${month}`;
+}
+
+// Groups a flat list of requests (each with a `scheduledDate`) into an
+// array of { date, title, events } buckets, sorted chronologically.
+function groupByDay(requests) {
+    const buckets = new Map();
+
+    for (const r of requests) {
+        if (!r.scheduledDate) continue;
+        const date = new Date(r.scheduledDate);
+        const key = dayKey(date);
+
+        if (!buckets.has(key)) {
+            buckets.set(key, { date, title: formatDayTitle(date), events: [] });
+        }
+
+        const badge = STATUS_BADGE[r.status] ?? { className: 'badge-gray', label: r.status };
+        buckets.get(key).events.push({
+            id: r.id,
+            hour: date.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }),
+            name: `Servicio #${r.serviceId}`,
+            sub: `Cliente #${r.clientId}`,
+            badgeClassName: badge.className,
+            label: badge.label,
+        });
+    }
+
+    return Array.from(buckets.values()).sort((a, b) => a.date - b.date);
+}
 
 export function OffererSchedulePage() {
     const { toasts, showToast } = useToast();
+
+    const [requests, setRequests] = useState([]);
+    const [selectedDate, setSelectedDate] = useState(null);
+
+    useEffect(() => {
+        fetch('http://localhost:8080/api/v1/users/me/offerer-agenda')
+            .then((response) => response.json())
+            .then((data) => {
+                setRequests(data.content ?? []);
+            });
+    }, []);
+
+    const allDays = groupByDay(requests);
+    const visibleDays = selectedDate
+        ? allDays.filter((d) => dayKey(d.date) === dayKey(selectedDate))
+        : allDays;
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
             <div className="ph"><h1>Mi agenda</h1><p>Servicios programados para atender</p></div>
             <div className="g2" style={{ gap: '20px', alignItems: 'start' }}>
-                <MonthCalendar />
+                <MonthCalendar
+                    events={requests}
+                    selectedDate={selectedDate}
+                    onDayClick={(date) =>
+                        setSelectedDate((prev) =>
+                            prev && dayKey(prev) === dayKey(date) ? null : date
+                        )
+                    }
+                />
                 <div>
-                    {DAYS.map((d, i) => (
-                        <React.Fragment key={i}>
+                    {selectedDate && (
+                        <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ marginBottom: '10px' }}
+                            onClick={() => setSelectedDate(null)}
+                        >
+                            Ver todos los próximos servicios
+                        </button>
+                    )}
+
+                    {visibleDays.length === 0 && (
+                        <p style={{ fontSize: '13px', color: 'var(--c-mid)' }}>
+                            {selectedDate ? 'No tienes servicios este día.' : 'No tienes servicios próximos.'}
+                        </p>
+                    )}
+
+                    {visibleDays.map((d) => (
+                        <React.Fragment key={dayKey(d.date)}>
                             <div className="ev-daytitle">{d.title}</div>
-                            {d.events.map((e, j) => (
-                                <div className="ev-item" key={j}>
-                                    <div className="ev-time">{e.hour}<br />{e.ampm}</div>
+                            {d.events.map((e) => (
+                                <div className="ev-item" key={e.id}>
+                                    <div className="ev-time">{e.hour}</div>
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontSize: '13px', fontWeight: 700 }}>{e.name}</div>
                                         <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '2px' }}>{e.sub}</div>
-                                        {e.phone && <div style={{ fontSize: '11px', color: 'var(--c-mid)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}><Icon name="phone" size={11} />{e.phone}</div>}
                                         <div style={{ marginTop: '7px', display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                            <span className={`badge ${e.badge}`}>{e.label}</span>
-                                            {e.accept && <button className="btn btn-success btn-sm" onClick={() => showToast('Aceptada. Juan P. notificado', 'success')}><Icon name="check" size={13} />Aceptar</button>}
+                                            <span className={`badge ${e.badgeClassName}`}>{e.label}</span>
+                                            {e.label === 'Pendiente aceptar' && (
+                                                <button
+                                                    className="btn btn-success btn-sm"
+                                                    onClick={() => showToast('Aceptada. Cliente notificado', 'success')}
+                                                >
+                                                    <Icon name="check" size={13} />
+                                                    Aceptar
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
