@@ -17,7 +17,7 @@ public interface AddressServicePort {
 
     Address createAddress(CreateAddressCommand command);
 
-    void deleteAddress(Long userId, Long addressId);
+    void deleteAddress(Long addressId);
 
     Address updateAddress(UpdateAddressCommand command);
 

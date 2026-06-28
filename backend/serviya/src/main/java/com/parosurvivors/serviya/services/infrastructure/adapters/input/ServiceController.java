@@ -10,6 +10,7 @@ import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDet
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
 
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Adaptador de entrada (REST) de servicios. Placeholder funcional: enruta, mapea Form->Command y
@@ -73,9 +75,9 @@ public class ServiceController implements ServiceApi {
 
     @Override
     @GetMapping("/api/v1/offerers/{offererId}/services")
-    public ResponseEntity<List<ServiceResponse>> getByOffererId(
+    public ResponseEntity<List<ServiceDetailResponse>> getByOffererId(
             @Parameter(description = "ID del oferente") @PathVariable Long offererId) {
-        return ResponseEntity.ok(mapper.toResponses(marketplaceService.getByOffererId(offererId)));
+        return ResponseEntity.ok(marketplaceService.getByOffererId(offererId).stream().map(mapper::toDetailResponse).collect(Collectors.toList()));
     }
 
     @Override
@@ -154,8 +156,7 @@ public class ServiceController implements ServiceApi {
         return ResponseEntity.noContent().build();
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado (Spring Security aun no configurado). */
     private Long currentOffererId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

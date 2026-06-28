@@ -3,10 +3,18 @@ package com.parosurvivors.serviya.profiles.application.services;
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateAddressCommand;
 import com.parosurvivors.serviya.profiles.application.dto.command.UpdateAddressCommand;
 import com.parosurvivors.serviya.profiles.application.dto.result.CoordinatesResult;
+import com.parosurvivors.serviya.profiles.application.mappers.AddressCommandMapper;
 import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
 import com.parosurvivors.serviya.profiles.domain.Address;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,26 +27,38 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AddressService implements AddressServicePort {
 
-    private final AddressPersistencePort addressPersistencePort;
+    private final AddressPersistencePort persistencePort;
+    private final AddressCommandMapper commandMapper;
 
     @Override
     public List<Address> getUserAddresses(Long userId) {
-        throw new UnsupportedOperationException("TODO: getUserAddresses — placeholder, ver estructura-servicios.docx");
+        return new ArrayList<>(persistencePort.findByUserId(userId));
     }
 
     @Override
     public Address createAddress(CreateAddressCommand command) {
-        throw new UnsupportedOperationException("TODO: createAddress — placeholder, ver estructura-servicios.docx");
+        LocalDateTime now = LocalDateTime.now();
+        Address address = commandMapper.toDomain(command);
+        address.setCreatedAt(now);
+        return persistencePort.save(address);
     }
 
     @Override
-    public void deleteAddress(Long userId, Long addressId) {
-        throw new UnsupportedOperationException("TODO: deleteAddress — placeholder, ver estructura-servicios.docx");
+    public void deleteAddress(Long addressId) {
+        if (persistencePort.findById(addressId).isEmpty()) {
+            throw new ResourceNotFoundException("Dirección no encontrada con id: " + addressId);
+        }
+        persistencePort.deleteById(addressId);
     }
 
     @Override
     public Address updateAddress(UpdateAddressCommand command) {
-        throw new UnsupportedOperationException("TODO: updateAddress — placeholder, ver estructura-servicios.docx");
+        Address address = persistencePort.findById(command.addressId())
+                .orElseThrow(() -> new ResourceNotFoundException("Dirección no encontrada con id: " + command.addressId()));
+
+        commandMapper.updateFromCommand(command, address);
+
+        return persistencePort.update(address);
     }
 
     @Override

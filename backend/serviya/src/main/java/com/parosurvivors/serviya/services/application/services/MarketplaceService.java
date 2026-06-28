@@ -77,10 +77,21 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public List<Service> getByOffererId(Long offererId) {
-        return persistencePort.findByOffererId(offererId).stream()
-                .filter(s -> !s.isDeleted())
-                .collect(Collectors.toList());
+    public List<ServiceDetail> getByOffererId(Long offererId) {
+        List<Service> services = persistencePort.findByOffererId(offererId);
+
+        if (services.isEmpty())
+            throw new ResourceNotFoundException("El oferente no tiene servicios");
+
+        List<ServiceDetail> details = new ArrayList<>();
+
+        for (Service service : services) {
+            Category category = categoryPort.getById(service.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada con id: " + service.getCategoryId()));
+            details.add(new ServiceDetail(service, category, null, null, null, null));
+        }
+
+        return details;
     }
 
 

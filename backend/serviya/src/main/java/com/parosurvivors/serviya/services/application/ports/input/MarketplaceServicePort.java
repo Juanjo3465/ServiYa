@@ -22,7 +22,7 @@ public interface MarketplaceServicePort {
     Service create(CreateServiceCommand command);
     Optional<Service> getById(Long id);
     List<Service> getAll();
-    List<Service> getByOffererId(Long offererId);
+    List<ServiceDetail> getByOffererId(Long offererId);
     Optional<ServiceDetail> getDetailById(Long id);
     Service update(UpdateServiceCommand command);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);

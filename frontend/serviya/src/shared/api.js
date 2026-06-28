@@ -15,7 +15,13 @@ export function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
 }
 export function isAuthenticated() {
-    return Boolean(getToken());
+    if (!getToken()) return false;
+    try {
+        const payload = JSON.parse(atob(getToken().split('.')[1]));
+        return Math.floor(Date.now() / 1000) < payload.exp;
+    } catch {
+        return false;
+    }
 }
 
 // Lee los roles del payload del JWT (el backend los incluye como claim "roles").
@@ -66,6 +72,24 @@ export const profileApi = {
     // RF-005 — identidad tomada del JWT por el backend
     getMyProfile: () => request('/api/v1/users/me/profile', { auth: true }),
 };
+
+export const serviceApi = {
+    getMyServices: (offererId) => request(`/api/v1/offerers/${offererId}/services`, { auth: true }),
+    createService: (payload) => request('/api/v1/services', { method: 'POST', body: payload, auth: true }),
+    updateService: (id, payload) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true }),
+    deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
+};
+
+export const addressApi = {
+    getMyAddresses: () => request('/api/v1/users/me/addresses', { auth: true }),
+    createAddress: (payload) => request('/api/v1/users/me/addresses', { method: 'POST', body: payload, auth: true }),
+    updateAddress: (id, payload) => request(`/api/v1/addresses/${id}`, { method: 'PATCH', body: payload, auth: true }),
+    deleteAddress: (id) => request(`/api/v1/addresses/${id}`, { method: 'DELETE', auth: true }),
+};
+
+export const categoryApi = {
+    getCategories: () => request('/api/v1/categories', { auth: true }),
+}
 
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {

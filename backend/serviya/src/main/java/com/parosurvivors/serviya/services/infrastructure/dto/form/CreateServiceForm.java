@@ -24,5 +24,6 @@ public record CreateServiceForm(
         @NotNull @DecimalMin("0.01") @DecimalMax("999999.99") BigDecimal priceHourly,
         @NotNull @Positive Long categoryId,
         @Positive Integer averageDurationMinutes,
-        @DecimalMin("0") @DecimalMax("500") BigDecimal operationRadiusKm) {
+        @DecimalMin("0") @DecimalMax("500") BigDecimal operationRadiusKm,
+        @NotNull @Positive Long offererId) {
 }
