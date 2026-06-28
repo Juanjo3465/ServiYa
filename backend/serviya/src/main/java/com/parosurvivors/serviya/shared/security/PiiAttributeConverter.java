@@ -79,7 +79,16 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
             synchronized (this) {
                 local = cachedKey;
                 if (local == null) {
-                    String passphrase = System.getProperty("ENCRYPTION_KEY", DEFAULT_PASSPHRASE);
+                    // DotEnvConfig publica las claves del .env como system properties (run local),
+                    // pero en Docker no hay .env en la imagen: ENCRYPTION_KEY llega como variable de
+                    // entorno (env_file/environment del compose). Por eso se consulta ambas fuentes.
+                    String passphrase = System.getProperty("ENCRYPTION_KEY");
+                    if (passphrase == null) {
+                        passphrase = System.getenv("ENCRYPTION_KEY");
+                    }
+                    if (passphrase == null) {
+                        passphrase = DEFAULT_PASSPHRASE;
+                    }
                     try {
                         byte[] keyBytes = MessageDigest.getInstance("SHA-256")
                                 .digest(passphrase.getBytes(StandardCharsets.UTF_8));

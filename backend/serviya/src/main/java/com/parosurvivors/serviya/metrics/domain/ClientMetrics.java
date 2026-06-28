@@ -27,7 +27,7 @@ public class ClientMetrics {
     @Builder.Default
     private Integer totalRatings = 0;
     @Builder.Default
-    private Integer totalReviews = 0;
+    private Integer totalComments = 0;
     @Builder.Default
     private Integer totalPositiveTags = 0;
     @Builder.Default
@@ -69,13 +69,13 @@ public class ClientMetrics {
         touch();
     }
 
-    public void incrementReviews() {
-        totalReviews++;
+    public void incrementComments() {
+        totalComments++;
         touch();
     }
 
-    public void decrementReviews() {
-        totalReviews = Math.max(0, totalReviews - 1);
+    public void decrementComments() {
+        totalComments = Math.max(0, totalComments - 1);
         touch();
     }
 

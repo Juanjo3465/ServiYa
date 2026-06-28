@@ -2,7 +2,7 @@ package com.parosurvivors.serviya.feedback.infrastructure.adapters.input.api;
 
 import com.parosurvivors.serviya.feedback.infrastructure.dto.form.SubmitClientFeedbackForm;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientFeedbackResponse;
-import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientReviewTagResponse;
+import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientFeedbackTagResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -40,5 +40,5 @@ public interface ClientFeedbackApi {
 
     @Operation(summary = "Obtener el catalogo de tags de resenas de cliente")
     @ApiResponse(responseCode = "200", description = "Catalogo de tags")
-    ResponseEntity<List<ClientReviewTagResponse>> getCatalog();
+    ResponseEntity<List<ClientFeedbackTagResponse>> getCatalog();
 }

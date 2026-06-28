@@ -21,6 +21,6 @@ public record ReportDetailResult(
         LocalDateTime updatedAt,
         // Campos especificos del subtipo (solo el correspondiente al reportType viene no-nulo)
         Long requestId,
-        Long serviceReviewId,
-        Long clientReviewId) {
+        Long serviceFeedbackId,
+        Long clientFeedbackId) {
 }

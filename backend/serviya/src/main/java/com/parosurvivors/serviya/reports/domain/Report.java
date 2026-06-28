@@ -12,8 +12,8 @@ import java.time.LocalDateTime;
 /**
  * Reporte base. Mapea la tabla {@code reports}, que incluye el discriminador {@code report_type}.
  * Los datos específicos de cada tipo viven en tablas de extensión ({@code request_reports},
- * {@code service_review_reports}, {@code client_review_reports}) y se modelan por composición
- * en {@link RequestReport}, {@link ServiceReviewReport} y {@link ClientReviewReport}
+ * {@code service_feedback_reports}, {@code client_feedback_reports}) y se modelan por composición
+ * en {@link RequestReport}, {@link ServiceFeedbackReport} y {@link ClientFeedbackReport}
  * (ver NOTAS.txt sobre la elección de composición frente a herencia).
  */
 @Getter

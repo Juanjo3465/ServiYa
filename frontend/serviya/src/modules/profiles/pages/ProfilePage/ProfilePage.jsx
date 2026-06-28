@@ -246,6 +246,12 @@ export function ProfilePage() {
     const [addresses, setAddresses] = useState([]);
     const [editedAddress, setEditedAddress] = useState(null);
 
+    // --- Cambio de contraseña (RF-007) ---
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
+
     // RF-005: carga la información personal del usuario autenticado (identidad tomada del JWT).
     useEffect(() => {
         if (!isAuthenticated()) {
@@ -353,6 +359,32 @@ export function ProfilePage() {
             );
     };
 
+    function handleChangePassword() {
+        if (!currentPassword) {
+            showToast('Ingresa tu contraseña actual', 'danger');
+            return;
+        }
+        if (newPassword.length < 8) {
+            showToast('La nueva contraseña debe tener al menos 8 caracteres', 'danger');
+            return;
+        }
+        if (newPassword !== confirmNewPassword) {
+            showToast('Las contraseñas no coinciden', 'danger');
+            return;
+        }
+
+        setChangingPassword(true);
+        profileApi.changePassword(currentPassword, newPassword)
+            .then(() => {
+                showToast('Contraseña actualizada', 'success');
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo cambiar la contraseña', 'danger'))
+            .finally(() => setChangingPassword(false));
+    }
+
     return (
         <DashboardLayout sections={CLIENT_NAV} avatar={initials}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
@@ -425,10 +457,39 @@ export function ProfilePage() {
                     </div>
                     <div className="card">
                         <div className="card-title">Cambiar contraseña</div>
-                        <div className="input-group"><label className="label">Contraseña actual</label><input className="input" type="password" placeholder="••••••••" /></div>
-                        <div className="input-group"><label className="label">Nueva contraseña</label><input className="input" type="password" placeholder="Mínimo 8 caracteres" /></div>
-                        <div className="input-group"><label className="label">Confirmar nueva contraseña</label><input className="input" type="password" placeholder="Repite la contraseña" /></div>
-                        <button className="btn btn-primary" onClick={() => showToast('Contraseña actualizada', 'success')}>Cambiar contraseña</button>
+                        <div className="input-group">
+                            <label className="label">Contraseña actual</label>
+                            <input
+                                className="input"
+                                type="password"
+                                placeholder="••••••••"
+                                value={currentPassword}
+                                onChange={(e) => setCurrentPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label className="label">Nueva contraseña</label>
+                            <input
+                                className="input"
+                                type="password"
+                                placeholder="Mínimo 8 caracteres"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label className="label">Confirmar nueva contraseña</label>
+                            <input
+                                className="input"
+                                type="password"
+                                placeholder="Repite la contraseña"
+                                value={confirmNewPassword}
+                                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            />
+                        </div>
+                        <button className="btn btn-primary" onClick={handleChangePassword} disabled={changingPassword}>
+                            {changingPassword ? 'Cambiando...' : 'Cambiar contraseña'}
+                        </button>
                     </div>
                     <div className="danger-zone">
                         <div className="danger-title">Zona de peligro</div>

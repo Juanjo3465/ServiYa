@@ -14,7 +14,7 @@ public record ClientMetricsResponse(
         Long clientId,
         BigDecimal averageRating,
         Integer totalRatings,
-        Integer totalReviews,
+        Integer totalComments,
         Integer totalPositiveTags,
         Integer totalNegativeTags,
         Integer totalAcceptedRequests,

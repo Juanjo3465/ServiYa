@@ -22,6 +22,6 @@ public record ReportDetailResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Long requestId,
-        Long serviceReviewId,
-        Long clientReviewId) {
+        Long serviceFeedbackId,
+        Long clientFeedbackId) {
 }

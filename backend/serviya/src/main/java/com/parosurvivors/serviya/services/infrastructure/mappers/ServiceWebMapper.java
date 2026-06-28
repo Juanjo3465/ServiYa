@@ -2,12 +2,12 @@ package com.parosurvivors.serviya.services.infrastructure.mappers;
 
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
-import com.parosurvivors.serviya.services.domain.ReviewUser;
+import com.parosurvivors.serviya.services.domain.FeedbackUser;
 import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.services.domain.ServiceDetail;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.CreateServiceForm;
 import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceForm;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
+import com.parosurvivors.serviya.services.infrastructure.dto.response.FeedbackResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import org.mapstruct.Mapper;
@@ -31,13 +31,13 @@ public interface ServiceWebMapper {
 
     ServiceResponse toResponse(Service service);
 
-    @Mapping(target = "id", source = "review.id")
-    @Mapping(target = "requestId", source = "review.requestId")
-    @Mapping(target = "comment", source = "review.comment")
-    @Mapping(target = "createdAt", source = "review.createdAt")
+    @Mapping(target = "id", source = "feedback.id")
+    @Mapping(target = "requestId", source = "feedback.requestId")
+    @Mapping(target = "comment", source = "feedback.comment")
+    @Mapping(target = "createdAt", source = "feedback.createdAt")
     @Mapping(target = "userName", source = "user.fullName")
     @Mapping(target = "userPhotoUrl", source = "user.profilePhotoUrl")
-    ReviewResponse toReviewResponse(ReviewUser reviewUser);
+    FeedbackResponse toFeedbackResponse(FeedbackUser feedbackUser);
 
 
     @Mapping(target = "id", source = "service.id")
@@ -49,7 +49,7 @@ public interface ServiceWebMapper {
     @Mapping(target = "publicDescription", source = "offererProfile.publicDescription")
     @Mapping(target = "averageRating", source = "offererSummary.averageRating")
     // @Mapping(target = "totalCompletedServices", source = "offererProfile.totalCompletedServices")
-    // @Mapping(target = "reviews", source = "offererProfile.reviews")
+    @Mapping(target = "feedbacks", source = "feedbackUsers")
     @Mapping(target = "title", source = "service.title")
     @Mapping(target = "description", source = "service.description")
     @Mapping(target = "photos", source = "service.photos")

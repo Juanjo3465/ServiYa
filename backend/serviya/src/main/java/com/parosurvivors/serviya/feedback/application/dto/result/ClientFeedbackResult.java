@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * Salida de aplicacion (Result) del feedback de cliente: rating + resena emparejados (CQRS-light).
- * Vista agregada que combina ClientRating + ClientReview (+ tags); no pasa por una unica entidad.
+ * Vista agregada del feedback de cliente: rating + comentario (reseña) + tags unificados.
  * TODO: revisar campos.
  */
 public record ClientFeedbackResult(

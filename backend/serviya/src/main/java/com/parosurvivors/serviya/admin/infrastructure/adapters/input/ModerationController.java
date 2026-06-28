@@ -59,7 +59,7 @@ public class ModerationController implements ModerationApi {
     }
 
     @Override
-    @PostMapping("/api/v1/admin/reviews/remove")
+    @PostMapping("/api/v1/admin/feedback/remove")
     public ResponseEntity<Void> removeFeedbackDirectly(@Valid @RequestBody RemoveFeedbackForm form) {
         moderationService.removeFeedbackDirectly(mapper.toCommand(form, currentAdminId()));
         return ResponseEntity.noContent().build();

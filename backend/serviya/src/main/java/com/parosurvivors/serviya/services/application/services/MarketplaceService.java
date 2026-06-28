@@ -1,7 +1,6 @@
 package com.parosurvivors.serviya.services.application.services;
 
-import com.parosurvivors.serviya.feedback.application.ports.input.ServiceReviewServicePort;
-import com.parosurvivors.serviya.feedback.domain.ServiceReview;
+import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
@@ -20,10 +19,8 @@ import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCat
 import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.services.domain.Category;
 import com.parosurvivors.serviya.services.domain.ServiceDetail;
-import com.parosurvivors.serviya.services.domain.ReviewUser;
+import com.parosurvivors.serviya.services.domain.FeedbackUser;
 import com.parosurvivors.serviya.services.domain.ServiceAvailability;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.OffererProfileResponse;
-import com.parosurvivors.serviya.services.infrastructure.dto.response.ReviewResponse;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,7 +28,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -49,7 +45,7 @@ public class MarketplaceService implements MarketplaceServicePort {
     private final MarketplaceCategoryPort categoryPort;
     private final OffererProfileServicePort offererProfileService;
     private final OffererMetricsServicePort offererMetricsService;
-    private final ServiceReviewServicePort serviceReviewService;
+    private final ServiceFeedbackServicePort serviceFeedbackService;
     private final UserProfileServicePort userProfileService;
     private final ServiceAvailabilityServicePort serviceAvailabilityService;
     private final ServiceCommandMapper commandMapper;
@@ -124,25 +120,15 @@ public class MarketplaceService implements MarketplaceServicePort {
         OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
         OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
 
-        // pendiente la parte de los comentarios, a la espera, del modificacion en la db
-        
-        // List<ServiceReview> serviceReviews = serviceReviewService.getByServiceIdThree(service.getId());
+        // Reseñas recientes (hasta 3): cada feedback con comentario se empareja con el perfil
+        // público de su autor para mostrar nombre y foto en el detalle del servicio.
+        List<FeedbackUser> feedbacks = serviceFeedbackService.getRecentServiceFeedback(service.getId(), 3).stream()
+                .map(feedback -> new FeedbackUser(feedback, userProfileService.getProfileInfo(feedback.getClientId())))
+                .collect(Collectors.toList());
 
-        // List<ReviewUser> reviewsResponse = new ArrayList<>();
+        List<ServiceAvailability> availability = serviceAvailabilityService.getByServiceId(service.getId());
 
-        // for(ServiceReview review : serviceReviews) {
-        //     // consultar a user profile
-        //     UserProfile user = userProfileService.getProfileInfo(review.getClientId());
-        //     ReviewUser reviewUser = new ReviewUser(review, user);
-        //     reviewsResponse.add(reviewUser);
-        // }
-
-        // TODO: Implement ReviewsResponse and AvailabilityResponse
-            //ReviewsResponse reviews = reviewMapper.toResponse(serviceMetrics);
-            List<ServiceAvailability> availability = serviceAvailabilityService.getByServiceId(service.getId());
-            //AvailabilityResponse availability = new AvailabilityResponse(marketplaceService.getAvailabilityByServiceId(service.getId()));
-
-        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, null, availability));
+        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, feedbacks, availability));
     }
 
     @Override

@@ -2,7 +2,7 @@ package com.parosurvivors.serviya.feedback.infrastructure.adapters.input.api;
 
 import com.parosurvivors.serviya.feedback.infrastructure.dto.form.SubmitServiceFeedbackForm;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceFeedbackResponse;
-import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceReviewTagResponse;
+import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceFeedbackTagResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,7 +20,7 @@ import java.util.List;
 public interface ServiceFeedbackApi {
 
     @Operation(summary = "Enviar feedback de servicio (rating y/o resena)",
-            description = "Un solo POST agrupa rating + review (cualquiera puede venir null). RF-041, RF-045.")
+            description = "Un solo POST agrupa rating + comentario (cualquiera puede venir null). RF-041, RF-045.")
     @ApiResponse(responseCode = "204", description = "Feedback registrado")
     ResponseEntity<Void> submitServiceFeedback(Long id, SubmitServiceFeedbackForm form);
 
@@ -38,5 +38,5 @@ public interface ServiceFeedbackApi {
 
     @Operation(summary = "Obtener el catalogo de tags de resenas de servicio")
     @ApiResponse(responseCode = "200", description = "Catalogo de tags")
-    ResponseEntity<List<ServiceReviewTagResponse>> getCatalog();
+    ResponseEntity<List<ServiceFeedbackTagResponse>> getCatalog();
 }
