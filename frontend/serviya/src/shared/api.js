@@ -99,6 +99,14 @@ export const categoryApi = {
     getCategories: () => request('/api/v1/categories', { auth: true }),
 }
 
+export const clientAgendaApi = {
+    getClientAgenda: () => request('/api/v1/users/me/client-agenda', { auth: true }),
+};
+
+export const offererAgendaApi = {
+    getOffererAgenda: () => request('/api/v1/users/me/offerer-agenda', { auth: true }),
+};
+
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {
     if (roles.includes('ADMIN')) return '/admin/dashboard';

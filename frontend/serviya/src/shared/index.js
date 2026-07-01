@@ -18,6 +18,8 @@ export {
     serviceApi, 
     categoryApi,
     addressApi,
+    clientAgendaApi,
+    offererAgendaApi,
     saveToken, 
     getToken, 
     clearToken, 
