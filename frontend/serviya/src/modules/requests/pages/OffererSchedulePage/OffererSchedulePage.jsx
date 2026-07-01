@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, offererAgendaApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
 
 const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -59,10 +59,13 @@ export function OffererSchedulePage() {
     const [selectedDate, setSelectedDate] = useState(null);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/v1/users/me/offerer-agenda')
-            .then((response) => response.json())
+        offererAgendaApi
+            .getOffererAgenda()
             .then((data) => {
                 setRequests(data.content ?? []);
+            })
+            .catch((err) => {
+                showToast(err.message || 'No se pudo cargar la agenda', 'error');
             });
     }, []);
 
