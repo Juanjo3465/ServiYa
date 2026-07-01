@@ -1,0 +1,94 @@
+# =====================================================================
+# ServiYa — REST Client (VS Code extension: "REST Client" by Huachao Mao)
+# Instalar: Extensions > buscar "REST Client" > Install
+#
+# Uso: Haz click en "Send Request" encima de cada bloque.
+#      Las variables (@variable) se capturan automáticamente de respuestas previas.
+# =====================================================================
+
+@baseUrl = http://localhost:8080
+
+# ─────────────────────────────────────────────
+# 1. REGISTRO (solo la primera vez)
+# ─────────────────────────────────────────────
+### Registrar usuario cliente
+# @name register
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@ejemplo.com",
+  "password": "mipassword123",
+  "fullName": "Test Usuario",
+  "role": "CLIENT",
+  "documentType": "DNI",
+  "documentNumber": "12345678",
+  "phone": "+1234567890",
+  "acceptedTerms": true
+}
+
+# ─────────────────────────────────────────────
+# 2. LOGIN — captura el token automáticamente
+# ─────────────────────────────────────────────
+### Login
+# @name login
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@ejemplo.com",
+  "password": "mipassword123"
+}
+
+@token = {{login.response.body.token}}
+
+# ─────────────────────────────────────────────
+# 3. CREAR DIRECCIÓN
+# ─────────────────────────────────────────────
+### Crear dirección
+# @name createAddress
+POST {{baseUrl}}/api/v1/users/me/addresses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "addressLine": "Calle 123 # 45-67",
+  "city": "Bogotá",
+  "latitude": 4.60971,
+  "longitude": -74.08175
+}
+
+@addressId = {{createAddress.response.body.id}}
+
+# ─────────────────────────────────────────────
+# 4. CREAR SOLICITUD DE SERVICIO
+# ─────────────────────────────────────────────
+### Crear solicitud de servicio
+POST {{baseUrl}}/api/v1/service-requests
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "serviceId": 1,
+  "addressId": {{addressId}},
+  "scheduledDate": "2026-08-15T10:00:00"
+}
+
+# ─────────────────────────────────────────────
+# 5. EXTRAS — consultas útiles
+# ─────────────────────────────────────────────
+### Ver mis solicitudes como cliente
+GET {{baseUrl}}/api/v1/users/me/client-requests
+Authorization: Bearer {{token}}
+
+### Ver detalle de solicitud (reemplaza {id})
+GET {{baseUrl}}/api/v1/service-requests/1
+Authorization: Bearer {{token}}
+
+### Aceptar solicitud (solo el oferente)
+POST {{baseUrl}}/api/v1/service-requests/1/accept
+Authorization: Bearer {{token}}
+
+### Cancelar solicitud
+POST {{baseUrl}}/api/v1/service-requests/1/cancel
+Authorization: Bearer {{token}}

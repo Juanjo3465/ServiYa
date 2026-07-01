@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -45,12 +46,14 @@ public class ServiceRequestEntity {
     @Column(name = "requested_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal requestedPrice;
 
-    @Column(name = "created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @CreationTimestamp
     @Column(name = "updated_status_at")
     private LocalDateTime updatedStatusAt;
 }

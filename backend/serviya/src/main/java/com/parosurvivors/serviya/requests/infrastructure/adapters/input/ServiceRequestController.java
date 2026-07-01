@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import java.util.List;
 
 /**
@@ -140,8 +141,7 @@ public class ServiceRequestController implements ServiceRequestApi {
     }
 
 
-        /** TODO: reemplazar por el id extraido del JWT autenticado. */
-    private Long currentUserId() {
-        return 1L;
-    }
+        private Long currentUserId() {
+        return CurrentUser.id();
+    } 
 }
