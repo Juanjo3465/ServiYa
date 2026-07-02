@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 INSERT INTO users (email, password_hash, is_banned, deleted_at, created_at) VALUES
 ('alice.johnson@example.com', '$2y$12$eImiTxSpA2M7vNUrXv2wEunb6WpE8K6xG2G8Z.2S4N8x1a2b3c4d5', FALSE, NULL, '2026-01-15 08:30:00'),
 ('bob.smith@example.com', '$2y$12$v9R8xK3m1N7qL2pB5vE8uO9zXyW1vB2c3d4e5f6g7h8i9j0k1l2m3', FALSE, NULL, '2026-01-20 14:15:22'),
