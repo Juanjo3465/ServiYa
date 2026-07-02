@@ -1,71 +1,273 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, ToastContainer, useToast } from '../../../../shared';
+import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi } from '../../../../shared';
 
 import './SearchPage.css';
 
-const CATEGORIES = ['Todas', 'Plomería', 'Electricidad', 'Limpieza', 'Jardinería', 'Pintura', 'Carpintería'];
-
-const RESULTS = [
-    { id: 1, name: 'Reparación de tuberías', offerer: 'Carlos M.', initials: 'CM', rating: 4.9, count: 32, price: '$50k', distance: '2.3 km', avail: 'Hoy' },
-    { id: 2, name: 'Instalación de grifos', offerer: 'Luis R.', initials: 'LR', rating: 4.6, count: 18, price: '$70k', distance: '1.1 km', avail: 'Hoy' },
-    { id: 3, name: 'Destape de cañerías', offerer: 'Pedro G.', initials: 'PG', rating: 5.0, count: 9, price: '$35k', distance: '3.8 km', avail: 'Mañana' },
-    { id: 4, name: 'Reparación calentador', offerer: 'Miguel H.', initials: 'MH', rating: 4.3, count: 14, price: '$90k', distance: '4.2 km', avail: 'Hoy' },
-    { id: 5, name: 'Limpieza tanque de agua', offerer: 'Juan P.', initials: 'JP', rating: 4.8, count: 22, price: '$120k', distance: '0.8 km', avail: 'Hoy' },
-    { id: 6, name: 'Plomería general', offerer: 'Sandra R.', initials: 'SR', rating: 4.7, count: 31, price: '$80k', distance: '2.9 km', avail: 'Semana' },
-];
-
-const availBadge = (a) => (a === 'Hoy' ? 'badge-success' : 'badge-warn');
+const availBadge = (active) => (active ? 'badge-success' : 'badge-warn');
 
 export function SearchPage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
-    const [activeCat, setActiveCat] = useState('Todas');
-    const [starFilter, setStarFilter] = useState('4★+');
-    const [activeFilters, setActiveFilters] = useState(['Plomería', '4★+', 'Disponible hoy', 'Menos de 5km', 'Persona natural']);
 
-    const removeFilter = (f) => setActiveFilters((prev) => prev.filter((x) => x !== f));
+    // Categorías reales de la API
+    const [categories, setCategories] = useState([]);
+    const [activeCatId, setActiveCatId] = useState(null);
+
+    // Estado de la búsqueda y paginación
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalElements, setTotalElements] = useState(0);
+
+    // Filtros aplicados reales
+    const [nameQuery, setNameQuery] = useState("");
+    const [minPrice, setMinPrice] = useState("");
+    const [maxPrice, setMaxPrice] = useState("");
+    const [availableOnly, setAvailableOnly] = useState(false);
+    const [minRating, setMinRating] = useState(null);
+    const [maxDistanceKm, setMaxDistanceKm] = useState(null);
+    const [sort, setSort] = useState("createdAt,desc");
+
+    // Inputs locales (sidebar / buscador superior)
+    const [topSearch, setTopSearch] = useState("");
+    const [sidebarName, setSidebarName] = useState("");
+    const [sidebarMinPrice, setSidebarMinPrice] = useState("");
+    const [sidebarMaxPrice, setSidebarMaxPrice] = useState("");
+    const [sidebarAvailable, setSidebarAvailable] = useState(false);
+    const [sidebarMinRating, setSidebarMinRating] = useState(null);
+    const [sidebarDistance, setSidebarDistance] = useState(null);
+
+    // Cargar categorías al montar
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const data = await categoryApi.getCategories();
+                setCategories(data || []);
+            } catch (err) {
+                showToast("Error al cargar categorías: " + err.message, "error");
+            }
+        };
+        loadCategories();
+    }, []);
+
+    // Función de búsqueda
+    const fetchServices = async (page = 0, currentCatId = activeCatId, currentSort = sort) => {
+        setLoading(true);
+        try {
+            const params = {
+                page: page,
+                size: 6,
+            };
+            if (nameQuery.trim()) params.name = nameQuery.trim();
+            if (currentCatId) params.categoryId = currentCatId;
+            if (minPrice) params.minPrice = minPrice;
+            if (maxPrice) params.maxPrice = maxPrice;
+            if (availableOnly) params.available = true;
+            if (minRating) params.minRating = minRating;
+            if (maxDistanceKm) {
+                params.maxDistanceKm = maxDistanceKm;
+                // Coordenadas por defecto (Bogotá)
+                params.latitude = 4.6097;
+                params.longitude = -74.0817;
+            }
+            if (currentSort) {
+                params.sort = currentSort;
+            }
+
+            const data = await serviceApi.searchServices(params);
+            setResults(data.content || []);
+            setTotalPages(data.totalPages || 1);
+            setTotalElements(data.totalElements || 0);
+            setCurrentPage(data.number || 0);
+        } catch (err) {
+            showToast("Error al buscar servicios: " + err.message, "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Recargar cuando cambian los filtros principales o ordenación
+    useEffect(() => {
+        fetchServices(0, activeCatId, sort);
+    }, [nameQuery, activeCatId, minPrice, maxPrice, availableOnly, minRating, maxDistanceKm, sort]);
+
+    // Manejar submit del buscador superior
+    const handleTopSearchSubmit = (e) => {
+        if (e) e.preventDefault();
+        setNameQuery(topSearch);
+        setSidebarName(topSearch);
+    };
+
+    // Aplicar filtros de la barra lateral
+    const handleApplyFilters = () => {
+        setNameQuery(sidebarName);
+        setTopSearch(sidebarName);
+        setMinPrice(sidebarMinPrice);
+        setMaxPrice(sidebarMaxPrice);
+        setAvailableOnly(sidebarAvailable);
+        setMinRating(sidebarMinRating);
+        setMaxDistanceKm(sidebarDistance);
+        showToast("Filtros aplicados", "success");
+    };
+
+    // Limpiar todos los filtros
+    const handleClearAll = () => {
+        setTopSearch("");
+        setSidebarName("");
+        setSidebarMinPrice("");
+        setSidebarMaxPrice("");
+        setSidebarAvailable(false);
+        setSidebarMinRating(null);
+        setSidebarDistance(null);
+
+        setNameQuery("");
+        setMinPrice("");
+        setMaxPrice("");
+        setAvailableOnly(false);
+        setMinRating(null);
+        setMaxDistanceKm(null);
+        setActiveCatId(null);
+        showToast("Filtros limpiados", "info");
+    };
+
+    const getActiveFilterLabels = () => {
+        const list = [];
+        if (nameQuery) list.push({ key: 'name', val: `Búsqueda: "${nameQuery}"` });
+        if (activeCatId) {
+            const cat = categories.find(c => c.id === activeCatId);
+            if (cat) list.push({ key: 'cat', val: cat.name });
+        }
+        if (minPrice || maxPrice) {
+            list.push({ key: 'price', val: `Precio: ${minPrice ? `$${minPrice}` : '$0'} - ${maxPrice ? `$${maxPrice}` : '∞'}` });
+        }
+        if (availableOnly) list.push({ key: 'avail', val: 'Disponible hoy' });
+        if (minRating) list.push({ key: 'rating', val: `${minRating}★+` });
+        if (maxDistanceKm) list.push({ key: 'distance', val: `Cerca de ${maxDistanceKm}km` });
+        return list;
+    };
+
+    const handleRemoveActiveFilter = (item) => {
+        if (item.key === 'name') {
+            setNameQuery("");
+            setTopSearch("");
+            setSidebarName("");
+        } else if (item.key === 'cat') {
+            setActiveCatId(null);
+        } else if (item.key === 'price') {
+            setMinPrice("");
+            setMaxPrice("");
+            setSidebarMinPrice("");
+            setSidebarMaxPrice("");
+        } else if (item.key === 'avail') {
+            setAvailableOnly(false);
+            setSidebarAvailable(false);
+        } else if (item.key === 'rating') {
+            setMinRating(null);
+            setSidebarMinRating(null);
+        } else if (item.key === 'distance') {
+            setMaxDistanceKm(null);
+            setSidebarDistance(null);
+        }
+    };
 
     return (
         <>
             <AppNavbar avatar="JP" links={[{ to: '/services', label: 'Servicios' }]} />
 
             <div className="search-hd">
-                <div className="search-bar">
+                <form className="search-bar" onSubmit={handleTopSearchSubmit}>
                     <Icon name="search" size={16} style={{ color: 'var(--c-soft)' }} />
-                    <input placeholder="Buscar servicios..." defaultValue="Plomería" />
-                    <button className="btn btn-primary btn-sm" onClick={() => showToast('Búsqueda actualizada', 'success')}><Icon name="search" size={13} />Buscar</button>
-                </div>
+                    <input 
+                        placeholder="Buscar servicios..." 
+                        value={topSearch}
+                        onChange={(e) => setTopSearch(e.target.value)}
+                    />
+                    <button type="submit" className="btn btn-primary btn-sm">
+                        <Icon name="search" size={13} />Buscar
+                    </button>
+                </form>
                 <div className="search-chips">
-                    {CATEGORIES.map((c) => (
-                        <span key={c} className={`chip ${activeCat === c ? 'active' : ''}`} onClick={() => setActiveCat(c)}>{c}</span>
+                    <span 
+                        className={`chip ${activeCatId === null ? 'active' : ''}`} 
+                        onClick={() => setActiveCatId(null)}
+                    >
+                        Todas
+                    </span>
+                    {categories.map((c) => (
+                        <span 
+                            key={c.id} 
+                            className={`chip ${activeCatId === c.id ? 'active' : ''}`} 
+                            onClick={() => setActiveCatId(c.id)}
+                        >
+                            {c.name}
+                        </span>
                     ))}
                 </div>
             </div>
 
             <div className="search-layout">
                 <aside className="filters">
-                    <div className="filter-hd"><span>Filtros</span><span className="filter-clear" onClick={() => { setActiveFilters([]); showToast('Filtros limpiados', 'info'); }}>Limpiar todo</span></div>
+                    <div className="filter-hd">
+                        <span>Filtros</span>
+                        <span className="filter-clear" onClick={handleClearAll}>Limpiar todo</span>
+                    </div>
 
                     <div className="filter-sec">
                         <div className="filter-sec-title">Categoría</div>
-                        {['Plomería (12)', 'Electricidad (8)', 'Limpieza (15)', 'Jardinería (6)', 'Pintura (9)'].map((c, i) => (
-                            <label className="filter-opt" key={c}><input type="checkbox" defaultChecked={i === 0} /> {c}</label>
+                        <label className="filter-opt">
+                            <input 
+                                type="radio" 
+                                name="sidebar-category" 
+                                checked={activeCatId === null} 
+                                onChange={() => setActiveCatId(null)} 
+                            /> Todas
+                        </label>
+                        {categories.map((c) => (
+                            <label className="filter-opt" key={c.id}>
+                                <input 
+                                    type="radio" 
+                                    name="sidebar-category" 
+                                    checked={activeCatId === c.id} 
+                                    onChange={() => setActiveCatId(c.id)} 
+                                /> {c.name}
+                            </label>
                         ))}
                     </div>
                     <div className="divider" />
 
                     <div className="filter-sec">
                         <div className="filter-sec-title">Nombre / Oferente</div>
-                        <div className="input-wrap" style={{ marginTop: '6px' }}><div className="input-ico"><Icon name="search" size={15} /></div><input className="input" placeholder="Buscar por nombre..." style={{ fontSize: '12px', padding: '8px 10px 8px 34px' }} /></div>
+                        <div className="input-wrap" style={{ marginTop: '6px' }}>
+                            <div className="input-ico"><Icon name="search" size={15} /></div>
+                            <input 
+                                className="input" 
+                                placeholder="Buscar por nombre..." 
+                                style={{ fontSize: '12px', padding: '8px 10px 8px 34px' }} 
+                                value={sidebarName}
+                                onChange={(e) => setSidebarName(e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div className="divider" />
 
                     <div className="filter-sec">
                         <div className="filter-sec-title">Puntuación mínima</div>
                         <div className="star-filter">
-                            {['3★+', '4★+', '5★'].map((s) => (
-                                <div key={s} className={`star-opt ${starFilter === s ? 'active' : ''}`} onClick={() => setStarFilter(s)}>{s}</div>
+                            {[
+                                { lbl: 'Todos', val: null },
+                                { lbl: '3★+', val: 3 },
+                                { lbl: '4★+', val: 4 },
+                                { lbl: '5★', val: 5 }
+                            ].map((s) => (
+                                <div 
+                                    key={s.lbl} 
+                                    className={`star-opt ${sidebarMinRating === s.val ? 'active' : ''}`} 
+                                    onClick={() => setSidebarMinRating(s.val)}
+                                >
+                                    {s.lbl}
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -73,91 +275,158 @@ export function SearchPage() {
 
                     <div className="filter-sec">
                         <div className="filter-sec-title">Precio (por servicio)</div>
-                        <div className="price-wrap"><input className="price-in" placeholder="$0" defaultValue="$20.000" /><span style={{ color: 'var(--c-soft)', fontSize: '12px' }}>—</span><input className="price-in" placeholder="$500k" defaultValue="$200.000" /></div>
+                        <div className="price-wrap">
+                            <input 
+                                className="price-in" 
+                                placeholder="$mín" 
+                                value={sidebarMinPrice}
+                                onChange={(e) => setSidebarMinPrice(e.target.value)}
+                            />
+                            <span style={{ color: 'var(--c-soft)', fontSize: '12px' }}>—</span>
+                            <input 
+                                className="price-in" 
+                                placeholder="$máx" 
+                                value={sidebarMaxPrice}
+                                onChange={(e) => setSidebarMaxPrice(e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div className="divider" />
 
                     <div className="filter-sec">
                         <div className="filter-sec-title">Disponibilidad</div>
-                        {['Disponible hoy', 'Esta semana', 'Este mes'].map((c, i) => (
-                            <label className="filter-opt" key={c}><input type="checkbox" defaultChecked={i === 0} /> {c}</label>
-                        ))}
-                    </div>
-                    <div className="divider" />
-
-                    <div className="filter-sec">
-                        <div className="filter-sec-title">Tipo de oferente</div>
-                        {['Persona natural', 'Empresa'].map((c, i) => (
-                            <label className="filter-opt" key={c}><input type="checkbox" defaultChecked={i === 0} /> {c}</label>
-                        ))}
+                        <label className="filter-opt">
+                            <input 
+                                type="checkbox" 
+                                checked={sidebarAvailable} 
+                                onChange={(e) => setSidebarAvailable(e.target.checked)} 
+                            /> Disponible hoy
+                        </label>
                     </div>
                     <div className="divider" />
 
                     <div className="filter-sec">
                         <div className="filter-sec-title">Cercanía</div>
-                        <select className="input" style={{ fontSize: '12px', padding: '8px 10px' }}>
-                            <option>Menos de 5 km</option><option>Menos de 10 km</option><option>Menos de 20 km</option><option>Cualquier distancia</option>
+                        <select 
+                            className="input" 
+                            style={{ fontSize: '12px', padding: '8px 10px' }}
+                            value={sidebarDistance || ''}
+                            onChange={(e) => setSidebarDistance(e.target.value ? Number(e.target.value) : null)}
+                        >
+                            <option value="">Cualquier distancia</option>
+                            <option value="5">Menos de 5 km</option>
+                            <option value="10">Menos de 10 km</option>
+                            <option value="20">Menos de 20 km</option>
                         </select>
                     </div>
                     <div className="divider" />
 
-                    <div className="filter-sec">
-                        <div className="filter-sec-title">Sector / Zona</div>
-                        <select className="input" style={{ fontSize: '12px', padding: '8px 10px' }}>
-                            <option>Todos los sectores</option><option>Chapinero</option><option>Usaquén</option><option>Suba</option><option>Kennedy</option>
-                        </select>
-                    </div>
-
-                    <button className="btn btn-primary btn-full" style={{ marginTop: '14px' }} onClick={() => showToast('Filtros aplicados', 'success')}>
+                    <button className="btn btn-primary btn-full" style={{ marginTop: '14px' }} onClick={handleApplyFilters}>
                         <Icon name="filter" size={15} />Aplicar filtros
                     </button>
                 </aside>
 
                 <div>
                     <div className="results-hd">
-                        <div className="results-count"><strong>24 resultados</strong> para "Plomería"</div>
-                        <select className="sort-sel">
-                            <option>Más relevantes</option><option>Mayor puntuación</option><option>Menor precio</option><option>Más cercanos</option><option>Disponibilidad</option>
+                        <div className="results-count">
+                            <strong>{totalElements} resultados</strong> encontrados
+                        </div>
+                        <select 
+                            className="sort-sel"
+                            value={sort}
+                            onChange={(e) => setSort(e.target.value)}
+                        >
+                            <option value="createdAt,desc">Más recientes</option>
+                            <option value="priceHourly,asc">Menor precio</option>
+                            <option value="priceHourly,desc">Mayor precio</option>
+                            <option value="title,asc">Título (A-Z)</option>
                         </select>
                     </div>
 
                     <div className="active-filters">
-                        {activeFilters.map((f) => (
-                            <div className="af" key={f}>{f} <button onClick={() => removeFilter(f)}>×</button></div>
-                        ))}
-                    </div>
-
-                    <div className="r-cards">
-                        {RESULTS.map((s) => (
-                            <div className="r-card" key={s.id} onClick={() => navigate(`/services/${s.id}`)}>
-                                <div className="r-card-img">
-                                    <Icon name="wrench" size={38} strokeWidth={1.5} />
-                                    <div className="r-card-av"><span className={`badge ${availBadge(s.avail)}`}>{s.avail}</span></div>
-                                </div>
-                                <div className="r-card-body">
-                                    <div className="r-card-name">{s.name}</div>
-                                    <div className="r-oferer"><div className="av av-xs">{s.initials}</div><span>{s.offerer}</span></div>
-                                    <div style={{ fontSize: '11px', marginBottom: '8px' }}><Stars rating={s.rating} showValue count={s.count} size={11} /></div>
-                                    <div className="r-card-ft">
-                                        <span className="r-price">desde {s.price}</span>
-                                        <span className="r-loc"><Icon name="mapPin" size={11} />{s.distance}</span>
-                                    </div>
-                                </div>
+                        {getActiveFilterLabels().map((item) => (
+                            <div className="af" key={item.key}>
+                                {item.val} 
+                                <button onClick={() => handleRemoveActiveFilter(item)}>×</button>
                             </div>
                         ))}
                     </div>
 
-                    <div className="pager">
-                        <button className="btn btn-primary btn-sm">1</button>
-                        <button className="btn btn-ghost btn-sm">2</button>
-                        <button className="btn btn-ghost btn-sm">3</button>
-                        <button className="btn btn-ghost btn-sm">4</button>
-                        <span style={{ padding: '5px 6px', color: 'var(--c-soft)' }}>...</span>
-                        <button className="btn btn-ghost btn-sm"><Icon name="chevronRight" size={14} /></button>
+                    <div className="r-cards">
+                        {loading ? (
+                            <div style={{ padding: '40px', gridColumn: '1 / -1', textAlign: 'center', color: 'var(--c-soft)' }}>
+                                <div className="loading-spinner" style={{ margin: '0 auto 10px', width: '30px', height: '30px', border: '3px solid var(--c-border)', borderTop: '3px solid var(--c-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                                Cargando servicios...
+                            </div>
+                        ) : results.length === 0 ? (
+                            <div style={{ padding: '40px', gridColumn: '1 / -1', textAlign: 'center', color: 'var(--c-soft)' }}>
+                                No se encontraron servicios que coincidan con la búsqueda.
+                            </div>
+                        ) : (
+                            results.map((s) => {
+                                const serviceCatName = categories.find(c => c.id === s.categoryId)?.name || 'Servicio';
+                                return (
+                                    <div className="r-card" key={s.id} onClick={() => navigate(`/services/${s.id}`)}>
+                                        <div className="r-card-img">
+                                            <Icon name="wrench" size={38} strokeWidth={1.5} />
+                                            <div className="r-card-av">
+                                                <span className={`badge ${availBadge(s.active)}`}>
+                                                    {s.active ? 'Disponible' : 'Inactivo'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="r-card-body">
+                                            <div className="r-card-name">{s.title}</div>
+                                            <div className="r-oferer">
+                                                <div className="av av-xs">OF</div>
+                                                <span>Oferente #{s.offererId}</span>
+                                            </div>
+                                            <div style={{ fontSize: '11px', marginBottom: '8px' }}>
+                                                <span style={{ color: 'var(--c-primary)', fontWeight: 600 }}>{serviceCatName}</span>
+                                            </div>
+                                            <div style={{ fontSize: '11px', marginBottom: '8px' }}>
+                                                <Stars rating={4.5} showValue count={10} size={11} />
+                                            </div>
+                                            <div className="r-card-ft">
+                                                <span className="r-price">desde ${s.priceHourly ? s.priceHourly.toLocaleString() : '0'}</span>
+                                                {s.operationRadiusKm && (
+                                                    <span className="r-loc">
+                                                        <Icon name="mapPin" size={11} />
+                                                        {s.operationRadiusKm} km
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
+
+                    {totalPages > 1 && (
+                        <div className="pager">
+                            {Array.from({ length: totalPages }, (_, i) => (
+                                <button 
+                                    key={i} 
+                                    className={`btn ${currentPage === i ? 'btn-primary' : 'btn-ghost'} btn-sm`}
+                                    onClick={() => fetchServices(i)}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
             <ToastContainer toasts={toasts} />
+            
+            {/* Agregar una animación simple de spin en un tag style */}
+            <style>{`
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `}</style>
         </>
     );
 }
