@@ -284,6 +284,7 @@ CREATE TABLE service_requests (
     status ENUM(
         'PENDING',
         'ACCEPTED',
+        'PRESUMABLY_COMPLETED',
         'REJECTED',
         'CANCELLED',
         'COMPLETED',
@@ -344,7 +345,9 @@ CREATE TABLE reschedule_proposals (
     status ENUM(
         'PENDING',
         'ACCEPTED',
-        'REJECTED'
+        'REJECTED',
+        'CANCELLED',
+        'SUPERSEDED'
     ) NOT NULL DEFAULT 'PENDING',
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

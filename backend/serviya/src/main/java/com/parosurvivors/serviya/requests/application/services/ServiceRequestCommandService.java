@@ -2,16 +2,23 @@ package com.parosurvivors.serviya.requests.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateServiceRequestCommand;
+import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
+import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementacion placeholder de ServiceRequestCommandServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
+ * Servicio de comandos / transiciones de estado de solicitudes (CQRS, módulo 4).
+ * Implementadas: reprogramación libre + las transiciones que resuelven propuestas PENDING
+ * (cancelar, presuntamente-completar, confirmar, no-prestada). El resto sigue placeholder.
+ * La resolución de propuestas se delega en {@link RescheduleProposalServicePort} (centralizada).
  * Ver documents/project-structure/estructura-servicios.docx.
  */
 @Component
@@ -19,6 +26,7 @@ import org.springframework.stereotype.Component;
 public class ServiceRequestCommandService implements ServiceRequestCommandServicePort {
 
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
+    private final RescheduleProposalServicePort rescheduleProposalService;
     private final NotificationServicePort notificationServicePort;
 
     @Override
@@ -47,27 +55,93 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     }
 
     @Override
+    @Transactional
     public void markAsPresumablyCompleted(Long requestId, Long offererId) {
-        throw new UnsupportedOperationException("TODO: markAsPresumablyCompleted — placeholder, ver estructura-servicios.docx");
+        ServiceRequest request = loadRequest(requestId);
+        requireOwnership(request.getOffererId(), offererId);
+        // El oferente declara el servicio prestado: cualquier propuesta PENDING queda sin sentido.
+        rescheduleProposalService.cancelPendingProposals(requestId);
+        request.markAsPresumablyCompleted(offererId);
+        serviceRequestPersistencePort.update(request);
+        // TODO(event): disparar habilitación de feedback para cliente y oferente.
     }
 
     @Override
+    @Transactional
     public void confirmCompletion(Long requestId, Long clientId) {
-        throw new UnsupportedOperationException("TODO: confirmCompletion — placeholder, ver estructura-servicios.docx");
+        ServiceRequest request = loadRequest(requestId);
+        requireOwnership(request.getClientId(), clientId);
+        request.confirmCompletion(clientId);
+        serviceRequestPersistencePort.update(request);
+        // TODO(event): publicar evento de completado para métricas.
     }
 
     @Override
+    @Transactional
     public void markAsNotProvided(Long requestId, Long userId) {
-        throw new UnsupportedOperationException("TODO: markAsNotProvided — placeholder, ver estructura-servicios.docx");
+        // Sin verificación de propiedad: lo ejecuta un admin o el sistema (fecha vencida sin propuesta,
+        // o disputa resuelta). El control de acceso (rol admin) es responsabilidad de la seguridad.
+        ServiceRequest request = loadRequest(requestId);
+        int cancelled = rescheduleProposalService.cancelPendingProposals(requestId);
+        if (cancelled > 0) {
+            // Había un aviso de reprogramación pendiente: no es incumplimiento, se cancela.
+            request.cancel(userId);
+        } else {
+            request.markAsNotProvided(userId);
+        }
+        serviceRequestPersistencePort.update(request);
+        // TODO(event): publicar evento para métricas de incumplimiento.
     }
 
     @Override
+    @Transactional
     public void cancelRequest(Long requestId, Long userId) {
-        throw new UnsupportedOperationException("TODO: cancelRequest — placeholder, ver estructura-servicios.docx");
+        ServiceRequest request = loadRequest(requestId);
+        requireParticipant(request, userId);
+        request.cancel(userId);
+        rescheduleProposalService.cancelPendingProposals(requestId);
+        serviceRequestPersistencePort.update(request);
+        // TODO(notif): notificar a la contraparte de la cancelación.
     }
 
     @Override
-    public ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate) {
-        throw new UnsupportedOperationException("TODO: rescheduleRequest — placeholder, ver estructura-servicios.docx");
+    @Transactional
+    public ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId) {
+        ServiceRequest request = loadRequest(requestId);
+        requireOwnership(request.getClientId(), clientId);
+
+        request.markRescheduled(clientId);
+        ServiceRequest replacement = request.rescheduleTo(newDate, RequestStatus.PENDING, clientId);
+        // Reprogramación libre: supera cualquier propuesta PENDING del oferente sobre esta solicitud.
+        rescheduleProposalService.supersedePendingProposals(requestId);
+
+        serviceRequestPersistencePort.update(request);
+        ServiceRequest saved = serviceRequestPersistencePort.save(replacement);
+        // TODO(notif): notificar al oferente que el cliente reprogramó a una nueva fecha.
+        return saved;
+    }
+
+    // =====================================================
+    // HELPERS
+    // =====================================================
+
+    private ServiceRequest loadRequest(Long requestId) {
+        return serviceRequestPersistencePort.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada: " + requestId));
+    }
+
+    private void requireOwnership(Long ownerId, Long actorId) {
+        if (ownerId == null || !ownerId.equals(actorId)) {
+            throw new UnauthorizedException("El usuario no es el propietario del recurso");
+        }
+    }
+
+    /** El actor debe ser el cliente o el oferente de la solicitud. */
+    private void requireParticipant(ServiceRequest request, Long actorId) {
+        boolean isParticipant = actorId != null
+                && (actorId.equals(request.getClientId()) || actorId.equals(request.getOffererId()));
+        if (!isParticipant) {
+            throw new UnauthorizedException("El usuario no participa en la solicitud");
+        }
     }
 }

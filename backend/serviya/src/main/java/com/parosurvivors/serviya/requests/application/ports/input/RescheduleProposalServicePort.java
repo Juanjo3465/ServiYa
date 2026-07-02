@@ -4,7 +4,6 @@ import com.parosurvivors.serviya.requests.application.dto.command.CreateReschedu
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -16,7 +15,7 @@ public interface RescheduleProposalServicePort {
 
     RescheduleProposal createProposal(CreateRescheduleProposalCommand command);
 
-    ServiceRequest acceptProposal(Long proposalId, Long clientId, LocalDateTime confirmedDate);
+    ServiceRequest acceptProposal(Long proposalId, Long clientId);
 
     void rejectProposal(Long proposalId, Long clientId);
 
@@ -27,4 +26,13 @@ public interface RescheduleProposalServicePort {
     List<RescheduleProposal> getProposalsByOfferer(Long offererId, List<String> statuses);
 
     List<RescheduleProposal> getProposalsByRequest(Long requestId);
+
+    /**
+     * Resuelve (a un estado terminal) las propuestas PENDING de una solicitud cuando ésta cambia
+     * de estado. Lógica centralizada que invocan los orquestadores de {@code ServiceRequest};
+     * devuelven cuántas propuestas resolvieron.
+     */
+    int supersedePendingProposals(Long requestId); // reprogramación libre → SUPERSEDED
+
+    int cancelPendingProposals(Long requestId);     // cancelar / completar / presuntamente-completar → CANCELLED
 }

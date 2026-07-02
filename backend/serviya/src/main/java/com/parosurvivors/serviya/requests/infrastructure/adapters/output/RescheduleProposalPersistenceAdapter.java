@@ -45,6 +45,13 @@ public class RescheduleProposalPersistenceAdapter implements RescheduleProposalP
     }
 
     @Override
+    public List<RescheduleProposal> findByRequestIdAndStatus(Long requestId, ProposalStatus status) {
+        return repository.findByRequestIdAndStatus(requestId, status).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<RescheduleProposal> findByStatus(ProposalStatus status) {
         return repository.findByStatus(status).stream()
                 .map(mapper::toDomain)

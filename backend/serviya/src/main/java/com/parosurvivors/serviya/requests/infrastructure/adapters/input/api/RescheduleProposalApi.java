@@ -1,6 +1,5 @@
 package com.parosurvivors.serviya.requests.infrastructure.adapters.input.api;
 
-import com.parosurvivors.serviya.requests.infrastructure.dto.form.AcceptProposalForm;
 import com.parosurvivors.serviya.requests.infrastructure.dto.form.CreateRescheduleProposalForm;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.RescheduleProposalResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
@@ -37,9 +36,9 @@ public interface RescheduleProposalApi {
     ResponseEntity<List<RescheduleProposalResponse>> getProposalsByRequest(Long id);
 
     @Operation(summary = "Aceptar una propuesta (cliente)",
-            description = "Dispara la reprogramacion y crea la nueva solicitud. RF-035.")
+            description = "Acepta la fecha propuesta, dispara la reprogramacion y crea la nueva solicitud (ACCEPTED). RF-035.")
     @ApiResponse(responseCode = "200", description = "Nueva solicitud enlazada creada")
-    ResponseEntity<ServiceRequestResponse> acceptProposal(Long id, AcceptProposalForm form);
+    ResponseEntity<ServiceRequestResponse> acceptProposal(Long id);
 
     @Operation(summary = "Rechazar una propuesta (cliente)", description = "RF-036.")
     @ApiResponse(responseCode = "204", description = "Propuesta rechazada")

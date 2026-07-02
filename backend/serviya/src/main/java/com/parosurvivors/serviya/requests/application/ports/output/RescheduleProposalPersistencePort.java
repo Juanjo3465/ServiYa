@@ -11,5 +11,6 @@ public interface RescheduleProposalPersistencePort {
     RescheduleProposal update(RescheduleProposal proposal);
     Optional<RescheduleProposal> findById(Long id);
     List<RescheduleProposal> findByRequestId(Long requestId);
+    List<RescheduleProposal> findByRequestIdAndStatus(Long requestId, ProposalStatus status);
     List<RescheduleProposal> findByStatus(ProposalStatus status);
 }

@@ -10,5 +10,6 @@ import java.util.List;
 @Repository
 public interface RescheduleProposalRepository extends JpaRepository<RescheduleProposalEntity, Long> {
     List<RescheduleProposalEntity> findByRequestId(Long requestId);
+    List<RescheduleProposalEntity> findByRequestIdAndStatus(Long requestId, ProposalStatus status);
     List<RescheduleProposalEntity> findByStatus(ProposalStatus status);
 }

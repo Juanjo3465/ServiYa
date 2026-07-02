@@ -2,12 +2,12 @@ package com.parosurvivors.serviya.requests.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
 import com.parosurvivors.serviya.requests.infrastructure.adapters.input.api.RescheduleProposalApi;
-import com.parosurvivors.serviya.requests.infrastructure.dto.form.AcceptProposalForm;
 import com.parosurvivors.serviya.requests.infrastructure.dto.form.CreateRescheduleProposalForm;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.RescheduleProposalResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.RescheduleProposalWebMapper;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -38,7 +38,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
     public ResponseEntity<RescheduleProposalResponse> createProposal(
             @Valid @RequestBody CreateRescheduleProposalForm form) {
         RescheduleProposalResponse response = mapper.toResponse(
-                proposalService.createProposal(mapper.toCommand(form, currentUserId())));
+                proposalService.createProposal(mapper.toCommand(form, CurrentUser.id())));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -47,7 +47,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
     public ResponseEntity<List<RescheduleProposalResponse>> getProposalsReceived(
             @RequestParam(required = false) List<String> statuses) {
         return ResponseEntity.ok(mapper.toResponses(
-                proposalService.getProposalsForClient(currentUserId(), statuses)));
+                proposalService.getProposalsForClient(CurrentUser.id(), statuses)));
     }
 
     @Override
@@ -55,7 +55,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
     public ResponseEntity<List<RescheduleProposalResponse>> getProposalsSent(
             @RequestParam(required = false) List<String> statuses) {
         return ResponseEntity.ok(mapper.toResponses(
-                proposalService.getProposalsByOfferer(currentUserId(), statuses)));
+                proposalService.getProposalsByOfferer(CurrentUser.id(), statuses)));
     }
 
     @Override
@@ -66,29 +66,23 @@ public class RescheduleProposalController implements RescheduleProposalApi {
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/accept")
-    public ResponseEntity<ServiceRequestResponse> acceptProposal(@PathVariable Long id,
-                                                                 @Valid @RequestBody AcceptProposalForm form) {
+    public ResponseEntity<ServiceRequestResponse> acceptProposal(@PathVariable Long id) {
         ServiceRequestResponse response = serviceRequestMapper.toResponse(
-                proposalService.acceptProposal(id, currentUserId(), form.confirmedDate()));
+                proposalService.acceptProposal(id, CurrentUser.id()));
         return ResponseEntity.ok(response);
     }
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/reject")
     public ResponseEntity<Void> rejectProposal(@PathVariable Long id) {
-        proposalService.rejectProposal(id, currentUserId());
+        proposalService.rejectProposal(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/cancel")
     public ResponseEntity<Void> cancelProposal(@PathVariable Long id) {
-        proposalService.cancelProposal(id, currentUserId());
+        proposalService.cancelProposal(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
-    }
-
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
-    private Long currentUserId() {
-        return 0L;
     }
 }
