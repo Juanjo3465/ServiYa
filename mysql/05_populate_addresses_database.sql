@@ -11,6 +11,7 @@
 -- ids de dirección resultantes (AUTO_INCREMENT):
 --   1 -> user 2    2 -> user 11   3 -> user 12
 --   4 -> user 13   5 -> user 5    6 -> user 2 (segunda dirección)
+SET NAMES utf8mb4;
 
 INSERT INTO addresses (user_id, address_line, city, latitude, longitude) VALUES
 (2,  'Calle 10 # 5-23, Apto 301', 'Bogotá',   4.6097100, -74.0817500),
