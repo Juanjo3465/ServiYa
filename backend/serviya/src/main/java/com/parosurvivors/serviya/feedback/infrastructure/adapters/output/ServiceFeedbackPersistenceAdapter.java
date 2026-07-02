@@ -6,7 +6,9 @@ import com.parosurvivors.serviya.feedback.infrastructure.entities.ServiceFeedbac
 import com.parosurvivors.serviya.feedback.infrastructure.mappers.ServiceFeedbackPersistenceMapper;
 import com.parosurvivors.serviya.feedback.infrastructure.repositories.ServiceFeedbackRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -41,6 +43,18 @@ public class ServiceFeedbackPersistenceAdapter implements ServiceFeedbackPersist
         return repository.findByClientId(clientId).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ServiceFeedback> findByServiceId(Long serviceId, Pageable pageable) {
+        return repository.findByServiceIdOrderByCreatedAtDesc(serviceId, pageable)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<ServiceFeedback> findByClientId(Long clientId, Pageable pageable) {
+        return repository.findByClientIdOrderByCreatedAtDesc(clientId, pageable)
+                .map(mapper::toDomain);
     }
 
     @Override

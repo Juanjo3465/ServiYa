@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.admin.application.ports.input.ModerationService
 import com.parosurvivors.serviya.admin.infrastructure.adapters.input.api.ModerationApi;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.RemoveFeedbackForm;
 import com.parosurvivors.serviya.admin.infrastructure.mappers.AdminWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -67,6 +68,6 @@ public class ModerationController implements ModerationApi {
 
     /** TODO: reemplazar por el id del admin extraido del JWT autenticado. */
     private Long currentAdminId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

@@ -31,4 +31,8 @@ public interface ServiceFeedbackServicePort {
     List<ServiceFeedback> getRecentServiceFeedback(Long serviceId, int limit);
 
     boolean revertFeedback(Long requestId);
+
+    void requireRequestPartyAccess(Long viewerId, Long requestId);
+
+    void requireClientFeedbackAccess(Long viewerId, Long clientId);
 }

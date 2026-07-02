@@ -1,6 +1,8 @@
 package com.parosurvivors.serviya.feedback.application.ports.output;
 
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +12,8 @@ public interface ServiceFeedbackPersistencePort {
     Optional<ServiceFeedback> findById(Long id);
     Optional<ServiceFeedback> findByRequestId(Long requestId);
     List<ServiceFeedback> findByClientId(Long clientId);
+    Page<ServiceFeedback> findByServiceId(Long serviceId, Pageable pageable);
+    Page<ServiceFeedback> findByClientId(Long clientId, Pageable pageable);
 
     /** Reseñas (feedback con comentario) más recientes de un servicio, hasta {@code limit}. */
     List<ServiceFeedback> findRecentByServiceId(Long serviceId, int limit);

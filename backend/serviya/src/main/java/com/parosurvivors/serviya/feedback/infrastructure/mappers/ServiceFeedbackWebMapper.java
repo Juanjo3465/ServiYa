@@ -1,9 +1,11 @@
 package com.parosurvivors.serviya.feedback.infrastructure.mappers;
 
 import com.parosurvivors.serviya.feedback.application.dto.command.SubmitServiceFeedbackCommand;
+import com.parosurvivors.serviya.feedback.application.dto.result.AdminFeedbackItemResult;
 import com.parosurvivors.serviya.feedback.application.dto.result.ServiceFeedbackResult;
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.form.SubmitServiceFeedbackForm;
+import com.parosurvivors.serviya.feedback.infrastructure.dto.response.AdminFeedbackItemResponse;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceFeedbackResponse;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ServiceFeedbackTagResponse;
 import org.mapstruct.Mapper;
@@ -23,6 +25,8 @@ public interface ServiceFeedbackWebMapper {
     SubmitServiceFeedbackCommand toCommand(SubmitServiceFeedbackForm form, Long clientId, Long requestId);
 
     ServiceFeedbackResponse toResponse(ServiceFeedbackResult result);
+
+    AdminFeedbackItemResponse toAdminResponse(AdminFeedbackItemResult result);
 
     ServiceFeedbackTagResponse toResponse(ServiceFeedbackTagCatalog tag);
 

@@ -21,4 +21,10 @@ public interface ClientFeedbackServicePort {
     Page<ClientFeedbackResult> getClientFeedbackByOfferer(Long offererId, Pageable pageable);
 
     boolean revertFeedback(Long requestId);
+
+    void requireRequestPartyAccess(Long viewerId, Long requestId);
+
+    void requireClientFeedbackListAccess(Long viewerId, Long clientId);
+
+    void requireOffererFeedbackAccess(Long viewerId, Long offererId);
 }

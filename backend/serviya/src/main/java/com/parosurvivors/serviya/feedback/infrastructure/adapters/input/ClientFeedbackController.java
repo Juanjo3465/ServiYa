@@ -7,6 +7,7 @@ import com.parosurvivors.serviya.feedback.infrastructure.dto.form.SubmitClientFe
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientFeedbackResponse;
 import com.parosurvivors.serviya.feedback.infrastructure.dto.response.ClientFeedbackTagResponse;
 import com.parosurvivors.serviya.feedback.infrastructure.mappers.ClientFeedbackWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,10 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * Adaptador de entrada (REST) del feedback de cliente. Placeholder funcional;
- * documentacion en {@link ClientFeedbackApi}. Mapea Form->Command y Result/dominio->Response.
- */
 @RestController
 @RequiredArgsConstructor
 public class ClientFeedbackController implements ClientFeedbackApi {
@@ -36,13 +33,14 @@ public class ClientFeedbackController implements ClientFeedbackApi {
     @PostMapping("/api/v1/service-requests/{id}/client-feedback")
     public ResponseEntity<Void> submitClientFeedback(@PathVariable Long id,
                                                      @Valid @RequestBody SubmitClientFeedbackForm form) {
-        clientFeedbackService.submitClientFeedback(mapper.toCommand(form, currentUserId(), id));
+        clientFeedbackService.submitClientFeedback(mapper.toCommand(form, CurrentUser.id(), id));
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @GetMapping("/api/v1/service-requests/{id}/client-feedback")
     public ResponseEntity<ClientFeedbackResponse> getClientFeedback(@PathVariable Long id) {
+        clientFeedbackService.requireRequestPartyAccess(CurrentUser.id(), id);
         return ResponseEntity.ok(mapper.toResponse(clientFeedbackService.getClientFeedback(id)));
     }
 
@@ -50,6 +48,7 @@ public class ClientFeedbackController implements ClientFeedbackApi {
     @GetMapping("/api/v1/users/{id}/client-feedback")
     public ResponseEntity<Page<ClientFeedbackResponse>> getClientFeedbackList(@PathVariable Long id,
                                                                              Pageable pageable) {
+        clientFeedbackService.requireClientFeedbackListAccess(CurrentUser.id(), id);
         return ResponseEntity.ok(clientFeedbackService.getClientFeedbackList(id, pageable)
                 .map(mapper::toResponse));
     }
@@ -58,6 +57,7 @@ public class ClientFeedbackController implements ClientFeedbackApi {
     @GetMapping("/api/v1/offerers/{id}/client-feedback")
     public ResponseEntity<Page<ClientFeedbackResponse>> getClientFeedbackByOfferer(@PathVariable Long id,
                                                                                   Pageable pageable) {
+        clientFeedbackService.requireOffererFeedbackAccess(CurrentUser.id(), id);
         return ResponseEntity.ok(clientFeedbackService.getClientFeedbackByOfferer(id, pageable)
                 .map(mapper::toResponse));
     }
@@ -66,10 +66,5 @@ public class ClientFeedbackController implements ClientFeedbackApi {
     @GetMapping("/api/v1/client-feedback-tags")
     public ResponseEntity<List<ClientFeedbackTagResponse>> getCatalog() {
         return ResponseEntity.ok(mapper.toTagResponses(clientFeedbackTagCatalogService.getCatalog()));
-    }
-
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
-    private Long currentUserId() {
-        return 0L;
     }
 }

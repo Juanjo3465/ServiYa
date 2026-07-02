@@ -19,6 +19,7 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
 
     @Override
     public ServiceMetrics getMetrics(Long serviceId) {
-        throw new UnsupportedOperationException("TODO: getMetrics — placeholder, ver estructura-servicios.docx");
+        return serviceMetricsPersistencePort.findByServiceId(serviceId)
+                .orElse(ServiceMetrics.builder().serviceId(serviceId).build());
     }
 }

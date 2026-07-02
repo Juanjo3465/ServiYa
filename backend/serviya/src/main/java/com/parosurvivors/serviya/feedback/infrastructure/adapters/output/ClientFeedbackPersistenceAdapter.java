@@ -6,6 +6,8 @@ import com.parosurvivors.serviya.feedback.infrastructure.entities.ClientFeedback
 import com.parosurvivors.serviya.feedback.infrastructure.mappers.ClientFeedbackPersistenceMapper;
 import com.parosurvivors.serviya.feedback.infrastructure.repositories.ClientFeedbackRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -47,6 +49,18 @@ public class ClientFeedbackPersistenceAdapter implements ClientFeedbackPersisten
         return repository.findByOffererId(offererId).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ClientFeedback> findByClientId(Long clientId, Pageable pageable) {
+        return repository.findByClientIdOrderByCreatedAtDesc(clientId, pageable)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<ClientFeedback> findByOffererId(Long offererId, Pageable pageable) {
+        return repository.findByOffererIdOrderByCreatedAtDesc(offererId, pageable)
+                .map(mapper::toDomain);
     }
 
     @Override

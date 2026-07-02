@@ -20,6 +20,6 @@ public class ServiceTagMetricsService implements ServiceTagMetricsServicePort {
 
     @Override
     public List<ServiceTagMetrics> getTagMetrics(Long serviceId) {
-        throw new UnsupportedOperationException("TODO: getTagMetrics — placeholder, ver estructura-servicios.docx");
+        return serviceTagMetricsPersistencePort.findByServiceId(serviceId);
     }
 }

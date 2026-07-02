@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.feedback.infrastructure.repositories;
 
 import com.parosurvivors.serviya.feedback.infrastructure.entities.ServiceFeedbackEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -12,6 +13,8 @@ import java.util.Optional;
 public interface ServiceFeedbackRepository extends JpaRepository<ServiceFeedbackEntity, Long> {
     Optional<ServiceFeedbackEntity> findByRequestId(Long requestId);
     List<ServiceFeedbackEntity> findByClientId(Long clientId);
+    Page<ServiceFeedbackEntity> findByServiceIdOrderByCreatedAtDesc(Long serviceId, Pageable pageable);
+    Page<ServiceFeedbackEntity> findByClientIdOrderByCreatedAtDesc(Long clientId, Pageable pageable);
 
     /**
      * Reseñas (feedback con comentario) más recientes de un servicio. Filtra directo por la columna

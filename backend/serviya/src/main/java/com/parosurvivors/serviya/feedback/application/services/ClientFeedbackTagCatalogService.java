@@ -7,11 +7,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Implementacion placeholder de ClientFeedbackTagCatalogServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
- */
 @Component
 @RequiredArgsConstructor
 public class ClientFeedbackTagCatalogService implements ClientFeedbackTagCatalogServicePort {
@@ -20,6 +15,6 @@ public class ClientFeedbackTagCatalogService implements ClientFeedbackTagCatalog
 
     @Override
     public List<ClientFeedbackTagCatalog> getCatalog() {
-        throw new UnsupportedOperationException("TODO: getCatalog — placeholder, ver estructura-servicios.docx");
+        return clientFeedbackTagCatalogPersistencePort.findAll();
     }
 }
