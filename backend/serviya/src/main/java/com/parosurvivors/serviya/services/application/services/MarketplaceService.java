@@ -31,7 +31,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
+import java.util.ArrayList;
 /**
  * Implementacion del marketplace de servicios. Unico servicio del esqueleto con logica real.
  * Construye el dominio a partir de los Commands (sin mapper web) y devuelve la entidad de dominio;

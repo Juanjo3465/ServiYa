@@ -86,6 +86,16 @@ export const serviceApi = {
     createService: (payload) => request('/api/v1/services', { method: 'POST', body: payload, auth: true }),
     updateService: (id, payload) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true }),
     deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
+    searchServices: (params) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params || {}).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') {
+                queryParams.append(key, val);
+            }
+        });
+        return request(`/api/v1/services/search?${queryParams.toString()}`, { auth: true });
+    },
+    getServiceDetail: (id) => request(`/api/v1/services/${id}/detail`, { auth: true }),
 };
 
 export const addressApi = {

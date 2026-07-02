@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import java.util.List;
 
 /**
@@ -107,8 +108,7 @@ public class ReportController implements ReportApi {
         return ResponseEntity.ok(mapper.toReportResponses(reportService.getReportsByReporter(id)));
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }
