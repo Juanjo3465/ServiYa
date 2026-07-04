@@ -7,7 +7,7 @@ import { CategoryCard } from '../../components/CategoryCard/CategoryCard';
 import { ServiceCard } from '../../components/ServiceCard/ServiceCard';
 import { Hero } from '../../components/Hero/Hero';
 import { Link } from 'react-router-dom';
-import { categoryApi } from '../../../../shared';
+import { categoryApi, serviceApi } from '../../../../shared';
 
 import "./HomePage.css";
 
@@ -26,16 +26,12 @@ const CATEGORY_ICONS = {
 
 const DEFAULT_ICON = <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />;
 
-const FEAT_SERVICES = [
-    { name: 'Reparación de tuberías', provider: 'Carlos M.', category: 'Fontanería', price: '$50k', rating: 4.9, availability: 'Hoy', icon: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /> },
-    { name: 'Instalación eléctrica', provider: 'Ana R.', category: 'Electricidad', price: '$80k', rating: 4.7, availability: 'Hoy', icon: <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /> },
-    { name: 'Limpieza de hogar', provider: 'María L.', category: 'Limpieza', price: '$60k', rating: 5.0, availability: 'Hoy', icon: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /> },
-    { name: 'Poda y jardinería', provider: 'Pedro G.', category: 'Jardinería', price: '$45k', rating: 4.5, availability: 'Mañana', icon: <path d="M12 22V12m0 0C12 7 7 4 7 4s0 5 5 8zm0 0c0-5 5-8 5-8s0 5-5 8z" /> },
-];
+
 
 function HomePage() {
     const { toasts, showToast } = useToast();
     const [categories, setCategories] = useState([]);
+    const [featServices, setFeatServices] = useState([]);
 
     useEffect(() => {
         const loadCategories = async () => {
@@ -47,6 +43,18 @@ function HomePage() {
             }
         };
         loadCategories();
+    }, []);
+
+    useEffect(() => {
+        const loadFeaturedServices = async () => {
+            try {
+                const data = await serviceApi.searchServices({ size: 4, sort: 'createdAt,desc' });
+                setFeatServices(data?.content || []);
+            } catch {
+                // Si falla silenciosamente, la sección queda vacía
+            }
+        };
+        loadFeaturedServices();
     }, []);
 
     return (
@@ -78,11 +86,24 @@ function HomePage() {
             {/* Servicios Destacados */}
             <section className="sec sec-gray">
                 <div className="sec-title">Servicios destacados</div>
-                <div className="sec-sub">Los más solicitados esta semana</div>
+                <div className="sec-sub">Los más recientes</div>
                 <div className="s-cards">
-                    {FEAT_SERVICES.map((service, index) => (
-                        <ServiceCard key={index} {...service} />
-                    ))}
+                    {featServices.map((s) => {
+                        const catName = categories.find(c => c.id === s.categoryId)?.name || 'Servicio';
+                        return (
+                            <ServiceCard
+                                key={s.id}
+                                id={s.id}
+                                name={s.title}
+                                provider={`Oferente #${s.offererId}`}
+                                category={catName}
+                                price={s.priceHourly ? `$${s.priceHourly.toLocaleString()}` : 'Consultar'}
+                                rating={4.5}
+                                availability={s.active ? 'Hoy' : 'No disponible'}
+                                icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
+                            />
+                        );
+                    })}
                 </div>
             </section>
             {/* Cómo funciona */}
