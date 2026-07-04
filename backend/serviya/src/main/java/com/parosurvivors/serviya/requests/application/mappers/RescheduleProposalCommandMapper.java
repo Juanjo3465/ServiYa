@@ -17,5 +17,8 @@ public interface RescheduleProposalCommandMapper {
     @Mapping(target = "status", ignore = true) // TODO PENDING al crear
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "respondedAt", ignore = true)
+    // Partes denormalizadas: las fija el servicio desde la solicitud, no vienen del command.
+    @Mapping(target = "clientId", ignore = true)
+    @Mapping(target = "offererId", ignore = true)
     RescheduleProposal toDomain(CreateRescheduleProposalCommand command);
 }

@@ -2,9 +2,13 @@ package com.parosurvivors.serviya.requests.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateRescheduleProposalCommand;
+import com.parosurvivors.serviya.requests.application.dto.item.RescheduleProposalItem;
+import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
+import com.parosurvivors.serviya.requests.application.dto.result.RescheduleProposalDetailResult;
 import com.parosurvivors.serviya.requests.application.mappers.RescheduleProposalCommandMapper;
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalPersistencePort;
+import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalReadPort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
 import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
@@ -17,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RescheduleProposalService implements RescheduleProposalServicePort {
 
     private final RescheduleProposalPersistencePort rescheduleProposalPersistencePort;
+    private final RescheduleProposalReadPort rescheduleProposalReadPort;
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
     private final RescheduleProposalCommandMapper commandMapper;
     private final NotificationServicePort notificationServicePort;
@@ -51,6 +58,9 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         RescheduleProposal proposal = commandMapper.toDomain(command);
         proposal.setStatus(ProposalStatus.PENDING);
         proposal.setCreatedAt(LocalDateTime.now());
+        // Denormalizados desde la solicitud (inmutables): habilitan los listados por parte sin join.
+        proposal.setClientId(request.getClientId());
+        proposal.setOffererId(request.getOffererId());
         RescheduleProposal saved = rescheduleProposalPersistencePort.save(proposal);
         // TODO(notif): notificar al cliente que el oferente propuso una nueva fecha.
         return saved;
@@ -112,18 +122,29 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     }
 
     @Override
-    public List<RescheduleProposal> getProposalsForClient(Long clientId, List<String> statuses) {
-        throw new UnsupportedOperationException("TODO: getProposalsForClient — placeholder, ver estructura-servicios.docx");
+    @Transactional(readOnly = true)
+    public Page<RescheduleProposalItem> getProposalsForClient(SearchRescheduleProposalsQuery query, Pageable pageable) {
+        return rescheduleProposalReadPort.searchReceivedByClient(query, pageable);
     }
 
     @Override
-    public List<RescheduleProposal> getProposalsByOfferer(Long offererId, List<String> statuses) {
-        throw new UnsupportedOperationException("TODO: getProposalsByOfferer — placeholder, ver estructura-servicios.docx");
+    @Transactional(readOnly = true)
+    public Page<RescheduleProposalItem> getProposalsByOfferer(SearchRescheduleProposalsQuery query, Pageable pageable) {
+        return rescheduleProposalReadPort.searchSentByOfferer(query, pageable);
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public RescheduleProposalDetailResult getProposalDetail(Long proposalId, Long viewerId) {
+        // Vacio = no existe o el viewer no participa en la solicitud: se oculta la existencia (404).
+        return rescheduleProposalReadPort.findDetailForViewer(proposalId, viewerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Propuesta no encontrada: " + proposalId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<RescheduleProposal> getProposalsByRequest(Long requestId) {
-        throw new UnsupportedOperationException("TODO: getProposalsByRequest — placeholder, ver estructura-servicios.docx");
+        return rescheduleProposalReadPort.findByRequestId(requestId);
     }
 
     // =====================================================
@@ -132,7 +153,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
 
     /** Aplica {@code transition} a cada propuesta PENDING de la solicitud y las persiste. */
     private int resolvePending(Long requestId, Consumer<RescheduleProposal> transition) {
-        List<RescheduleProposal> pending = rescheduleProposalPersistencePort
+        List<RescheduleProposal> pending = rescheduleProposalReadPort
                 .findByRequestIdAndStatus(requestId, ProposalStatus.PENDING);
         for (RescheduleProposal proposal : pending) {
             transition.accept(proposal);
@@ -142,7 +163,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     }
 
     private RescheduleProposal loadProposal(Long proposalId) {
-        return rescheduleProposalPersistencePort.findById(proposalId)
+        return rescheduleProposalReadPort.findById(proposalId)
                 .orElseThrow(() -> new ResourceNotFoundException("Propuesta no encontrada: " + proposalId));
     }
 

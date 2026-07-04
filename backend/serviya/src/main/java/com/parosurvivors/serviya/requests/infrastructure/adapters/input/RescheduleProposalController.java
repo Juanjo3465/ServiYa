@@ -3,22 +3,27 @@ package com.parosurvivors.serviya.requests.infrastructure.adapters.input;
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
 import com.parosurvivors.serviya.requests.infrastructure.adapters.input.api.RescheduleProposalApi;
 import com.parosurvivors.serviya.requests.infrastructure.dto.form.CreateRescheduleProposalForm;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.RescheduleProposalDetailResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.RescheduleProposalResponse;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.RescheduleProposalSummaryResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
+import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.RescheduleProposalWebMapper;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -44,18 +49,31 @@ public class RescheduleProposalController implements RescheduleProposalApi {
 
     @Override
     @GetMapping("/api/v1/users/me/proposals/received")
-    public ResponseEntity<List<RescheduleProposalResponse>> getProposalsReceived(
-            @RequestParam(required = false) List<String> statuses) {
-        return ResponseEntity.ok(mapper.toResponses(
-                proposalService.getProposalsForClient(CurrentUser.id(), statuses)));
+    public ResponseEntity<Page<RescheduleProposalSummaryResponse>> getProposalsReceived(
+            List<String> statuses, LocalDateTime proposedFrom, LocalDateTime proposedTo,
+            LocalDateTime createdFrom, LocalDateTime createdTo, Long serviceId, Pageable pageable) {
+        SearchRescheduleProposalsQuery query = mapper.toQuery(
+                CurrentUser.id(), statuses, proposedFrom, proposedTo, createdFrom, createdTo, serviceId);
+        return ResponseEntity.ok(proposalService.getProposalsForClient(query, pageable)
+                .map(mapper::toSummaryResponse));
     }
 
     @Override
     @GetMapping("/api/v1/users/me/proposals/sent")
-    public ResponseEntity<List<RescheduleProposalResponse>> getProposalsSent(
-            @RequestParam(required = false) List<String> statuses) {
-        return ResponseEntity.ok(mapper.toResponses(
-                proposalService.getProposalsByOfferer(CurrentUser.id(), statuses)));
+    public ResponseEntity<Page<RescheduleProposalSummaryResponse>> getProposalsSent(
+            List<String> statuses, LocalDateTime proposedFrom, LocalDateTime proposedTo,
+            LocalDateTime createdFrom, LocalDateTime createdTo, Long serviceId, Pageable pageable) {
+        SearchRescheduleProposalsQuery query = mapper.toQuery(
+                CurrentUser.id(), statuses, proposedFrom, proposedTo, createdFrom, createdTo, serviceId);
+        return ResponseEntity.ok(proposalService.getProposalsByOfferer(query, pageable)
+                .map(mapper::toSummaryResponse));
+    }
+
+    @Override
+    @GetMapping("/api/v1/reschedule-proposals/{id}")
+    public ResponseEntity<RescheduleProposalDetailResponse> getProposalDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(mapper.toDetailResponse(
+                proposalService.getProposalDetail(id, CurrentUser.id())));
     }
 
     @Override

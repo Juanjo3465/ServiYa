@@ -338,6 +338,11 @@ CREATE TABLE reschedule_proposals (
 
     request_id BIGINT UNSIGNED NOT NULL,
 
+    -- Denormalizados desde la solicitud (inmutables por propuesta): permiten listar/filtrar
+    -- por parte y ordenar por created_at con un solo indice, sin pasar por service_requests.
+    client_id BIGINT UNSIGNED NOT NULL,
+    offerer_id BIGINT UNSIGNED NOT NULL,
+
     reason TEXT NOT NULL,
 
     proposed_date DATETIME NOT NULL,
@@ -355,11 +360,22 @@ CREATE TABLE reschedule_proposals (
     responded_at DATETIME NULL,
 
     INDEX idx_reschedule_request (request_id),
+    -- Sirven al filtro por parte + ORDER BY created_at DESC de los listados (recibidas/enviadas).
+    INDEX idx_reschedule_client_created (client_id, created_at),
+    INDEX idx_reschedule_offerer_created (offerer_id, created_at),
 
     CONSTRAINT fk_reschedule_request
         FOREIGN KEY (request_id)
         REFERENCES service_requests(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_reschedule_client
+        FOREIGN KEY (client_id)
+        REFERENCES users(id),
+
+    CONSTRAINT fk_reschedule_offerer
+        FOREIGN KEY (offerer_id)
+        REFERENCES users(id)
 );
 
 -- =========================================================

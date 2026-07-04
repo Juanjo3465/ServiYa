@@ -22,6 +22,9 @@ import java.time.LocalDateTime;
 public class RescheduleProposal {
     private Long id;
     private Long requestId;
+    /** Denormalizados desde la solicitud (inmutables): la parte cliente y oferente de la propuesta. */
+    private Long clientId;
+    private Long offererId;
     private String reason;
     private LocalDateTime proposedDate;
     private ProposalStatus status;

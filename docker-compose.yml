@@ -2,6 +2,10 @@ services:
   backend:
     build: ./backend/serviya
     container_name: serviya-backend
+    # En el primer `up` con volumen limpio, MySQL puede pasar su healthcheck (socket interno,
+    # port 0) antes de aceptar en 3306; el backend arranca, no conecta y muere. on-failure lo
+    # reintenta hasta que MySQL acepta conexiones de verdad. Ver NOTAS.txt (2026-07-04).
+    restart: on-failure
     ports:
       - "8080:8080"
     env_file: .env
