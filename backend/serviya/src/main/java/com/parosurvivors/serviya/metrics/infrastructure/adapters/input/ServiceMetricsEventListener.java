@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.metrics.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.metrics.application.ports.input.ServiceMetricsServicePort;
+import com.parosurvivors.serviya.shared.events.domain.RequestCreatedEvent;
 import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackRevertedEvent;
 import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackSubmittedEvent;
 import lombok.RequiredArgsConstructor;
@@ -28,5 +29,10 @@ public class ServiceMetricsEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onFeedbackReverted(ServiceFeedbackRevertedEvent event) {
         serviceMetricsServicePort.applyFeedbackReverted(event.serviceId(), event.rating(), event.hasComment());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRequestCreated(RequestCreatedEvent event) {
+        serviceMetricsServicePort.incrementRequestsReceived(event.serviceId());
     }
 }

@@ -29,6 +29,9 @@ public class ServiceMetrics {
     private Integer totalRatings = 0;
     @Builder.Default
     private Integer totalComments = 0;
+    /** Solicitudes lógicas dirigidas al servicio (creación original; 1 por línea de reprogramación). */
+    @Builder.Default
+    private Integer totalRequestsReceived = 0;
     private LocalDateTime updatedAt;
 
     // =====================================================
@@ -65,6 +68,11 @@ public class ServiceMetrics {
         if (totalComments > 0) {
             totalComments--;
         }
+        touch();
+    }
+
+    public void incrementRequestsReceived() {
+        totalRequestsReceived++;
         touch();
     }
 

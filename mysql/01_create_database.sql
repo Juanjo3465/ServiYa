@@ -540,6 +540,9 @@ CREATE TABLE service_metrics (
 
     total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes lógicas dirigidas al servicio. Alimentada por RequestCreatedEvent.
+    total_requests_received INT UNSIGNED NOT NULL DEFAULT 0,
+
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
@@ -599,7 +602,6 @@ CREATE TABLE offerer_metrics (
 
     total_cancelled_services INT UNSIGNED NOT NULL DEFAULT 0,
 
-    -- El oferente NO reprograma (eso lo hace el cliente); su participación en el flujo es
     -- ENVIAR propuestas de reprogramación. Se cuenta una por cada propuesta creada.
     total_reschedule_proposals_sent INT UNSIGNED NOT NULL DEFAULT 0,
 

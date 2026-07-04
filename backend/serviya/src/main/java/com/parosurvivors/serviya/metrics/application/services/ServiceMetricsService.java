@@ -28,8 +28,7 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
     @Override
     @Transactional
     public void applyFeedbackSubmitted(Long serviceId, Integer rating, boolean hasComment) {
-        ServiceMetrics metrics = serviceMetricsPersistencePort.findByServiceId(serviceId)
-                .orElseGet(() -> ServiceMetrics.builder().serviceId(serviceId).build());
+        ServiceMetrics metrics = findOrCreate(serviceId);
         if (rating != null) {
             metrics.registerRating(rating);
         }
@@ -51,6 +50,19 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
             }
             serviceMetricsPersistencePort.update(metrics);
         });
+    }
+
+    @Override
+    @Transactional
+    public void incrementRequestsReceived(Long serviceId) {
+        ServiceMetrics metrics = findOrCreate(serviceId);
+        metrics.incrementRequestsReceived();
+        persist(metrics);
+    }
+
+    private ServiceMetrics findOrCreate(Long serviceId) {
+        return serviceMetricsPersistencePort.findByServiceId(serviceId)
+                .orElseGet(() -> ServiceMetrics.builder().serviceId(serviceId).build());
     }
 
     private void persist(ServiceMetrics metrics) {

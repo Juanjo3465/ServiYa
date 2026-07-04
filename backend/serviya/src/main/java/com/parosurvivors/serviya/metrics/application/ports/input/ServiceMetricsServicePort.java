@@ -17,4 +17,7 @@ public interface ServiceMetricsServicePort {
 
     /** Reverso del feedback del cliente al servicio: decrementa/recalcula, sin bajar de 0. */
     void applyFeedbackReverted(Long serviceId, Integer rating, boolean hasComment);
+
+    /** Solicitud lógica dirigida al servicio (creación original; no reprogramaciones). */
+    void incrementRequestsReceived(Long serviceId);
 }

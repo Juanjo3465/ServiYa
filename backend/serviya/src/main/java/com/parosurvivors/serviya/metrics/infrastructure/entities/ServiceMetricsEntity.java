@@ -28,6 +28,9 @@ public class ServiceMetricsEntity {
     @Column(name = "total_comments", nullable = false)
     private Integer totalComments;
 
+    @Column(name = "total_requests_received", nullable = false)
+    private Integer totalRequestsReceived;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

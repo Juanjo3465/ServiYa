@@ -41,7 +41,6 @@ public class OffererMetrics {
     private Integer totalCompletedServices = 0;
     @Builder.Default
     private Integer totalCancelledServices = 0;
-    /** Propuestas de reprogramación que el oferente ha enviado (el oferente no reprograma; propone). */
     @Builder.Default
     private Integer totalRescheduleProposalsSent = 0;
     @Builder.Default

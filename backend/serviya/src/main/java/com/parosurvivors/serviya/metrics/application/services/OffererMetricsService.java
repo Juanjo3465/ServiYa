@@ -84,8 +84,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
             case COMPLETED -> metrics.incrementCompleted();
             case CANCELLED -> metrics.incrementCancelled();
             case NOT_PROVIDED -> metrics.incrementNotProvided();
-            // RESCHEDULED lo cuenta el cliente (quien reprograma); el oferente cuenta propuestas enviadas.
-            // PENDING / REJECTED / PRESUMABLY_COMPLETED tampoco tienen contador de oferente.
+            // PENDING / REJECTED / PRESUMABLY_COMPLETED / RESCHEDULED no tienen contador de oferente.
             default -> {
                 return;
             }
