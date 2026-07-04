@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom';
 
 import "./CategoryCard.css";
 
-export const CategoryCard = ({ name, icon }) => {
+export const CategoryCard = ({ id, name, icon }) => {
     return (
         <Link
-            to="/services"
+            to={id ? `/services?categoryId=${id}` : "/services"}
             className="cat-card">
             <div className="cat-ico">
                 <svg
