@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, serviceApi } from '../../../../shared';
+import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, serviceApi, addressApi, requestApi } from '../../../../shared';
 
 import './ServiceDetailPage.css';
 
 const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+const TIME_OPTIONS = [
+    { label: '9:00 AM',  value: '09:00:00' },
+    { label: '10:00 AM', value: '10:00:00' },
+    { label: '11:00 AM', value: '11:00:00' },
+    { label: '2:00 PM',  value: '14:00:00' },
+    { label: '3:00 PM',  value: '15:00:00' },
+    { label: '4:00 PM',  value: '16:00:00' },
+    { label: '5:00 PM',  value: '17:00:00' },
+];
 
 const getWeekDayName = (dayNum) => {
     const idx = (dayNum - 1) % 7;
@@ -22,6 +32,14 @@ export function ServiceDetailPage() {
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Estados para el formulario de solicitud
+    const [date, setDate] = useState('');
+    const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[0].value);
+    const [selectedAddressId, setSelectedAddressId] = useState('');
+    const [addresses, setAddresses] = useState([]);
+    const [submitting, setSubmitting] = useState(false);
+    const [successOpen, setSuccessOpen] = useState(false);
 
     useEffect(() => {
         const loadServiceDetail = async () => {
@@ -41,6 +59,34 @@ export function ServiceDetailPage() {
             loadServiceDetail();
         }
     }, [id]);
+
+    useEffect(() => {
+        addressApi.getMyAddresses()
+            .then((data) => {
+                setAddresses(data || []);
+                if (data && data.length > 0) setSelectedAddressId(String(data[0].id));
+            })
+            .catch(() => {/* usuario no autenticado o sin direcciones, se ignora silenciosamente */});
+    }, []);
+
+    const handleRequestService = async () => {
+        if (!date) { showToast('Por favor selecciona una fecha', 'error'); return; }
+        if (!selectedAddressId) { showToast('Por favor selecciona una dirección', 'error'); return; }
+
+        setSubmitting(true);
+        try {
+            await requestApi.createRequest({
+                serviceId: parseInt(id),
+                addressId: parseInt(selectedAddressId),
+                scheduledDate: `${date}T${selectedTime}`,
+            });
+            setSuccessOpen(true);
+        } catch (err) {
+            showToast('Error al enviar solicitud: ' + err.message, 'error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -219,24 +265,51 @@ export function ServiceDetailPage() {
                             <Stars rating={rating} size={12} /> {rating.toFixed(1)} · {feedbacksCount} reseñas
                         </div>
 
-                        <div className="input-group"><label className="label">Fecha</label><input className="input" type="date" /></div>
+                        <div className="input-group">
+                            <label className="label">Fecha</label>
+                            <input
+                                className="input"
+                                type="date"
+                                value={date}
+                                min={new Date().toISOString().split('T')[0]}
+                                onChange={(e) => setDate(e.target.value)}
+                            />
+                        </div>
                         <div className="input-group">
                             <label className="label">Hora</label>
-                            <select className="input">
-                                <option>9:00 AM</option>
-                                <option>10:00 AM</option>
-                                <option>11:00 AM</option>
-                                <option>2:00 PM</option>
-                                <option>3:00 PM</option>
+                            <select className="input" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)}>
+                                {TIME_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
                             </select>
                         </div>
                         <div className="input-group">
                             <label className="label">Dirección</label>
-                            <select className="input">
-                                <option>Calle 45 #12-34, Bogotá</option>
-                                <option>Carrera 7 #80-21, Bogotá</option>
-                                <option>+ Agregar dirección</option>
-                            </select>
+                            {addresses.length > 0 ? (
+                                <select
+                                    className="input"
+                                    value={selectedAddressId}
+                                    onChange={(e) => {
+                                        if (e.target.value === '__new') navigate('/profile');
+                                        else setSelectedAddressId(e.target.value);
+                                    }}
+                                >
+                                    {addresses.map((addr) => (
+                                        <option key={addr.id} value={String(addr.id)}>
+                                            {addr.addressLine}{addr.city ? `, ${addr.city}` : ''}
+                                        </option>
+                                    ))}
+                                    <option value="__new">+ Agregar dirección</option>
+                                </select>
+                            ) : (
+                                <button
+                                    className="btn btn-ghost btn-full"
+                                    style={{ fontSize: '12px' }}
+                                    onClick={() => navigate('/profile')}
+                                >
+                                    <Icon name="mapPin" size={14} />Agregar una dirección
+                                </button>
+                            )}
                         </div>
 
                         <div className="metrics-mini">
@@ -246,8 +319,16 @@ export function ServiceDetailPage() {
                             <div className="mm"><div className="mm-val">{rating.toFixed(1)}★</div><div className="mm-lbl">Calificación</div></div>
                         </div>
 
-                        <button className="btn btn-primary btn-full btn-lg" onClick={() => navigate('/request-service')} style={{ marginBottom: '8px' }}>
-                            <Icon name="calendar" size={17} />Solicitar servicio
+                        <button
+                            className="btn btn-primary btn-full btn-lg"
+                            onClick={handleRequestService}
+                            disabled={submitting}
+                            style={{ marginBottom: '8px' }}
+                        >
+                            {submitting
+                                ? <><Icon name="clock" size={17} />Enviando...</>
+                                : <><Icon name="calendar" size={17} />Solicitar servicio</>
+                            }
                         </button>
                         {service.whatsappNumber && (
                             <WhatsAppButton 
@@ -280,6 +361,21 @@ export function ServiceDetailPage() {
                     <button className="btn btn-danger btn-full" onClick={() => { setReportOpen(false); showToast('Reporte enviado al administrador', 'info'); }}>Enviar reporte</button>
                 </div>
             </Modal>
+
+            <Modal open={successOpen} onClose={() => setSuccessOpen(false)}>
+                <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--c-success-bg, #ECFDF5)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: 'var(--c-success, #10B981)' }}>
+                        <Icon name="check" size={28} strokeWidth={2.5} />
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>¡Solicitud enviada!</div>
+                    <div style={{ fontSize: '13px', color: 'var(--c-mid)', marginBottom: '22px', lineHeight: 1.65 }}>
+                        Tu solicitud fue enviada a <strong>{service?.fullName || 'el oferente'}</strong>. Te notificaremos cuando acepte o rechace.
+                    </div>
+                    <button className="btn btn-primary btn-full" onClick={() => navigate('/requests')}>Ver mis solicitudes</button>
+                    <button className="btn btn-ghost btn-full" style={{ marginTop: '8px' }} onClick={() => setSuccessOpen(false)}>Seguir explorando</button>
+                </div>
+            </Modal>
+
             <ToastContainer toasts={toasts} />
         </>
     );

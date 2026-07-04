@@ -105,6 +105,11 @@ export const addressApi = {
     deleteAddress: (id) => request(`/api/v1/addresses/${id}`, { method: 'DELETE', auth: true }),
 };
 
+export const requestApi = {
+    createRequest: (payload) => request('/api/v1/service-requests', { method: 'POST', body: payload, auth: true }),
+    getMyClientRequests: () => request('/api/v1/users/me/client-requests', { auth: true }),
+};
+
 export const categoryApi = {
     getCategories: () => request('/api/v1/categories', { auth: true }),
 }
