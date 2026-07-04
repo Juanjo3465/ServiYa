@@ -18,6 +18,7 @@ export {
     serviceApi, 
     categoryApi,
     addressApi,
+    requestApi,
     saveToken, 
     getToken, 
     clearToken, 

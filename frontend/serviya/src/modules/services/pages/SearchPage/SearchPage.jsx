@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi } from '../../../../shared';
 
 import './SearchPage.css';
@@ -8,11 +8,18 @@ const availBadge = (active) => (active ? 'badge-success' : 'badge-warn');
 
 export function SearchPage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { toasts, showToast } = useToast();
 
     // Categorías reales de la API
     const [categories, setCategories] = useState([]);
-    const [activeCatId, setActiveCatId] = useState(null);
+
+    // Filtros aplicados reales, inicializados desde query params
+    const [nameQuery, setNameQuery] = useState(() => searchParams.get('q') || "");
+    const [activeCatId, setActiveCatId] = useState(() => {
+        const catId = searchParams.get('categoryId');
+        return catId ? Number(catId) : null;
+    });
 
     // Estado de la búsqueda y paginación
     const [results, setResults] = useState([]);
@@ -21,8 +28,6 @@ export function SearchPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [totalElements, setTotalElements] = useState(0);
 
-    // Filtros aplicados reales
-    const [nameQuery, setNameQuery] = useState("");
     const [minPrice, setMinPrice] = useState("");
     const [maxPrice, setMaxPrice] = useState("");
     const [availableOnly, setAvailableOnly] = useState(false);
@@ -30,9 +35,9 @@ export function SearchPage() {
     const [maxDistanceKm, setMaxDistanceKm] = useState(null);
     const [sort, setSort] = useState("createdAt,desc");
 
-    // Inputs locales (sidebar / buscador superior)
-    const [topSearch, setTopSearch] = useState("");
-    const [sidebarName, setSidebarName] = useState("");
+    // Inputs locales (sidebar / buscador superior), inicializados desde query params
+    const [topSearch, setTopSearch] = useState(() => searchParams.get('q') || "");
+    const [sidebarName, setSidebarName] = useState(() => searchParams.get('q') || "");
     const [sidebarMinPrice, setSidebarMinPrice] = useState("");
     const [sidebarMaxPrice, setSidebarMaxPrice] = useState("");
     const [sidebarAvailable, setSidebarAvailable] = useState(false);
@@ -51,6 +56,17 @@ export function SearchPage() {
         };
         loadCategories();
     }, []);
+
+    // Sincronizar URL query params con estados locales
+    useEffect(() => {
+        const q = searchParams.get('q') || "";
+        const catId = searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : null;
+
+        setNameQuery(q);
+        setTopSearch(q);
+        setSidebarName(q);
+        setActiveCatId(catId);
+    }, [searchParams]);
 
     // Función de búsqueda
     const fetchServices = async (page = 0, currentCatId = activeCatId, currentSort = sort) => {
@@ -93,11 +109,29 @@ export function SearchPage() {
         fetchServices(0, activeCatId, sort);
     }, [nameQuery, activeCatId, minPrice, maxPrice, availableOnly, minRating, maxDistanceKm, sort]);
 
+    // Manejar selección de categoría y actualizar URL params
+    const handleCategorySelect = (catId) => {
+        const params = new URLSearchParams(searchParams);
+        if (catId) {
+            params.set('categoryId', catId);
+        } else {
+            params.delete('categoryId');
+        }
+        params.delete('page');
+        setSearchParams(params);
+    };
+
     // Manejar submit del buscador superior
     const handleTopSearchSubmit = (e) => {
         if (e) e.preventDefault();
-        setNameQuery(topSearch);
-        setSidebarName(topSearch);
+        const params = new URLSearchParams(searchParams);
+        if (topSearch.trim()) {
+            params.set('q', topSearch.trim());
+        } else {
+            params.delete('q');
+        }
+        params.delete('page');
+        setSearchParams(params);
     };
 
     // Aplicar filtros de la barra lateral
@@ -109,6 +143,16 @@ export function SearchPage() {
         setAvailableOnly(sidebarAvailable);
         setMinRating(sidebarMinRating);
         setMaxDistanceKm(sidebarDistance);
+
+        const params = new URLSearchParams(searchParams);
+        if (sidebarName.trim()) {
+            params.set('q', sidebarName.trim());
+        } else {
+            params.delete('q');
+        }
+        params.delete('page');
+        setSearchParams(params);
+
         showToast("Filtros aplicados", "success");
     };
 
@@ -129,6 +173,8 @@ export function SearchPage() {
         setMinRating(null);
         setMaxDistanceKm(null);
         setActiveCatId(null);
+
+        setSearchParams({});
         showToast("Filtros limpiados", "info");
     };
 
@@ -149,11 +195,16 @@ export function SearchPage() {
     };
 
     const handleRemoveActiveFilter = (item) => {
+        const params = new URLSearchParams(searchParams);
         if (item.key === 'name') {
+            params.delete('q');
+            setSearchParams(params);
             setNameQuery("");
             setTopSearch("");
             setSidebarName("");
         } else if (item.key === 'cat') {
+            params.delete('categoryId');
+            setSearchParams(params);
             setActiveCatId(null);
         } else if (item.key === 'price') {
             setMinPrice("");
@@ -191,7 +242,7 @@ export function SearchPage() {
                 <div className="search-chips">
                     <span 
                         className={`chip ${activeCatId === null ? 'active' : ''}`} 
-                        onClick={() => setActiveCatId(null)}
+                        onClick={() => handleCategorySelect(null)}
                     >
                         Todas
                     </span>
@@ -199,7 +250,7 @@ export function SearchPage() {
                         <span 
                             key={c.id} 
                             className={`chip ${activeCatId === c.id ? 'active' : ''}`} 
-                            onClick={() => setActiveCatId(c.id)}
+                            onClick={() => handleCategorySelect(c.id)}
                         >
                             {c.name}
                         </span>
@@ -221,7 +272,7 @@ export function SearchPage() {
                                 type="radio" 
                                 name="sidebar-category" 
                                 checked={activeCatId === null} 
-                                onChange={() => setActiveCatId(null)} 
+                                onChange={() => handleCategorySelect(null)} 
                             /> Todas
                         </label>
                         {categories.map((c) => (
@@ -230,7 +281,7 @@ export function SearchPage() {
                                     type="radio" 
                                     name="sidebar-category" 
                                     checked={activeCatId === c.id} 
-                                    onChange={() => setActiveCatId(c.id)} 
+                                    onChange={() => handleCategorySelect(c.id)} 
                                 /> {c.name}
                             </label>
                         ))}
