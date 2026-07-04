@@ -6,12 +6,12 @@
 SET NAMES utf8mb4;
 
 insert into categories (name) values
+('Carpintería'),
 ('Electricidad'),
 ('Fontanería'),
-('Carpintería'),
-('Pintura'),
 ('Jardinería'),
 ('Limpieza'),
+('Pintura'),
 ('Reparaciones de electrodomésticos'),
 ('Reparaciones de vehículos'),
 ('Tecnología y electrónica');

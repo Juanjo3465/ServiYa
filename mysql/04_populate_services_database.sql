@@ -39,4 +39,13 @@ VALUES (
     20.00,
     6,
     60
+),
+(
+    1,
+    'Servicio de reparacion de celulares',
+    'Limpieza profunda de hogares y oficinas',
+    '["foto5.jpg", "foto6.jpg"]',
+    70.00,
+    9,
+    60
 );
