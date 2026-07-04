@@ -9,6 +9,7 @@ import com.parosurvivors.serviya.profiles.infrastructure.dto.form.VerifyAddressF
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AddressResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AddressVerificationResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.mappers.AddressWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -58,7 +59,7 @@ public class AddressController implements AddressApi {
     @Override
     @DeleteMapping("/api/v1/addresses/{id}")
     public ResponseEntity<Void> deleteAddress(@PathVariable Long id) {
-        addressService.deleteAddress(currentUserId(), id);
+        addressService.deleteAddress(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -70,8 +71,7 @@ public class AddressController implements AddressApi {
         return ResponseEntity.ok(mapper.toVerificationResponse(valid, coordinates));
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.profiles.infrastructure.entities;
 
+import com.parosurvivors.serviya.shared.security.PiiAttributeConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,8 +21,9 @@ public class AddressEntity {
     private Long userId;
 
     /** Cifrado AES-256-GCM. Pendiente el AttributeConverter de cifrado (ver NOTAS.txt). */
+    @Convert(converter = PiiAttributeConverter.class)
     @Column(name = "address_line", nullable = false, columnDefinition = "VARBINARY(1024)")
-    private byte[] addressLine;
+    private String addressLine;
 
     @Column(nullable = false, length = 150)
     private String city;

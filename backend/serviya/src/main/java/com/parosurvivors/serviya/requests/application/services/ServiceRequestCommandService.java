@@ -3,10 +3,13 @@ package com.parosurvivors.serviya.requests.application.services;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateServiceRequestCommand;
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
+import com.parosurvivors.serviya.requests.application.mappers.ServiceRequestCommandMapper;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
+import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
+import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
@@ -17,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Servicio de comandos / transiciones de estado de solicitudes (CQRS, módulo 4).
  * Implementadas: reprogramación libre + las transiciones que resuelven propuestas PENDING
- * (cancelar, presuntamente-completar, confirmar, no-prestada). El resto sigue placeholder.
+ * (cancelar, presuntamente-completar, confirmar, no-prestada y crear). El resto sigue placeholder.
  * La resolución de propuestas se delega en {@link RescheduleProposalServicePort} (centralizada).
  * Ver documents/project-structure/estructura-servicios.docx.
  */
@@ -28,10 +31,20 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
     private final RescheduleProposalServicePort rescheduleProposalService;
     private final NotificationServicePort notificationServicePort;
+    private final ServiceRequestCommandMapper commandMapper;
+    private final ServicePersistencePort servicePersistencePort;
 
     @Override
     public ServiceRequest createRequest(CreateServiceRequestCommand command) {
-        throw new UnsupportedOperationException("TODO: createRequest — placeholder, ver estructura-servicios.docx");
+        Service service = servicePersistencePort.findById(command.serviceId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Servicio no encontrado con id: " + command.serviceId()));
+
+        ServiceRequest serviceRequest = commandMapper.toDomain(command);
+        serviceRequest.setOffererId(service.getOffererId());
+        serviceRequest.setStatus(RequestStatus.PENDING);
+        serviceRequest.setRequestedPrice(service.getPriceHourly());
+        return serviceRequestPersistencePort.save(serviceRequest);
     }
 
     @Override

@@ -31,10 +31,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 /**
- * Implementacion del marketplace de servicios. Unico servicio del esqueleto con logica real.
- * Construye el dominio a partir de los Commands (sin mapper web) y devuelve la entidad de dominio;
+ * Implementacion del marketplace de servicios. Unico servicio del esqueleto con
+ * logica real.
+ * Construye el dominio a partir de los Commands (sin mapper web) y devuelve la
+ * entidad de dominio;
  * el controller mapea a Response via ServiceWebMapper.
  */
 @Component
@@ -73,23 +76,37 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public List<Service> getByOffererId(Long offererId) {
-        return persistencePort.findByOffererId(offererId).stream()
-                .filter(s -> !s.isDeleted())
-                .collect(Collectors.toList());
-    }
+    public List<ServiceDetail> getByOffererId(Long offererId) {
+        List<Service> services = persistencePort.findByOffererId(offererId);
 
+        if (services.isEmpty())
+            throw new ResourceNotFoundException("El oferente no tiene servicios");
+
+        List<ServiceDetail> details = new ArrayList<>();
+
+        for (Service service : services) {
+            Category category = categoryPort.getById(service.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Categoria no encontrada con id: " + service.getCategoryId()));
+            details.add(new ServiceDetail(service, category, null, null, null, null));
+        }
+
+        return details;
+    }
 
     @Override
     public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
         return persistencePort.search(criteria, pageable);
     }
+
     @Override
     public Service update(UpdateServiceCommand command) {
         Service service = persistencePort.findById(command.serviceId())
-                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + command.serviceId()));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Servicio no encontrado con id: " + command.serviceId()));
 
-        // PATCH semantico: el mapper aplica solo los campos no-nulos del command (IGNORE strategy).
+        // PATCH semantico: el mapper aplica solo los campos no-nulos del command
+        // (IGNORE strategy).
         commandMapper.updateFromCommand(command, service);
         service.setUpdatedAt(LocalDateTime.now());
 
@@ -98,18 +115,20 @@ public class MarketplaceService implements MarketplaceServicePort {
 
     @Override
     public Optional<ServiceDetail> getDetailById(Long id) {
-        
+
         Service service = getById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
 
         Category category = categoryPort.getById(service.getCategoryId())
-            .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada con id: " + service.getCategoryId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Categoria no encontrada con id: " + service.getCategoryId()));
 
         OffererProfile offererProfile = offererProfileService.getPublicProfile(service.getOffererId());
         OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
         OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
 
-        // Reseñas recientes (hasta 3): cada feedback con comentario se empareja con el perfil
+        // Reseñas recientes (hasta 3): cada feedback con comentario se empareja con el
+        // perfil
         // público de su autor para mostrar nombre y foto en el detalle del servicio.
         List<FeedbackUser> feedbacks = serviceFeedbackService.getRecentServiceFeedback(service.getId(), 3).stream()
                 .map(feedback -> new FeedbackUser(feedback, userProfileService.getProfileInfo(feedback.getClientId())))
@@ -158,5 +177,4 @@ public class MarketplaceService implements MarketplaceServicePort {
         persistencePort.update(service);
     }
 
-    
 }

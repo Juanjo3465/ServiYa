@@ -39,7 +39,7 @@ public class SecurityConfig {
                 // Documentacion OpenAPI/Swagger
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // Perfil y cuenta del usuario autenticado — RF-005 (identidad del JWT)
-                .requestMatchers("/api/v1/users/me/**").authenticated()
+                .requestMatchers("/api/v1/users/me/**").permitAll()  //Remember to change later
                 // El resto se mantiene abierto por ahora (modulos aun no implementados)
                 .anyRequest().permitAll()
             )
@@ -54,7 +54,10 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "http://127.0.0.1:5173"));
+                "http://127.0.0.1:5173",
+                "http://localhost:8081",
+                "http://127.0.0.1:8081"
+            ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

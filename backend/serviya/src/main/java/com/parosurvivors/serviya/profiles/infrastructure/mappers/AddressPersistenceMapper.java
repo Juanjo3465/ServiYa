@@ -13,9 +13,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface AddressPersistenceMapper {
 
-    @Mapping(target = "addressLine", ignore = true)
     Address toDomain(AddressEntity entity);
 
-    @Mapping(target = "addressLine", ignore = true)
     AddressEntity toEntity(Address domain);
 }

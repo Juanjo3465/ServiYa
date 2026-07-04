@@ -1,15 +1,20 @@
+/* MonthCalendar — month grid view used in offerer/client schedule pages */
+
 .cal-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 }
 
 .cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 4px;
-    margin-bottom: 20px;
+    background: var(--c-bg);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 10px;
 }
 
 .cal-hd {
@@ -18,24 +23,45 @@
     font-weight: 700;
     color: var(--c-soft);
     text-transform: uppercase;
-    padding: 6px 0;
+    letter-spacing: .04em;
+    padding-bottom: 6px;
 }
 
 .cal-day {
-    aspect-ratio: 1;
+    aspect-ratio: 1 / 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--r);
     font-size: 13px;
-    cursor: pointer;
-    transition: all .15s;
+    font-weight: 500;
+    color: var(--c-text);
+    border-radius: var(--r);
+    cursor: default;
     position: relative;
 }
 
-.cal-day:hover {
+.cal-day.clickable {
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+
+.cal-day.clickable:hover {
     background: var(--c-primary-l);
-    color: var(--c-primary-d);
+}
+
+.cal-day.selected {
+    background: var(--c-primary-d);
+    color: white;
+    font-weight: 700;
+}
+
+.cal-day.selected.has-event::after {
+    background: white;
+}
+
+.cal-day.other-month {
+    color: var(--c-soft);
+    opacity: .5;
 }
 
 .cal-day.today {
@@ -45,64 +71,15 @@
 }
 
 .cal-day.has-event::after {
-    content: "";
+    content: '';
     position: absolute;
-    bottom: 4px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 5px;
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: var(--c-primary);
+    background: var(--c-primary-d);
 }
 
 .cal-day.today.has-event::after {
     background: white;
-}
-
-.cal-day.other-month {
-    color: var(--c-soft);
-}
-
-.ev-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 13px;
-    background: white;
-    border: 1px solid var(--c-border);
-    border-radius: var(--r-lg);
-    margin-bottom: 8px;
-    transition: border-color .15s;
-}
-
-.ev-item.clickable {
-    cursor: pointer;
-}
-
-.ev-item.clickable:hover {
-    border-color: var(--c-primary);
-}
-
-.ev-time {
-    min-width: 60px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--c-primary-d);
-    text-align: center;
-    background: var(--c-primary-l);
-    border-radius: var(--r);
-    padding: 6px 4px;
-    line-height: 1.3;
-}
-
-.ev-daytitle {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 12px;
-}
-
-.ev-daytitle + .ev-daytitle,
-.ev-item + .ev-daytitle {
-    margin-top: 16px;
 }

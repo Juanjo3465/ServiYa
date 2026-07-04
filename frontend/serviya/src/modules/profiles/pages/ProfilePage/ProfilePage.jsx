@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated } from '../../../../shared';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
+import 'leaflet/dist/leaflet.css';
+import { useForm } from "react-hook-form";
 
 const TABS = ['Información personal', 'Mis direcciones', 'Credenciales', 'Mis métricas', 'Roles'];
-
-const ADDRESSES = [
-    { line: 'Calle 45 #12-34, Bogotá', sector: 'Chapinero, Bogotá D.C.', main: true },
-    { line: 'Carrera 7 #80-21, Bogotá', sector: 'Chapinero Alto, Bogotá D.C.', main: false },
-];
 
 const METRICS = [
     { icon: 'check', cls: 'success', n: '96%', l: 'Cumplimiento' },
@@ -23,13 +21,236 @@ const TAGS = [
     { label: 'Buen trato (9)', pos: true }, { label: 'No estaba en casa (2)', pos: false },
 ];
 
+function AddressModal({
+    onClose,
+    title,
+    onSave,
+    editedAddress,
+    showToast
+}) {
+    const [location, setLocation] = useState(null);
+    const [geoLoading, setGeoLoading] = useState(false);
+    const {
+        register,
+        handleSubmit,
+        reset,
+        setValue
+    } = useForm({
+        defaultValues: editedAddress || {}
+    })
+
+    useEffect(() => {
+        if (!editedAddress) return;
+
+        reset(editedAddress);
+
+        if (editedAddress.latitude != null && editedAddress.longitude != null) {
+            setLocation({
+                latitude: editedAddress.latitude,
+                longitude: editedAddress.longitude
+            });
+        }
+    }, [editedAddress, reset]);
+
+    useEffect(() => {
+        if (!location) return;
+
+        reverseGeocode(
+            location.latitude,
+            location.longitude
+        );
+    }, [location]);
+
+    const reverseGeocode = async (lat, lng) => {
+        setGeoLoading(true);
+        try {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+            );
+            const data = await response.json();
+
+            setValue("addressLine", data.display_name ?? "");
+            setValue(
+                "city",
+                data.address?.city ||
+                data.address?.town ||
+                data.address?.village ||
+                ""
+            );
+        } catch (error) {
+            showToast('No fue posible obtener la dirección', 'danger');
+        } finally {
+            setGeoLoading(false);
+        }
+    };
+
+    const useMyLocation = () => {
+        if (!navigator.geolocation) {
+            showToast('Tu navegador no soporta geolocalización', 'danger');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            () => showToast('No se pudo obtener tu ubicación', 'danger')
+        );
+    };
+
+    return (
+        <Modal open={true} onClose={onClose}>
+            <form onSubmit={handleSubmit((data) =>
+                onSave({
+                    ...data,
+                    latitude: location?.latitude,
+                    longitude: location?.longitude
+                })
+            )}
+            >
+                <div className="modal-title">{title}</div>
+                <div className="modal-sub">Haz clic en el mapa o arrastra el marcador para ubicar tu dirección.</div>
+
+                <div style={{ position: 'relative', marginBottom: '12px' }}>
+                    <MapContainer
+                        center={location ? [location.latitude, location.longitude] : [4.60971, -74.08175]}
+                        zoom={location ? 16 : 12}
+                        style={{
+                            height: '280px',
+                            width: '100%',
+                            borderRadius: '10px',
+                            border: '1px solid var(--c-border)',
+                            zIndex: 0
+                        }}
+                    >
+                        <TileLayer
+                            attribution='&copy; OpenStreetMap contributors'
+                            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <RecenterMap location={location} />
+                        <LocationMarker location={location} onLocationSelect={setLocation} />
+                    </MapContainer>
+
+                    <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{
+                            position: 'absolute',
+                            top: '10px',
+                            right: '10px',
+                            zIndex: 1000,
+                            background: 'var(--c-bg)',
+                            border: '1px solid var(--c-border)',
+                            boxShadow: '0 1px 4px rgba(0,0,0,.15)'
+                        }}
+                        onClick={useMyLocation}
+                    >
+                        <Icon name="mapPin" size={13} />Usar mi ubicación
+                    </button>
+                </div>
+
+                {!location && (
+                    <div className="note-box" style={{ marginBottom: '12px' }}>
+                        Selecciona un punto en el mapa para continuar.
+                    </div>
+                )}
+
+                <div className="input-group">
+                    <label className="label">Dirección</label>
+                    <div className="input-wrap">
+                        <div className="input-ico"><Icon name="mapPin" size={15} /></div>
+                        <input
+                            className="input"
+                            readOnly={!location || geoLoading}
+                            {...register("addressLine", {
+                                required: true
+                            })}
+                        />
+                    </div>
+                </div>
+
+                <div className="input-group">
+                    <label className="label">Ciudad</label>
+                    <input
+                        className="input"
+                        readOnly={!location || geoLoading}
+                        {...register("city", {
+                            required: true
+                        })}
+                    />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={onClose}>
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        className="btn btn-primary btn-full"
+                        disabled={!location || geoLoading}
+                    >
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
+function LocationMarker({ location, onLocationSelect }) {
+    useMapEvents({
+        click(e) {
+            const { lat, lng } = e.latlng;
+            onLocationSelect({ latitude: lat, longitude: lng });
+        }
+    });
+
+    return location ? (
+        <Marker
+            position={[location.latitude, location.longitude]}
+            draggable
+            eventHandlers={{
+                dragend: (e) => {
+                    const { lat, lng } = e.target.getLatLng();
+                    onLocationSelect({ latitude: lat, longitude: lng });
+                }
+            }}
+        />
+    ) : null;
+}
+
+function RecenterMap({ location }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (location) {
+            map.flyTo(
+                [location.latitude, location.longitude],
+                16,
+                {
+                    animate: true,
+                    duration: 1
+                }
+            );
+        }
+    }, [location, map]);
+
+    return null;
+}
+
 export function ProfilePage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
-    const [addrOpen, setAddrOpen] = useState(false);
+    const [newAddressOpen, setNewAddressOpen] = useState(false);
+    const [editAddressOpen, setEditAddressOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [addresses, setAddresses] = useState([]);
+    const [editedAddress, setEditedAddress] = useState(null);
+
+    // --- Cambio de contraseña (RF-007) ---
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
 
     // RF-005: carga la información personal del usuario autenticado (identidad tomada del JWT).
     useEffect(() => {
@@ -43,9 +264,126 @@ export function ProfilePage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        addressApi.getMyAddresses()
+            .then(setAddresses)
+            .catch((e) => showToast(e.message || 'No se pudieron cargar tus direcciones', 'danger'));
+    }, [profile?.id]);
+
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
         .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+
+    const openEditAddresss = (address) => () => {
+        setEditedAddress({
+            ...address,
+        });
+        setEditAddressOpen(true);
+    }
+
+    const closeAddressModal = () => {
+        setNewAddressOpen(false);
+        setEditAddressOpen(false);
+        setEditedAddress(null);
+    };
+
+    const createAddress = (formData) => {
+        const payload = {
+            ...formData
+        };
+
+        addressApi
+            .createAddress(payload)
+            .then((created) => {
+                setAddresses(prev => [
+                    ...prev,
+                    { ...created }
+                ]);
+                setNewAddressOpen(false);
+                showToast('Dirección creada exitosamente', 'success');
+            })
+            .catch(e =>
+                showToast(
+                    e.message ||
+                    'No se pudo crear la dirección',
+                    'danger'
+                )
+            );
+    };
+
+    const saveEditedAddress = (formData) => {
+        const payload = {
+            ...editedAddress,
+            ...formData
+        };
+
+        addressApi
+            .updateAddress(payload.id, payload)
+            .then(() => {
+                setAddresses(prev =>
+                    prev.map(a =>
+                        a.id === payload.id
+                            ? payload
+                            : a
+                    )
+                );
+                setEditAddressOpen(false);
+                setEditedAddress(null);
+                showToast(
+                    'Dirección actualizada exitosamente',
+                    'success'
+                );
+            })
+            .catch(e =>
+                showToast(
+                    e.message ||
+                    'No se pudo actualizar la dirección',
+                    'danger'
+                )
+            );
+    }
+
+    const deleteAddress = (address) => () => {
+        addressApi
+            .deleteAddress(address.id)
+            .then(() => {
+                setAddresses(prev => prev.filter(a => a.id !== address.id));
+                showToast('Dirección eliminada', 'danger');
+            })
+            .catch(e =>
+                showToast(
+                    e.message ||
+                    'No se pudo eliminar la dirección',
+                    'danger'
+                )
+            );
+    };
+
+    function handleChangePassword() {
+        if (!currentPassword) {
+            showToast('Ingresa tu contraseña actual', 'danger');
+            return;
+        }
+        if (newPassword.length < 8) {
+            showToast('La nueva contraseña debe tener al menos 8 caracteres', 'danger');
+            return;
+        }
+        if (newPassword !== confirmNewPassword) {
+            showToast('Las contraseñas no coinciden', 'danger');
+            return;
+        }
+
+        setChangingPassword(true);
+        profileApi.changePassword(currentPassword, newPassword)
+            .then(() => {
+                showToast('Contraseña actualizada', 'success');
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmNewPassword('');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo cambiar la contraseña', 'danger'))
+            .finally(() => setChangingPassword(false));
+    }
 
     return (
         <DashboardLayout sections={CLIENT_NAV} avatar={initials}>
@@ -88,19 +426,19 @@ export function ProfilePage() {
                 <div>
                     <div className="page-head">
                         <div style={{ fontSize: '14px', fontWeight: 700 }}>Mis direcciones</div>
-                        <button className="btn btn-primary btn-sm" onClick={() => setAddrOpen(true)}><Icon name="plus" size={13} />Agregar dirección</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => setNewAddressOpen(true)}><Icon name="plus" size={13} />Agregar dirección</button>
                     </div>
-                    {ADDRESSES.map((a, i) => (
+                    {addresses.map((a, i) => (
                         <div className="card addr-card" key={i} style={a.main ? { borderLeft: '3px solid var(--c-primary)' } : undefined}>
                             <div className="addr-row">
                                 <div className="stat-ico" style={{ margin: 0, flexShrink: 0, ...(a.main ? {} : { background: 'var(--c-bg-s)', color: 'var(--c-soft)' }) }}><Icon name="mapPin" size={18} /></div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{a.line} {a.main && <span className="badge badge-primary">Principal</span>}</div>
-                                    <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '3px' }}>{a.sector}</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{a.addressLine} {a.main && <span className="badge badge-primary">Principal</span>}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '3px' }}>{a.city}</div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '5px' }}>
-                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => showToast('Dirección editada', 'success')}><Icon name="edit" size={13} /></button>
-                                    {!a.main && <button className="btn btn-danger btn-sm" onClick={() => showToast('Dirección eliminada', 'danger')}><Icon name="trash" size={13} /></button>}
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={openEditAddresss(a)}><Icon name="edit" size={13} /></button>
+                                    {!a.main && <button className="btn btn-danger btn-sm" onClick={deleteAddress(a)}><Icon name="trash" size={13} /></button>}
                                 </div>
                             </div>
                         </div>
@@ -119,10 +457,39 @@ export function ProfilePage() {
                     </div>
                     <div className="card">
                         <div className="card-title">Cambiar contraseña</div>
-                        <div className="input-group"><label className="label">Contraseña actual</label><input className="input" type="password" placeholder="••••••••" /></div>
-                        <div className="input-group"><label className="label">Nueva contraseña</label><input className="input" type="password" placeholder="Mínimo 8 caracteres" /></div>
-                        <div className="input-group"><label className="label">Confirmar nueva contraseña</label><input className="input" type="password" placeholder="Repite la contraseña" /></div>
-                        <button className="btn btn-primary" onClick={() => showToast('Contraseña actualizada', 'success')}>Cambiar contraseña</button>
+                        <div className="input-group">
+                            <label className="label">Contraseña actual</label>
+                            <input
+                                className="input"
+                                type="password"
+                                placeholder="••••••••"
+                                value={currentPassword}
+                                onChange={(e) => setCurrentPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label className="label">Nueva contraseña</label>
+                            <input
+                                className="input"
+                                type="password"
+                                placeholder="Mínimo 8 caracteres"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label className="label">Confirmar nueva contraseña</label>
+                            <input
+                                className="input"
+                                type="password"
+                                placeholder="Repite la contraseña"
+                                value={confirmNewPassword}
+                                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            />
+                        </div>
+                        <button className="btn btn-primary" onClick={handleChangePassword} disabled={changingPassword}>
+                            {changingPassword ? 'Cambiando...' : 'Cambiar contraseña'}
+                        </button>
                     </div>
                     <div className="danger-zone">
                         <div className="danger-title">Zona de peligro</div>
@@ -171,17 +538,24 @@ export function ProfilePage() {
                 </div>
             )}
 
-            <Modal open={addrOpen} onClose={() => setAddrOpen(false)}>
-                <div className="modal-title">Agregar dirección</div>
-                <div className="modal-sub">La dirección se validará con Google Maps.</div>
-                <div className="input-group"><label className="label">Dirección</label><div className="input-wrap"><div className="input-ico"><Icon name="mapPin" size={15} /></div><input className="input" placeholder="Calle 80 #45-12" /></div></div>
-                <div className="g2"><div className="input-group"><label className="label">Ciudad</label><input className="input" defaultValue="Bogotá" /></div><div className="input-group"><label className="label">Sector</label><input className="input" placeholder="Chapinero" /></div></div>
-                <label className="check-line"><input type="checkbox" /> Establecer como dirección principal</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-ghost btn-full" onClick={() => setAddrOpen(false)}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" onClick={() => { setAddrOpen(false); showToast('Dirección agregada', 'success'); }}>Guardar</button>
-                </div>
-            </Modal>
+            {newAddressOpen && (
+                <AddressModal
+                    onClose={closeAddressModal}
+                    title="Agregar dirección"
+                    onSave={createAddress}
+                    editedAddress={null}
+                    showToast={showToast}
+                />
+            )}
+            {editAddressOpen && editedAddress && (
+                <AddressModal
+                    onClose={closeAddressModal}
+                    title="Editar dirección"
+                    onSave={saveEditedAddress}
+                    editedAddress={editedAddress}
+                    showToast={showToast}
+                />
+            )}
 
             <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
                 <div className="modal-title" style={{ color: 'var(--c-danger)' }}>Eliminar cuenta</div>

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -68,8 +69,7 @@ public class ClientFeedbackController implements ClientFeedbackApi {
         return ResponseEntity.ok(mapper.toTagResponses(clientFeedbackTagCatalogService.getCatalog()));
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

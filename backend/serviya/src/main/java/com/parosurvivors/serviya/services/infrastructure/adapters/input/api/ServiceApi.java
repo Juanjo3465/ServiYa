@@ -51,7 +51,7 @@ public interface ServiceApi {
 
     @Operation(summary = "Listar servicios de un oferente")
     @ApiResponse(responseCode = "200", description = "Lista de servicios del oferente")
-    ResponseEntity<List<ServiceResponse>> getByOffererId(Long offererId);
+    ResponseEntity<List<ServiceDetailResponse>> getByOffererId(Long offererId);
 
     @Operation(summary = "Actualizar parcialmente un servicio (Dueño OFFERER)")
     @ApiResponses({

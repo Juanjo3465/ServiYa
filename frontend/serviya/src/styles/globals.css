@@ -24,6 +24,7 @@
     --c-warn-bg: #FFFBEB;
     --c-danger: #EF4444;
     --c-danger-bg: #FEF2F2;
+    --c-disabled: #9BDDE8;
     --r: 10px;
     --r-lg: 14px;
     --r-xl: 20px;
@@ -197,6 +198,16 @@ svg {
     background: var(--c-primary-d);
     box-shadow: var(--sh);
     transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    background: var(--c-disabled);
+    color: #fff;
+}
+
+.btn-primary:disabled:hover {
+    transform: none;
+    cursor: not-allowed;
 }
 
 .btn-outline {

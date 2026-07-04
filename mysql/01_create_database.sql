@@ -2,6 +2,7 @@
 -- DATABASE: marketplace_services
 -- MySQL 8+
 -- =========================================================
+SET NAMES utf8mb4;
 
 CREATE DATABASE IF NOT EXISTS marketplace_services
 CHARACTER SET utf8mb4
