@@ -5,11 +5,13 @@ import com.parosurvivors.serviya.metrics.application.ports.output.ServiceMetrics
 import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementacion placeholder de ServiceMetricsServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
+ * Métricas precalculadas de un servicio. La consulta es pública (RF-040); la escritura la disparan
+ * los eventos de feedback (via {@code ServiceMetricsEventListener}). Cada apply* corre en su propia
+ * transacción (se invoca AFTER_COMMIT del publicador). Patrón find-or-create: si aún no existe la
+ * fila 1-a-1 del servicio, se crea al primer feedback.
  */
 @Component
 @RequiredArgsConstructor
@@ -19,6 +21,55 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
 
     @Override
     public ServiceMetrics getMetrics(Long serviceId) {
-        throw new UnsupportedOperationException("TODO: getMetrics — placeholder, ver estructura-servicios.docx");
+        return serviceMetricsPersistencePort.findByServiceId(serviceId)
+                .orElse(ServiceMetrics.builder().serviceId(serviceId).build());
+    }
+
+    @Override
+    @Transactional
+    public void applyFeedbackSubmitted(Long serviceId, Integer rating, boolean hasComment) {
+        ServiceMetrics metrics = findOrCreate(serviceId);
+        if (rating != null) {
+            metrics.registerRating(rating);
+        }
+        if (hasComment) {
+            metrics.incrementComments();
+        }
+        persist(metrics);
+    }
+
+    @Override
+    @Transactional
+    public void applyFeedbackReverted(Long serviceId, Integer rating, boolean hasComment) {
+        serviceMetricsPersistencePort.findByServiceId(serviceId).ifPresent(metrics -> {
+            if (rating != null) {
+                metrics.removeRating(rating);
+            }
+            if (hasComment) {
+                metrics.decrementComments();
+            }
+            serviceMetricsPersistencePort.update(metrics);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void incrementRequestsReceived(Long serviceId) {
+        ServiceMetrics metrics = findOrCreate(serviceId);
+        metrics.incrementRequestsReceived();
+        persist(metrics);
+    }
+
+    private ServiceMetrics findOrCreate(Long serviceId) {
+        return serviceMetricsPersistencePort.findByServiceId(serviceId)
+                .orElseGet(() -> ServiceMetrics.builder().serviceId(serviceId).build());
+    }
+
+    private void persist(ServiceMetrics metrics) {
+        if (metrics.getId() == null) {
+            serviceMetricsPersistencePort.save(metrics);
+        } else {
+            serviceMetricsPersistencePort.update(metrics);
+        }
     }
 }

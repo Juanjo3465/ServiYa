@@ -10,6 +10,9 @@ import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
 import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
+import com.parosurvivors.serviya.shared.events.domain.RequestCreatedEvent;
+import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
@@ -19,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Servicio de comandos / transiciones de estado de solicitudes (CQRS, módulo 4).
- * Implementadas: reprogramación libre + las transiciones que resuelven propuestas PENDING
- * (cancelar, presuntamente-completar, confirmar, no-prestada y crear). El resto sigue placeholder.
- * La resolución de propuestas se delega en {@link RescheduleProposalServicePort} (centralizada).
+ * Cada transición valida el estado en el dominio, persiste y publica un {@link RequestStatusChangedEvent}
+ * para que las métricas de oferente/cliente actualicen sus contadores (vía @TransactionalEventListener,
+ * AFTER_COMMIT). La resolución de propuestas se delega en {@link RescheduleProposalServicePort}.
  * Ver documents/project-structure/estructura-servicios.docx.
  */
 @Component
@@ -33,8 +36,10 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     private final NotificationServicePort notificationServicePort;
     private final ServiceRequestCommandMapper commandMapper;
     private final ServicePersistencePort servicePersistencePort;
+    private final DomainEventPublisherPort eventPublisher;
 
     @Override
+    @Transactional
     public ServiceRequest createRequest(CreateServiceRequestCommand command) {
         Service service = servicePersistencePort.findById(command.serviceId())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -44,7 +49,11 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         serviceRequest.setOffererId(service.getOffererId());
         serviceRequest.setStatus(RequestStatus.PENDING);
         serviceRequest.setRequestedPrice(service.getPriceHourly());
-        return serviceRequestPersistencePort.save(serviceRequest);
+        ServiceRequest saved = serviceRequestPersistencePort.save(serviceRequest);
+        // Solicitud original: alimenta requests_sent (cliente) y requests_received (oferente).
+        eventPublisher.publish(new RequestCreatedEvent(
+                saved.getId(), saved.getClientId(), saved.getOffererId(), saved.getServiceId()));
+        return saved;
     }
 
     @Override
@@ -58,13 +67,25 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     }
 
     @Override
+    @Transactional
     public void acceptRequest(Long requestId, Long offererId) {
-        throw new UnsupportedOperationException("TODO: acceptRequest — placeholder, ver estructura-servicios.docx");
+        ServiceRequest request = loadRequest(requestId);
+        requireOwnership(request.getOffererId(), offererId);
+        RequestStatus previous = request.getStatus();
+        request.accept(offererId);
+        serviceRequestPersistencePort.update(request);
+        publishStatusChanged(request, previous);
     }
 
     @Override
+    @Transactional
     public void rejectRequest(Long requestId, Long offererId) {
-        throw new UnsupportedOperationException("TODO: rejectRequest — placeholder, ver estructura-servicios.docx");
+        ServiceRequest request = loadRequest(requestId);
+        requireOwnership(request.getOffererId(), offererId);
+        RequestStatus previous = request.getStatus();
+        request.reject(offererId);
+        serviceRequestPersistencePort.update(request);
+        publishStatusChanged(request, previous);
     }
 
     @Override
@@ -72,11 +93,14 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     public void markAsPresumablyCompleted(Long requestId, Long offererId) {
         ServiceRequest request = loadRequest(requestId);
         requireOwnership(request.getOffererId(), offererId);
+        RequestStatus previous = request.getStatus();
         // El oferente declara el servicio prestado: cualquier propuesta PENDING queda sin sentido.
         rescheduleProposalService.cancelPendingProposals(requestId);
         request.markAsPresumablyCompleted(offererId);
         serviceRequestPersistencePort.update(request);
-        // TODO(event): disparar habilitación de feedback para cliente y oferente.
+        // PRESUMABLY_COMPLETED no tiene contador de métricas (los listeners lo ignoran); se publica
+        // uniformemente para trazabilidad y para habilitar el feedback de ambas partes.
+        publishStatusChanged(request, previous);
     }
 
     @Override
@@ -84,9 +108,10 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     public void confirmCompletion(Long requestId, Long clientId) {
         ServiceRequest request = loadRequest(requestId);
         requireOwnership(request.getClientId(), clientId);
+        RequestStatus previous = request.getStatus();
         request.confirmCompletion(clientId);
         serviceRequestPersistencePort.update(request);
-        // TODO(event): publicar evento de completado para métricas.
+        publishStatusChanged(request, previous);
     }
 
     @Override
@@ -95,6 +120,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         // Sin verificación de propiedad: lo ejecuta un admin o el sistema (fecha vencida sin propuesta,
         // o disputa resuelta). El control de acceso (rol admin) es responsabilidad de la seguridad.
         ServiceRequest request = loadRequest(requestId);
+        RequestStatus previous = request.getStatus();
         int cancelled = rescheduleProposalService.cancelPendingProposals(requestId);
         if (cancelled > 0) {
             // Había un aviso de reprogramación pendiente: no es incumplimiento, se cancela.
@@ -103,7 +129,8 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
             request.markAsNotProvided(userId);
         }
         serviceRequestPersistencePort.update(request);
-        // TODO(event): publicar evento para métricas de incumplimiento.
+        // El estado final es CANCELLED o NOT_PROVIDED según la rama; el evento lleva el real.
+        publishStatusChanged(request, previous);
     }
 
     @Override
@@ -111,9 +138,11 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     public void cancelRequest(Long requestId, Long userId) {
         ServiceRequest request = loadRequest(requestId);
         requireParticipant(request, userId);
+        RequestStatus previous = request.getStatus();
         request.cancel(userId);
         rescheduleProposalService.cancelPendingProposals(requestId);
         serviceRequestPersistencePort.update(request);
+        publishStatusChanged(request, previous);
         // TODO(notif): notificar a la contraparte de la cancelación.
     }
 
@@ -123,6 +152,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         ServiceRequest request = loadRequest(requestId);
         requireOwnership(request.getClientId(), clientId);
 
+        RequestStatus previous = request.getStatus();
         request.markRescheduled(clientId);
         ServiceRequest replacement = request.rescheduleTo(newDate, RequestStatus.PENDING, clientId);
         // Reprogramación libre: supera cualquier propuesta PENDING del oferente sobre esta solicitud.
@@ -130,6 +160,8 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
         serviceRequestPersistencePort.update(request);
         ServiceRequest saved = serviceRequestPersistencePort.save(replacement);
+        // Solo la solicitud original cambia de estado (RESCHEDULED); el reemplazo nace PENDING (sin contador).
+        publishStatusChanged(request, previous);
         // TODO(notif): notificar al oferente que el cliente reprogramó a una nueva fecha.
         return saved;
     }
@@ -141,6 +173,20 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     private ServiceRequest loadRequest(Long requestId) {
         return serviceRequestPersistencePort.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada: " + requestId));
+    }
+
+    /**
+     * Publica el cambio de estado para que las métricas de oferente/cliente se actualicen por evento
+     * (AFTER_COMMIT). El evento es autocontenido: lleva los ids desnormalizados y el estado nuevo.
+     */
+    private void publishStatusChanged(ServiceRequest request, RequestStatus previous) {
+        eventPublisher.publish(new RequestStatusChangedEvent(
+                request.getId(),
+                request.getClientId(),
+                request.getOffererId(),
+                request.getServiceId(),
+                previous,
+                request.getStatus()));
     }
 
     private void requireOwnership(Long ownerId, Long actorId) {

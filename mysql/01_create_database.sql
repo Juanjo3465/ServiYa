@@ -540,6 +540,9 @@ CREATE TABLE service_metrics (
 
     total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes lógicas dirigidas al servicio. Alimentada por RequestCreatedEvent.
+    total_requests_received INT UNSIGNED NOT NULL DEFAULT 0,
+
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
@@ -590,13 +593,17 @@ CREATE TABLE offerer_metrics (
 
     total_negative_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes que el oferente ha recibido (creación original de solicitud, no reprogramaciones).
+    total_requests_received INT UNSIGNED NOT NULL DEFAULT 0,
+
     total_accepted_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_completed_services INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_cancelled_services INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_rescheduled_services INT UNSIGNED NOT NULL DEFAULT 0,
+    -- ENVIAR propuestas de reprogramación. Se cuenta una por cada propuesta creada.
+    total_reschedule_proposals_sent INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_not_provided_services INT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -624,13 +631,17 @@ CREATE TABLE client_metrics (
 
     total_negative_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes que el cliente ha enviado (creación original de solicitud, no reprogramaciones).
+    total_requests_sent INT UNSIGNED NOT NULL DEFAULT 0,
+
     total_accepted_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_completed_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_cancelled_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_scheduled_requests INT UNSIGNED NOT NULL DEFAULT 0,
+    -- El cliente es quien reprograma (flujo libre o al aceptar una propuesta): cuenta reprogramadas.
+    total_rescheduled_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_not_provided_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
