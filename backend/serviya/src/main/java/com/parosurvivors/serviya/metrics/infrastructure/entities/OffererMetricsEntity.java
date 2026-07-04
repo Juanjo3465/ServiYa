@@ -34,6 +34,9 @@ public class OffererMetricsEntity {
     @Column(name = "total_negative_tags", nullable = false)
     private Integer totalNegativeTags;
 
+    @Column(name = "total_requests_received", nullable = false)
+    private Integer totalRequestsReceived;
+
     @Column(name = "total_accepted_requests", nullable = false)
     private Integer totalAcceptedRequests;
 
@@ -43,8 +46,8 @@ public class OffererMetricsEntity {
     @Column(name = "total_cancelled_services", nullable = false)
     private Integer totalCancelledServices;
 
-    @Column(name = "total_rescheduled_services", nullable = false)
-    private Integer totalRescheduledServices;
+    @Column(name = "total_reschedule_proposals_sent", nullable = false)
+    private Integer totalRescheduleProposalsSent;
 
     @Column(name = "total_not_provided_services", nullable = false)
     private Integer totalNotProvidedServices;

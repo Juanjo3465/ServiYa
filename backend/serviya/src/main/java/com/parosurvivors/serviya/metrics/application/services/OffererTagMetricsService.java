@@ -6,11 +6,11 @@ import com.parosurvivors.serviya.metrics.domain.OffererTagMetrics;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementacion placeholder de OffererTagMetricsServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
+ * Conteo de tags recibidas por el oferente (agregado de todas las reseñas de sus servicios).
+ * UPSERT por tag disparado por los eventos de feedback de servicio.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,6 +20,40 @@ public class OffererTagMetricsService implements OffererTagMetricsServicePort {
 
     @Override
     public List<OffererTagMetrics> getTagMetrics(Long offererId) {
-        throw new UnsupportedOperationException("TODO: getTagMetrics — placeholder, ver estructura-servicios.docx");
+        return offererTagMetricsPersistencePort.findByOffererId(offererId);
+    }
+
+    @Override
+    @Transactional
+    public void incrementTags(Long offererId, List<Long> tagIds) {
+        if (tagIds == null) {
+            return;
+        }
+        for (Long tagId : tagIds) {
+            offererTagMetricsPersistencePort.findByOffererIdAndTagId(offererId, tagId).ifPresentOrElse(
+                    existing -> {
+                        existing.increment();
+                        offererTagMetricsPersistencePort.update(existing);
+                    },
+                    () -> offererTagMetricsPersistencePort.save(OffererTagMetrics.builder()
+                            .offererId(offererId)
+                            .tagId(tagId)
+                            .tagCount(1)
+                            .build()));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void decrementTags(Long offererId, List<Long> tagIds) {
+        if (tagIds == null) {
+            return;
+        }
+        for (Long tagId : tagIds) {
+            offererTagMetricsPersistencePort.findByOffererIdAndTagId(offererId, tagId).ifPresent(existing -> {
+                existing.decrement();
+                offererTagMetricsPersistencePort.update(existing);
+            });
+        }
     }
 }

@@ -32,14 +32,18 @@ public class OffererMetrics {
     private Integer totalPositiveTags = 0;
     @Builder.Default
     private Integer totalNegativeTags = 0;
+    /** Solicitudes que el oferente ha recibido (creación original, no reprogramaciones). */
+    @Builder.Default
+    private Integer totalRequestsReceived = 0;
     @Builder.Default
     private Integer totalAcceptedRequests = 0;
     @Builder.Default
     private Integer totalCompletedServices = 0;
     @Builder.Default
     private Integer totalCancelledServices = 0;
+    /** Propuestas de reprogramación que el oferente ha enviado (el oferente no reprograma; propone). */
     @Builder.Default
-    private Integer totalRescheduledServices = 0;
+    private Integer totalRescheduleProposalsSent = 0;
     @Builder.Default
     private Integer totalNotProvidedServices = 0;
     private LocalDateTime updatedAt;
@@ -89,6 +93,18 @@ public class OffererMetrics {
         touch();
     }
 
+    /** Reverso de {@link #addPositiveTags(int)} (al borrarse una reseña), sin bajar de 0. */
+    public void removePositiveTags(int count) {
+        totalPositiveTags = Math.max(0, totalPositiveTags - count);
+        touch();
+    }
+
+    /** Reverso de {@link #addNegativeTags(int)} (al borrarse una reseña), sin bajar de 0. */
+    public void removeNegativeTags(int count) {
+        totalNegativeTags = Math.max(0, totalNegativeTags - count);
+        touch();
+    }
+
     public void incrementAccepted() {
         totalAcceptedRequests++;
         touch();
@@ -104,8 +120,13 @@ public class OffererMetrics {
         touch();
     }
 
-    public void incrementRescheduled() {
-        totalRescheduledServices++;
+    public void incrementRequestsReceived() {
+        totalRequestsReceived++;
+        touch();
+    }
+
+    public void incrementRescheduleProposalsSent() {
+        totalRescheduleProposalsSent++;
         touch();
     }
 

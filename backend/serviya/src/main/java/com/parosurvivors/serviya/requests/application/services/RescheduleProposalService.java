@@ -14,6 +14,9 @@ import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
+import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
+import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
+import com.parosurvivors.serviya.shared.events.domain.RescheduleProposalCreatedEvent;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
@@ -41,6 +44,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
     private final RescheduleProposalCommandMapper commandMapper;
     private final NotificationServicePort notificationServicePort;
+    private final DomainEventPublisherPort eventPublisher;
 
     @Override
     @Transactional
@@ -62,6 +66,9 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         proposal.setClientId(request.getClientId());
         proposal.setOffererId(request.getOffererId());
         RescheduleProposal saved = rescheduleProposalPersistencePort.save(proposal);
+        // La participación del oferente en el flujo de reprogramación es proponer: cuenta la propuesta.
+        eventPublisher.publish(new RescheduleProposalCreatedEvent(
+                saved.getId(), request.getId(), request.getOffererId(), request.getClientId()));
         // TODO(notif): notificar al cliente que el oferente propuso una nueva fecha.
         return saved;
     }
@@ -73,6 +80,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         ServiceRequest request = loadRequest(proposal.getRequestId());
         requireOwnership(request.getClientId(), clientId);
 
+        RequestStatus previous = request.getStatus();
         proposal.accept();
         request.markRescheduled(clientId);
         ServiceRequest replacement = request.rescheduleTo(
@@ -81,6 +89,11 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         rescheduleProposalPersistencePort.update(proposal);
         serviceRequestPersistencePort.update(request);
         ServiceRequest saved = serviceRequestPersistencePort.save(replacement);
+        // El cliente reprograma al aceptar la propuesta: la solicitud original pasa a RESCHEDULED
+        // (lo cuenta el cliente) y el reemplazo nace ACCEPTED (lo cuentan ambos, por simetría con el
+        // flujo libre donde el reemplazo PENDING se acepta después).
+        publishStatusChanged(request, previous);
+        publishStatusChanged(saved, null);
         // TODO(notif): notificar al oferente que el cliente aceptó la propuesta.
         return saved;
     }
@@ -176,5 +189,16 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         if (ownerId == null || !ownerId.equals(actorId)) {
             throw new UnauthorizedException("El usuario no es el propietario del recurso");
         }
+    }
+
+    /** Publica el cambio de estado de una solicitud para que las métricas se actualicen por evento. */
+    private void publishStatusChanged(ServiceRequest request, RequestStatus previous) {
+        eventPublisher.publish(new RequestStatusChangedEvent(
+                request.getId(),
+                request.getClientId(),
+                request.getOffererId(),
+                request.getServiceId(),
+                previous,
+                request.getStatus()));
     }
 }
