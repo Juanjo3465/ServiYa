@@ -30,5 +30,5 @@ public interface ServiceRequestCommandServicePort {
 
     void cancelRequest(Long requestId, Long userId);
 
-    ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate);
+    ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId);
 }
