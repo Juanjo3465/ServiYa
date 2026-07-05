@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.metrics.application.ports.output.ServiceMetrics
 import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -26,7 +27,7 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyFeedbackSubmitted(Long serviceId, Integer rating, boolean hasComment) {
         ServiceMetrics metrics = findOrCreate(serviceId);
         if (rating != null) {
@@ -39,7 +40,7 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyFeedbackReverted(Long serviceId, Integer rating, boolean hasComment) {
         serviceMetricsPersistencePort.findByServiceId(serviceId).ifPresent(metrics -> {
             if (rating != null) {
@@ -53,7 +54,7 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void incrementRequestsReceived(Long serviceId) {
         ServiceMetrics metrics = findOrCreate(serviceId);
         metrics.incrementRequestsReceived();

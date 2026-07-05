@@ -7,6 +7,7 @@ import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -35,7 +36,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyServiceFeedbackSubmitted(Long offererId, Integer rating, boolean hasComment,
             int positiveTags, int negativeTags) {
         OffererMetrics metrics = findOrCreate(offererId);
@@ -55,7 +56,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyServiceFeedbackReverted(Long offererId, Integer rating, boolean hasComment,
             int positiveTags, int negativeTags) {
         offererMetricsPersistencePort.findByOffererId(offererId).ifPresent(metrics -> {
@@ -76,7 +77,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyRequestStatusChanged(Long offererId, RequestStatus newStatus) {
         OffererMetrics metrics = findOrCreate(offererId);
         switch (newStatus) {
@@ -93,7 +94,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void incrementRequestsReceived(Long offererId) {
         OffererMetrics metrics = findOrCreate(offererId);
         metrics.incrementRequestsReceived();
@@ -101,7 +102,7 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void incrementRescheduleProposalsSent(Long offererId) {
         OffererMetrics metrics = findOrCreate(offererId);
         metrics.incrementRescheduleProposalsSent();

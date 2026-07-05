@@ -49,6 +49,9 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         serviceRequest.setOffererId(service.getOffererId());
         serviceRequest.setStatus(RequestStatus.PENDING);
         serviceRequest.setRequestedPrice(service.getPriceHourly());
+        LocalDateTime now = LocalDateTime.now();
+        serviceRequest.setCreatedAt(now);
+        serviceRequest.setUpdatedStatusAt(now);
         ServiceRequest saved = serviceRequestPersistencePort.save(serviceRequest);
         // Solicitud original: alimenta requests_sent (cliente) y requests_received (oferente).
         eventPublisher.publish(new RequestCreatedEvent(

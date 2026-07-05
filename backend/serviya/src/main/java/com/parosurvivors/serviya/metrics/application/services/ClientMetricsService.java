@@ -7,6 +7,7 @@ import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -35,7 +36,7 @@ public class ClientMetricsService implements ClientMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyClientFeedbackSubmitted(Long clientId, Integer rating, boolean hasComment,
             int positiveTags, int negativeTags) {
         ClientMetrics metrics = findOrCreate(clientId);
@@ -55,7 +56,7 @@ public class ClientMetricsService implements ClientMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyClientFeedbackReverted(Long clientId, Integer rating, boolean hasComment,
             int positiveTags, int negativeTags) {
         clientMetricsPersistencePort.findByClientId(clientId).ifPresent(metrics -> {
@@ -76,7 +77,7 @@ public class ClientMetricsService implements ClientMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyRequestStatusChanged(Long clientId, RequestStatus newStatus) {
         ClientMetrics metrics = findOrCreate(clientId);
         switch (newStatus) {
@@ -94,7 +95,7 @@ public class ClientMetricsService implements ClientMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void incrementRequestsSent(Long clientId) {
         ClientMetrics metrics = findOrCreate(clientId);
         metrics.incrementRequestsSent();

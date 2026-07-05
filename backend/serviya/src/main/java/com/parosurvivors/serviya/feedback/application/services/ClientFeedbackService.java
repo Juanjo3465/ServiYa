@@ -19,6 +19,7 @@ import com.parosurvivors.serviya.shared.events.domain.TagRef;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +66,7 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
         }
 
         ClientFeedback feedback = commandMapper.toFeedback(command);
+        feedback.setCreatedAt(LocalDateTime.now());
         ClientFeedback saved = clientFeedbackPersistencePort.save(feedback);
 
         List<Long> tagIds = command.tagIds() == null ? List.of() : command.tagIds();

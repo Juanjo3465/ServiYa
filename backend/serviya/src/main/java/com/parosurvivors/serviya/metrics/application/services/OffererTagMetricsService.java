@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.metrics.domain.OffererTagMetrics;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -24,7 +25,7 @@ public class OffererTagMetricsService implements OffererTagMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void incrementTags(Long offererId, List<Long> tagIds) {
         if (tagIds == null) {
             return;
@@ -44,7 +45,7 @@ public class OffererTagMetricsService implements OffererTagMetricsServicePort {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void decrementTags(Long offererId, List<Long> tagIds) {
         if (tagIds == null) {
             return;
