@@ -1,5 +1,7 @@
 package com.parosurvivors.serviya.services.domain;
 
+import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
 import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
 
@@ -23,5 +25,6 @@ public class ServiceDetail {
     private OffererProfileSummary offererSummary;
     private List<FeedbackUser> feedbackUsers;
     private List<ServiceAvailability> availability;
-    //private Integer totalCompletedServices;
+    private ServiceMetrics serviceMetrics;
+    private OffererMetrics offererMetrics;
 }

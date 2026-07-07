@@ -55,21 +55,14 @@ export const ServiceCard = ({
                 </div>
                 <div className="s-row">
                     <span className="stars">
-                        {
-                            '★'.repeat(Math.floor(rating))
-                        }
-                        {
-                            rating % 1 !== 0
-                                ? '½'
-                                : ''
-                        }
+                        {'★'.repeat(Math.min(Math.round(rating), 5))}
                         <span
                             style={{
                                 color: 'var(--c-soft)',
                                 fontSize: '11px',
                                 marginLeft: '4px',
                             }}>
-                            {rating}
+                            {rating.toFixed(1)}
                         </span>
                     </span>
                     <span className="s-price">

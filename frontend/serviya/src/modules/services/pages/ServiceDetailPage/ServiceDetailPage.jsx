@@ -123,7 +123,8 @@ export function ServiceDetailPage() {
     }
 
     // Datos del servicio
-    const rating = service.averageRating !== null && service.averageRating !== undefined ? service.averageRating : 4.5;
+    const rating = service.serviceAverageRating !== null && service.serviceAverageRating !== undefined ? service.serviceAverageRating : 0.0;
+    const offererRating = service.offererAverageRating != null ? service.offererAverageRating : 0.0;
     const feedbacksCount = service.feedbacks ? service.feedbacks.length : 0;
     const initials = service.fullName ? service.fullName.substring(0, 2).toUpperCase() : "OF";
 
@@ -172,9 +173,9 @@ export function ServiceDetailPage() {
                                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)' }}>{service.fullName || "Oferente"}</div>
                                 <div style={{ fontSize: '12px', color: 'var(--c-mid)', margin: '2px 0' }}>{service.specialty || "Especialista en ServiYa"}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Stars rating={rating} size={11} />
+                                    <Stars rating={offererRating} size={11} />
                                     <span style={{ fontSize: '12px', color: 'var(--c-soft)' }}>
-                                        {rating.toFixed(1)} · {feedbacksCount} servicios
+                                        {offererRating.toFixed(1)} · {feedbacksCount} servicios
                                     </span>
                                     <span className="badge badge-success" style={{ fontSize: '10px' }}>Verificado</span>
                                 </div>
@@ -240,7 +241,7 @@ export function ServiceDetailPage() {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '7px' }}>
                                             <div className="av av-sm">{fbInitials}</div>
                                             <strong style={{ fontSize: '13px' }}>{r.userName || "Usuario"}</strong>
-                                            <Stars rating={5} size={11} />
+                                            <Stars rating={r.rating ?? 0} size={11} />
                                             <span style={{ fontSize: '11px', color: 'var(--c-soft)', marginLeft: 'auto' }}>
                                                 {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Hace poco'}
                                             </span>
@@ -313,10 +314,22 @@ export function ServiceDetailPage() {
                         </div>
 
                         <div className="metrics-mini">
-                            <div className="mm"><div className="mm-val">100%</div><div className="mm-lbl">Cumplimiento</div></div>
-                            <div className="mm"><div className="mm-val">0%</div><div className="mm-lbl">Cancelaciones</div></div>
-                            <div className="mm"><div className="mm-val">{feedbacksCount}</div><div className="mm-lbl">Servicios</div></div>
-                            <div className="mm"><div className="mm-val">{rating.toFixed(1)}★</div><div className="mm-lbl">Calificación</div></div>
+                            <div className="mm">
+                                <div className="mm-val">{service.totalCompletedServices != null ? `${Math.round(service.totalCompletedServices / Math.max(service.totalCompletedServices + (service.totalCancelledServices ?? 0), 1) * 100)}%` : 'N/A'}</div>
+                                <div className="mm-lbl">Cumplimiento</div>
+                            </div>
+                            <div className="mm">
+                                <div className="mm-val">{service.totalCancelledServices != null ? `${Math.round((service.totalCancelledServices ?? 0) / Math.max(service.totalCompletedServices + (service.totalCancelledServices ?? 0), 1) * 100)}%` : 'N/A'}</div>
+                                <div className="mm-lbl">Cancelaciones</div>
+                            </div>
+                            <div className="mm">
+                                <div className="mm-val">{service.totalCompletedServices ?? feedbacksCount}</div>
+                                <div className="mm-lbl">Servicios</div>
+                            </div>
+                            <div className="mm">
+                                <div className="mm-val">{service.serviceAverageRating != null ? `${service.serviceAverageRating.toFixed(1)}★` : `${rating.toFixed(1)}★`}</div>
+                                <div className="mm-lbl">Calificación</div>
+                            </div>
                         </div>
 
                         <button

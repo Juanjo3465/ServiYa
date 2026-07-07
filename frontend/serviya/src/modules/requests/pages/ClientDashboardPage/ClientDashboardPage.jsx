@@ -1,16 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
+import { metricsApi } from '../../../../shared/api';
 
 import './ClientDashboardPage.css';
-
-const STATS = [
-    { icon: 'tasks', value: '3', label: 'Solicitudes activas' },
-    { icon: 'checkCircle', value: '18', label: 'Servicios completados', variant: 'success' },
-    { icon: 'star', value: '4.8★', label: 'Mi calificación', variant: 'warn', fill: 'currentColor' },
-    { icon: 'xCircle', value: '5%', label: 'Tasa cancelaciones', variant: 'danger' },
-];
 
 const REQUESTS = [
     { id: 1, name: 'Reparación de tuberías', icon: 'wrench', meta: 'Carlos M. · Lun 12 mayo, 9:00 AM · Calle 45 #12-34', status: 'Pendiente', dot: 'sdot-pending', badge: 'badge-warn', isNew: true, canConfirm: false },
@@ -35,13 +29,34 @@ export function ClientDashboardPage() {
     const { toasts, showToast } = useToast();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
+    const [clientMetrics, setClientMetrics] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        metricsApi.getMyMetrics()
+            .then(data => setClientMetrics(data.clientMetrics))
+            .catch(() => showToast('Error al cargar métricas', 'danger'))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const stats = clientMetrics ? [
+        { icon: 'tasks', value: String(clientMetrics.totalAcceptedRequests ?? 0), label: 'Solicitudes activas' },
+        { icon: 'checkCircle', value: String(clientMetrics.totalCompletedRequests ?? 0), label: 'Servicios completados', variant: 'success' },
+        { icon: 'star', value: (clientMetrics.averageRating ?? 0).toFixed(1) + '★', label: 'Mi calificación', variant: 'warn', fill: 'currentColor' },
+        {
+            icon: 'xCircle',
+            value: (clientMetrics.totalRequestsSent > 0 ? (clientMetrics.totalCancelledRequests / clientMetrics.totalRequestsSent * 100) : 0).toFixed(0) + '%',
+            label: 'Tasa cancelaciones',
+            variant: 'danger',
+        },
+    ] : [];
 
     return (
         <DashboardLayout sections={CLIENT_NAV} avatar="JP">
             <div className="ph"><h1>¡Hola, Juan Pablo!</h1><p>Aquí tienes un resumen de tu actividad en ServiYa</p></div>
 
             <div className="g4" style={{ marginBottom: '22px' }}>
-                {STATS.map((s) => <StatCard key={s.label} {...s} />)}
+                {loading ? <div className="loading-pulse" style={{ height: 80 }} /> : stats.map((s) => <StatCard key={s.label} {...s} />)}
             </div>
 
             <div className="card resched-banner">

@@ -8,6 +8,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 /**
  * Métricas precalculadas de un servicio. La consulta es pública (RF-040); la escritura la disparan
  * los eventos de feedback (via {@code ServiceMetricsEventListener}). Cada apply* corre en su propia
@@ -24,6 +30,13 @@ public class ServiceMetricsService implements ServiceMetricsServicePort {
     public ServiceMetrics getMetrics(Long serviceId) {
         return serviceMetricsPersistencePort.findByServiceId(serviceId)
                 .orElse(ServiceMetrics.builder().serviceId(serviceId).build());
+    }
+
+    @Override
+    public Map<Long, ServiceMetrics> getMetricsByServiceIds(Collection<Long> serviceIds) {
+        List<ServiceMetrics> metricsList = serviceMetricsPersistencePort.findByServiceIdIn(serviceIds);
+        return metricsList.stream()
+                .collect(Collectors.toMap(ServiceMetrics::getServiceId, Function.identity()));
     }
 
     @Override
