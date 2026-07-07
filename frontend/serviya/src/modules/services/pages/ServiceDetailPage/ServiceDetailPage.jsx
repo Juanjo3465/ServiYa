@@ -123,7 +123,7 @@ export function ServiceDetailPage() {
     }
 
     // Datos del servicio
-    const rating = service.averageRating !== null && service.averageRating !== undefined ? service.averageRating : 4.5;
+    const rating = service.serviceAverageRating !== null && service.serviceAverageRating !== undefined ? service.serviceAverageRating : 4.5;
     const feedbacksCount = service.feedbacks ? service.feedbacks.length : 0;
     const initials = service.fullName ? service.fullName.substring(0, 2).toUpperCase() : "OF";
 
@@ -326,7 +326,7 @@ export function ServiceDetailPage() {
                                 <div className="mm-lbl">Servicios</div>
                             </div>
                             <div className="mm">
-                                <div className="mm-val">{service.serviceAverageRating ? `${service.serviceAverageRating.toFixed(1)}★` : `${rating.toFixed(1)}★`}</div>
+                                <div className="mm-val">{service.serviceAverageRating != null ? `${service.serviceAverageRating.toFixed(1)}★` : `${rating.toFixed(1)}★`}</div>
                                 <div className="mm-lbl">Calificación</div>
                             </div>
                         </div>
