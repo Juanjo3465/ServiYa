@@ -436,7 +436,7 @@ export function SearchPage() {
                                                 <span style={{ color: 'var(--c-primary)', fontWeight: 600 }}>{serviceCatName}</span>
                                             </div>
                                             <div style={{ fontSize: '11px', marginBottom: '8px' }}>
-                                                <Stars rating={4.5} showValue count={10} size={11} />
+                                                <Stars rating={s.averageRating ?? 0} showValue count={s.totalRatings ?? 0} size={11} />
                                             </div>
                                             <div className="r-card-ft">
                                                 <span className="r-price">desde ${s.priceHourly ? s.priceHourly.toLocaleString() : '0'}</span>

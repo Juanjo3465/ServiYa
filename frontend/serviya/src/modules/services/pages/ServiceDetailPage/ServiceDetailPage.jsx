@@ -240,7 +240,7 @@ export function ServiceDetailPage() {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '7px' }}>
                                             <div className="av av-sm">{fbInitials}</div>
                                             <strong style={{ fontSize: '13px' }}>{r.userName || "Usuario"}</strong>
-                                            <Stars rating={5} size={11} />
+                                            <Stars rating={r.rating ?? 0} size={11} />
                                             <span style={{ fontSize: '11px', color: 'var(--c-soft)', marginLeft: 'auto' }}>
                                                 {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Hace poco'}
                                             </span>
@@ -313,10 +313,22 @@ export function ServiceDetailPage() {
                         </div>
 
                         <div className="metrics-mini">
-                            <div className="mm"><div className="mm-val">100%</div><div className="mm-lbl">Cumplimiento</div></div>
-                            <div className="mm"><div className="mm-val">0%</div><div className="mm-lbl">Cancelaciones</div></div>
-                            <div className="mm"><div className="mm-val">{feedbacksCount}</div><div className="mm-lbl">Servicios</div></div>
-                            <div className="mm"><div className="mm-val">{rating.toFixed(1)}★</div><div className="mm-lbl">Calificación</div></div>
+                            <div className="mm">
+                                <div className="mm-val">{service.totalCompletedServices != null ? `${Math.round(service.totalCompletedServices / Math.max(service.totalCompletedServices + (service.totalCancelledServices ?? 0), 1) * 100)}%` : 'N/A'}</div>
+                                <div className="mm-lbl">Cumplimiento</div>
+                            </div>
+                            <div className="mm">
+                                <div className="mm-val">{service.totalCancelledServices != null ? `${Math.round((service.totalCancelledServices ?? 0) / Math.max(service.totalCompletedServices + (service.totalCancelledServices ?? 0), 1) * 100)}%` : 'N/A'}</div>
+                                <div className="mm-lbl">Cancelaciones</div>
+                            </div>
+                            <div className="mm">
+                                <div className="mm-val">{service.totalCompletedServices ?? feedbacksCount}</div>
+                                <div className="mm-lbl">Servicios</div>
+                            </div>
+                            <div className="mm">
+                                <div className="mm-val">{service.serviceAverageRating ? `${service.serviceAverageRating.toFixed(1)}★` : `${rating.toFixed(1)}★`}</div>
+                                <div className="mm-lbl">Calificación</div>
+                            </div>
                         </div>
 
                         <button

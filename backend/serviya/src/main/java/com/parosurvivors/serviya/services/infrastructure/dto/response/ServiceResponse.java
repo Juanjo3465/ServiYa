@@ -24,5 +24,8 @@ public record ServiceResponse(
         BigDecimal operationRadiusKm,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime deletedAt) {
+        LocalDateTime deletedAt,
+        BigDecimal averageRating,
+        Integer totalRatings,
+        Integer totalComments) {
 }

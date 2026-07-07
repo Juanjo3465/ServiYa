@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
 
+import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
@@ -9,6 +10,7 @@ import com.parosurvivors.serviya.services.infrastructure.dto.form.UpdateServiceF
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceDetailResponse;
 import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceResponse;
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
+import com.parosurvivors.serviya.services.domain.Service;
 
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -110,8 +113,11 @@ public class ServiceController implements ServiceApi {
                 .longitude(longitude)
                 .maxDistanceKm(maxDistanceKm)
                 .build();
-        Page<ServiceResponse> page = marketplaceService.search(criteria, pageable)
-                .map(mapper::toResponse);
+        Page<Service> servicePage = marketplaceService.search(criteria, pageable);
+        Map<Long, ServiceMetrics> metricsMap = marketplaceService.getMetricsForServices(
+                servicePage.getContent().stream().map(Service::getId).collect(Collectors.toList()));
+        Page<ServiceResponse> page = servicePage.map(service ->
+                mapper.toResponse(service, metricsMap.get(service.getId())));
         return ResponseEntity.ok(page);
     }
 

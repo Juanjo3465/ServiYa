@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.services.application.ports.input;
 
+import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -26,6 +28,7 @@ public interface MarketplaceServicePort {
     Optional<ServiceDetail> getDetailById(Long id);
     Service update(UpdateServiceCommand command);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);
+    Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds);
     void delete(Long id);
     void softDelete(Long id);
     void activate(Long id);

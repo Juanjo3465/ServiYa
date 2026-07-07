@@ -11,8 +11,9 @@
 --     cli 13->addr 4, cli 5->addr 5.
 --   * status en mayúscula (ENUM real de service_requests).
 --
--- ids de solicitud resultantes (AUTO_INCREMENT, 1..8); la fila 6 referencia
+-- ids de solicitud resultantes (AUTO_INCREMENT, 1..11); la fila 6 referencia
 -- previous_request_id=5 (reprogramación), que ya existe al insertarse en orden.
+-- Las filas 9-11 son COMPLETED adicionales para poblar feedback y métricas.
 
 INSERT INTO service_requests (
     service_id,
@@ -50,4 +51,13 @@ INSERT INTO service_requests (
 (3, NULL, 2,  1, 6, '2026-06-10 09:00:00', 'COMPLETED',    1,    130.00, '2026-06-05 13:00:00', '2026-06-10 11:00:00', '2026-06-10 11:00:00'),
 
 -- 8. Cliente 11: servicio completado (habilita feedback en 09)
-(1, NULL, 11, 1, 2, '2026-06-12 08:00:00', 'COMPLETED',    1,    160.00, '2026-06-06 12:00:00', '2026-06-12 10:30:00', '2026-06-12 10:30:00');
+(1, NULL, 11, 1, 2, '2026-06-12 08:00:00', 'COMPLETED',    1,    160.00, '2026-06-06 12:00:00', '2026-06-12 10:30:00', '2026-06-12 10:30:00'),
+
+-- 9. Cliente 2: jardinería completada
+(2, NULL, 2,  1, 1, '2026-06-15 14:00:00', 'COMPLETED',    1,    90.00,  '2026-06-10 10:00:00', '2026-06-15 16:30:00', '2026-06-15 16:30:00'),
+
+-- 10. Cliente 12: reparación celulares completada
+(4, NULL, 12, 1, 3, '2026-06-18 11:00:00', 'COMPLETED',    1,    140.00, '2026-06-14 09:00:00', '2026-06-18 12:15:00', '2026-06-18 12:15:00'),
+
+-- 11. Cliente 5: plomería completada
+(1, NULL, 5,  1, 5, '2026-06-20 09:00:00', 'COMPLETED',    1,    110.00, '2026-06-16 15:00:00', '2026-06-20 10:30:00', '2026-06-20 10:30:00');

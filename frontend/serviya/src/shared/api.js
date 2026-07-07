@@ -114,6 +114,10 @@ export const categoryApi = {
     getCategories: () => request('/api/v1/categories', { auth: true }),
 }
 
+export const metricsApi = {
+    getMyMetrics: () => request('/api/v1/users/me/metrics', { auth: true }),
+};
+
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {
     if (roles.includes('ADMIN')) return '/admin/dashboard';
