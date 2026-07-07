@@ -59,6 +59,7 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
             request.reject(SYSTEM_ACTOR);
             serviceRequestPersistencePort.update(request);
             publishStatusChanged(request, previous);
+            // TODO(notif): notificar al cliente que su solicitud pendiente venció y fue rechazada (RF-085).
         }
     }
 
@@ -72,6 +73,7 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
         List<ServiceRequest> stale = serviceRequestReadPort
                 .findByStatusAndScheduledDateBefore(RequestStatus.ACCEPTED, cutoff);
         for (ServiceRequest request : stale) {
+            // La notificación a ambas partes la marca la propia markAsNotProvided (TODO(notif) allí).
             serviceRequestCommandService.markAsNotProvided(request.getId(), SYSTEM_ACTOR);
         }
     }
@@ -85,6 +87,7 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
         for (RescheduleProposal proposal : expired) {
             proposal.reject();
             rescheduleProposalPersistencePort.update(proposal);
+            // TODO(notif): notificar al oferente que su propuesta de reprogramación venció y fue rechazada.
         }
     }
 
@@ -100,6 +103,7 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
             request.confirmCompletion(SYSTEM_ACTOR);
             serviceRequestPersistencePort.update(request);
             publishStatusChanged(request, previous);
+            // TODO(notif): notificar a ambas partes que el servicio se dio por completado automáticamente.
         }
     }
 
