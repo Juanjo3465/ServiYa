@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.requests.infrastructure.adapters.input;
 
+import com.parosurvivors.serviya.requests.application.dto.query.SearchServiceRequestsQuery;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.requests.infrastructure.adapters.input.api.ServiceRequestApi;
@@ -8,6 +9,7 @@ import com.parosurvivors.serviya.requests.infrastructure.dto.form.RescheduleRequ
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.RequestHistoryResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestDetailResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestSummaryResponse;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -39,18 +42,38 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @GetMapping("/api/v1/users/me/client-requests")
-    public ResponseEntity<Page<ServiceRequestResponse>> getClientRequests(
-            @RequestParam(required = false) List<String> statuses, Pageable pageable) {
-        return ResponseEntity.ok(queryService.getClientRequests(CurrentUser.id(), statuses, pageable)
-                .map(mapper::toResponse));
+    public ResponseEntity<Page<ServiceRequestSummaryResponse>> getClientRequests(
+            @RequestParam(required = false) List<String> statuses,
+            @RequestParam(required = false) Long serviceId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long counterpartyId,
+            @RequestParam(required = false) String titleQuery,
+            @RequestParam(required = false) LocalDateTime scheduledFrom,
+            @RequestParam(required = false) LocalDateTime scheduledTo,
+            @RequestParam(required = false) LocalDateTime createdFrom,
+            @RequestParam(required = false) LocalDateTime createdTo,
+            Pageable pageable) {
+        SearchServiceRequestsQuery query = mapper.toQuery(CurrentUser.id(), statuses, serviceId, categoryId,
+                counterpartyId, titleQuery, scheduledFrom, scheduledTo, createdFrom, createdTo);
+        return ResponseEntity.ok(queryService.getClientRequests(query, pageable).map(mapper::toResponse));
     }
 
     @Override
     @GetMapping("/api/v1/users/me/offerer-requests")
-    public ResponseEntity<Page<ServiceRequestResponse>> getOffererRequests(
-            @RequestParam(required = false) List<String> statuses, Pageable pageable) {
-        return ResponseEntity.ok(queryService.getOffererRequests(CurrentUser.id(), statuses, pageable)
-                .map(mapper::toResponse));
+    public ResponseEntity<Page<ServiceRequestSummaryResponse>> getOffererRequests(
+            @RequestParam(required = false) List<String> statuses,
+            @RequestParam(required = false) Long serviceId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long counterpartyId,
+            @RequestParam(required = false) String titleQuery,
+            @RequestParam(required = false) LocalDateTime scheduledFrom,
+            @RequestParam(required = false) LocalDateTime scheduledTo,
+            @RequestParam(required = false) LocalDateTime createdFrom,
+            @RequestParam(required = false) LocalDateTime createdTo,
+            Pageable pageable) {
+        SearchServiceRequestsQuery query = mapper.toQuery(CurrentUser.id(), statuses, serviceId, categoryId,
+                counterpartyId, titleQuery, scheduledFrom, scheduledTo, createdFrom, createdTo);
+        return ResponseEntity.ok(queryService.getOffererRequests(query, pageable).map(mapper::toResponse));
     }
 
     @Override
@@ -62,7 +85,8 @@ public class ServiceRequestController implements ServiceRequestApi {
     @Override
     @GetMapping("/api/v1/service-requests/{id}/history")
     public ResponseEntity<List<RequestHistoryResponse>> getRequestHistory(@PathVariable Long id) {
-        return ResponseEntity.ok(mapper.toHistoryResponses(queryService.getRequestHistory(id)));
+        return ResponseEntity.ok(mapper.toHistoryResponses(
+                queryService.getRequestHistory(id, CurrentUser.id(), CurrentUser.isAdmin())));
     }
 
     @Override
@@ -105,13 +129,6 @@ public class ServiceRequestController implements ServiceRequestApi {
     @PostMapping("/api/v1/service-requests/{id}/confirm-completion")
     public ResponseEntity<Void> confirmCompletion(@PathVariable Long id) {
         commandService.confirmCompletion(id, CurrentUser.id());
-        return ResponseEntity.noContent().build();
-    }
-
-    @Override
-    @PostMapping("/api/v1/service-requests/{id}/mark-not-provided")
-    public ResponseEntity<Void> markNotProvided(@PathVariable Long id) {
-        commandService.markAsNotProvided(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 

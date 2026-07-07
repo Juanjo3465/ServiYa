@@ -7,22 +7,38 @@ import java.time.LocalDateTime;
 
 /**
  * Salida de aplicacion (Result) del detalle de una solicitud para el admin (CQRS-light).
- * Como ServiceRequestDetailResult pero con campos de auditoria/moderacion adicionales.
- * Lo devuelve ServiceRequestQueryService.getRequestDetailForAdmin.
- * TODO: completar campos de auditoria.
+ * Como {@link ServiceRequestDetailResult} pero con campos de auditoria/moderacion adicionales
+ * ({@code updatedBy}). Lo compone ServiceRequestQueryService.getRequestDetailForAdmin.
  */
 public record AdminRequestDetailResult(
+        // Solicitud
         Long id,
-        Long serviceId,
-        Long previousRequestId,
-        Long clientId,
-        Long offererId,
-        Long addressId,
-        LocalDateTime scheduledDate,
         RequestStatus status,
-        Long updatedBy,
+        LocalDateTime scheduledDate,
         BigDecimal requestedPrice,
         LocalDateTime createdAt,
         LocalDateTime completedAt,
-        LocalDateTime updatedStatusAt) {
+        LocalDateTime updatedStatusAt,
+        Long updatedBy,
+        Long previousRequestId,
+        // Servicio
+        Long serviceId,
+        String serviceTitle,
+        String categoryName,
+        BigDecimal priceHourly,
+        Integer averageDurationMinutes,
+        // Cliente
+        Long clientId,
+        String clientName,
+        String clientPhotoUrl,
+        // Oferente
+        Long offererId,
+        String offererName,
+        String offererPhotoUrl,
+        // Ubicacion (direccion descifrada)
+        Long addressId,
+        String addressLine,
+        String city,
+        BigDecimal latitude,
+        BigDecimal longitude) {
 }

@@ -8,6 +8,7 @@ import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceReq
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
@@ -70,12 +71,22 @@ public interface RescheduleProposalApi {
             Pageable pageable);
 
     @Operation(summary = "Detalle de una propuesta (participante)",
-            description = "Propuesta + solicitud + servicio + la otra parte (relativa a quien consulta). 404 si no participa.")
-    @ApiResponse(responseCode = "200", description = "Detalle de la propuesta")
+            description = "Propuesta + solicitud + servicio + la otra parte (relativa a quien consulta). "
+                    + "Solo para las partes de la solicitud.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Detalle de la propuesta"),
+            @ApiResponse(responseCode = "403", description = "El solicitante no es parte de la solicitud"),
+            @ApiResponse(responseCode = "404", description = "La propuesta no existe")
+    })
     ResponseEntity<RescheduleProposalDetailResponse> getProposalDetail(Long id);
 
-    @Operation(summary = "Listar el historial de propuestas de una solicitud")
-    @ApiResponse(responseCode = "200", description = "Propuestas de la solicitud")
+    @Operation(summary = "Listar el historial de propuestas de una solicitud",
+            description = "Solo para las partes (cliente u oferente) de la solicitud.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Propuestas de la solicitud"),
+            @ApiResponse(responseCode = "403", description = "El solicitante no es parte de la solicitud"),
+            @ApiResponse(responseCode = "404", description = "La solicitud no existe")
+    })
     ResponseEntity<List<RescheduleProposalResponse>> getProposalsByRequest(Long id);
 
     @Operation(summary = "Aceptar una propuesta (cliente)",

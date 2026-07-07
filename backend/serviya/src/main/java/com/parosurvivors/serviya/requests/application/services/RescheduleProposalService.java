@@ -1,6 +1,10 @@
 package com.parosurvivors.serviya.requests.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
+import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
+import com.parosurvivors.serviya.profiles.domain.Address;
+import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateRescheduleProposalCommand;
 import com.parosurvivors.serviya.requests.application.dto.item.RescheduleProposalItem;
 import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
@@ -10,10 +14,15 @@ import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProp
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalPersistencePort;
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalReadPort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
+import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
+import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
+import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
+import com.parosurvivors.serviya.services.domain.Category;
+import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
 import com.parosurvivors.serviya.shared.events.domain.RescheduleProposalCreatedEvent;
@@ -42,7 +51,12 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     private final RescheduleProposalPersistencePort rescheduleProposalPersistencePort;
     private final RescheduleProposalReadPort rescheduleProposalReadPort;
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
+    private final ServiceRequestReadPort serviceRequestReadPort;
     private final RescheduleProposalCommandMapper commandMapper;
+    private final ServicePersistencePort servicePersistencePort;
+    private final CategoryPersistencePort categoryPersistencePort;
+    private final UserProfilePersistencePort userProfilePersistencePort;
+    private final AddressPersistencePort addressPersistencePort;
     private final NotificationServicePort notificationServicePort;
     private final DomainEventPublisherPort eventPublisher;
 
@@ -149,14 +163,42 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     @Override
     @Transactional(readOnly = true)
     public RescheduleProposalDetailResult getProposalDetail(Long proposalId, Long viewerId) {
-        // Vacio = no existe o el viewer no participa en la solicitud: se oculta la existencia (404).
-        return rescheduleProposalReadPort.findDetailForViewer(proposalId, viewerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Propuesta no encontrada: " + proposalId));
+        // Carga -> verifica participacion -> enriquece (composicion de puertos, como el detalle de request):
+        // existencia -> 404; participacion (partes denormalizadas en la propuesta) -> 403.
+        RescheduleProposal proposal = loadProposal(proposalId);
+        requireParticipant(proposal.getClientId(), proposal.getOffererId(), viewerId);
+
+        ServiceRequest request = loadRequest(proposal.getRequestId());
+        Service service = servicePersistencePort.findById(request.getServiceId()).orElse(null);
+        String categoryName = service == null ? null
+                : categoryPersistencePort.findById(service.getCategoryId()).map(Category::getName).orElse(null);
+        String addressLabel = request.getAddressId() == null ? null
+                : addressPersistencePort.findById(request.getAddressId()).map(Address::getCity).orElse(null);
+        // La contraparte es la otra parte relativa al que consulta.
+        Long counterpartyUserId = viewerId.equals(proposal.getClientId())
+                ? proposal.getOffererId() : proposal.getClientId();
+        UserProfile counterparty = userProfilePersistencePort.findByUserId(counterpartyUserId).orElse(null);
+
+        return new RescheduleProposalDetailResult(
+                proposal.getId(), proposal.getStatus().name(), proposal.getReason(), proposal.getProposedDate(),
+                proposal.getCreatedAt(), proposal.getRespondedAt(),
+                request.getId(), request.getStatus().name(), request.getScheduledDate(), request.getRequestedPrice(),
+                addressLabel, request.getPreviousRequestId(),
+                request.getServiceId(),
+                service == null ? null : service.getTitle(), categoryName,
+                service == null ? null : service.getPriceHourly(),
+                service == null ? null : service.getAverageDurationMinutes(),
+                counterpartyUserId,
+                counterparty == null ? null : counterparty.getFullName(),
+                counterparty == null ? null : counterparty.getProfilePhotoUrl());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<RescheduleProposal> getProposalsByRequest(Long requestId) {
+    public List<RescheduleProposal> getProposalsByRequest(Long requestId, Long viewerId) {
+        // Solo las partes de la solicitud pueden ver sus propuestas: existencia -> 404, participacion -> 403.
+        ServiceRequest request = loadRequest(requestId);
+        requireParticipant(request.getClientId(), request.getOffererId(), viewerId);
         return rescheduleProposalReadPort.findByRequestId(requestId);
     }
 
@@ -181,13 +223,22 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     }
 
     private ServiceRequest loadRequest(Long requestId) {
-        return serviceRequestPersistencePort.findById(requestId)
+        return serviceRequestReadPort.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada: " + requestId));
     }
 
     private void requireOwnership(Long ownerId, Long actorId) {
         if (ownerId == null || !ownerId.equals(actorId)) {
             throw new UnauthorizedException("El usuario no es el propietario del recurso");
+        }
+    }
+
+    /** El actor debe ser una de las partes (cliente u oferente) de la solicitud/propuesta. */
+    private void requireParticipant(Long clientId, Long offererId, Long actorId) {
+        boolean isParticipant = actorId != null
+                && (actorId.equals(clientId) || actorId.equals(offererId));
+        if (!isParticipant) {
+            throw new UnauthorizedException("El usuario no participa en la solicitud");
         }
     }
 

@@ -2,7 +2,6 @@ package com.parosurvivors.serviya.requests.infrastructure.adapters.output;
 
 import com.parosurvivors.serviya.requests.application.dto.item.RescheduleProposalItem;
 import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
-import com.parosurvivors.serviya.requests.application.dto.result.RescheduleProposalDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalReadPort;
 import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
@@ -64,6 +63,11 @@ public class RescheduleProposalReadAdapter implements RescheduleProposalReadPort
     @Override
     public List<RescheduleProposal> findByStatus(ProposalStatus status) {
         return repository.findByStatus(status).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public List<RescheduleProposal> findByStatusAndProposedDateBefore(ProposalStatus status, java.time.LocalDateTime cutoff) {
+        return repository.findByStatusAndProposedDateBefore(status, cutoff).stream().map(mapper::toDomain).toList();
     }
 
     // =====================================================
@@ -150,36 +154,5 @@ public class RescheduleProposalReadAdapter implements RescheduleProposalReadPort
             params.put("serviceId", q.serviceId());
         }
         return sb.toString();
-    }
-
-    @Override
-    public Optional<RescheduleProposalDetailResult> findDetailForViewer(Long proposalId, Long viewerId) {
-        String sql = "SELECT p.id AS proposalId, p.status AS status, p.reason AS reason,"
-                + " p.proposed_date AS proposedDate, p.created_at AS createdAt, p.responded_at AS respondedAt,"
-                + " r.id AS requestId, r.status AS requestStatus, r.scheduled_date AS originalScheduledDate,"
-                + " r.requested_price AS requestedPrice, a.city AS addressLabel,"
-                + " r.previous_request_id AS previousRequestId,"
-                + " s.id AS serviceId, s.title AS serviceTitle, c.name AS categoryName,"
-                + " s.price_hourly AS priceHourly, s.average_duration_minutes AS averageDurationMinutes,"
-                + " up.user_id AS counterpartyUserId, up.full_name AS counterpartyName,"
-                + " up.profile_photo_url AS counterpartyPhotoUrl"
-                + " FROM reschedule_proposals p"
-                + " JOIN service_requests r ON r.id = p.request_id"
-                // Enriquecimiento con LEFT JOIN: una relacion faltante no da un 404 falso (campo null).
-                // r es INNER: hace falta para sus propias columnas.
-                + " LEFT JOIN services s ON s.id = r.service_id"
-                + " LEFT JOIN categories c ON c.id = s.category_id"
-                + " LEFT JOIN addresses a ON a.id = r.address_id"
-                // La contraparte es la otra parte relativa a quien consulta (partes denormalizadas en p).
-                + " LEFT JOIN user_profiles up ON up.user_id ="
-                + "   CASE WHEN p.client_id = :viewerId THEN p.offerer_id ELSE p.client_id END"
-                + " WHERE p.id = :proposalId AND (p.client_id = :viewerId OR p.offerer_id = :viewerId)";
-        Query query = em.createNativeQuery(sql, "RescheduleProposalDetailMapping");
-        query.setParameter("proposalId", proposalId);
-        query.setParameter("viewerId", viewerId);
-
-        @SuppressWarnings("unchecked")
-        List<RescheduleProposalDetailResult> rows = query.getResultList();
-        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
     }
 }

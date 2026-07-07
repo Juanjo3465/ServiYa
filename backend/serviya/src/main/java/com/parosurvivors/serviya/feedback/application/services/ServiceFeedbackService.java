@@ -10,7 +10,7 @@ import com.parosurvivors.serviya.feedback.application.ports.output.ServiceFeedba
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.domain.TagSentiment;
-import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
+import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackRevertedEvent;
@@ -44,14 +44,14 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
     private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     private final ServiceFeedbackTagPersistencePort serviceFeedbackTagPersistencePort;
     private final ServiceFeedbackTagCatalogPersistencePort serviceFeedbackTagCatalogPersistencePort;
-    private final ServiceRequestPersistencePort serviceRequestPersistencePort;
+    private final ServiceRequestReadPort serviceRequestReadPort;
     private final ServiceFeedbackCommandMapper commandMapper;
     private final DomainEventPublisherPort eventPublisher;
 
     @Override
     @Transactional
     public void submitServiceFeedback(SubmitServiceFeedbackCommand command) {
-        ServiceRequest request = serviceRequestPersistencePort.findById(command.requestId())
+        ServiceRequest request = serviceRequestReadPort.findById(command.requestId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Solicitud no encontrada: " + command.requestId()));
         if (!request.getClientId().equals(command.clientId())) {
@@ -100,7 +100,7 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
         serviceFeedbackPersistencePort.deleteById(feedback.getId());
 
         // El oferente objetivo no vive en el feedback; se lee de la solicitud para el evento de reverso.
-        Long offererId = serviceRequestPersistencePort.findById(requestId)
+        Long offererId = serviceRequestReadPort.findById(requestId)
                 .map(ServiceRequest::getOffererId)
                 .orElse(null);
 
