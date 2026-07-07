@@ -175,7 +175,7 @@ export function ServiceDetailPage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <Stars rating={offererRating} size={11} />
                                     <span style={{ fontSize: '12px', color: 'var(--c-soft)' }}>
-                                        {offererRating.toFixed(1)} · {feedbacksCount} servicios
+                                        {offererRating.toFixed(1)} · {service.totalCompletedServices ?? 0} servicios completados
                                     </span>
                                     <span className="badge badge-success" style={{ fontSize: '10px' }}>Verificado</span>
                                 </div>
