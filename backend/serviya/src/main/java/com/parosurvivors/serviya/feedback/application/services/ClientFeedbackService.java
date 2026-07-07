@@ -10,7 +10,7 @@ import com.parosurvivors.serviya.feedback.application.ports.output.ClientFeedbac
 import com.parosurvivors.serviya.feedback.domain.ClientFeedback;
 import com.parosurvivors.serviya.feedback.domain.ClientFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.domain.TagSentiment;
-import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
+import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.shared.events.domain.ClientFeedbackRevertedEvent;
 import com.parosurvivors.serviya.shared.events.domain.ClientFeedbackSubmittedEvent;
@@ -43,14 +43,14 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
     private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
     private final ClientFeedbackTagPersistencePort clientFeedbackTagPersistencePort;
     private final ClientFeedbackTagCatalogPersistencePort clientFeedbackTagCatalogPersistencePort;
-    private final ServiceRequestPersistencePort serviceRequestPersistencePort;
+    private final ServiceRequestReadPort serviceRequestReadPort;
     private final ClientFeedbackCommandMapper commandMapper;
     private final DomainEventPublisherPort eventPublisher;
 
     @Override
     @Transactional
     public void submitClientFeedback(SubmitClientFeedbackCommand command) {
-        ServiceRequest request = serviceRequestPersistencePort.findById(command.requestId())
+        ServiceRequest request = serviceRequestReadPort.findById(command.requestId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Solicitud no encontrada: " + command.requestId()));
         if (!request.getOffererId().equals(command.offererId())) {

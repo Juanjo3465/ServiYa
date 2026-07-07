@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProp
 import com.parosurvivors.serviya.requests.application.mappers.ServiceRequestCommandMapper;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
+import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ServiceRequestCommandService implements ServiceRequestCommandServicePort {
 
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
+    private final ServiceRequestReadPort serviceRequestReadPort;
     private final RescheduleProposalServicePort rescheduleProposalService;
     private final NotificationServicePort notificationServicePort;
     private final ServiceRequestCommandMapper commandMapper;
@@ -56,6 +58,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         // Solicitud original: alimenta requests_sent (cliente) y requests_received (oferente).
         eventPublisher.publish(new RequestCreatedEvent(
                 saved.getId(), saved.getClientId(), saved.getOffererId(), saved.getServiceId()));
+        // TODO(notif): notificar al oferente la nueva solicitud (RF-061).
         return saved;
     }
 
@@ -78,6 +81,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         request.accept(offererId);
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
+        // TODO(notif): notificar al cliente que su solicitud fue aceptada (RF-062).
     }
 
     @Override
@@ -89,6 +93,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         request.reject(offererId);
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
+        // TODO(notif): notificar al cliente que su solicitud fue rechazada (RF-085).
     }
 
     @Override
@@ -104,6 +109,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         // PRESUMABLY_COMPLETED no tiene contador de métricas (los listeners lo ignoran); se publica
         // uniformemente para trazabilidad y para habilitar el feedback de ambas partes.
         publishStatusChanged(request, previous);
+        // TODO(notif): notificar al cliente que el oferente declaró el servicio prestado (RF-089).
     }
 
     @Override
@@ -119,21 +125,22 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
     @Override
     @Transactional
-    public void markAsNotProvided(Long requestId, Long userId) {
-        // Sin verificación de propiedad: lo ejecuta un admin o el sistema (fecha vencida sin propuesta,
-        // o disputa resuelta). El control de acceso (rol admin) es responsabilidad de la seguridad.
+    public void markAsNotProvided(Long requestId, Long actorId) {
+        // Sin validación de acceso aquí: la transición no se expone como endpoint; el control de acceso
+        // lo hacen sus llamadores (el orquestador de moderación admin y el mantenimiento como sistema).
         ServiceRequest request = loadRequest(requestId);
         RequestStatus previous = request.getStatus();
         int cancelled = rescheduleProposalService.cancelPendingProposals(requestId);
         if (cancelled > 0) {
             // Había un aviso de reprogramación pendiente: no es incumplimiento, se cancela.
-            request.cancel(userId);
+            request.cancel(actorId);
         } else {
-            request.markAsNotProvided(userId);
+            request.markAsNotProvided(actorId);
         }
         serviceRequestPersistencePort.update(request);
         // El estado final es CANCELLED o NOT_PROVIDED según la rama; el evento lleva el real.
         publishStatusChanged(request, previous);
+        // TODO(notif): notificar a ambas partes el desenlace (no prestada / cancelada por propuesta pendiente).
     }
 
     @Override
@@ -174,7 +181,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     // =====================================================
 
     private ServiceRequest loadRequest(Long requestId) {
-        return serviceRequestPersistencePort.findById(requestId)
+        return serviceRequestReadPort.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada: " + requestId));
     }
 

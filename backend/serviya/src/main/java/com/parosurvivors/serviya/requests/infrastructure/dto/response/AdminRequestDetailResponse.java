@@ -6,22 +6,35 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Salida web (Response) del detalle de una solicitud para el admin. Mapea desde AdminRequestDetailResult.
- * TODO: revisar campos de auditoria.
+ * Salida web (Response) del detalle de una solicitud para el admin. Mapea desde
+ * {@link com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult}.
+ * Como el detalle de parte pero con auditoria ({@code updatedBy}).
  */
 @Schema(description = "Detalle de una solicitud de servicio (vista admin)")
 public record AdminRequestDetailResponse(
         @Schema(accessMode = Schema.AccessMode.READ_ONLY) Long id,
-        Long serviceId,
-        Long previousRequestId,
-        Long clientId,
-        Long offererId,
-        Long addressId,
-        LocalDateTime scheduledDate,
         String status,
-        Long updatedBy,
+        LocalDateTime scheduledDate,
         BigDecimal requestedPrice,
         LocalDateTime createdAt,
         LocalDateTime completedAt,
-        LocalDateTime updatedStatusAt) {
+        LocalDateTime updatedStatusAt,
+        Long updatedBy,
+        Long previousRequestId,
+        Long serviceId,
+        String serviceTitle,
+        String categoryName,
+        BigDecimal priceHourly,
+        Integer averageDurationMinutes,
+        Long clientId,
+        String clientName,
+        String clientPhotoUrl,
+        Long offererId,
+        String offererName,
+        String offererPhotoUrl,
+        Long addressId,
+        String addressLine,
+        String city,
+        BigDecimal latitude,
+        BigDecimal longitude) {
 }

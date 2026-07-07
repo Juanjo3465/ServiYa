@@ -1,6 +1,8 @@
 package com.parosurvivors.serviya.requests.application.ports.input;
 
 import com.parosurvivors.serviya.requests.application.dto.item.RequestHistoryItem;
+import com.parosurvivors.serviya.requests.application.dto.item.ServiceRequestSummaryItem;
+import com.parosurvivors.serviya.requests.application.dto.query.SearchServiceRequestsQuery;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.dto.result.ServiceRequestDetailResult;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
@@ -10,15 +12,16 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 /**
- * Puerto de entrada de ServiceRequestQueryService (lecturas — CQRS). Las listas devuelven dominio
- * (ServiceRequest); los detalles agregados devuelven Result; el historial devuelve Item. Nunca tipos web.
+ * Puerto de entrada de ServiceRequestQueryService (lecturas — CQRS). Las listas devuelven un
+ * resumen enriquecido (SummaryItem: servicio + contraparte); los detalles agregados devuelven Result;
+ * el historial devuelve Item. La agenda sigue devolviendo dominio (ServiceRequest). Nunca tipos web.
  * Ver documents/project-structure/estructura-servicios.docx (módulo 4).
  */
 public interface ServiceRequestQueryServicePort {
 
-    Page<ServiceRequest> getClientRequests(Long clientId, List<String> statuses, Pageable pageable);
+    Page<ServiceRequestSummaryItem> getClientRequests(SearchServiceRequestsQuery query, Pageable pageable);
 
-    Page<ServiceRequest> getOffererRequests(Long offererId, List<String> statuses, Pageable pageable);
+    Page<ServiceRequestSummaryItem> getOffererRequests(SearchServiceRequestsQuery query, Pageable pageable);
 
     //Next two methods area meant for the Agenda feature. Will return future requests, and not completed.
     Page<ServiceRequest> getClientFutureRequests(Long clientId, Pageable pageable);
@@ -27,9 +30,11 @@ public interface ServiceRequestQueryServicePort {
 
     ServiceRequestDetailResult getRequestDetailForParty(Long requestId, Long requesterId);
 
-    AdminRequestDetailResult getRequestDetailForAdmin(Long requestId);
+    /** Solo accesible para un admin (isAdmin=false lanza UnauthorizedException). */
+    AdminRequestDetailResult getRequestDetailForAdmin(Long requestId, boolean isAdmin);
 
-    List<RequestHistoryItem> getRequestHistory(Long requestId);
+    /** Solo accesible para el cliente/oferente participante o un admin (isAdmin hace bypass del check). */
+    List<RequestHistoryItem> getRequestHistory(Long requestId, Long requesterId, boolean isAdmin);
 
     int countClientRequests(Long clientId);
 

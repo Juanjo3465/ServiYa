@@ -79,7 +79,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
     @Override
     @GetMapping("/api/v1/service-requests/{id}/proposals")
     public ResponseEntity<List<RescheduleProposalResponse>> getProposalsByRequest(@PathVariable Long id) {
-        return ResponseEntity.ok(mapper.toResponses(proposalService.getProposalsByRequest(id)));
+        return ResponseEntity.ok(mapper.toResponses(proposalService.getProposalsByRequest(id, CurrentUser.id())));
     }
 
     @Override

@@ -36,8 +36,11 @@ public interface RescheduleProposalServicePort {
     /** Detalle enriquecido de una propuesta; la otra parte es relativa a quien consulta (viewerId del JWT). */
     RescheduleProposalDetailResult getProposalDetail(Long proposalId, Long viewerId);
 
-    /** Historial de propuestas de una solicitud (crudo, para la pagina de la solicitud). */
-    List<RescheduleProposal> getProposalsByRequest(Long requestId);
+    /**
+     * Historial de propuestas de una solicitud (crudo, para la pagina de la solicitud). Solo
+     * accesible para las partes (cliente u oferente) de la solicitud (viewerId del JWT).
+     */
+    List<RescheduleProposal> getProposalsByRequest(Long requestId, Long viewerId);
 
     /**
      * Resuelve (a un estado terminal) las propuestas PENDING de una solicitud cuando ésta cambia

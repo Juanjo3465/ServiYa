@@ -2,7 +2,6 @@ package com.parosurvivors.serviya.requests.application.ports.output;
 
 import com.parosurvivors.serviya.requests.application.dto.item.RescheduleProposalItem;
 import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
-import com.parosurvivors.serviya.requests.application.dto.result.RescheduleProposalDetailResult;
 import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
 
@@ -33,11 +32,11 @@ public interface RescheduleProposalReadPort {
 
     List<RescheduleProposal> findByStatus(ProposalStatus status);
 
+    /** Mantenimiento por tiempo: propuestas en un estado dado cuya fecha propuesta ya venció. */
+    List<RescheduleProposal> findByStatusAndProposedDateBefore(ProposalStatus status, java.time.LocalDateTime cutoff);
+
     // --- Vistas enriquecidas (read-models) ---
     Page<RescheduleProposalItem> searchReceivedByClient(SearchRescheduleProposalsQuery query, Pageable pageable);
 
     Page<RescheduleProposalItem> searchSentByOfferer(SearchRescheduleProposalsQuery query, Pageable pageable);
-
-    /** Detalle con la contraparte relativa al que consulta; vacio si no existe o el viewer no participa. */
-    Optional<RescheduleProposalDetailResult> findDetailForViewer(Long proposalId, Long viewerId);
 }
