@@ -62,7 +62,7 @@ public interface ServiceWebMapper {
     @Mapping(target = "specialty", source = "offererSummary.specialty")
     @Mapping(target = "whatsappNumber", source = "offererProfile.whatsappNumber")
     @Mapping(target = "publicDescription", source = "offererProfile.publicDescription")
-    @Mapping(target = "averageRating", source = "offererSummary.averageRating")
+    @Mapping(target = "offererAverageRating", source = "offererSummary.averageRating")
     @Mapping(target = "feedbacks", source = "feedbackUsers")
     @Mapping(target = "title", source = "service.title")
     @Mapping(target = "description", source = "service.description")

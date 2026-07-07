@@ -19,7 +19,7 @@ public record ServiceDetailResponse(
         String specialty,
         String whatsappNumber,
         String publicDescription,
-        BigDecimal averageRating,
+        BigDecimal offererAverageRating,
         CategoryResponse category,
         List<FeedbackResponse> feedbacks,
         List<ServiceAvailabilityResponse> availability,

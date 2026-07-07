@@ -123,7 +123,8 @@ export function ServiceDetailPage() {
     }
 
     // Datos del servicio
-    const rating = service.serviceAverageRating !== null && service.serviceAverageRating !== undefined ? service.serviceAverageRating : 4.5;
+    const rating = service.serviceAverageRating !== null && service.serviceAverageRating !== undefined ? service.serviceAverageRating : 0.0;
+    const offererRating = service.offererAverageRating != null ? service.offererAverageRating : 0.0;
     const feedbacksCount = service.feedbacks ? service.feedbacks.length : 0;
     const initials = service.fullName ? service.fullName.substring(0, 2).toUpperCase() : "OF";
 
@@ -172,9 +173,9 @@ export function ServiceDetailPage() {
                                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)' }}>{service.fullName || "Oferente"}</div>
                                 <div style={{ fontSize: '12px', color: 'var(--c-mid)', margin: '2px 0' }}>{service.specialty || "Especialista en ServiYa"}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Stars rating={rating} size={11} />
+                                    <Stars rating={offererRating} size={11} />
                                     <span style={{ fontSize: '12px', color: 'var(--c-soft)' }}>
-                                        {rating.toFixed(1)} · {feedbacksCount} servicios
+                                        {offererRating.toFixed(1)} · {feedbacksCount} servicios
                                     </span>
                                     <span className="badge badge-success" style={{ fontSize: '10px' }}>Verificado</span>
                                 </div>
