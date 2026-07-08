@@ -92,11 +92,9 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
 
     @Override
     @Transactional(readOnly = true)
-    public AdminRequestDetailResult getRequestDetailForAdmin(Long requestId, boolean isAdmin) {
-        // Vista administrativa (ambas partes): solo para admin.
-        if (!isAdmin) {
-            throw new UnauthorizedException("Solo un admin puede ver el detalle administrativo de la solicitud");
-        }
+    public AdminRequestDetailResult getRequestDetailForAdmin(Long requestId) {
+        // Vista administrativa (ambas partes). El gate de rol ADMIN vive en el endpoint (Spring Security),
+        // no aqui: es una restriccion de rol pura, no una verificacion de propiedad/participacion.
         ServiceRequest request = loadRequest(requestId);
         Enrichment e = enrich(request);
         return new AdminRequestDetailResult(
