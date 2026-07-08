@@ -30,8 +30,8 @@ public interface ServiceRequestQueryServicePort {
 
     ServiceRequestDetailResult getRequestDetailForParty(Long requestId, Long requesterId);
 
-    /** Solo accesible para un admin (isAdmin=false lanza UnauthorizedException). */
-    AdminRequestDetailResult getRequestDetailForAdmin(Long requestId, boolean isAdmin);
+    /** Vista administrativa (ambas partes). El gate de rol ADMIN se aplica en el endpoint (Spring Security), no aqui. */
+    AdminRequestDetailResult getRequestDetailForAdmin(Long requestId);
 
     /** Solo accesible para el cliente/oferente participante o un admin (isAdmin hace bypass del check). */
     List<RequestHistoryItem> getRequestHistory(Long requestId, Long requesterId, boolean isAdmin);
