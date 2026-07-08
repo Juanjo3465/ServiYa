@@ -1,16 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
+import { metricsApi } from '../../../../shared/api';
 
 import './OffererDashboardPage.css';
-
-const STATS = [
-    { icon: 'tasks', value: '4', label: 'Solicitudes recibidas' },
-    { icon: 'checkCircle', value: '42', label: 'Servicios completados', variant: 'success' },
-    { icon: 'star', value: '4.9★', label: 'Calificación promedio', variant: 'warn', fill: 'currentColor' },
-    { icon: 'xCircle', value: '2%', label: 'Cancelaciones', variant: 'danger' },
-];
 
 const AGENDA = [
     { day: '12', month: 'Mayo', title: 'Reparación de tuberías', sub: 'Juan P. · 9:00 AM · Calle 45 #12-34', badge: 'badge-warn', label: 'Pendiente' },
@@ -22,13 +16,34 @@ export function OffererDashboardPage() {
     const { toasts, showToast } = useToast();
     const [proposalOpen, setProposalOpen] = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
+    const [offererMetrics, setOffererMetrics] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        metricsApi.getMyMetrics()
+            .then(data => setOffererMetrics(data.offererMetrics))
+            .catch(() => showToast('Error al cargar métricas', 'danger'))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const stats = offererMetrics ? [
+        { icon: 'tasks', value: String(offererMetrics.totalRequestsReceived ?? 0), label: 'Solicitudes recibidas' },
+        { icon: 'checkCircle', value: String(offererMetrics.totalCompletedServices ?? 0), label: 'Servicios completados', variant: 'success' },
+        { icon: 'star', value: (offererMetrics.averageRating ?? 0).toFixed(1) + '★', label: 'Calificación promedio', variant: 'warn', fill: 'currentColor' },
+        {
+            icon: 'xCircle',
+            value: (offererMetrics.totalRequestsReceived > 0 ? (offererMetrics.totalCancelledServices / offererMetrics.totalRequestsReceived * 100) : 0).toFixed(0) + '%',
+            label: 'Cancelaciones',
+            variant: 'danger',
+        },
+    ] : [];
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
             <div className="ph"><h1>¡Hola, Carlos!</h1><p>Gestiona tus servicios y solicitudes recibidas</p></div>
 
             <div className="g4" style={{ marginBottom: '22px' }}>
-                {STATS.map((s) => <StatCard key={s.label} {...s} />)}
+                {loading ? <div className="loading-pulse" style={{ height: 80 }} /> : stats.map((s) => <StatCard key={s.label} {...s} />)}
             </div>
 
             <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>Solicitudes recibidas</div>

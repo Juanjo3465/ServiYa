@@ -2,7 +2,9 @@ package com.parosurvivors.serviya.services.application.services;
 
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
+import com.parosurvivors.serviya.metrics.application.ports.input.ServiceMetricsServicePort;
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
@@ -32,6 +34,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Implementacion del marketplace de servicios. Unico servicio del esqueleto con
@@ -48,6 +52,7 @@ public class MarketplaceService implements MarketplaceServicePort {
     private final MarketplaceCategoryPort categoryPort;
     private final OffererProfileServicePort offererProfileService;
     private final OffererMetricsServicePort offererMetricsService;
+    private final ServiceMetricsServicePort serviceMetricsService;
     private final ServiceFeedbackServicePort serviceFeedbackService;
     private final UserProfileServicePort userProfileService;
     private final ServiceAvailabilityServicePort serviceAvailabilityService;
@@ -88,7 +93,10 @@ public class MarketplaceService implements MarketplaceServicePort {
             Category category = categoryPort.getById(service.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Categoria no encontrada con id: " + service.getCategoryId()));
-            details.add(new ServiceDetail(service, category, null, null, null, null));
+            details.add(ServiceDetail.builder()
+                    .service(service)
+                    .category(category)
+                    .build());
         }
 
         return details;
@@ -97,6 +105,11 @@ public class MarketplaceService implements MarketplaceServicePort {
     @Override
     public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
         return persistencePort.search(criteria, pageable);
+    }
+
+    @Override
+    public Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds) {
+        return serviceMetricsService.getMetricsByServiceIds(serviceIds);
     }
 
     @Override
@@ -125,7 +138,8 @@ public class MarketplaceService implements MarketplaceServicePort {
 
         OffererProfile offererProfile = offererProfileService.getPublicProfile(service.getOffererId());
         OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
-        OffererMetrics metrics = offererMetricsService.getMainMetrics(service.getOffererId());
+        OffererMetrics offererMetrics = offererMetricsService.getMainMetrics(service.getOffererId());
+        ServiceMetrics serviceMetrics = serviceMetricsService.getMetrics(service.getId());
 
         // Reseñas recientes (hasta 3): cada feedback con comentario se empareja con el
         // perfil
@@ -136,7 +150,16 @@ public class MarketplaceService implements MarketplaceServicePort {
 
         List<ServiceAvailability> availability = serviceAvailabilityService.getByServiceId(service.getId());
 
-        return Optional.of(new ServiceDetail(service, category, offererProfile, summary, feedbacks, availability));
+        return Optional.of(ServiceDetail.builder()
+                .service(service)
+                .category(category)
+                .offererProfile(offererProfile)
+                .offererSummary(summary)
+                .feedbackUsers(feedbacks)
+                .availability(availability)
+                .serviceMetrics(serviceMetrics)
+                .offererMetrics(offererMetrics)
+                .build());
     }
 
     @Override

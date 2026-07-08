@@ -8,7 +8,10 @@ import com.parosurvivors.serviya.metrics.infrastructure.repositories.ServiceMetr
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -32,5 +35,12 @@ public class ServiceMetricsPersistenceAdapter implements ServiceMetricsPersisten
     @Override
     public Optional<ServiceMetrics> findByServiceId(Long serviceId) {
         return repository.findByServiceId(serviceId).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<ServiceMetrics> findByServiceIdIn(Collection<Long> serviceIds) {
+        return repository.findByServiceIdIn(serviceIds).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 }

@@ -98,7 +98,7 @@ function HomePage() {
                                 provider={`Oferente #${s.offererId}`}
                                 category={catName}
                                 price={s.priceHourly ? `$${s.priceHourly.toLocaleString()}` : 'Consultar'}
-                                rating={4.5}
+                                rating={s.averageRating ?? 0}
                                 availability={s.active ? 'Hoy' : 'No disponible'}
                                 icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
                             />

@@ -2,6 +2,10 @@ package com.parosurvivors.serviya.metrics.application.ports.input;
 
 import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Puerto de entrada de ServiceMetricsService. Consulta ({@link #getMetrics}) + escritura disparada
  * por eventos: los adaptadores {@code @TransactionalEventListener} de feedback traducen el evento a
@@ -11,6 +15,8 @@ import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 public interface ServiceMetricsServicePort {
 
     ServiceMetrics getMetrics(Long serviceId);
+
+    Map<Long, ServiceMetrics> getMetricsByServiceIds(Collection<Long> serviceIds);
 
     /** Feedback del cliente al servicio: recalcula promedio (si hay rating) e incrementa comentarios (si hay). */
     void applyFeedbackSubmitted(Long serviceId, Integer rating, boolean hasComment);
