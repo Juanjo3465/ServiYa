@@ -9,6 +9,7 @@ import com.parosurvivors.serviya.services.domain.ServiceAvailability;
 import java.util.List;
 
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceAvailabilityCommand;
 
@@ -16,6 +17,7 @@ import com.parosurvivors.serviya.services.application.dto.command.CreateServiceA
 
 public interface ServiceAvailabilityWebMapper {
 
+    @Mapping(target = "activeStatus", source = "active")
     ServiceAvailabilityResponse toResponse(ServiceAvailability serviceAvailability);
 
     List<ServiceAvailabilityResponse> toResponses(List<ServiceAvailability> serviceAvailabilities);

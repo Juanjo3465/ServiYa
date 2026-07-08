@@ -16,7 +16,7 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = {CategoryWebMapper.class})
+@Mapper(componentModel = "spring", uses = {CategoryWebMapper.class, ServiceAvailabilityWebMapper.class})
 public interface ServiceWebMapper {
 
     @Mapping(target = "offererId", source = "offererId")
