@@ -14,9 +14,17 @@ import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.RequestCreatedEvent;
 import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
+import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
+import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
+import com.parosurvivors.serviya.profiles.domain.Address;
+import com.parosurvivors.serviya.services.application.ports.output.ServiceAvailabilityPersistencePort;
+import com.parosurvivors.serviya.services.domain.ServiceAvailability;
+import com.parosurvivors.serviya.shared.exceptions.BusinessRuleException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +46,9 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     private final NotificationServicePort notificationServicePort;
     private final ServiceRequestCommandMapper commandMapper;
     private final ServicePersistencePort servicePersistencePort;
+    private final ServiceAvailabilityPersistencePort serviceAvailabilityPersistencePort;
+    private final AddressPersistencePort addressPersistencePort;
+    private final UserProfilePersistencePort userProfilePersistencePort;
     private final DomainEventPublisherPort eventPublisher;
 
     @Override
@@ -46,6 +57,9 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         Service service = servicePersistencePort.findById(command.serviceId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Servicio no encontrado con id: " + command.serviceId()));
+
+        checkServiceAvailability(command.serviceId(), command.scheduledDate());
+        checkWithinRadius(command.serviceId(), command.addressId());
 
         ServiceRequest serviceRequest = commandMapper.toDomain(command);
         serviceRequest.setOffererId(service.getOffererId());
@@ -64,12 +78,67 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
     @Override
     public boolean checkServiceAvailability(Long serviceId, LocalDateTime scheduledDate) {
-        throw new UnsupportedOperationException("TODO: checkServiceAvailability — placeholder, ver estructura-servicios.docx");
+        int javaDayOfWeek = scheduledDate.getDayOfWeek().getValue();
+        int dayIndex = javaDayOfWeek == 7 ? 0 : javaDayOfWeek;
+        LocalTime scheduledTime = scheduledDate.toLocalTime();
+        boolean isAvailable = false;
+        
+        List<ServiceAvailability> availabilities = serviceAvailabilityPersistencePort
+                .findByServiceId(serviceId);
+
+
+        for (ServiceAvailability availability : availabilities) {
+            if (availability.isActive() 
+                && availability.getWeekDay() == dayIndex
+                && !scheduledTime.isBefore(availability.getStartTime())
+                && !scheduledTime.isAfter(availability.getEndTime())
+            ) {
+                isAvailable = true;
+                break;
+            }
+        }
+        if (!isAvailable) {
+            throw new BusinessRuleException(
+                    "El servicio no está disponible en la fecha y hora solicitadas " 
+                );
+        }
+        return true;
     }
 
     @Override
     public boolean checkWithinRadius(Long serviceId, Long clientAddressId) {
-        throw new UnsupportedOperationException("TODO: checkWithinRadius — placeholder, ver estructura-servicios.docx");
+        Service service = servicePersistencePort.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Servicio no encontrado con id: " + serviceId));
+
+        if (service.getOperationRadiusKm() == null
+                || service.getOperationRadiusKm().compareTo(java.math.BigDecimal.ZERO) == 0) {
+            return true;
+        }
+
+        Address clientAddress = addressPersistencePort.findById(clientAddressId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Dirección del cliente no encontrada: " + clientAddressId));
+
+        Address offererAddress = userProfilePersistencePort
+                .findByUserId(service.getOffererId())
+                .flatMap(profile -> {
+                    if (profile.getPrimaryAddressId() == null) return java.util.Optional.empty();
+                    return addressPersistencePort.findById(profile.getPrimaryAddressId());
+                })
+                .orElseThrow(() -> new BusinessRuleException(
+                        "El oferente no tiene una dirección principal configurada"));
+
+        double distance = clientAddress.distanceKmTo(
+                offererAddress.getLatitude(), offererAddress.getLongitude());
+
+        if (distance > service.getOperationRadiusKm().doubleValue()) {
+            throw new BusinessRuleException(
+                    "La dirección del cliente está fuera del radio de operación del servicio "
+                            + "(" + String.format("%.2f", distance) + " km vs "
+                            + service.getOperationRadiusKm() + " km permitidos)");
+        }
+        return true;
     }
 
     @Override

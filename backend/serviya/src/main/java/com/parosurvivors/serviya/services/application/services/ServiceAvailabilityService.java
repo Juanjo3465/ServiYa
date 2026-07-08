@@ -41,7 +41,7 @@ public class ServiceAvailabilityService implements ServiceAvailabilityServicePor
     @Override
     public List<ServiceAvailability> getByServiceId(long serviceId) {
         return persistencePort.findByServiceId(serviceId).stream()
-                .filter(a -> !a.isActive())
+                .filter(ServiceAvailability::isActive)
                 .collect(Collectors.toList());
     }
     
