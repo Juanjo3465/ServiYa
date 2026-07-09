@@ -1,16 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi } from '../../../../shared/api';
+import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon } from '../../utils';
 
 import './ClientDashboardPage.css';
-
-const REQUESTS = [
-    { id: 1, name: 'Reparación de tuberías', icon: 'wrench', meta: 'Carlos M. · Lun 12 mayo, 9:00 AM · Calle 45 #12-34', status: 'Pendiente', dot: 'sdot-pending', badge: 'badge-warn', isNew: true, canConfirm: false },
-    { id: 2, name: 'Limpieza de hogar', icon: 'home', meta: 'María L. · Mié 14 mayo, 10:00 AM', status: 'Aceptada', dot: 'sdot-accepted', badge: 'badge-success', isNew: false, canConfirm: true },
-    { id: 3, name: 'Instalación eléctrica', icon: 'bolt', meta: 'Ana R. · Vie 16 mayo, 2:00 PM', status: 'Aceptada', dot: 'sdot-accepted', badge: 'badge-success', isNew: false, canConfirm: false },
-];
 
 const AGENDA = [
     { day: '12', month: 'Mayo', title: 'Reparación de tuberías', sub: 'Carlos M. · 9:00 AM · Calle 45 #12-34', badge: 'badge-warn', label: 'Pendiente' },
@@ -31,12 +26,21 @@ export function ClientDashboardPage() {
     const [reschedOpen, setReschedOpen] = useState(false);
     const [clientMetrics, setClientMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [requests, setRequests] = useState([]);
+    const [loadingRequests, setLoadingRequests] = useState(true);
 
     useEffect(() => {
         metricsApi.getMyMetrics()
             .then(data => setClientMetrics(data.clientMetrics))
             .catch(() => showToast('Error al cargar métricas', 'danger'))
             .finally(() => setLoading(false));
+    }, []);
+
+    useEffect(() => {
+        requestApi.getMyClientRequests({ page: 0, size: 5 })
+            .then(data => setRequests(data.content || []))
+            .catch(() => showToast('Error al cargar solicitudes', 'danger'))
+            .finally(() => setLoadingRequests(false));
     }, []);
 
     const stats = clientMetrics ? [
@@ -85,21 +89,38 @@ export function ClientDashboardPage() {
                         <div style={{ fontSize: '15px', fontWeight: 700 }}>Solicitudes activas</div>
                         <Link to="/requests" className="link-more">Ver todas →</Link>
                     </div>
-                    {REQUESTS.map((r) => (
-                        <div className={`req-card ${r.isNew ? 'new' : ''}`} key={r.id}>
-                            <div className="req-header">
-                                <div className="req-icon"><Icon name={r.icon} size={20} /></div>
-                                <div className="req-info"><div className="req-name">{r.name}</div><div className="req-meta">{r.meta}</div></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span className={`sdot ${r.dot}`} /><span className={`badge ${r.badge}`}>{r.status}</span></div>
-                            </div>
-                            <div className="req-actions">
-                                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate('/services/1')}>Ver detalle</button>
-                                {r.status === 'Pendiente' && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
-                                {r.canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
-                                <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud cancelada', 'danger')}><Icon name="close" size={13} />Cancelar</button>
-                            </div>
-                        </div>
-                    ))}
+                    {loadingRequests ? (
+                        <div style={{ padding: '20px 0', color: 'var(--c-soft)', fontSize: '13px' }}>Cargando solicitudes...</div>
+                    ) : requests.length === 0 ? (
+                        <div style={{ padding: '20px 0', color: 'var(--c-soft)', fontSize: '13px' }}>No tienes solicitudes activas</div>
+                    ) : (
+                        requests.map((r) => {
+                            const st = STATUS_MAP[r.status] || { label: r.status, badge: '' };
+                            const isNew = r.status === 'PENDING' && timeAgo(r.createdAt) === 'Hace 1 min';
+                            const canConfirm = r.status === 'PRESUMABLY_COMPLETED';
+                            const canReschedule = r.status === 'PENDING' || r.status === 'ACCEPTED';
+                            const meta = [r.counterpartyName, formatDate(r.scheduledDate), r.city].filter(Boolean).join(' · ');
+
+                            return (
+                                <div className={`req-card ${isNew ? 'new' : ''}`} key={r.requestId}>
+                                    <div className="req-header">
+                                        <div className="req-icon"><Icon name={categoryIcon(r.categoryName)} size={20} /></div>
+                                        <div className="req-info"><div className="req-name">{r.serviceTitle}</div><div className="req-meta">{meta}</div></div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            <span className={`sdot sdot-${r.status === 'PENDING' ? 'pending' : 'accepted'}`} />
+                                            <span className={`badge ${st.badge}`}>{st.label}</span>
+                                        </div>
+                                    </div>
+                                    <div className="req-actions">
+                                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
+                                        {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
+                                        {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
+                                        <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud cancelada', 'danger')}><Icon name="close" size={13} />Cancelar</button>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
 
                 <div>

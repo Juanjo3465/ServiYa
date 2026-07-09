@@ -107,7 +107,16 @@ export const addressApi = {
 
 export const requestApi = {
     createRequest: (payload) => request('/api/v1/service-requests', { method: 'POST', body: payload, auth: true }),
-    getMyClientRequests: () => request('/api/v1/users/me/client-requests', { auth: true }),
+    getMyClientRequests: (params = {}) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') {
+                queryParams.append(key, val);
+            }
+        });
+        const qs = queryParams.toString();
+        return request(`/api/v1/users/me/client-requests${qs ? '?' + qs : ''}`, { auth: true });
+    },
 };
 
 export const categoryApi = {
