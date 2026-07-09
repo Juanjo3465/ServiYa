@@ -117,6 +117,7 @@ export const requestApi = {
         const qs = queryParams.toString();
         return request(`/api/v1/users/me/client-requests${qs ? '?' + qs : ''}`, { auth: true });
     },
+    cancelRequest: (id) => request(`/api/v1/service-requests/${id}/cancel`, { method: 'POST', auth: true }),
 };
 
 export const categoryApi = {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice } from '../../utils';
+import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice, isTerminal } from '../../utils';
 
 import './ClientRequestsPage.css';
 
@@ -23,6 +23,8 @@ export function ClientRequestsPage() {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const [cancelTarget, setCancelTarget] = useState(null);
 
     const fetchRequests = (page = 0) => {
         setLoading(true);
@@ -39,6 +41,22 @@ export function ClientRequestsPage() {
             })
             .catch(err => showToast('Error al cargar solicitudes: ' + err.message, 'error'))
             .finally(() => setLoading(false));
+    };
+
+    const handleCancel = () => {
+        if (!cancelTarget) return;
+        requestApi.cancelRequest(cancelTarget.requestId)
+            .then(() => {
+                setRequests(prev => prev.map(r =>
+                    r.requestId === cancelTarget.requestId
+                        ? { ...r, status: 'CANCELLED' }
+                        : r
+                ));
+                setCancelOpen(false);
+                setCancelTarget(null);
+                showToast('Solicitud cancelada. Oferente notificado', 'success');
+            })
+            .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
     };
 
     useEffect(() => {
@@ -80,7 +98,7 @@ export function ClientRequestsPage() {
                                         <span className={`badge ${st.badge}`}>{st.label}</span>
                                         <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>#{r.requestId}{timeAgo(r.createdAt) ? ` · ${timeAgo(r.createdAt)}` : ''}</span>
                                     </div>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => setReportOpen(true)} style={{ color: 'var(--c-danger)' }}><Icon name="alertTriangle" size={13} />Reportar</button>
+                                    {!isTerminal(r.status) && <button className="btn btn-ghost btn-sm" onClick={() => setReportOpen(true)} style={{ color: 'var(--c-danger)' }}><Icon name="alertTriangle" size={13} />Reportar</button>}
                                 </div>
                                 <div className="rq-main">
                                     <div className="av av-md">{getInitials(r.counterpartyName)}</div>
@@ -98,7 +116,7 @@ export function ClientRequestsPage() {
                                     <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
                                     {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
                                     {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
-                                    <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud cancelada. Oferente notificado', 'danger')}><Icon name="close" size={13} />Cancelar</button>
+                                    {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}
                                 </div>
                             </div>
                         );
@@ -138,6 +156,15 @@ export function ClientRequestsPage() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReschedOpen(false)}>Cancelar</button>
                     <button className="btn btn-primary btn-full" onClick={() => { setReschedOpen(false); showToast('Solicitud reprogramada', 'success'); }}>Confirmar</button>
+                </div>
+            </Modal>
+
+            <Modal open={cancelOpen} onClose={() => { setCancelOpen(false); setCancelTarget(null); }}>
+                <div className="modal-title">Cancelar solicitud</div>
+                <div className="modal-sub">¿Estás seguro de cancelar esta solicitud? Esta acción no se puede deshacer.</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={() => { setCancelOpen(false); setCancelTarget(null); }}>Volver</button>
+                    <button className="btn btn-danger btn-full" onClick={handleCancel}><Icon name="close" size={13} />Sí, cancelar solicitud</button>
                 </div>
             </Modal>
 

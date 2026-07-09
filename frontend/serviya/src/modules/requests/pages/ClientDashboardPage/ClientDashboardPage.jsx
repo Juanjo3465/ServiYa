@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi } from '../../../../shared/api';
-import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon } from '../../utils';
+import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon, isTerminal } from '../../utils';
 
 import './ClientDashboardPage.css';
 
@@ -24,6 +24,8 @@ export function ClientDashboardPage() {
     const { toasts, showToast } = useToast();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const [cancelTarget, setCancelTarget] = useState(null);
     const [clientMetrics, setClientMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState([]);
@@ -42,6 +44,22 @@ export function ClientDashboardPage() {
             .catch(() => showToast('Error al cargar solicitudes', 'danger'))
             .finally(() => setLoadingRequests(false));
     }, []);
+
+    const handleCancel = () => {
+        if (!cancelTarget) return;
+        requestApi.cancelRequest(cancelTarget.requestId)
+            .then(() => {
+                setRequests(prev => prev.map(r =>
+                    r.requestId === cancelTarget.requestId
+                        ? { ...r, status: 'CANCELLED' }
+                        : r
+                ));
+                setCancelOpen(false);
+                setCancelTarget(null);
+                showToast('Solicitud cancelada. Oferente notificado', 'success');
+            })
+            .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
+    };
 
     const stats = clientMetrics ? [
         { icon: 'tasks', value: String(clientMetrics.totalAcceptedRequests ?? 0), label: 'Solicitudes activas' },
@@ -115,7 +133,7 @@ export function ClientDashboardPage() {
                                         <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
                                         {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
                                         {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
-                                        <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud cancelada', 'danger')}><Icon name="close" size={13} />Cancelar</button>
+                                        {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}
                                     </div>
                                 </div>
                             );
@@ -164,6 +182,15 @@ export function ClientDashboardPage() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReschedOpen(false)}>Cancelar</button>
                     <button className="btn btn-primary btn-full" onClick={() => { setReschedOpen(false); showToast('Solicitud reprogramada', 'success'); }}>Confirmar reprogramación</button>
+                </div>
+            </Modal>
+
+            <Modal open={cancelOpen} onClose={() => { setCancelOpen(false); setCancelTarget(null); }}>
+                <div className="modal-title">Cancelar solicitud</div>
+                <div className="modal-sub">¿Estás seguro de cancelar esta solicitud? Esta acción no se puede deshacer.</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={() => { setCancelOpen(false); setCancelTarget(null); }}>Volver</button>
+                    <button className="btn btn-danger btn-full" onClick={handleCancel}><Icon name="close" size={13} />Sí, cancelar solicitud</button>
                 </div>
             </Modal>
             <ToastContainer toasts={toasts} />
