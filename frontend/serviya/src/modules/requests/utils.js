@@ -77,6 +77,10 @@ const ICON_MAP = {
     'yoga': 'heart',
 };
 
+export function isTerminal(status) {
+    return ['REJECTED', 'CANCELLED', 'COMPLETED', 'RESCHEDULED', 'NOT_PROVIDED'].includes(status);
+}
+
 export function categoryIcon(categoryName) {
     if (!categoryName) return 'fileText';
     const name = categoryName.toLowerCase();
