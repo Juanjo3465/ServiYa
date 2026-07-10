@@ -30,7 +30,9 @@ import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -83,7 +85,17 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         // La participación del oferente en el flujo de reprogramación es proponer: cuenta la propuesta.
         eventPublisher.publish(new RescheduleProposalCreatedEvent(
                 saved.getId(), request.getId(), request.getOffererId(), request.getClientId()));
-        // TODO(notif): notificar al cliente que el oferente propuso una nueva fecha.
+        userProfilePersistencePort.findByUserId(command.offererId())
+                .ifPresent(offerer -> notificationServicePort.notify(
+                        request.getClientId(),
+                        "reschedule_proposed",
+                        "Propuesta de reprogramación",
+                        offerer.getFullName() + " propuso reprogramar tu servicio para el "
+                                + command.proposedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                        "SERVICE_REQUEST",
+                        command.requestId(),
+                        null,
+                        Map.of()));
         return saved;
     }
 
@@ -108,7 +120,16 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         // flujo libre donde el reemplazo PENDING se acepta después).
         publishStatusChanged(request, previous);
         publishStatusChanged(saved, null);
-        // TODO(notif): notificar al oferente que el cliente aceptó la propuesta.
+        userProfilePersistencePort.findByUserId(clientId)
+                .ifPresent(client -> notificationServicePort.notify(
+                        request.getOffererId(),
+                        "reschedule_accepted",
+                        "Reprogramación aceptada",
+                        client.getFullName() + " aceptó la propuesta de reprogramación.",
+                        "SERVICE_REQUEST",
+                        request.getId(),
+                        null,
+                        Map.of()));
         return saved;
     }
 
@@ -121,7 +142,16 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
 
         proposal.reject();
         rescheduleProposalPersistencePort.update(proposal);
-        // TODO(notif): notificar al oferente que el cliente rechazó la propuesta.
+        userProfilePersistencePort.findByUserId(clientId)
+                .ifPresent(client -> notificationServicePort.notify(
+                        request.getOffererId(),
+                        "reschedule_rejected",
+                        "Reprogramación rechazada",
+                        client.getFullName() + " rechazó la propuesta de reprogramación.",
+                        "SERVICE_REQUEST",
+                        request.getId(),
+                        null,
+                        Map.of()));
     }
 
     @Override
@@ -133,7 +163,16 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
 
         proposal.cancel();
         rescheduleProposalPersistencePort.update(proposal);
-        // TODO(notif): notificar al cliente que el oferente retiró la propuesta.
+        userProfilePersistencePort.findByUserId(offererId)
+                .ifPresent(offerer -> notificationServicePort.notify(
+                        request.getClientId(),
+                        "reschedule_cancelled",
+                        "Propuesta retirada",
+                        offerer.getFullName() + " retiró la propuesta de reprogramación.",
+                        "SERVICE_REQUEST",
+                        request.getId(),
+                        null,
+                        Map.of()));
     }
 
     @Override
