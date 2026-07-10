@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { metricsApi } from '../../../../shared/api';
+import { metricsApi, notificationApi } from '../../../../shared/api';
 import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon, isTerminal } from '../../utils';
 
 import './ClientDashboardPage.css';
@@ -13,11 +13,19 @@ const AGENDA = [
     { day: '16', month: 'Mayo', title: 'Instalación eléctrica', sub: 'Ana R. · 2:00 PM · Calle 45 #12-34', badge: 'badge-success', label: 'Confirmada' },
 ];
 
-const NOTIFS = [
-    { icon: 'check', cls: 'success', title: 'Solicitud aceptada', msg: 'María L. aceptó tu solicitud de limpieza para el 14 de mayo.', time: 'Hace 20 min', unread: true },
-    { icon: 'reschedule', cls: 'warn', title: 'Propuesta de reprogramación', msg: 'Carlos M. propone cambiar la fecha de tu servicio de plomería.', time: 'Hace 1 hora', unread: true },
-    { icon: 'check', cls: 'success', title: 'Solicitud aceptada', msg: 'Ana R. confirmó tu solicitud de electricidad para el 16 de mayo.', time: 'Ayer', unread: false },
-];
+const TYPE_META = {
+    new_request:         { icon: 'tasks',     cls: '' },
+    request_accepted:    { icon: 'check',     cls: 'success' },
+    request_rejected:    { icon: 'close',     cls: 'danger' },
+    request_cancelled:   { icon: 'close',     cls: 'danger' },
+    service_completed:   { icon: 'check',     cls: 'success' },
+    reschedule_proposed: { icon: 'reschedule', cls: 'warn' },
+    request_rescheduled: { icon: 'reschedule', cls: 'warn' },
+};
+
+function metaForType(type) {
+    return TYPE_META[type] || { icon: 'bell', cls: '' };
+}
 
 export function ClientDashboardPage() {
     const navigate = useNavigate();
@@ -30,6 +38,8 @@ export function ClientDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(true);
+    const [notifications, setNotifications] = useState([]);
+    const [loadingNotifications, setLoadingNotifications] = useState(true);
 
     useEffect(() => {
         metricsApi.getMyMetrics()
@@ -43,6 +53,13 @@ export function ClientDashboardPage() {
             .then(data => setRequests(data.content || []))
             .catch(() => showToast('Error al cargar solicitudes', 'danger'))
             .finally(() => setLoadingRequests(false));
+    }, []);
+
+    useEffect(() => {
+        notificationApi.getNotifications({ page: 0, size: 3 })
+            .then(data => setNotifications(data.content || []))
+            .catch(() => {})
+            .finally(() => setLoadingNotifications(false));
     }, []);
 
     const handleCancel = () => {
@@ -153,12 +170,24 @@ export function ClientDashboardPage() {
                     </div>
 
                     <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Notificaciones recientes</div>
-                    {NOTIFS.map((n, i) => (
-                        <div className={`notif-item ${n.unread ? 'unread' : 'read'}`} key={i}>
-                            <div className={`notif-ico ${n.cls}`}><Icon name={n.icon} size={16} /></div>
-                            <div className="notif-body"><div className="notif-title">{n.title}</div><div className="notif-msg">{n.msg}</div><div className="notif-time">{n.time}</div></div>
-                        </div>
-                    ))}
+                    {loadingNotifications ? (
+                        <div style={{ padding: '12px 0', color: 'var(--c-soft)', fontSize: '13px' }}>Cargando notificaciones...</div>
+                    ) : notifications.length === 0 ? (
+                        <div style={{ padding: '12px 0', color: 'var(--c-soft)', fontSize: '13px' }}>No hay notificaciones</div>
+                    ) : notifications.map((n) => {
+                        const meta = metaForType(n.notificationType);
+                        const isUnread = !n.readAt;
+                        return (
+                            <div className={`notif-item ${isUnread ? 'unread' : 'read'}`} key={n.deliveryId}>
+                                <div className={`notif-ico ${meta.cls}`}><Icon name={meta.icon} size={16} /></div>
+                                <div className="notif-body">
+                                    <div className="notif-title">{n.title}</div>
+                                    <div className="notif-msg">{n.message}</div>
+                                    <div className="notif-time">{timeAgo(n.createdAt)}</div>
+                                </div>
+                            </div>
+                        );
+                    })}
                     <Link to="/notifications" className="link-more" style={{ display: 'block', textAlign: 'center', marginTop: '10px' }}>Ver todas las notificaciones →</Link>
                 </div>
             </div>
