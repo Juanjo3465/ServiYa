@@ -24,7 +24,7 @@ export const CLIENT_NAV = [
         title: 'Mi cuenta',
         items: [
             { label: 'Mi perfil', to: '/profile', icon: 'user' },
-            { label: 'Notificaciones', to: '/notifications', icon: 'bell', badge: 5 },
+            { label: 'Notificaciones', to: '/notifications', icon: 'bell' },
         ],
     },
 ];
@@ -49,7 +49,7 @@ export const OFFERER_NAV = [
         title: 'Mi cuenta',
         items: [
             { label: 'Mi perfil', to: '/profile', icon: 'user' },
-            { label: 'Notificaciones', to: '/notifications', icon: 'bell', badge: 7 },
+            { label: 'Notificaciones', to: '/notifications', icon: 'bell' },
         ],
     },
 ];
