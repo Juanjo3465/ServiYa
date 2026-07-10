@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.requests.application.services;
 
+import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.RequestMaintenanceServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalPersistencePort;
@@ -14,6 +15,7 @@ import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEv
 import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -38,6 +40,7 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
     private final ServiceRequestCommandServicePort serviceRequestCommandService;
     private final RescheduleProposalReadPort rescheduleProposalReadPort;
     private final RescheduleProposalPersistencePort rescheduleProposalPersistencePort;
+    private final NotificationServicePort notificationServicePort;
     private final DomainEventPublisherPort eventPublisher;
 
     /** Horas tras la fecha agendada para dar por no prestada una solicitud aceptada sin novedad. */
@@ -59,7 +62,15 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
             request.reject(SYSTEM_ACTOR);
             serviceRequestPersistencePort.update(request);
             publishStatusChanged(request, previous);
-            // TODO(notif): notificar al cliente que su solicitud pendiente venció y fue rechazada (RF-085).
+            notificationServicePort.notify(
+                    request.getClientId(),
+                    "request_expired",
+                    "Solicitud vencida",
+                    "Tu solicitud pendiente venció por falta de respuesta del oferente y fue rechazada.",
+                    "SERVICE_REQUEST",
+                    request.getId(),
+                    null,
+                    Map.of());
         }
     }
 
@@ -87,7 +98,15 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
         for (RescheduleProposal proposal : expired) {
             proposal.reject();
             rescheduleProposalPersistencePort.update(proposal);
-            // TODO(notif): notificar al oferente que su propuesta de reprogramación venció y fue rechazada.
+            notificationServicePort.notify(
+                    proposal.getOffererId(),
+                    "proposal_expired",
+                    "Propuesta vencida",
+                    "Tu propuesta de reprogramación venció y fue rechazada automáticamente.",
+                    "SERVICE_REQUEST",
+                    proposal.getRequestId(),
+                    null,
+                    Map.of());
         }
     }
 
@@ -103,7 +122,24 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
             request.confirmCompletion(SYSTEM_ACTOR);
             serviceRequestPersistencePort.update(request);
             publishStatusChanged(request, previous);
-            // TODO(notif): notificar a ambas partes que el servicio se dio por completado automáticamente.
+            notificationServicePort.notify(
+                    request.getClientId(),
+                    "auto_completed",
+                    "Servicio completado",
+                    "El servicio se marcó como completado automáticamente por falta de respuesta.",
+                    "SERVICE_REQUEST",
+                    request.getId(),
+                    null,
+                    Map.of());
+            notificationServicePort.notify(
+                    request.getOffererId(),
+                    "auto_completed",
+                    "Servicio completado",
+                    "El servicio se marcó como completado automáticamente por falta de respuesta del cliente.",
+                    "SERVICE_REQUEST",
+                    request.getId(),
+                    null,
+                    Map.of());
         }
     }
 

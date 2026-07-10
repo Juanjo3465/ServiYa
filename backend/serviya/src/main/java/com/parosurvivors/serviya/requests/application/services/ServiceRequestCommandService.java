@@ -24,6 +24,7 @@ import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -182,7 +183,16 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         request.reject(offererId);
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
-        // TODO(notif): notificar al cliente que su solicitud fue rechazada (RF-085).
+        userProfilePersistencePort.findByUserId(offererId)
+                .ifPresent(offerer -> notificationServicePort.notify(
+                        request.getClientId(),
+                        "request_rejected",
+                        "Solicitud rechazada",
+                        "Tu solicitud de servicio fue rechazada por " + offerer.getFullName(),
+                        "SERVICE_REQUEST",
+                        requestId,
+                        null,
+                        Map.of()));
     }
 
     @Override
@@ -198,7 +208,16 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         // PRESUMABLY_COMPLETED no tiene contador de métricas (los listeners lo ignoran); se publica
         // uniformemente para trazabilidad y para habilitar el feedback de ambas partes.
         publishStatusChanged(request, previous);
-        // TODO(notif): notificar al cliente que el oferente declaró el servicio prestado (RF-089).
+        userProfilePersistencePort.findByUserId(offererId)
+                .ifPresent(offerer -> notificationServicePort.notify(
+                        request.getClientId(),
+                        "service_completed",
+                        "Servicio realizado",
+                        offerer.getFullName() + " declaró el servicio como realizado. Confirma si fue así para calificar.",
+                        "SERVICE_REQUEST",
+                        requestId,
+                        null,
+                        Map.of()));
     }
 
     @Override
@@ -210,6 +229,16 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         request.confirmCompletion(clientId);
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
+        userProfilePersistencePort.findByUserId(clientId)
+                .ifPresent(client -> notificationServicePort.notify(
+                        request.getOffererId(),
+                        "completion_confirmed",
+                        "Servicio confirmado",
+                        client.getFullName() + " confirmó que el servicio fue completado.",
+                        "SERVICE_REQUEST",
+                        requestId,
+                        null,
+                        Map.of()));
     }
 
     @Override
@@ -229,7 +258,27 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         serviceRequestPersistencePort.update(request);
         // El estado final es CANCELLED o NOT_PROVIDED según la rama; el evento lleva el real.
         publishStatusChanged(request, previous);
-        // TODO(notif): notificar a ambas partes el desenlace (no prestada / cancelada por propuesta pendiente).
+        String outcome = request.getStatus() == RequestStatus.NOT_PROVIDED
+                ? "no fue prestado"
+                : "fue cancelado";
+        notificationServicePort.notify(
+                request.getClientId(),
+                "service_not_provided",
+                "Servicio no realizado",
+                "El servicio solicitado " + outcome + ".",
+                "SERVICE_REQUEST",
+                requestId,
+                null,
+                Map.of());
+        notificationServicePort.notify(
+                request.getOffererId(),
+                "service_not_provided",
+                "Servicio no realizado",
+                "El servicio programado " + outcome + ".",
+                "SERVICE_REQUEST",
+                requestId,
+                null,
+                Map.of());
     }
 
     @Override
@@ -242,7 +291,18 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         rescheduleProposalService.cancelPendingProposals(requestId);
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
-        // TODO(notif): notificar a la contraparte de la cancelación.
+        boolean cancelledByClient = request.getClientId().equals(userId);
+        Long counterpartyId = cancelledByClient ? request.getOffererId() : request.getClientId();
+        String actorRole = cancelledByClient ? "el Cliente" : "el Oferente";
+        notificationServicePort.notify(
+                counterpartyId,
+                "request_cancelled",
+                "Solicitud cancelada",
+                "La solicitud fue cancelada por " + actorRole + ".",
+                "SERVICE_REQUEST",
+                requestId,
+                null,
+                Map.of());
     }
 
     @Override
@@ -261,7 +321,17 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         ServiceRequest saved = serviceRequestPersistencePort.save(replacement);
         // Solo la solicitud original cambia de estado (RESCHEDULED); el reemplazo nace PENDING (sin contador).
         publishStatusChanged(request, previous);
-        // TODO(notif): notificar al oferente que el cliente reprogramó a una nueva fecha.
+        userProfilePersistencePort.findByUserId(clientId)
+                .ifPresent(client -> notificationServicePort.notify(
+                        request.getOffererId(),
+                        "request_rescheduled",
+                        "Servicio reprogramado",
+                        client.getFullName() + " reprogramó el servicio para el "
+                                + newDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                        "SERVICE_REQUEST",
+                        requestId,
+                        null,
+                        Map.of()));
         return saved;
     }
 
