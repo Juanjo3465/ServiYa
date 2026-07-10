@@ -3,6 +3,8 @@ package com.parosurvivors.serviya.requests.infrastructure.repositories;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.infrastructure.entities.ServiceRequestEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -13,6 +15,12 @@ import java.util.Optional;
 public interface ServiceRequestRepository extends JpaRepository<ServiceRequestEntity, Long> {
     List<ServiceRequestEntity> findByClientId(Long clientId);
     List<ServiceRequestEntity> findByOffererId(Long offererId);
+
+    /** Solicitudes en las que el usuario participa (cliente u oferente) y cuyo estado está en la lista dada. */
+    @Query("SELECT r FROM ServiceRequestEntity r WHERE (r.clientId = :userId OR r.offererId = :userId)"
+            + " AND r.status IN :statuses")
+    List<ServiceRequestEntity> findByParticipantAndStatusIn(@Param("userId") Long userId,
+                                                            @Param("statuses") List<RequestStatus> statuses);
     List<ServiceRequestEntity> findByServiceId(Long serviceId);
     List<ServiceRequestEntity> findByStatus(RequestStatus status);
     Optional<ServiceRequestEntity> findByPreviousRequestId(Long previousRequestId);

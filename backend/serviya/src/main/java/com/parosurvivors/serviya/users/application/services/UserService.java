@@ -67,11 +67,19 @@ public class UserService implements UserServicePort {
 
     @Override
     public void banUser(Long userId) {
-        throw new UnsupportedOperationException("TODO: banUser — placeholder, ver estructura-servicios.docx");
+        User user = userPersistencePort.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        user.ban();
+        userPersistencePort.update(user);
+        // TODO(notif): notificar al usuario baneado por doble canal con motivos (RF-063).
     }
 
     @Override
     public void unbanUser(Long userId) {
-        throw new UnsupportedOperationException("TODO: unbanUser — placeholder, ver estructura-servicios.docx");
+        User user = userPersistencePort.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        user.unban();
+        userPersistencePort.update(user);
+        // TODO(notif): notificar al usuario desbaneado por doble canal (RF-075).
     }
 }

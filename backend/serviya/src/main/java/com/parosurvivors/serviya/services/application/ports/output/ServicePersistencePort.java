@@ -13,6 +13,7 @@ public interface ServicePersistencePort {
     Optional<Service> findById(Long id);
     List<Service> findAll();
     List<Service> findByOffererId(Long offererId);
+    long countByOffererId(Long offererId);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);
     void deleteById(Long id);
     Service update(Service service);

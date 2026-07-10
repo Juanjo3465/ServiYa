@@ -108,6 +108,12 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
+    public int countServicesByOfferer(Long offererId) {
+        // Conteo de servicios (no eliminados) del oferente; usado por el panel admin (detalle de usuario).
+        return (int) persistencePort.countByOffererId(offererId);
+    }
+
+    @Override
     public Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds) {
         return serviceMetricsService.getMetricsByServiceIds(serviceIds);
     }
@@ -198,6 +204,20 @@ public class MarketplaceService implements MarketplaceServicePort {
         service.deactivate();
         service.setUpdatedAt(LocalDateTime.now());
         persistencePort.update(service);
+    }
+
+    @Override
+    public void deactivateAllByOfferer(Long offererId) {
+        // Usado por UserDeletionService al eliminar un oferente: oculta todos sus servicios del buscador.
+        // Corre dentro de la transacción del orquestador llamante.
+        LocalDateTime now = LocalDateTime.now();
+        for (Service service : persistencePort.findByOffererId(offererId)) {
+            if (service.isAvailable()) {
+                service.deactivate();
+                service.setUpdatedAt(now);
+                persistencePort.update(service);
+            }
+        }
     }
 
 }

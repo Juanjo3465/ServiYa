@@ -17,6 +17,7 @@ import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -154,6 +155,20 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
         // TODO(notif): notificar a la contraparte de la cancelación.
+    }
+
+    @Override
+    @Transactional
+    public void cancelActiveRequestsForUser(Long userId) {
+        // Cancela las solicitudes activas (PENDING/ACCEPTED) en las que el usuario participa como cliente
+        // u oferente. Lo invoca UserDeletionService al eliminar la cuenta para no dejar solicitudes huérfanas.
+        // Se filtra en BD por participante + estado (no se traen las ya finalizadas); el usuario es participante
+        // de todas ellas, así que cancelRequest(id, userId) supera el check de propiedad.
+        List<ServiceRequest> active = serviceRequestReadPort.findByParticipantAndStatusIn(
+                userId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
+        for (ServiceRequest request : active) {
+            cancelRequest(request.getId(), userId);
+        }
     }
 
     @Override

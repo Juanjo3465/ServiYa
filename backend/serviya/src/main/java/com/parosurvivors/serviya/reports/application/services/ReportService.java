@@ -48,11 +48,11 @@ public class ReportService implements ReportServicePort {
 
     @Override
     public int countReportsByReportedUser(Long reportedUserId) {
-        throw new UnsupportedOperationException("TODO: countReportsByReportedUser — placeholder, ver estructura-servicios.docx");
+        return (int) reportPersistencePort.countByReportedUserId(reportedUserId);
     }
 
     @Override
     public int countReportsByReporter(Long reporterId) {
-        throw new UnsupportedOperationException("TODO: countReportsByReporter — placeholder, ver estructura-servicios.docx");
+        return (int) reportPersistencePort.countByReporterId(reporterId);
     }
 }

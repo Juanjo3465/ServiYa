@@ -50,6 +50,11 @@ public class ServicePersistenceAdapter implements ServicePersistencePort {
     }
 
     @Override
+    public long countByOffererId(Long offererId) {
+        return repository.countByOffererIdAndDeletedAtIsNull(offererId);
+    }
+
+    @Override
     public Page<Service> search(com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery criteria,
                                 Pageable pageable) {
         return repository

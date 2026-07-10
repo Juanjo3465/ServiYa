@@ -35,5 +35,12 @@ public interface ServiceRequestCommandServicePort {
 
     void cancelRequest(Long requestId, Long userId);
 
+    /**
+     * Cancela todas las solicitudes activas (PENDING/ACCEPTED) del usuario (como cliente u oferente).
+     * No se expone como endpoint: la invoca el orquestador de eliminación de cuenta (UserDeletionService)
+     * para no dejar solicitudes huérfanas. El control de acceso es responsabilidad del llamador.
+     */
+    void cancelActiveRequestsForUser(Long userId);
+
     ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId);
 }

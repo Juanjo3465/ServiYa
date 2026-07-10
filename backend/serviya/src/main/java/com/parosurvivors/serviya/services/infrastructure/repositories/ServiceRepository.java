@@ -12,4 +12,6 @@ public interface ServiceRepository extends JpaRepository<ServiceEntity, Long>,
         JpaSpecificationExecutor<ServiceEntity> {
 
     List<ServiceEntity> findByOffererId(Long offererId);
+
+    long countByOffererIdAndDeletedAtIsNull(Long offererId);
 }

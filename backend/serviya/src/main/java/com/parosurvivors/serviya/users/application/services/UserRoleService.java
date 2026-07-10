@@ -40,12 +40,28 @@ public class UserRoleService implements UserRoleServicePort {
 
     @Override
     public void assignRole(Long userId, Long roleId) {
-        throw new UnsupportedOperationException("TODO: assignRole — placeholder, ver estructura-servicios.docx");
+        // Mecanismo de bajo nivel SIN restriccion de rol (lo usan grantAdminRole y la gestion admin de roles);
+        // la validacion de que rol se permite vive en el caso de uso que llama, no aqui.
+        Integer rid = toRoleId(roleId);
+        rolePersistencePort.findById(rid)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + roleId));
+        if (userRolePersistencePort.existsByUserIdAndRoleId(userId, rid)) {
+            throw new InvalidStateException("User " + userId + " already has role with id: " + roleId);
+        }
+        userRolePersistencePort.assignRole(userId, rid);
     }
 
     @Override
     public void removeRole(Long userId, Long roleId) {
-        throw new UnsupportedOperationException("TODO: removeRole — placeholder, ver estructura-servicios.docx");
+        userRolePersistencePort.removeRole(userId, toRoleId(roleId));
+    }
+
+    /** Las claves de la tabla roles son INT (Integer); las firmas de entrada usan Long. */
+    private Integer toRoleId(Long roleId) {
+        if (roleId == null) {
+            throw new InvalidStateException("roleId is required");
+        }
+        return roleId.intValue();
     }
 
     @Override

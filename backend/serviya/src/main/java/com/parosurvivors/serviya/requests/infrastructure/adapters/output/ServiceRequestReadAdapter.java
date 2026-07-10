@@ -89,6 +89,12 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
         return repository.countByOffererId(offererId);
     }
 
+    @Override
+    public List<ServiceRequest> findByParticipantAndStatusIn(Long userId, List<RequestStatus> statuses) {
+        return repository.findByParticipantAndStatusIn(userId, statuses).stream()
+                .map(mapper::toDomain).collect(Collectors.toList());
+    }
+
     // =====================================================
     // AGENDA (solicitudes futuras) + MANTENIMIENTO (por fecha)
     // =====================================================
