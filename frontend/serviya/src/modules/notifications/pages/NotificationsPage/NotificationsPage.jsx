@@ -19,17 +19,18 @@ function metaForType(type) {
 }
 
 function timeAgo(dateStr) {
-    const now = Date.now();
-    const date = new Date(dateStr);
-    const diffMs = now - date.getTime();
+    if (!dateStr) return '';
+    const hasTz = /[+-]\d{2}:\d{2}$/.test(dateStr) || dateStr.endsWith('Z');
+    const date = new Date(hasTz ? dateStr : dateStr + 'Z');
+    const diffMs = Date.now() - date.getTime();
     const mins = Math.floor(diffMs / 60000);
     if (mins < 1) return 'Ahora';
-    if (mins < 60) return `Hace ${mins} min`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `Hace ${hours}h`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `Hace ${days}d`;
-    return date.toLocaleDateString();
+    if (mins < 60) return mins === 1 ? 'Hace 1 minuto' : `Hace ${mins} minutos`;
+    const horas = Math.floor(mins / 60);
+    if (horas < 24) return horas === 1 ? 'Hace 1 hora' : `Hace ${horas} horas`;
+    return date.toLocaleDateString('es-CO', {
+        day: 'numeric', month: 'short', year: 'numeric'
+    });
 }
 
 function loadNotifications(tab, showToast, setPage, setLoading) {
