@@ -1,11 +1,15 @@
 package com.parosurvivors.serviya.notifications.infrastructure.adapters.output;
 
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationDeliveryPersistencePort;
+import com.parosurvivors.serviya.notifications.domain.DeliveryStatus;
 import com.parosurvivors.serviya.notifications.domain.NotificationDelivery;
 import com.parosurvivors.serviya.notifications.infrastructure.entities.NotificationDeliveryEntity;
 import com.parosurvivors.serviya.notifications.infrastructure.mappers.NotificationDeliveryPersistenceMapper;
 import com.parosurvivors.serviya.notifications.infrastructure.repositories.NotificationDeliveryRepository;
+import com.parosurvivors.serviya.notifications.infrastructure.repositories.NotificationDeliverySpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -46,5 +50,13 @@ public class NotificationDeliveryPersistenceAdapter implements NotificationDeliv
     @Override
     public Optional<NotificationDelivery> findByNotificationIdAndChannelId(Long notificationId, Integer channelId) {
         return repository.findByNotificationIdAndChannelId(notificationId, channelId).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<NotificationDelivery> findDeliveriesByUserId(Long userId, Boolean read, Long channelId, DeliveryStatus status, Pageable pageable) {
+        return repository.findAll(
+                NotificationDeliverySpecification.fromQuery(userId, read, channelId, status),
+                pageable
+        ).map(mapper::toDomain);
     }
 }
