@@ -154,7 +154,7 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
                 + " LEFT JOIN user_profiles up ON up.user_id = r." + counterpartyColumn
                 + " LEFT JOIN addresses a ON a.id = r.address_id"
                 + where
-                + " ORDER BY " + resolveOrderBy(pageable.getSort());
+                + " ORDER BY " + resolveOrderBy(pageable.getSort(), q);
         Query dataQuery = em.createNativeQuery(dataSql, "ServiceRequestSummaryMapping");
         params.forEach(dataQuery::setParameter);
         dataQuery.setFirstResult((int) pageable.getOffset());
@@ -219,9 +219,13 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
 
     /**
      * Resuelve el ORDER BY desde el {@link Sort} del Pageable con whitelist de propiedades para evitar
-     * inyeccion. Solo se admiten {@code scheduledDate} y {@code createdAt}; por defecto scheduled_date DESC.
+     * inyeccion. Solo se admiten {@code scheduledDate} y {@code createdAt}; por defecto:
+     * <ul>
+     *   <li>Si el filtro es solo PENDING → {@code r.created_at ASC} (las más antiguas primero)</li>
+     *   <li>En cualquier otro caso → {@code r.created_at DESC} (las más recientes primero)</li>
+     * </ul>
      */
-    private String resolveOrderBy(Sort sort) {
+    private String resolveOrderBy(Sort sort, SearchServiceRequestsQuery query) {
         for (Sort.Order order : sort) {
             String column = switch (order.getProperty()) {
                 case "scheduledDate" -> "r.scheduled_date";
@@ -232,6 +236,16 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
                 return column + (order.isAscending() ? " ASC" : " DESC");
             }
         }
-        return "r.scheduled_date DESC";
+        if (isOnlyPendingFilter(query)) {
+            return "r.created_at ASC";
+        }
+        return "r.created_at DESC";
+    }
+
+    /** Retorna {@code true} si el único filtro de estado es PENDING (tab Pendientes). */
+    private boolean isOnlyPendingFilter(SearchServiceRequestsQuery query) {
+        return query.statuses() != null
+                && query.statuses().size() == 1
+                && "PENDING".equalsIgnoreCase(query.statuses().get(0));
     }
 }
