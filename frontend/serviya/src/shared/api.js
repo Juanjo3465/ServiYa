@@ -128,6 +128,23 @@ export const metricsApi = {
     getMyMetrics: () => request('/api/v1/users/me/metrics', { auth: true }),
 };
 
+export const notificationApi = {
+    getNotifications: (params = {}) => {
+        const qs = new URLSearchParams();
+        if (params.read !== undefined) qs.set('read', params.read);
+        if (params.channelId) qs.set('channelId', params.channelId);
+        if (params.status) qs.set('status', params.status);
+        if (params.page !== undefined) qs.set('page', params.page);
+        if (params.size) qs.set('size', params.size);
+        const query = qs.toString();
+        return request(`/api/v1/notifications${query ? '?' + query : ''}`, { auth: true });
+    },
+    markAsRead: (id) =>
+        request(`/api/v1/notifications/${id}/read`, { method: 'POST', auth: true }),
+    getChannels: () =>
+        request('/api/v1/notification-channels', { auth: true }),
+};
+
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {
     if (roles.includes('ADMIN')) return '/admin/dashboard';

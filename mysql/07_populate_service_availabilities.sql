@@ -15,4 +15,3 @@ insert into service_availabilities (service_id, week_day, start_time, end_time, 
 (2, 4, '09:00:00', '18:00:00', true),
 (2, 5, '09:00:00', '18:00:00', true),
 (3, 4, '09:00:00', '18:00:00', true);
-

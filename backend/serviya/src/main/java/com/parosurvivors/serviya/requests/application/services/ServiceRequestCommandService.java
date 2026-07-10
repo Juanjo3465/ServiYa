@@ -25,6 +25,7 @@ import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,7 +73,17 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         // Solicitud original: alimenta requests_sent (cliente) y requests_received (oferente).
         eventPublisher.publish(new RequestCreatedEvent(
                 saved.getId(), saved.getClientId(), saved.getOffererId(), saved.getServiceId()));
-        // TODO(notif): notificar al oferente la nueva solicitud (RF-061).
+        userProfilePersistencePort.findByUserId(command.clientId())
+                .ifPresent(client -> notificationServicePort.notify(
+                        service.getOffererId(),
+                        "new_request",
+                        "Nueva solicitud de servicio",
+                        "Has recibido una solicitud de " + client.getFullName()
+                                + " para el servicio \"" + service.getTitle() + "\"",
+                        "SERVICE_REQUEST",
+                        saved.getId(),
+                        null,
+                        Map.of()));
         return saved;
     }
 
@@ -150,7 +161,16 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         request.accept(offererId);
         serviceRequestPersistencePort.update(request);
         publishStatusChanged(request, previous);
-        // TODO(notif): notificar al cliente que su solicitud fue aceptada (RF-062).
+        userProfilePersistencePort.findByUserId(offererId)
+                .ifPresent(offerer -> notificationServicePort.notify(
+                        request.getClientId(),
+                        "request_accepted",
+                        "Solicitud aceptada",
+                        "Tu solicitud de servicio fue aceptada por " + offerer.getFullName(),
+                        "SERVICE_REQUEST",
+                        requestId,
+                        null,
+                        Map.of()));
     }
 
     @Override
