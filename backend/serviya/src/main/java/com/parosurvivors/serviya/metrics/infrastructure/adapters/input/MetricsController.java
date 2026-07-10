@@ -95,8 +95,8 @@ public class MetricsController implements MetricsApi {
     public ResponseEntity<UserMetricsResponse> getOwnMetrics() {
         Long userId = currentUserId();
         return ResponseEntity.ok(mapper.toUserMetricsResponse(
-                offererMetricsService.getAllMetrics(userId),
-                clientMetricsService.getAllMetrics(userId)));
+                offererMetricsService.getMainMetrics(userId),
+                clientMetricsService.getMainMetrics(userId)));
     }
 
     /** Id del usuario autenticado (extraido del JWT por CurrentUser). */

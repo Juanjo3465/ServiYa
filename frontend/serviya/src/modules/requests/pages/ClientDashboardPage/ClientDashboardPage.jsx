@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi } from '../../../../shared/api';
+import { MetricsCards } from '../../../metrics';
 import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon, isTerminal } from '../../utils';
 
 import './ClientDashboardPage.css';
