@@ -78,6 +78,8 @@ export function ServiceDetailPage() {
     const [addresses, setAddresses] = useState([]);
     const [submitting, setSubmitting] = useState(false);
     const [successOpen, setSuccessOpen] = useState(false);
+    const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+    const [previewPhoto, setPreviewPhoto] = useState(null);
 
     useEffect(() => {
         const loadServiceDetail = async () => {
@@ -85,6 +87,7 @@ export function ServiceDetailPage() {
             try {
                 const data = await serviceApi.getServiceDetail(id);
                 setService(data);
+                setActivePhotoIndex(0);
             } catch (err) {
                 setError(err.message);
                 showToast("Error al cargar detalle del servicio: " + err.message, "error");
@@ -165,6 +168,9 @@ export function ServiceDetailPage() {
     const offererRating = service.offererAverageRating != null ? service.offererAverageRating : 0.0;
     const feedbacksCount = service.feedbacks ? service.feedbacks.length : 0;
     const initials = service.fullName ? service.fullName.substring(0, 2).toUpperCase() : "OF";
+    const photos = service.photos || [];
+    const activePhoto = photos[activePhotoIndex] || null;
+    const getPhotoSrc = (photo) => `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`;
 
     return (
         <>
@@ -177,14 +183,54 @@ export function ServiceDetailPage() {
             <div className="detail-layout">
                 <div>
                     <div className="service-hero">
-                        {service.photos && service.photos.length > 0 ? (
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
-                                {service.photos.map((photo, index) => (
-                                    <img key={index} src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`} alt={`${service.title}-${index + 1}`} style={{ width: '120px', height: '100px', objectFit: 'cover', borderRadius: '10px' }} />
-                                ))}
+                        {photos.length > 0 ? (
+                            <div className="service-gallery">
+                                <div className="service-gallery-main" onClick={() => setPreviewPhoto(getPhotoSrc(activePhoto))}>
+                                    <img src={getPhotoSrc(activePhoto)} alt={`${service.title}-${activePhotoIndex + 1}`} />
+                                    {photos.length > 1 && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="gallery-nav gallery-nav-left"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActivePhotoIndex((prev) => (prev === 0 ? photos.length - 1 : prev - 1));
+                                                }}
+                                            >
+                                                <Icon name="chevronLeft" size={18} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="gallery-nav gallery-nav-right"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActivePhotoIndex((prev) => (prev === photos.length - 1 ? 0 : prev + 1));
+                                                }}
+                                            >
+                                                <Icon name="chevronRight" size={18} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                {photos.length > 1 && (
+                                    <div className="gallery-thumbs">
+                                        {photos.map((photo, index) => (
+                                            <button
+                                                key={`${photo}-${index}`}
+                                                type="button"
+                                                className={`gallery-thumb ${index === activePhotoIndex ? 'active' : ''}`}
+                                                onClick={() => setActivePhotoIndex(index)}
+                                            >
+                                                <img src={getPhotoSrc(photo)} alt={`${service.title}-${index + 1}`} />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ) : (
-                            <Icon name="wrench" size={64} strokeWidth={1.2} />
+                            <div className="service-hero-placeholder">
+                                <Icon name="wrench" size={64} strokeWidth={1.2} />
+                            </div>
                         )}
                         <div className="service-hero-av">
                             <span className={`badge ${service.active ? 'badge-success' : 'badge-warn'}`}>
@@ -467,6 +513,14 @@ export function ServiceDetailPage() {
                     <button className="btn btn-ghost btn-full" style={{ marginTop: '8px' }} onClick={() => setSuccessOpen(false)}>Seguir explorando</button>
                 </div>
             </Modal>
+
+            {previewPhoto && (
+                <Modal open={true} onClose={() => setPreviewPhoto(null)} maxWidth={860}>
+                    <div className="gallery-preview">
+                        <img src={previewPhoto} alt="Vista previa de la imagen" />
+                    </div>
+                </Modal>
+            )}
 
             <ToastContainer toasts={toasts} />
         </>
