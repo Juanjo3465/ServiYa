@@ -36,4 +36,11 @@ public class NotificationPersistenceAdapter implements NotificationPersistencePo
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Notification> findAllById(List<Long> ids) {
+        return repository.findAllById(ids).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }

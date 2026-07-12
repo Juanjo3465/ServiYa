@@ -1,23 +1,17 @@
 package com.parosurvivors.serviya.requests.infrastructure.adapters.output;
 
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestPersistencePort;
-import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.requests.infrastructure.entities.ServiceRequestEntity;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestPersistenceMapper;
 import com.parosurvivors.serviya.requests.infrastructure.repositories.ServiceRequestRepository;
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
+/**
+ * Adapter de PERSISTENCIA (mutaciones) de solicitudes de servicio: solo save/update. Todas las
+ * lecturas viven en {@code ServiceRequestReadAdapter} ({@code ServiceRequestReadPort}).
+ */
 @Component
 @RequiredArgsConstructor
 public class ServiceRequestPersistenceAdapter implements ServiceRequestPersistencePort {
@@ -35,69 +29,5 @@ public class ServiceRequestPersistenceAdapter implements ServiceRequestPersisten
     public ServiceRequest update(ServiceRequest request) {
         ServiceRequestEntity updated = repository.save(mapper.toEntity(request));
         return mapper.toDomain(updated);
-    }
-
-    @Override
-    public Optional<ServiceRequest> findById(Long id) {
-        return repository.findById(id).map(mapper::toDomain);
-    }
-
-    @Override
-    public List<ServiceRequest> findByClientId(Long clientId) {
-        return repository.findByClientId(clientId).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<ServiceRequest> findByOffererId(Long offererId) {
-        return repository.findByOffererId(offererId).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<ServiceRequest> findByServiceId(Long serviceId) {
-        return repository.findByServiceId(serviceId).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<ServiceRequest> findByStatus(RequestStatus status) {
-        return repository.findByStatus(status).stream()
-                .map(mapper::toDomain)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public Optional<ServiceRequest> findByPreviousRequestId(Long previousRequestId) {
-        return repository.findByPreviousRequestId(previousRequestId).map(mapper::toDomain);
-    }
-
-    @Override
-    public long countByClientId(Long clientId) {
-        return repository.countByClientId(clientId);
-    }
-
-    @Override
-    public long countByOffererId(Long offererId) {
-        return repository.countByOffererId(offererId);
-    }
-
-    @Override
-    public Page<ServiceRequest> findOffererFutureRequests(Long offererId, List<String> statuses, Pageable pageable) {
-        return repository.findByOffererIdAndScheduledDateAfter(offererId, LocalDateTime.now()).stream()
-                .filter(entity -> statuses.contains(entity.getStatus().name()))
-                .map(mapper::toDomain)
-                .collect(Collectors.collectingAndThen(Collectors.toList(), list -> new PageImpl<>(list, pageable, list.size())));
-    }
-
-    @Override
-    public Page<ServiceRequest> findClientFutureRequests(Long clientId, List<String> statuses, Pageable pageable) {
-    return repository.findByClientIdAndScheduledDateAfter(clientId, LocalDateTime.now()).stream()
-                .filter(entity -> statuses.contains(entity.getStatus().name()))
-                .map(mapper::toDomain)
-                .collect(Collectors.collectingAndThen(Collectors.toList(), list -> new PageImpl<>(list, pageable, list.size())));
     }
 }

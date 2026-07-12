@@ -17,6 +17,7 @@ import com.parosurvivors.serviya.metrics.infrastructure.dto.response.ServiceMetr
 import com.parosurvivors.serviya.metrics.infrastructure.dto.response.ServiceTagMetricsResponse;
 import com.parosurvivors.serviya.metrics.infrastructure.dto.response.UserMetricsResponse;
 import com.parosurvivors.serviya.metrics.infrastructure.mappers.MetricsWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -94,12 +95,12 @@ public class MetricsController implements MetricsApi {
     public ResponseEntity<UserMetricsResponse> getOwnMetrics() {
         Long userId = currentUserId();
         return ResponseEntity.ok(mapper.toUserMetricsResponse(
-                offererMetricsService.getAllMetrics(userId),
-                clientMetricsService.getAllMetrics(userId)));
+                offererMetricsService.getMainMetrics(userId),
+                clientMetricsService.getMainMetrics(userId)));
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
+    /** Id del usuario autenticado (extraido del JWT por CurrentUser). */
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class ServiceRequest {
     private Long id;
     private Long serviceId;
@@ -55,9 +55,9 @@ public class ServiceRequest {
         return status == RequestStatus.COMPLETED;
     }
 
-    /** El oferente la marcó como prestada (completedAt) pero el cliente aún no confirma. */
+    /** El oferente la marcó como prestada; espera la confirmación del cliente. */
     public boolean isPresumablyCompleted() {
-        return status == RequestStatus.ACCEPTED && completedAt != null;
+        return status == RequestStatus.PRESUMABLY_COMPLETED;
     }
 
     public boolean isTerminal() {
@@ -102,31 +102,30 @@ public class ServiceRequest {
         }
         requireStatus(RequestStatus.ACCEPTED, "marcar como prestada");
         this.completedAt = LocalDateTime.now();
-        this.updatedBy = offererId;
-        this.updatedStatusAt = LocalDateTime.now();
+        transitionTo(RequestStatus.PRESUMABLY_COMPLETED, offererId);
     }
 
+    /** El cliente confirma que el servicio fue prestado. Sólo desde {@code PRESUMABLY_COMPLETED}. */
     public void confirmCompletion(Long clientId) {
         if (isCompleted()) {
             return;
         }
-        if (!isAccepted()) {
-            throw new InvalidStateException(
-                    "Sólo se puede confirmar una solicitud aceptada; estado actual: " + status);
-        }
-        if (completedAt == null) {
-            this.completedAt = LocalDateTime.now();
-        }
+        requireStatus(RequestStatus.PRESUMABLY_COMPLETED, "confirmar");
         transitionTo(RequestStatus.COMPLETED, clientId);
     }
 
+    /**
+     * Marca la solicitud como no prestada. Origen {@code ACCEPTED} (pasó la fecha sin prestarse)
+     * o {@code PRESUMABLY_COMPLETED} (disputa: el cliente la reportó y un admin decide). El control
+     * de acceso (admin/sistema) es responsabilidad de la capa de seguridad, no del dominio.
+     */
     public void markAsNotProvided(Long userId) {
         if (status == RequestStatus.NOT_PROVIDED) {
             return;
         }
-        if (!isAccepted()) {
+        if (!isAccepted() && !isPresumablyCompleted()) {
             throw new InvalidStateException(
-                    "Sólo una solicitud aceptada puede marcarse como no prestada; estado actual: " + status);
+                    "Sólo una solicitud aceptada o presuntamente prestada puede marcarse como no prestada; estado actual: " + status);
         }
         transitionTo(RequestStatus.NOT_PROVIDED, userId);
     }
@@ -141,6 +140,25 @@ public class ServiceRequest {
                     "No se puede reprogramar una solicitud en estado " + status);
         }
         transitionTo(RequestStatus.RESCHEDULED, userId);
+    }
+
+    /**
+     * Crea la solicitud de reemplazo al reprogramar (patrón Prototype vía {@code toBuilder}):
+     * copia todos los campos de ésta, la enlaza por {@code previousRequestId} y fija la nueva
+     * fecha y estado ({@code ACCEPTED} si viene de aceptar una propuesta, {@code PENDING} si es
+     * reprogramación libre). No modifica esta solicitud (llamar antes {@link #markRescheduled}).
+     */
+    public ServiceRequest rescheduleTo(LocalDateTime newDate, RequestStatus newStatus, Long actorId) {
+        return this.toBuilder()
+                .id(null)
+                .previousRequestId(this.id)
+                .scheduledDate(newDate)
+                .status(newStatus)
+                .completedAt(null)
+                .updatedBy(actorId)
+                .createdAt(LocalDateTime.now())
+                .updatedStatusAt(LocalDateTime.now())
+                .build();
     }
 
     // =====================================================

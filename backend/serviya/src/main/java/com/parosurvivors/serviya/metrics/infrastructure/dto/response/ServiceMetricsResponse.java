@@ -15,5 +15,6 @@ public record ServiceMetricsResponse(
         BigDecimal averageRating,
         Integer totalRatings,
         Integer totalComments,
+        Integer totalRequestsReceived,
         LocalDateTime updatedAt) {
 }

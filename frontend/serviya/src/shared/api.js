@@ -88,6 +88,16 @@ export const serviceApi = {
     createService: (payload) => request('/api/v1/services', { method: 'POST', body: payload, auth: true }),
     updateService: (id, payload) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true }),
     deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
+    searchServices: (params) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params || {}).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') {
+                queryParams.append(key, val);
+            }
+        });
+        return request(`/api/v1/services/search?${queryParams.toString()}`, { auth: true });
+    },
+    getServiceDetail: (id) => request(`/api/v1/services/${id}/detail`, { auth: true }),
 };
 
 export const addressApi = {
@@ -95,6 +105,21 @@ export const addressApi = {
     createAddress: (payload) => request('/api/v1/users/me/addresses', { method: 'POST', body: payload, auth: true }),
     updateAddress: (id, payload) => request(`/api/v1/addresses/${id}`, { method: 'PATCH', body: payload, auth: true }),
     deleteAddress: (id) => request(`/api/v1/addresses/${id}`, { method: 'DELETE', auth: true }),
+};
+
+export const requestApi = {
+    createRequest: (payload) => request('/api/v1/service-requests', { method: 'POST', body: payload, auth: true }),
+    getMyClientRequests: (params = {}) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') {
+                queryParams.append(key, val);
+            }
+        });
+        const qs = queryParams.toString();
+        return request(`/api/v1/users/me/client-requests${qs ? '?' + qs : ''}`, { auth: true });
+    },
+    cancelRequest: (id) => request(`/api/v1/service-requests/${id}/cancel`, { method: 'POST', auth: true }),
 };
 
 export const categoryApi = {
@@ -132,6 +157,27 @@ export const userApi = {
 
         return `Usuario ${id}`;
     },
+};
+
+export const metricsApi = {
+    getMyMetrics: () => request('/api/v1/users/me/metrics', { auth: true }),
+};
+
+export const notificationApi = {
+    getNotifications: (params = {}) => {
+        const qs = new URLSearchParams();
+        if (params.read !== undefined) qs.set('read', params.read);
+        if (params.channelId) qs.set('channelId', params.channelId);
+        if (params.status) qs.set('status', params.status);
+        if (params.page !== undefined) qs.set('page', params.page);
+        if (params.size) qs.set('size', params.size);
+        const query = qs.toString();
+        return request(`/api/v1/notifications${query ? '?' + query : ''}`, { auth: true });
+    },
+    markAsRead: (id) =>
+        request(`/api/v1/notifications/${id}/read`, { method: 'POST', auth: true }),
+    getChannels: () =>
+        request('/api/v1/notification-channels', { auth: true }),
 };
 
 // Ruta de inicio según el rol devuelto por el backend.

@@ -22,6 +22,9 @@ import java.time.LocalDateTime;
 public class RescheduleProposal {
     private Long id;
     private Long requestId;
+    /** Denormalizados desde la solicitud (inmutables): la parte cliente y oferente de la propuesta. */
+    private Long clientId;
+    private Long offererId;
     private String reason;
     private LocalDateTime proposedDate;
     private ProposalStatus status;
@@ -36,25 +39,41 @@ public class RescheduleProposal {
         return status == ProposalStatus.PENDING;
     }
 
+    /** Cualquier estado distinto de {@code PENDING} es resuelto (terminal). */
     public boolean isResolved() {
-        return status == ProposalStatus.ACCEPTED || status == ProposalStatus.REJECTED;
+        return status != ProposalStatus.PENDING;
     }
 
+    /** El cliente acepta la fecha propuesta. */
     public void accept() {
-        if (status == ProposalStatus.ACCEPTED) {
-            return;
-        }
-        requirePending("aceptar");
-        this.status = ProposalStatus.ACCEPTED;
-        this.respondedAt = LocalDateTime.now();
+        resolveTo(ProposalStatus.ACCEPTED, "aceptar");
     }
 
+    /** El cliente rechaza la propuesta sin reprogramar; la solicitud conserva su fecha original. */
     public void reject() {
-        if (status == ProposalStatus.REJECTED) {
+        resolveTo(ProposalStatus.REJECTED, "rechazar");
+    }
+
+    /** El oferente retira su propia propuesta (≠ que el cliente la rechace). */
+    public void cancel() {
+        resolveTo(ProposalStatus.CANCELLED, "cancelar");
+    }
+
+    /**
+     * El cliente reprogramó libremente en vez de responder esta propuesta, por lo que queda superada.
+     * Aplica sea cual sea el origen de la reprogramación libre (viendo la propuesta o desde la solicitud).
+     */
+    public void markSuperseded() {
+        resolveTo(ProposalStatus.SUPERSEDED, "superar");
+    }
+
+    /** Transición idempotente a un estado resuelto: repetir el estado ya aplicado no falla. */
+    private void resolveTo(ProposalStatus target, String action) {
+        if (status == target) {
             return;
         }
-        requirePending("rechazar");
-        this.status = ProposalStatus.REJECTED;
+        requirePending(action);
+        this.status = target;
         this.respondedAt = LocalDateTime.now();
     }
 

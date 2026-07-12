@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Navbar } from '../../../../shared/components/Navbar/Navbar';
 import { Footer } from '../../../../shared/components/Footer/Footer';
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
@@ -6,35 +7,60 @@ import { CategoryCard } from '../../components/CategoryCard/CategoryCard';
 import { ServiceCard } from '../../components/ServiceCard/ServiceCard';
 import { Hero } from '../../components/Hero/Hero';
 import { Link } from 'react-router-dom';
+import { categoryApi, serviceApi } from '../../../../shared';
 
 import "./HomePage.css";
 
-const CATEGORIES = [
-    { name: 'Plomería', icon: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /> },
-    { name: 'Electricidad', icon: <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /> },
-    { name: 'Limpieza', icon: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></> },
-    { name: 'Jardinería', icon: <path d="M12 22V12m0 0C12 7 7 4 7 4s0 5 5 8zm0 0c0-5 5-8 5-8s0 5-5 8z" /> },
-    { name: 'Pintura', icon: <path d="m2 12 10-8 10 8v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" /> },
-    { name: 'Carpintería', icon: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></> },
-    { name: 'Cerrajería', icon: <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></> },
-    { name: 'Aires A/C', icon: <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3m-1-4-1-4-4 4-4-4-1 4" /> },
-    { name: 'Vidrios', icon: <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></> },
-    { name: 'Mudanzas', icon: <path d="M5 8h14M5 12h14M5 16h14" /> }
-];
+const CATEGORY_ICONS = {
+    'Electricidad': <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />,
+    'Fontanería': <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />,
+    'Limpieza': <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
+    'Jardinería': <path d="M12 22V12m0 0C12 7 7 4 7 4s0 5 5 8zm0 0c0-5 5-8 5-8s0 5-5 8z" />,
+    'Pintura': <path d="m2 12 10-8 10 8v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" />,
+    'Carpintería': <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" /></>,
+    'Cerrajería': <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+    'Reparaciones de electrodomésticos': <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3m-1-4-1-4-4 4-4-4-1 4" />,
+    'Reparaciones de vehículos': <path d="M5 8h14M5 12h14M5 16h14" />,
+    'Tecnología y electrónica': <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></>
+};
 
-const FEAT_SERVICES = [
-    { name: 'Reparación de tuberías', provider: 'Carlos M.', category: 'Plomería', price: '$50k', rating: 4.9, availability: 'Hoy', icon: <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /> },
-    { name: 'Instalación eléctrica', provider: 'Ana R.', category: 'Electricidad', price: '$80k', rating: 4.7, availability: 'Hoy', icon: <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /> },
-    { name: 'Limpieza de hogar', provider: 'María L.', category: 'Limpieza', price: '$60k', rating: 5.0, availability: 'Hoy', icon: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /> },
-    { name: 'Poda y jardinería', provider: 'Pedro G.', category: 'Jardinería', price: '$45k', rating: 4.5, availability: 'Mañana', icon: <path d="M12 22V12m0 0C12 7 7 4 7 4s0 5 5 8zm0 0c0-5 5-8 5-8s0 5-5 8z" /> },
-];
+const DEFAULT_ICON = <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />;
+
+
 
 function HomePage() {
-    const { toasts } = useToast();
+    const { toasts, showToast } = useToast();
+    const [categories, setCategories] = useState([]);
+    const [featServices, setFeatServices] = useState([]);
+
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const data = await categoryApi.getCategories();
+                setCategories(data || []);
+            } catch (err) {
+                showToast("Error al cargar categorías de la base de datos: " + err.message, "error");
+            }
+        };
+        loadCategories();
+    }, []);
+
+    useEffect(() => {
+        const loadFeaturedServices = async () => {
+            try {
+                const data = await serviceApi.searchServices({ size: 4, sort: 'createdAt,desc' });
+                setFeatServices(data?.content || []);
+            } catch {
+                // Si falla silenciosamente, la sección queda vacía
+            }
+        };
+        loadFeaturedServices();
+    }, []);
+
     return (
         <>
             <Navbar />
-            <Hero />
+            <Hero categories={categories} />
             {/* Stats Bar */}
             <div className="stats-bar">
                 <div className="stat-it"><div className="stat-big">+500</div><div className="stat-lbl">Oferentes activos</div></div>
@@ -47,19 +73,37 @@ function HomePage() {
                 <div className="sec-title">Categorías</div>
                 <div className="sec-sub">Encuentra el especialista que necesitas</div>
                 <div className="cats-grid">
-                    {CATEGORIES.map((cat, index) => (
-                        <CategoryCard key={index} name={cat.name} icon={cat.icon} />
+                    {categories.map((cat) => (
+                        <CategoryCard 
+                            key={cat.id} 
+                            id={cat.id}
+                            name={cat.name} 
+                            icon={CATEGORY_ICONS[cat.name] || DEFAULT_ICON} 
+                        />
                     ))}
                 </div>
             </section>
             {/* Servicios Destacados */}
             <section className="sec sec-gray">
                 <div className="sec-title">Servicios destacados</div>
-                <div className="sec-sub">Los más solicitados esta semana</div>
+                <div className="sec-sub">Los más recientes</div>
                 <div className="s-cards">
-                    {FEAT_SERVICES.map((service, index) => (
-                        <ServiceCard key={index} {...service} />
-                    ))}
+                    {featServices.map((s) => {
+                        const catName = categories.find(c => c.id === s.categoryId)?.name || 'Servicio';
+                        return (
+                            <ServiceCard
+                                key={s.id}
+                                id={s.id}
+                                name={s.title}
+                                provider={`Oferente #${s.offererId}`}
+                                category={catName}
+                                price={s.priceHourly ? `$${s.priceHourly.toLocaleString()}` : 'Consultar'}
+                                rating={s.averageRating ?? 0}
+                                availability={s.active ? 'Hoy' : 'No disponible'}
+                                icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
+                            />
+                        );
+                    })}
                 </div>
             </section>
             {/* Cómo funciona */}

@@ -17,10 +17,11 @@ public record ClientMetricsResponse(
         Integer totalComments,
         Integer totalPositiveTags,
         Integer totalNegativeTags,
+        Integer totalRequestsSent,
         Integer totalAcceptedRequests,
         Integer totalCompletedRequests,
         Integer totalCancelledRequests,
-        Integer totalScheduledRequests,
+        Integer totalRescheduledRequests,
         Integer totalNotProvidedRequests,
         LocalDateTime updatedAt) {
 }

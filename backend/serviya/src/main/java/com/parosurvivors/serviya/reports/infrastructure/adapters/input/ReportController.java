@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import java.util.List;
 
 /**
@@ -125,11 +126,7 @@ public class ReportController implements ReportApi {
     }
 
     private Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof Long principal) {
-            return principal;
-        }
-        return 1L;
+        return CurrentUser.id();
     }
 
     private String resolveCategory(String category, String customCategory) {

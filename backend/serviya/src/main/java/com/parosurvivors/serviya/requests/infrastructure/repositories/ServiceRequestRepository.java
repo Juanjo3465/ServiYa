@@ -21,5 +21,8 @@ public interface ServiceRequestRepository extends JpaRepository<ServiceRequestEn
     //These next two methods are meant for the Agenda feature. Will return future requests, and not completed.
     List<ServiceRequestEntity> findByClientIdAndScheduledDateAfter(Long clientId, LocalDateTime tomorrowOrNow);
     List<ServiceRequestEntity> findByOffererIdAndScheduledDateAfter(Long offererId, LocalDateTime tomorrowOrNow);
-    
+
+    // Mantenimiento por tiempo (tareas @Scheduled): solicitudes vencidas por fecha en un estado dado.
+    List<ServiceRequestEntity> findByStatusAndScheduledDateBefore(RequestStatus status, LocalDateTime cutoff);
+    List<ServiceRequestEntity> findByStatusAndCompletedAtBefore(RequestStatus status, LocalDateTime cutoff);
 }

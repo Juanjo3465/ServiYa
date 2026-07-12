@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
+import { metricsApi, notificationApi } from '../../../../shared/api';
+import { timeAgo } from '../../utils';
 
 import './OffererDashboardPage.css';
 
-const STATS = [
-    { icon: 'tasks', value: '4', label: 'Solicitudes recibidas' },
-    { icon: 'checkCircle', value: '42', label: 'Servicios completados', variant: 'success' },
-    { icon: 'star', value: '4.9★', label: 'Calificación promedio', variant: 'warn', fill: 'currentColor' },
-    { icon: 'xCircle', value: '2%', label: 'Cancelaciones', variant: 'danger' },
-];
+const TYPE_META = {
+    new_request:         { icon: 'tasks',     cls: '' },
+    request_accepted:    { icon: 'check',     cls: 'success' },
+    request_rejected:    { icon: 'close',     cls: 'danger' },
+    request_cancelled:   { icon: 'close',     cls: 'danger' },
+    service_completed:   { icon: 'check',     cls: 'success' },
+    reschedule_proposed: { icon: 'reschedule', cls: 'warn' },
+    request_rescheduled: { icon: 'reschedule', cls: 'warn' },
+};
+
+function metaForType(type) {
+    return TYPE_META[type] || { icon: 'bell', cls: '' };
+}
 
 const AGENDA = [
     { day: '12', month: 'Mayo', title: 'Reparación de tuberías', sub: 'Juan P. · 9:00 AM · Calle 45 #12-34', badge: 'badge-warn', label: 'Pendiente' },
@@ -22,13 +31,43 @@ export function OffererDashboardPage() {
     const { toasts, showToast } = useToast();
     const [proposalOpen, setProposalOpen] = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
+    const [offererMetrics, setOffererMetrics] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [notifications, setNotifications] = useState([]);
+    const [loadingNotifications, setLoadingNotifications] = useState(true);
+
+    useEffect(() => {
+        metricsApi.getMyMetrics()
+            .then(data => setOffererMetrics(data.offererMetrics))
+            .catch(() => showToast('Error al cargar métricas', 'danger'))
+            .finally(() => setLoading(false));
+    }, []);
+
+    useEffect(() => {
+        notificationApi.getNotifications({ page: 0, size: 3 })
+            .then(data => setNotifications(data.content || []))
+            .catch(() => {})
+            .finally(() => setLoadingNotifications(false));
+    }, []);
+
+    const stats = offererMetrics ? [
+        { icon: 'tasks', value: String(offererMetrics.totalRequestsReceived ?? 0), label: 'Solicitudes recibidas' },
+        { icon: 'checkCircle', value: String(offererMetrics.totalCompletedServices ?? 0), label: 'Servicios completados', variant: 'success' },
+        { icon: 'star', value: (offererMetrics.averageRating ?? 0).toFixed(1) + '★', label: 'Calificación promedio', variant: 'warn', fill: 'currentColor' },
+        {
+            icon: 'xCircle',
+            value: (offererMetrics.totalRequestsReceived > 0 ? (offererMetrics.totalCancelledServices / offererMetrics.totalRequestsReceived * 100) : 0).toFixed(0) + '%',
+            label: 'Cancelaciones',
+            variant: 'danger',
+        },
+    ] : [];
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
             <div className="ph"><h1>¡Hola, Carlos!</h1><p>Gestiona tus servicios y solicitudes recibidas</p></div>
 
             <div className="g4" style={{ marginBottom: '22px' }}>
-                {STATS.map((s) => <StatCard key={s.label} {...s} />)}
+                {loading ? <div className="loading-pulse" style={{ height: 80 }} /> : stats.map((s) => <StatCard key={s.label} {...s} />)}
             </div>
 
             <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>Solicitudes recibidas</div>
@@ -88,8 +127,24 @@ export function OffererDashboardPage() {
             </div>
 
             <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Notificaciones recientes</div>
-            <div className="notif-item unread"><div className="notif-ico"><Icon name="tasks" size={16} /></div><div className="notif-body"><div className="notif-title">Nueva solicitud recibida</div><div className="notif-msg">Juan P. solicita "Reparación de tuberías" para el 12 de mayo.</div><div className="notif-time">Hace 5 min</div></div></div>
-            <div className="notif-item unread"><div className="notif-ico success"><Icon name="check" size={16} /></div><div className="notif-body"><div className="notif-title">Solicitud confirmada</div><div className="notif-msg">Sandra R. confirmó el servicio del 14 de mayo.</div><div className="notif-time">Hace 2 horas</div></div></div>
+            {loadingNotifications ? (
+                <div style={{ padding: '12px 0', color: 'var(--c-soft)', fontSize: '13px' }}>Cargando notificaciones...</div>
+            ) : notifications.length === 0 ? (
+                <div style={{ padding: '12px 0', color: 'var(--c-soft)', fontSize: '13px' }}>No hay notificaciones</div>
+            ) : notifications.map((n) => {
+                const meta = metaForType(n.notificationType);
+                const isUnread = !n.readAt;
+                return (
+                    <div className={`notif-item ${isUnread ? 'unread' : 'read'}`} key={n.deliveryId}>
+                        <div className={`notif-ico ${meta.cls}`}><Icon name={meta.icon} size={16} /></div>
+                        <div className="notif-body">
+                            <div className="notif-title">{n.title}</div>
+                            <div className="notif-msg">{n.message}</div>
+                            <div className="notif-time">{timeAgo(n.createdAt)}</div>
+                        </div>
+                    </div>
+                );
+            })}
             <Link to="/notifications" className="link-more" style={{ display: 'block', textAlign: 'center', marginTop: '10px' }}>Ver todas las notificaciones →</Link>
 
             <Modal open={proposalOpen} onClose={() => setProposalOpen(false)}>

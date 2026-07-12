@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const TOAST_TYPES = {
   info: { bg: '#0F172A', ico: <><path d="M12 8v4m0 4h.01"/><circle cx="12" cy="12" r="10"/></> },
   success: { bg: '#065F46', ico: <path d="M20 6 9 17l-5-5"/> },
@@ -10,7 +12,7 @@ export const ToastContainer = ({ toasts }) => {
     <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {toasts.map((t) => {
         const config = TOAST_TYPES[t.type] || TOAST_TYPES.info;
-        return (
+        const content = (
           <div
             key={t.id}
             style={{
@@ -33,6 +35,9 @@ export const ToastContainer = ({ toasts }) => {
             <span>{t.msg}</span>
           </div>
         );
+        return t.to
+          ? <Link key={t.id} to={t.to} style={{ textDecoration: 'none' }}>{content}</Link>
+          : content;
       })}
     </div>
   );

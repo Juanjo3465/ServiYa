@@ -17,10 +17,11 @@ public record OffererMetricsResponse(
         Integer totalComments,
         Integer totalPositiveTags,
         Integer totalNegativeTags,
+        Integer totalRequestsReceived,
         Integer totalAcceptedRequests,
         Integer totalCompletedServices,
         Integer totalCancelledServices,
-        Integer totalRescheduledServices,
+        Integer totalRescheduleProposalsSent,
         Integer totalNotProvidedServices,
         LocalDateTime updatedAt) {
 }

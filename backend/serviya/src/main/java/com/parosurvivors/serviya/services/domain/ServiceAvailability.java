@@ -23,7 +23,7 @@ public class ServiceAvailability {
     private boolean isActive;    // Cambio 2
 
     public static void checkServiceWeekDay(Integer weekDay) {
-        if (!(weekDay >= 0 && weekDay <= 6)) {
+        if (!(weekDay >= 1 && weekDay <= 7)) {
             throw new IllegalArgumentException("Service is not available on this day");
         }
     }

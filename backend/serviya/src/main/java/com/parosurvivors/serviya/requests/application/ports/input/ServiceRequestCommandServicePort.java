@@ -26,9 +26,14 @@ public interface ServiceRequestCommandServicePort {
 
     void confirmCompletion(Long requestId, Long clientId);
 
-    void markAsNotProvided(Long requestId, Long userId);
+    /**
+     * Marca la solicitud como no prestada (disputa resuelta o vencimiento sin prestarse). No se expone
+     * como endpoint: la invocan el orquestador de moderación (admin) y el mantenimiento programado (sistema);
+     * el control de acceso es responsabilidad de esos llamadores, no de esta transición.
+     */
+    void markAsNotProvided(Long requestId, Long actorId);
 
     void cancelRequest(Long requestId, Long userId);
 
-    ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate);
+    ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId);
 }

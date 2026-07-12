@@ -2,6 +2,7 @@
 -- SERVICIOS del oferente 1 (requiere users + categories)
 -- ids de servicio: 1=plomería 2=jardinería 3=limpieza
 -- =====================================================
+SET NAMES utf8mb4;
 
 INSERT INTO services (
     offerer_id,
@@ -37,5 +38,14 @@ VALUES (
     '["foto5.jpg", "foto6.jpg"]',
     20.00,
     6,
+    60
+),
+(
+    1,
+    'Servicio de reparacion de celulares',
+    'Limpieza profunda de hogares y oficinas',
+    '["foto5.jpg", "foto6.jpg"]',
+    70.00,
+    9,
     60
 );

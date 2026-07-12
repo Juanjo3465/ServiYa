@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
@@ -67,8 +68,7 @@ public class OffererAvailabilityController implements OffererAvailabilityApi {
         return ResponseEntity.noContent().build();
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 1L;
+        return CurrentUser.id();
     }
 }
