@@ -34,7 +34,6 @@ export function SearchPage() {
 
     const [minPrice, setMinPrice] = useState("");
     const [maxPrice, setMaxPrice] = useState("");
-    const [availableOnly, setAvailableOnly] = useState(false);
     const [minRating, setMinRating] = useState(null);
     const [maxDistanceKm, setMaxDistanceKm] = useState(null);
     const [sort, setSort] = useState("createdAt,desc");
@@ -44,7 +43,6 @@ export function SearchPage() {
     const [sidebarName, setSidebarName] = useState(() => searchParams.get('q') || "");
     const [sidebarMinPrice, setSidebarMinPrice] = useState("");
     const [sidebarMaxPrice, setSidebarMaxPrice] = useState("");
-    const [sidebarAvailable, setSidebarAvailable] = useState(false);
     const [sidebarMinRating, setSidebarMinRating] = useState(null);
     const [sidebarDistance, setSidebarDistance] = useState(null);
 
@@ -87,7 +85,6 @@ export function SearchPage() {
             if (offererIdFilter) params.offererId = offererIdFilter;
             if (minPrice) params.minPrice = minPrice;
             if (maxPrice) params.maxPrice = maxPrice;
-            if (availableOnly) params.available = true;
             if (minRating) params.minRating = minRating;
             if (maxDistanceKm) {
                 params.maxDistanceKm = maxDistanceKm;
@@ -114,7 +111,7 @@ export function SearchPage() {
     // Recargar cuando cambian los filtros principales o ordenación
     useEffect(() => {
         fetchServices(0, activeCatId, sort);
-    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, availableOnly, minRating, maxDistanceKm, sort]);
+    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, minRating, maxDistanceKm, sort]);
 
     // Manejar selección de categoría y actualizar URL params
     const handleCategorySelect = (catId) => {
@@ -147,7 +144,6 @@ export function SearchPage() {
         setTopSearch(sidebarName);
         setMinPrice(sidebarMinPrice);
         setMaxPrice(sidebarMaxPrice);
-        setAvailableOnly(sidebarAvailable);
         setMinRating(sidebarMinRating);
         setMaxDistanceKm(sidebarDistance);
 
@@ -169,14 +165,12 @@ export function SearchPage() {
         setSidebarName("");
         setSidebarMinPrice("");
         setSidebarMaxPrice("");
-        setSidebarAvailable(false);
         setSidebarMinRating(null);
         setSidebarDistance(null);
 
         setNameQuery("");
         setMinPrice("");
         setMaxPrice("");
-        setAvailableOnly(false);
         setMinRating(null);
         setMaxDistanceKm(null);
         setActiveCatId(null);
@@ -197,7 +191,6 @@ export function SearchPage() {
         if (minPrice || maxPrice) {
             list.push({ key: 'price', val: `Precio: ${minPrice ? `$${minPrice}` : '$0'} - ${maxPrice ? `$${maxPrice}` : '∞'}` });
         }
-        if (availableOnly) list.push({ key: 'avail', val: 'Disponible hoy' });
         if (minRating) list.push({ key: 'rating', val: `${minRating}★+` });
         if (maxDistanceKm) list.push({ key: 'distance', val: `Cerca de ${maxDistanceKm}km` });
         return list;
@@ -224,9 +217,6 @@ export function SearchPage() {
             setMaxPrice("");
             setSidebarMinPrice("");
             setSidebarMaxPrice("");
-        } else if (item.key === 'avail') {
-            setAvailableOnly(false);
-            setSidebarAvailable(false);
         } else if (item.key === 'rating') {
             setMinRating(null);
             setSidebarMinRating(null);
@@ -354,18 +344,6 @@ export function SearchPage() {
                                 onChange={(e) => setSidebarMaxPrice(e.target.value)}
                             />
                         </div>
-                    </div>
-                    <div className="divider" />
-
-                    <div className="filter-sec">
-                        <div className="filter-sec-title">Disponibilidad</div>
-                        <label className="filter-opt">
-                            <input 
-                                type="checkbox" 
-                                checked={sidebarAvailable} 
-                                onChange={(e) => setSidebarAvailable(e.target.checked)} 
-                            /> Disponible hoy
-                        </label>
                     </div>
                     <div className="divider" />
 
