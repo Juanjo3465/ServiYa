@@ -46,6 +46,9 @@ export function SearchPage() {
     const [sidebarMinRating, setSidebarMinRating] = useState(null);
     const [sidebarDistance, setSidebarDistance] = useState(null);
 
+    // Ubicación real del usuario (geolocalización del navegador)
+    const [userLocation, setUserLocation] = useState(null);
+
     // Cargar categorías al montar
     useEffect(() => {
         const loadCategories = async () => {
@@ -57,6 +60,18 @@ export function SearchPage() {
             }
         };
         loadCategories();
+    }, []);
+
+    // Obtener ubicación real del usuario
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setUserLocation({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude
+            }),
+            () => setUserLocation(null)
+        );
     }, []);
 
     // Sincronizar URL query params con estados locales
@@ -86,11 +101,10 @@ export function SearchPage() {
             if (minPrice) params.minPrice = minPrice;
             if (maxPrice) params.maxPrice = maxPrice;
             if (minRating) params.minRating = minRating;
-            if (maxDistanceKm) {
+            if (maxDistanceKm && userLocation) {
                 params.maxDistanceKm = maxDistanceKm;
-                // Coordenadas por defecto (Bogotá)
-                params.latitude = 4.6097;
-                params.longitude = -74.0817;
+                params.latitude = userLocation.latitude;
+                params.longitude = userLocation.longitude;
             }
             if (currentSort) {
                 params.sort = currentSort;
@@ -111,7 +125,7 @@ export function SearchPage() {
     // Recargar cuando cambian los filtros principales o ordenación
     useEffect(() => {
         fetchServices(0, activeCatId, sort);
-    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, minRating, maxDistanceKm, sort]);
+    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, minRating, maxDistanceKm, sort, userLocation]);
 
     // Manejar selección de categoría y actualizar URL params
     const handleCategorySelect = (catId) => {
@@ -360,6 +374,11 @@ export function SearchPage() {
                             <option value="10">Menos de 10 km</option>
                             <option value="20">Menos de 20 km</option>
                         </select>
+                        {sidebarDistance && !userLocation && (
+                            <div style={{ fontSize: '11px', color: '#e74c3c', marginTop: '6px' }}>
+                                Activa la ubicación en tu navegador para usar este filtro.
+                            </div>
+                        )}
                     </div>
                     <div className="divider" />
 
