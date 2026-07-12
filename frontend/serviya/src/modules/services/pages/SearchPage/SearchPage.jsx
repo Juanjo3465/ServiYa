@@ -78,7 +78,7 @@ export function SearchPage() {
         try {
             const params = {
                 page: page,
-                size: 6,
+                size: 20,
             };
             if (nameQuery.trim()) params.name = nameQuery.trim();
             if (currentCatId) params.categoryId = currentCatId;
