@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast } from '../../../../shared';
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from 'react-router-dom';
+import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi } from '../../../../shared';
 
 import './OffererProfilePage.css';
 
@@ -19,8 +19,25 @@ const PROFILE_TABS = ['Servicios', 'Reseñas', 'Métricas', 'Sobre mí'];
 
 export function OffererProfilePage() {
     const navigate = useNavigate();
+    const { id } = useParams();
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
+    const [profile, setProfile] = useState(null);
+
+    useEffect(() => {
+        profileApi.getProfile(id)
+            .then(setProfile)
+            .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const openWhatsApp = () => {
+        if (!profile?.phoneNumber) {
+            showToast('Número de WhatsApp no disponible', 'warning');
+            return;
+        }
+        window.open(`https://wa.me/${profile.phoneNumber}`, '_blank');
+    }
 
     return (
         <>
@@ -43,7 +60,7 @@ export function OffererProfilePage() {
                         </div>
                     </div>
                     <div className="profile-cta">
-                        <WhatsAppButton label="WhatsApp" onClick={() => showToast('Abriendo WhatsApp...', 'success')} />
+                        <WhatsAppButton label="WhatsApp" onClick={openWhatsApp} />
                         <button className="btn btn-primary" onClick={() => navigate('/services/1')}>Contratar servicio</button>
                     </div>
                 </div>
@@ -107,7 +124,7 @@ export function OffererProfilePage() {
                         <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '3px' }}>¿Te interesa contratar?</div>
                         <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '14px' }}>Solicita el servicio o contáctalo directamente</div>
                         <button className="btn btn-primary btn-full" style={{ marginBottom: '8px' }} onClick={() => navigate('/services/1')}>Ver servicios y solicitar</button>
-                        <WhatsAppButton block label="Contactar por WhatsApp" onClick={() => showToast('Abriendo WhatsApp...', 'success')} />
+                        <WhatsAppButton block label="Contactar por WhatsApp" onClick={openWhatsApp} />
                         <div className="divider" />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--c-mid)' }}>
                             <Icon name="shield" size={13} style={{ color: 'var(--c-success)' }} />Perfil verificado por ServiYa

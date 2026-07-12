@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast } from '../../../../shared';
+import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi } from '../../../../shared';
 
 import './ServiceDetailPage.css';
 
@@ -13,9 +13,9 @@ const SLOTS = [
 ];
 
 const REVIEWS = [
-    { initials: 'MA', name: 'María A.', rating: 5, time: 'Hace 2 días', text: 'Excelente servicio. Carlos llegó puntual y resolvió el problema rápidamente. Totalmente recomendado.' },
-    { initials: 'RL', name: 'Roberto L.', rating: 4, time: 'Hace 1 semana', text: 'Buen trabajo, llegó un poco tarde pero el resultado fue perfecto. Lo volvería a contratar.' },
-    { initials: 'SG', name: 'Sara G.', rating: 5, time: 'Hace 2 semanas', text: 'Super profesional y honesto con los precios. El mejor plomero que he contratado.' },
+    { id: 1, userId: 101, initials: 'MA', name: 'María A.', rating: 5, time: 'Hace 2 días', text: 'Excelente servicio. Carlos llegó puntual y resolvió el problema rápidamente. Totalmente recomendado.' },
+    { id: 2, userId: 102, initials: 'RL', name: 'Roberto L.', rating: 4, time: 'Hace 1 semana', text: 'Buen trabajo, llegó un poco tarde pero el resultado fue perfecto. Lo volvería a contratar.' },
+    { id: 3, userId: 103, initials: 'SG', name: 'Sara G.', rating: 5, time: 'Hace 2 semanas', text: 'Super profesional y honesto con los precios. El mejor plomero que he contratado.' },
 ];
 
 export function ServiceDetailPage() {
@@ -23,6 +23,44 @@ export function ServiceDetailPage() {
     const { toasts, showToast } = useToast();
     const [activeSlot, setActiveSlot] = useState(0);
     const [reportOpen, setReportOpen] = useState(false);
+    const [reportCategory, setReportCategory] = useState('Comportamiento inapropiado');
+    const [customCategory, setCustomCategory] = useState('');
+    const [reportReason, setReportReason] = useState('');
+    const [feedbackReportOpen, setFeedbackReportOpen] = useState(false);
+    const [feedbackTarget, setFeedbackTarget] = useState(null);
+    const [feedbackReportCategory, setFeedbackReportCategory] = useState('Contenido inapropiado');
+    const [feedbackCustomCategory, setFeedbackCustomCategory] = useState('');
+    const [feedbackReportReason, setFeedbackReportReason] = useState('');
+
+    const handleOpenFeedbackReport = (review) => {
+        setFeedbackTarget(review);
+        setFeedbackReportCategory('Contenido inapropiado');
+        setFeedbackCustomCategory('');
+        setFeedbackReportReason('');
+        setFeedbackReportOpen(true);
+    };
+
+    const handleSubmitFeedbackReport = async () => {
+        if (!feedbackTarget) return;
+
+        try {
+            await reportApi.createServiceFeedbackReport({
+                reportedUserId: feedbackTarget.userId,
+                category: feedbackReportCategory,
+                customCategory: feedbackCustomCategory,
+                reason: feedbackReportReason,
+                serviceFeedbackId: feedbackTarget.id,
+            });
+            setFeedbackReportOpen(false);
+            setFeedbackTarget(null);
+            setFeedbackReportCategory('Contenido inapropiado');
+            setFeedbackCustomCategory('');
+            setFeedbackReportReason('');
+            showToast('Reporte de reseña enviado al administrador', 'success');
+        } catch (error) {
+            showToast(error.message || 'No se pudo enviar el reporte de la reseña', 'danger');
+        }
+    };
 
     return (
         <>
@@ -95,11 +133,14 @@ export function ServiceDetailPage() {
                         </div>
                         {REVIEWS.map((r, i) => (
                             <div className="review-item" key={i}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '7px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '7px', flexWrap: 'wrap' }}>
                                     <div className="av av-sm">{r.initials}</div>
                                     <strong style={{ fontSize: '13px' }}>{r.name}</strong>
                                     <Stars rating={r.rating} size={11} />
                                     <span style={{ fontSize: '11px', color: 'var(--c-soft)', marginLeft: 'auto' }}>{r.time}</span>
+                                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--c-danger)', padding: '4px 8px', marginLeft: '4px' }} onClick={() => handleOpenFeedbackReport(r)}>
+                                        <Icon name="alertTriangle" size={13} />Reportar reseña
+                                    </button>
                                 </div>
                                 <div style={{ fontSize: '13px', color: 'var(--c-mid)', lineHeight: 1.6 }}>{r.text}</div>
                             </div>
@@ -142,11 +183,41 @@ export function ServiceDetailPage() {
             <Modal open={reportOpen} onClose={() => setReportOpen(false)}>
                 <div className="modal-title">Reportar oferente</div>
                 <div className="modal-sub">Indica el motivo del reporte. El administrador revisará el caso.</div>
-                <div className="input-group"><label className="label">Motivo</label><select className="input"><option>Comportamiento inapropiado</option><option>No se presentó</option><option>Fraude</option><option>Otro</option></select></div>
-                <div className="input-group"><label className="label">Descripción</label><textarea className="input" placeholder="Describe lo que ocurrió..." /></div>
+                <div className="input-group"><label className="label">Categoría</label><select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}><option>Comportamiento inapropiado</option><option>No se presentó</option><option>Fraude</option><option>Otra</option></select></div>
+                {reportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
+                <div className="input-group"><label className="label">Descripción</label><textarea className="input" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => { setReportOpen(false); showToast('Reporte enviado al administrador', 'info'); }}>Enviar reporte</button>
+                    <button className="btn btn-danger btn-full" onClick={async () => {
+                        try {
+                            await reportApi.createRequestReport({
+                                reportedUserId: 2,
+                                category: reportCategory,
+                                customCategory,
+                                reason: reportReason,
+                                requestId: 1,
+                            });
+                            setReportOpen(false);
+                            setReportCategory('Comportamiento inapropiado');
+                            setCustomCategory('');
+                            setReportReason('');
+                            showToast('Reporte enviado al administrador', 'success');
+                        } catch (error) {
+                            showToast(error.message || 'No se pudo enviar el reporte', 'danger');
+                        }
+                    }}>Enviar reporte</button>
+                </div>
+            </Modal>
+
+            <Modal open={feedbackReportOpen} onClose={() => setFeedbackReportOpen(false)}>
+                <div className="modal-title">Reportar reseña</div>
+                <div className="modal-sub">{feedbackTarget ? `Estás reportando la reseña de ${feedbackTarget.name}.` : 'Indica el motivo del reporte.'}</div>
+                <div className="input-group"><label className="label">Categoría</label><select className="input" value={feedbackReportCategory} onChange={(e) => setFeedbackReportCategory(e.target.value)}><option>Contenido inapropiado</option><option>Spam</option><option>Amenaza o acoso</option><option>Otra</option></select></div>
+                {feedbackReportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={feedbackCustomCategory} onChange={(e) => setFeedbackCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
+                <div className="input-group"><label className="label">Descripción</label><textarea className="input" value={feedbackReportReason} onChange={(e) => setFeedbackReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={() => setFeedbackReportOpen(false)}>Cancelar</button>
+                    <button className="btn btn-danger btn-full" onClick={handleSubmitFeedbackReport}>Enviar reporte</button>
                 </div>
             </Modal>
             <ToastContainer toasts={toasts} />

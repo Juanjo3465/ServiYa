@@ -71,6 +71,8 @@ export const authApi = {
 export const profileApi = {
     // RF-005 — identidad tomada del JWT por el backend
     getMyProfile: () => request('/api/v1/users/me/profile', { auth: true }),
+    getProfile: (id) => request(`/api/v1/offerers/${id}`, { auth: true }),
+    changeMainAddress: (payload) => request(`/api/v1/users/me/main-address`, { method: 'PATCH', body: payload, auth: true }),
  
     // RF-007 — cambia la contraseña del usuario autenticado
     changePassword: (currentPassword, newPassword) =>
@@ -98,6 +100,39 @@ export const addressApi = {
 export const categoryApi = {
     getCategories: () => request('/api/v1/categories', { auth: true }),
 }
+
+export const reportApi = {
+    createRequestReport: (payload) => request('/api/v1/reports/requests', { method: 'POST', body: payload, auth: true }),
+    createServiceFeedbackReport: (payload) => request('/api/v1/reports/service-feedback', { method: 'POST', body: payload, auth: true }),
+    createClientFeedbackReport: (payload) => request('/api/v1/reports/client-feedback', { method: 'POST', body: payload, auth: true }),
+    getAll: (page = 0, size = 20) => request(`/api/v1/reports?page=${page}&size=${size}`, { auth: true }),
+};
+
+export const userApi = {
+    getDisplayName: async (id) => {
+        if (!id) return 'Usuario sin asignar';
+
+        try {
+            const data = await request(`/api/v1/offerers/${id}/summary`, { auth: true });
+            if (data.fullName || data.name) {
+                return data.fullName || data.name;
+            }
+        } catch {
+            // Intenta con el perfil del usuario autenticado si no existe resumen de oferente.
+        }
+
+        try {
+            const data = await request('/api/v1/users/me/profile', { auth: true });
+            if (data.fullName || data.name) {
+                return data.fullName || data.name;
+            }
+        } catch {
+            // Si no existe un perfil cargado, conserva el valor por defecto.
+        }
+
+        return `Usuario ${id}`;
+    },
+};
 
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {
