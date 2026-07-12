@@ -1,11 +1,12 @@
 package com.parosurvivors.serviya.services.infrastructure.repositories;
 
 import com.parosurvivors.serviya.metrics.infrastructure.entities.ServiceMetricsEntity;
+import com.parosurvivors.serviya.profiles.infrastructure.entities.AddressEntity;
 import com.parosurvivors.serviya.profiles.infrastructure.entities.UserProfileEntity;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.infrastructure.entities.ServiceEntity;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -21,11 +22,10 @@ import java.util.List;
  * Siempre excluye registros con soft-delete (deletedAt IS NOT NULL).
  *
  * JOINs utilizados:
- *   - service_metrics  (LEFT JOIN por serviceId)  → filtros minRating / maxRating
- *   - user_profiles    (LEFT JOIN por offererId)  → filtro offererType
- *
- * Pendiente: filtros de geolocalización (latitude/longitude/maxDistanceKm) requieren
- * que ServiceEntity tenga coordenadas o un JOIN con addresses.
+ *   - service_metrics  (subquery por serviceId)          → filtros minRating / maxRating
+ *   - user_profiles    (subquery por offererId)           → filtro name (fullName)
+ *   - user_profiles    (CROSS JOIN por offererId)         → geolocalización
+ *   - addresses        (CROSS JOIN por primaryAddressId)  → geolocalización
  */
 public class ServiceSpecificationRepository {
 
@@ -82,30 +82,65 @@ public class ServiceSpecificationRepository {
                 predicates.add(cb.equal(root.get("active"), q.available()));
             }
 
-            // ── JOIN con service_metrics → rating ─────────────────────────────
-            // LEFT JOIN: servicios sin métricas aún siguen apareciendo en resultados
+            // ── Rating via subquery (ServiceEntity no tiene mapeo JPA a ServiceMetricsEntity) ──
             if (q.minRating() != null || q.maxRating() != null) {
-                Join<ServiceEntity, ServiceMetricsEntity> metrics =
-                        root.join("serviceMetrics", JoinType.LEFT);
+                Subquery<Long> ratingSub = query.subquery(Long.class);
+                Root<ServiceMetricsEntity> mRoot = ratingSub.from(ServiceMetricsEntity.class);
+
+                List<Predicate> ratingPredicates = new ArrayList<>();
+                ratingPredicates.add(cb.equal(mRoot.get("serviceId"), root.get("id")));
 
                 if (q.minRating() != null) {
-                    predicates.add(cb.greaterThanOrEqualTo(
-                            metrics.get("averageRating"),
+                    ratingPredicates.add(cb.greaterThanOrEqualTo(
+                            mRoot.get("averageRating"),
                             BigDecimal.valueOf(q.minRating())
                     ));
                 }
                 if (q.maxRating() != null) {
-                    predicates.add(cb.lessThanOrEqualTo(
-                            metrics.get("averageRating"),
+                    ratingPredicates.add(cb.lessThanOrEqualTo(
+                            mRoot.get("averageRating"),
                             BigDecimal.valueOf(q.maxRating())
                     ));
                 }
+
+                ratingSub.select(mRoot.get("serviceId"))
+                        .where(ratingPredicates.toArray(new Predicate[0]));
+                predicates.add(root.get("id").in(ratingSub));
             }
 
-            // ── Geolocalización: pendiente ────────────────────────────────────
-            // latitude, longitude, maxDistanceKm no se aplican aún porque ServiceEntity
-            // no tiene coordenadas. Se implementará cuando se agregue ese campo o el
-            // JOIN con addresses.
+            // ── Geolocalización (Haversine) ───────────────────────────────────
+            // Se resuelve la cadena: service.offererId → user_profiles.userId
+            //                         user_profiles.primaryAddressId → addresses.id
+            if (q.latitude() != null && q.longitude() != null && q.maxDistanceKm() != null) {
+                Root<UserProfileEntity> profile = query.from(UserProfileEntity.class);
+                Root<AddressEntity> address = query.from(AddressEntity.class);
+
+                predicates.add(cb.equal(profile.get("userId"), root.get("offererId")));
+                predicates.add(cb.equal(address.get("id"), profile.get("primaryAddressId")));
+                predicates.add(cb.isNotNull(profile.get("primaryAddressId")));
+
+                Expression<Double> latRad  = cb.function("radians", Double.class, cb.literal(q.latitude()));
+                Expression<Double> lngRad  = cb.function("radians", Double.class, cb.literal(q.longitude()));
+                Expression<Double> aLatRad = cb.function("radians", Double.class, address.get("latitude"));
+                Expression<Double> aLngRad = cb.function("radians", Double.class, address.get("longitude"));
+
+                Expression<Double> cosLatU = cb.function("cos", Double.class, latRad);
+                Expression<Double> sinLatU = cb.function("sin", Double.class, latRad);
+                Expression<Double> cosLatA = cb.function("cos", Double.class, aLatRad);
+                Expression<Double> sinLatA = cb.function("sin", Double.class, aLatRad);
+                Expression<Double> cosLngD = cb.function("cos", Double.class, cb.diff(aLngRad, lngRad));
+
+                Expression<Double> acosArg = cb.sum(
+                        cb.prod(cosLatU, cb.prod(cosLatA, cosLngD)),
+                        cb.prod(sinLatU, sinLatA)
+                );
+                Expression<Double> distance = cb.prod(
+                        cb.literal(6371.0),
+                        cb.function("acos", Double.class, acosArg)
+                );
+
+                predicates.add(cb.lessThanOrEqualTo(distance, q.maxDistanceKm()));
+            }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

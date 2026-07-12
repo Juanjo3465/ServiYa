@@ -57,7 +57,8 @@ public class SecurityConfig {
                 "http://127.0.0.1:5173",
                 "http://localhost:8081",
                 "http://127.0.0.1:8081",
-                "http://192.168.1.2:8081"
+                "http://192.168.1.2:8081",
+                "https://nonfervently-expiational-amani.ngrok-free.dev"
             ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi } from '../../../../shared';
+import { metricsApi } from '../../../../shared/api';
+
 
 import './OffererProfilePage.css';
 
@@ -23,13 +25,18 @@ export function OffererProfilePage() {
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
     const [profile, setProfile] = useState(null);
+    const [metrics, setMetrics] = useState(null);
+    const [loadingMetrics, setLoadingMetrics] = useState(true);
 
     useEffect(() => {
         profileApi.getProfile(id)
             .then(setProfile)
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        metricsApi.getOffererMetrics(id)
+            .then(setMetrics)
+            .catch(() => showToast('Error al cargar métricas del oferente', 'danger'))
+            .finally(() => setLoadingMetrics(false));
+    }, [id, showToast]);
 
     const openWhatsApp = () => {
         if (!profile?.phoneNumber) {
@@ -53,15 +60,31 @@ export function OffererProfilePage() {
                         <div className="profile-name">Carlos Martínez</div>
                         <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>Plomero profesional · Persona natural</div>
                         <div className="profile-meta">
-                            <span className="pm-item"><Stars rating={5} size={11} />&nbsp;<strong style={{ color: 'var(--c-text)' }}>4.9</strong>&nbsp;(32 reseñas)</span>
+                            <span className="pm-item">
+                                {loadingMetrics ? (
+                                    <span className="loading-pulse" style={{ width: 120, height: 14, display: 'inline-block' }} />
+                                ) : (
+                                    <>
+                                        <Stars rating={metrics?.averageRating ?? 0} size={11} />&nbsp;
+                                        <strong style={{ color: 'var(--c-text)' }}>{(metrics?.averageRating ?? 0).toFixed(1)}</strong>&nbsp;
+                                        ({metrics?.totalRatings ?? 0} reseñas)
+                                    </>
+                                )}
+                            </span>
                             <span className="pm-item"><Icon name="mapPin" size={13} />Bogotá, Colombia</span>
                             <span className="pm-item"><Icon name="clock" size={13} />8 años de experiencia</span>
-                            <span className="pm-item"><Icon name="check" size={13} />42 servicios realizados</span>
+                            <span className="pm-item">
+                                {loadingMetrics ? (
+                                    <span className="loading-pulse" style={{ width: 140, height: 14, display: 'inline-block' }} />
+                                ) : (
+                                    <><Icon name="check" size={13} />{metrics?.totalCompletedServices ?? 0} servicios realizados</>
+                                )}
+                            </span>
                         </div>
                     </div>
                     <div className="profile-cta">
                         <WhatsAppButton label="WhatsApp" onClick={openWhatsApp} />
-                        <button className="btn btn-primary" onClick={() => navigate('/services/1')}>Contratar servicio</button>
+                        <button className="btn btn-primary" onClick={() => navigate(`/services?offererId=${id}`)}>Contratar servicio</button>
                     </div>
                 </div>
             </div>
@@ -96,8 +119,15 @@ export function OffererProfilePage() {
                     </div>
                     <div className="card">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                            <div className="card-h" style={{ margin: 0 }}>Reseñas (32)</div>
-                            <div style={{ textAlign: 'center' }}><div style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1 }}>4.9</div><Stars rating={5} /></div>
+                            <div className="card-h" style={{ margin: 0 }}>
+                                {loadingMetrics ? 'Reseñas' : `Reseñas (${metrics?.totalRatings ?? 0})`}
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1 }}>
+                                    {loadingMetrics ? <span className="loading-pulse" style={{ width: 36, height: 28, display: 'inline-block' }} /> : (metrics?.averageRating ?? 0).toFixed(1)}
+                                </div>
+                                <Stars rating={metrics?.averageRating ?? 0} />
+                            </div>
                         </div>
                         {REVIEWS.map((r) => (
                             <div className="orev" key={r.initials}>
@@ -115,15 +145,30 @@ export function OffererProfilePage() {
                 </div>
                 <div>
                     <div className="m-grid">
-                        <div className="m-box"><div className="m-val">98%</div><div className="m-lbl">Cumplimiento</div></div>
-                        <div className="m-box"><div className="m-val">2%</div><div className="m-lbl">Cancelaciones</div></div>
-                        <div className="m-box"><div className="m-val">5%</div><div className="m-lbl">Reprogramados</div></div>
-                        <div className="m-box"><div className="m-val">42</div><div className="m-lbl">Servicios</div></div>
+                        {loadingMetrics ? (
+                            <>
+                                <div className="m-box"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="m-lbl">Cumplimiento</div></div>
+                                <div className="m-box"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="m-lbl">Cancelaciones</div></div>
+                                <div className="m-box"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="m-lbl">Reprogramados</div></div>
+                                <div className="m-box"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="m-lbl">Servicios</div></div>
+                            </>
+                        ) : (() => {
+                            const received = metrics?.totalRequestsReceived ?? 0;
+                            const pct = (num) => received > 0 ? Math.round((num / received) * 100) : 0;
+                            return (
+                                <>
+                                    <div className="m-box"><div className="m-val">{pct(metrics?.totalCompletedServices)}%</div><div className="m-lbl">Cumplimiento</div></div>
+                                    <div className="m-box"><div className="m-val">{pct(metrics?.totalCancelledServices)}%</div><div className="m-lbl">Cancelaciones</div></div>
+                                    <div className="m-box"><div className="m-val">{pct(metrics?.totalRescheduleProposalsSent)}%</div><div className="m-lbl">Reprogramados</div></div>
+                                    <div className="m-box"><div className="m-val">{metrics?.totalCompletedServices ?? 0}</div><div className="m-lbl">Servicios</div></div>
+                                </>
+                            );
+                        })()}
                     </div>
                     <div className="contact-card">
                         <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '3px' }}>¿Te interesa contratar?</div>
                         <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '14px' }}>Solicita el servicio o contáctalo directamente</div>
-                        <button className="btn btn-primary btn-full" style={{ marginBottom: '8px' }} onClick={() => navigate('/services/1')}>Ver servicios y solicitar</button>
+                        <button className="btn btn-primary btn-full" style={{ marginBottom: '8px' }} onClick={() => navigate(`/services?offererId=${id}`)}>Ver servicios y solicitar</button>
                         <WhatsAppButton block label="Contactar por WhatsApp" onClick={openWhatsApp} />
                         <div className="divider" />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--c-mid)' }}>
