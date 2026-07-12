@@ -71,7 +71,7 @@ export function OffererProfilePage() {
                     </div>
                     <div className="profile-cta">
                         <WhatsAppButton label="WhatsApp" onClick={() => showToast('Abriendo WhatsApp...', 'success')} />
-                        <button className="btn btn-primary" onClick={() => navigate('/services/1')}>Contratar servicio</button>
+                        <button className="btn btn-primary" onClick={() => navigate(`/services?offererId=${id}`)}>Contratar servicio</button>
                     </div>
                 </div>
             </div>
@@ -155,7 +155,7 @@ export function OffererProfilePage() {
                     <div className="contact-card">
                         <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '3px' }}>¿Te interesa contratar?</div>
                         <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '14px' }}>Solicita el servicio o contáctalo directamente</div>
-                        <button className="btn btn-primary btn-full" style={{ marginBottom: '8px' }} onClick={() => navigate('/services/1')}>Ver servicios y solicitar</button>
+                        <button className="btn btn-primary btn-full" style={{ marginBottom: '8px' }} onClick={() => navigate(`/services?offererId=${id}`)}>Ver servicios y solicitar</button>
                         <WhatsAppButton block label="Contactar por WhatsApp" onClick={() => showToast('Abriendo WhatsApp...', 'success')} />
                         <div className="divider" />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--c-mid)' }}>

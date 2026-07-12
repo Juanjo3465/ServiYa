@@ -20,6 +20,10 @@ export function SearchPage() {
         const catId = searchParams.get('categoryId');
         return catId ? Number(catId) : null;
     });
+    const [offererIdFilter, setOffererIdFilter] = useState(() => {
+        const oid = searchParams.get('offererId');
+        return oid ? Number(oid) : null;
+    });
 
     // Estado de la búsqueda y paginación
     const [results, setResults] = useState([]);
@@ -61,11 +65,13 @@ export function SearchPage() {
     useEffect(() => {
         const q = searchParams.get('q') || "";
         const catId = searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : null;
+        const oid = searchParams.get('offererId') ? Number(searchParams.get('offererId')) : null;
 
         setNameQuery(q);
         setTopSearch(q);
         setSidebarName(q);
         setActiveCatId(catId);
+        setOffererIdFilter(oid);
     }, [searchParams]);
 
     // Función de búsqueda
@@ -78,6 +84,7 @@ export function SearchPage() {
             };
             if (nameQuery.trim()) params.name = nameQuery.trim();
             if (currentCatId) params.categoryId = currentCatId;
+            if (offererIdFilter) params.offererId = offererIdFilter;
             if (minPrice) params.minPrice = minPrice;
             if (maxPrice) params.maxPrice = maxPrice;
             if (availableOnly) params.available = true;
@@ -107,7 +114,7 @@ export function SearchPage() {
     // Recargar cuando cambian los filtros principales o ordenación
     useEffect(() => {
         fetchServices(0, activeCatId, sort);
-    }, [nameQuery, activeCatId, minPrice, maxPrice, availableOnly, minRating, maxDistanceKm, sort]);
+    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, availableOnly, minRating, maxDistanceKm, sort]);
 
     // Manejar selección de categoría y actualizar URL params
     const handleCategorySelect = (catId) => {
@@ -173,6 +180,7 @@ export function SearchPage() {
         setMinRating(null);
         setMaxDistanceKm(null);
         setActiveCatId(null);
+        setOffererIdFilter(null);
 
         setSearchParams({});
         showToast("Filtros limpiados", "info");
@@ -185,6 +193,7 @@ export function SearchPage() {
             const cat = categories.find(c => c.id === activeCatId);
             if (cat) list.push({ key: 'cat', val: cat.name });
         }
+        if (offererIdFilter) list.push({ key: 'offerer', val: `Oferente #${offererIdFilter}` });
         if (minPrice || maxPrice) {
             list.push({ key: 'price', val: `Precio: ${minPrice ? `$${minPrice}` : '$0'} - ${maxPrice ? `$${maxPrice}` : '∞'}` });
         }
@@ -206,6 +215,10 @@ export function SearchPage() {
             params.delete('categoryId');
             setSearchParams(params);
             setActiveCatId(null);
+        } else if (item.key === 'offerer') {
+            params.delete('offererId');
+            setSearchParams(params);
+            setOffererIdFilter(null);
         } else if (item.key === 'price') {
             setMinPrice("");
             setMaxPrice("");
