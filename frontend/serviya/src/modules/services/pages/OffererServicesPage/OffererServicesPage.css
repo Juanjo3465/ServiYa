@@ -23,6 +23,10 @@
     display: flex;
     gap: 5px;
     align-items: center;
+    background: var(--c-bg);
+    padding: 6px 8px;
+    border-radius: var(--r);
+    border: 1px solid var(--c-border);
 }
 
 .svc-ico {

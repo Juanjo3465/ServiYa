@@ -177,7 +177,15 @@ export function ServiceDetailPage() {
             <div className="detail-layout">
                 <div>
                     <div className="service-hero">
-                        <Icon name="wrench" size={64} strokeWidth={1.2} />
+                        {service.photos && service.photos.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
+                                {service.photos.map((photo, index) => (
+                                    <img key={index} src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`} alt={`${service.title}-${index + 1}`} style={{ width: '120px', height: '100px', objectFit: 'cover', borderRadius: '10px' }} />
+                                ))}
+                            </div>
+                        ) : (
+                            <Icon name="wrench" size={64} strokeWidth={1.2} />
+                        )}
                         <div className="service-hero-av">
                             <span className={`badge ${service.active ? 'badge-success' : 'badge-warn'}`}>
                                 {service.active ? 'Disponible' : 'Inactivo'}

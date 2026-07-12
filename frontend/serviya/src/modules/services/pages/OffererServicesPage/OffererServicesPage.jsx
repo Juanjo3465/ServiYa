@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, Stars, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, isAuthenticated } from '../../../../shared';
 
 import './OffererServicesPage.css';
 
@@ -12,7 +12,10 @@ function ServiceModal({
     onSave,
     edit,
     categories,
-    editedService
+    editedService,
+    selectedPhotos,
+    setSelectedPhotos,
+    removePhoto
 }) {
 
     const {
@@ -22,6 +25,15 @@ function ServiceModal({
     } = useForm({
         defaultValues: editedService || {}
     });
+    const [previewPhoto, setPreviewPhoto] = useState(null);
+
+    useEffect(() => {
+        if (!editedService) {
+            setSelectedPhotos([]);
+            return;
+        }
+        setSelectedPhotos(editedService.photos || []);
+    }, [editedService, setSelectedPhotos]);
 
     useEffect(() => {
         if (!editedService) return;
@@ -126,6 +138,58 @@ function ServiceModal({
                         {...register("description")}
                     />
                 </div>
+                <div className="input-group">
+                    <label className="label">Fotos del servicio (máx. 15)</label>
+                    <input
+                        className="input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (!files.length) return;
+                            setSelectedPhotos(prev => [...prev, ...files]);
+                            e.target.value = '';
+                        }}
+                    />
+                    {selectedPhotos.length > 0 && (
+                        <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {selectedPhotos.map((photo, index) => {
+                                const src = photo instanceof File ? URL.createObjectURL(photo) : `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`;
+                                return (
+                                    <div key={`${index}-${typeof photo === 'string' ? photo : photo.name}`} style={{ position: 'relative', cursor: 'pointer' }}>
+                                        <button
+                                            type="button"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                removePhoto(index);
+                                            }}
+                                            style={{
+                                                position: 'absolute',
+                                                top: '4px',
+                                                right: '4px',
+                                                width: '20px',
+                                                height: '20px',
+                                                border: 'none',
+                                                borderRadius: '50%',
+                                                background: '#dc2626',
+                                                color: '#fff',
+                                                fontSize: '12px',
+                                                lineHeight: '1',
+                                                cursor: 'pointer',
+                                                boxShadow: '0 0 0 2px rgba(255,255,255,0.8)'
+                                            }}
+                                            aria-label="Eliminar foto"
+                                        >
+                                            ×
+                                        </button>
+                                        <img src={src} alt={`Foto ${index + 1}`} onClick={() => setPreviewPhoto(src)} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--c-border)' }} />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
                 <div
                     style={{
                         display: 'flex',
@@ -147,6 +211,13 @@ function ServiceModal({
                     </button>
                 </div>
             </form>
+            {previewPhoto && (
+                <Modal open={true} onClose={() => setPreviewPhoto(null)} maxWidth={760}>
+                    <div style={{ textAlign: 'center' }}>
+                        <img src={previewPhoto} alt="Vista previa" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '12px' }} />
+                    </div>
+                </Modal>
+            )}
         </Modal>
     );
 }
@@ -160,6 +231,7 @@ export function OffererServicesPage() {
     const [services, setServices] = useState([]);
     const [categories, setCategories] = useState([]);
     const [editedService, setEditedService] = useState(null);
+    const [selectedPhotos, setSelectedPhotos] = useState([]);
 
     useEffect(() => {
         if (!isAuthenticated()) {
@@ -193,23 +265,29 @@ export function OffererServicesPage() {
         setNewOpen(false);
         setEditOpen(false);
         setEditedService(null);
+        setSelectedPhotos([]);
     };
 
     const createService = (formData) => {
         const category = categories.find(c => c.id === formData.categoryId);
-        const payload = {
-            ...formData,
-            active: true
-        };
+        const formDataToSend = new FormData();
+        formDataToSend.append('title', formData.title || '');
+        formDataToSend.append('description', formData.description || '');
+        formDataToSend.append('priceHourly', String(formData.priceHourly ?? 0));
+        formDataToSend.append('categoryId', String(formData.categoryId));
+        if (formData.averageDurationMinutes != null) formDataToSend.append('averageDurationMinutes', String(formData.averageDurationMinutes));
+        if (formData.operationRadiusKm != null) formDataToSend.append('operationRadiusKm', String(formData.operationRadiusKm));
+        selectedPhotos.forEach((photo) => formDataToSend.append('photos', photo));
 
         serviceApi
-            .createService(payload)
+            .createService(formDataToSend, true)
             .then((created) => {
                 setServices(prev => [
                     ...prev,
                     { ...created, category: created.category || category }
                 ]);
                 setNewOpen(false);
+                setSelectedPhotos([]);
                 showToast('Servicio creado exitosamente', 'success');
             })
             .catch(e =>
@@ -221,17 +299,34 @@ export function OffererServicesPage() {
             );
     };
 
+    const removePhoto = (index) => {
+        setSelectedPhotos(prev => prev.filter((_, idx) => idx !== index));
+    };
+
     const saveEditedService = (formData) => {
         const category = categories.find(c => c.id === formData.categoryId);
-        const payload = {
-            ...editedService,
-            ...formData,
-            category: category || editedService.category
-        };
+        const formDataToSend = new FormData();
+        if (formData.title != null) formDataToSend.append('title', formData.title || '');
+        if (formData.description != null) formDataToSend.append('description', formData.description || '');
+        if (formData.priceHourly != null) formDataToSend.append('priceHourly', String(formData.priceHourly));
+        if (formData.categoryId != null) formDataToSend.append('categoryId', String(formData.categoryId));
+        if (formData.averageDurationMinutes != null) formDataToSend.append('averageDurationMinutes', String(formData.averageDurationMinutes));
+        if (formData.operationRadiusKm != null) formDataToSend.append('operationRadiusKm', String(formData.operationRadiusKm));
+
+        const retainedExistingPhotos = selectedPhotos.filter((photo) => typeof photo === 'string');
+        const removedPhotos = (editedService?.photos || []).filter((photo) => !retainedExistingPhotos.includes(photo));
+        retainedExistingPhotos.forEach((photo) => formDataToSend.append('existingPhotos', photo));
+        removedPhotos.forEach((photo) => formDataToSend.append('removedPhotos', photo));
+        selectedPhotos.filter((photo) => photo instanceof File).forEach((photo) => formDataToSend.append('photos', photo));
 
         serviceApi
-            .updateService(payload.id, payload)
-            .then(() => {
+            .updateService(editedService.id, formDataToSend, true)
+            .then((updated) => {
+                const payload = {
+                    ...editedService,
+                    ...updated,
+                    category: category || editedService.category
+                };
                 setServices(prev =>
                     prev.map(s =>
                         s.id === payload.id
@@ -241,6 +336,7 @@ export function OffererServicesPage() {
                 );
                 setEditOpen(false);
                 setEditedService(null);
+                setSelectedPhotos([]);
                 showToast(
                     'Servicio actualizado exitosamente',
                     'success'
@@ -290,7 +386,11 @@ export function OffererServicesPage() {
                                 </>
                             )}
                         </div>
-                        <div className={`svc-ico ${!s.active ? 'svc-ico-off' : ''}`}><Icon name="wrench" size={22} /></div>
+                        {s.photos && s.photos.length > 0 ? (
+                            <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${s.photos[0]}`} alt={s.title} style={{ width: '100%', height: '138px', objectFit: 'cover', borderRadius: '12px', marginBottom: '10px' }} />
+                        ) : (
+                            <div className={`svc-ico ${!s.active ? 'svc-ico-off' : ''}`}><Icon name="wrench" size={22} /></div>
+                        )}
                         <div className="svc-name">{s.title}</div>
                         <span className={`badge ${s.active ? 'badge-primary' : 'badge-gray'}`} style={{ marginBottom: '10px' }}>{s.category?.name}</span>
                         <div className="svc-desc">{s.description}</div>
@@ -322,6 +422,9 @@ export function OffererServicesPage() {
                     onSave={createService}
                     categories={categories}
                     editedService={null}
+                    selectedPhotos={selectedPhotos}
+                    setSelectedPhotos={setSelectedPhotos}
+                    removePhoto={removePhoto}
                 />
             )}
             {editOpen && editedService && (
@@ -333,6 +436,9 @@ export function OffererServicesPage() {
                     onSave={saveEditedService}
                     categories={categories}
                     editedService={editedService}
+                    selectedPhotos={selectedPhotos}
+                    setSelectedPhotos={setSelectedPhotos}
+                    removePhoto={removePhoto}
                 />
             )}
             <ToastContainer toasts={toasts} />

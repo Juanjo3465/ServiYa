@@ -35,8 +35,11 @@ export function rolesFromToken(token = getToken()) {
 }
 
 // Llama a la API y devuelve el JSON; si la respuesta es de error, lanza con el mensaje del backend.
-async function request(path, { method = 'GET', body, auth = false } = {}) {
-    const headers = { 'Content-Type': 'application/json' };
+async function request(path, { method = 'GET', body, auth = false, formData = false } = {}) {
+    const headers = {};
+    if (!formData) {
+        headers['Content-Type'] = 'application/json';
+    }
     if (auth) {
         const token = getToken();
         if (token) headers.Authorization = `Bearer ${token}`;
@@ -45,7 +48,7 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     const res = await fetch(`${API_BASE}${path}`, {
         method,
         headers,
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? (formData ? body : JSON.stringify(body)) : undefined,
     });
 
     const isJson = res.headers.get('content-type')?.includes('application/json');
@@ -85,8 +88,8 @@ export const profileApi = {
 
 export const serviceApi = {
     getMyServices: (offererId) => request(`/api/v1/offerers/${offererId}/services`, { auth: true }),
-    createService: (payload) => request('/api/v1/services', { method: 'POST', body: payload, auth: true }),
-    updateService: (id, payload) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true }),
+    createService: (payload, formData = false) => request('/api/v1/services', { method: 'POST', body: payload, auth: true, formData }),
+    updateService: (id, payload, formData = false) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true, formData }),
     deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
     searchServices: (params) => {
         const queryParams = new URLSearchParams();

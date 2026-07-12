@@ -101,6 +101,7 @@ function HomePage() {
                                 rating={s.averageRating ?? 0}
                                 availability={s.active ? 'Hoy' : 'No disponible'}
                                 icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
+                                photos={s.photos || []}
                             />
                         );
                     })}
