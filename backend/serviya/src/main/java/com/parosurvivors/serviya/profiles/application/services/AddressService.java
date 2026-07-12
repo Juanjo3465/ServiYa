@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.profiles.application.dto.result.CoordinatesResu
 import com.parosurvivors.serviya.profiles.application.mappers.AddressCommandMapper;
 import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
+import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.domain.Address;
 
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AddressService implements AddressServicePort {
 
+    private final UserProfilePersistencePort profilePersistencePort;
     private final AddressPersistencePort persistencePort;
     private final AddressCommandMapper commandMapper;
 

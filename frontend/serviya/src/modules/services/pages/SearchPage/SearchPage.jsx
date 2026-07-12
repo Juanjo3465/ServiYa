@@ -429,7 +429,11 @@ export function SearchPage() {
                                 return (
                                     <div className="r-card" key={s.id} onClick={() => navigate(`/services/${s.id}`)}>
                                         <div className="r-card-img">
-                                            <Icon name="wrench" size={38} strokeWidth={1.5} />
+                                            {s.photos?.[0] ? (
+                                                <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${s.photos[0]}`} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <Icon name="wrench" size={38} strokeWidth={1.5} />
+                                            )}
                                             <div className="r-card-av">
                                                 <span className={`badge ${availBadge(s.active)}`}>
                                                     {s.active ? 'Disponible' : 'Inactivo'}

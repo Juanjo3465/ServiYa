@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 public record CreateServiceFeedbackReportForm(
         @NotNull Long reportedUserId,
         @NotBlank String category,
+        String customCategory,
         String reason,
         @NotNull Long serviceFeedbackId) {
 }

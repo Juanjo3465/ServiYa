@@ -26,7 +26,8 @@ function AddressModal({
     title,
     onSave,
     editedAddress,
-    showToast
+    showToast,
+    profile
 }) {
     const [location, setLocation] = useState(null);
     const [geoLoading, setGeoLoading] = useState(false);
@@ -43,6 +44,8 @@ function AddressModal({
         if (!editedAddress) return;
 
         reset(editedAddress);
+
+        setValue("main", profile?.primaryAddressId === editedAddress.id);
 
         if (editedAddress.latitude != null && editedAddress.longitude != null) {
             setLocation({
@@ -177,6 +180,15 @@ function AddressModal({
                     />
                 </div>
 
+                <label className="check-line">
+                    <input
+                        type="checkbox"
+                        readOnly={!location || geoLoading}
+                        {...register("main")}
+                    />
+                    Establecer como dirección principal
+                </label>
+
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={onClose}>
                         Cancelar
@@ -287,6 +299,56 @@ export function ProfilePage() {
         setEditedAddress(null);
     };
 
+    const changeMainAddress = (addressId) => {
+        return profileApi
+            .changeMainAddress({ addressId })
+            .then(() => {
+                setAddresses(prev =>
+                    prev.map(a => ({
+                        ...a,
+                        main: a.id === addressId
+                    }))
+                );
+
+                setProfile(prev => ({
+                    ...prev,
+                    primaryAddressId: addressId
+                }));
+            })
+            .catch(e => {
+                showToast(
+                    e.message || 'No se pudo establecer la dirección principal',
+                    'danger'
+                );
+                throw e;
+            });
+    };
+
+    const clearMainAddress = () => {
+        return profileApi
+            .changeMainAddress({ addressId: null })
+            .then(() => {
+                setAddresses(prev =>
+                    prev.map(a => ({
+                        ...a,
+                        main: false
+                    }))
+                );
+
+                setProfile(prev => ({
+                    ...prev,
+                    primaryAddressId: null
+                }));
+            })
+            .catch(e => {
+                showToast(
+                    e.message || 'No se pudo quitar la dirección principal',
+                    'danger'
+                );
+                throw e;
+            });
+    };
+
     const createAddress = (formData) => {
         const payload = {
             ...formData
@@ -299,6 +361,9 @@ export function ProfilePage() {
                     ...prev,
                     { ...created }
                 ]);
+                if (payload.main === true) {
+                    changeMainAddress(created.id);
+                }
                 setNewAddressOpen(false);
                 showToast('Dirección creada exitosamente', 'success');
             })
@@ -316,6 +381,14 @@ export function ProfilePage() {
             ...editedAddress,
             ...formData
         };
+
+        if (editedAddress.id === profile?.primaryAddressId && payload.main === false) {
+            clearMainAddress();
+        }
+
+        if (editedAddress.id !== profile?.primaryAddressId && payload.main === true) {
+            changeMainAddress(editedAddress.id);
+        }
 
         addressApi
             .updateAddress(payload.id, payload)
@@ -344,6 +417,10 @@ export function ProfilePage() {
     }
 
     const deleteAddress = (address) => () => {
+        if (address.id === profile?.primaryAddressId) {
+            clearMainAddress();
+        }
+
         addressApi
             .deleteAddress(address.id)
             .then(() => {
@@ -429,16 +506,16 @@ export function ProfilePage() {
                         <button className="btn btn-primary btn-sm" onClick={() => setNewAddressOpen(true)}><Icon name="plus" size={13} />Agregar dirección</button>
                     </div>
                     {addresses.map((a, i) => (
-                        <div className="card addr-card" key={i} style={a.main ? { borderLeft: '3px solid var(--c-primary)' } : undefined}>
+                        <div className="card addr-card" key={i} style={a.id === profile?.primaryAddressId ? { borderLeft: '3px solid var(--c-primary)' } : undefined}>
                             <div className="addr-row">
-                                <div className="stat-ico" style={{ margin: 0, flexShrink: 0, ...(a.main ? {} : { background: 'var(--c-bg-s)', color: 'var(--c-soft)' }) }}><Icon name="mapPin" size={18} /></div>
+                                <div className="stat-ico" style={{ margin: 0, flexShrink: 0, ...(a.id === profile?.primaryAddressId ? {} : { background: 'var(--c-bg-s)', color: 'var(--c-soft)' }) }}><Icon name="mapPin" size={18} /></div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{a.addressLine} {a.main && <span className="badge badge-primary">Principal</span>}</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{a.addressLine} {a.id === profile?.primaryAddressId && <span className="badge badge-primary">Principal</span>}</div>
                                     <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '3px' }}>{a.city}</div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '5px' }}>
                                     <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={openEditAddresss(a)}><Icon name="edit" size={13} /></button>
-                                    {!a.main && <button className="btn btn-danger btn-sm" onClick={deleteAddress(a)}><Icon name="trash" size={13} /></button>}
+                                    <button className="btn btn-danger btn-sm" onClick={deleteAddress(a)}><Icon name="trash" size={13} /></button>
                                 </div>
                             </div>
                         </div>
@@ -545,6 +622,7 @@ export function ProfilePage() {
                     onSave={createAddress}
                     editedAddress={null}
                     showToast={showToast}
+                    profile={profile}
                 />
             )}
             {editAddressOpen && editedAddress && (
@@ -554,6 +632,7 @@ export function ProfilePage() {
                     onSave={saveEditedAddress}
                     editedAddress={editedAddress}
                     showToast={showToast}
+                    profile={profile}
                 />
             )}
 

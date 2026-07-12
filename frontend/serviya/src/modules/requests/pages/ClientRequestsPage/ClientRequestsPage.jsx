@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, requestApi } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, reportApi, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice, isTerminal } from '../../utils';
 
@@ -23,6 +23,9 @@ export function ClientRequestsPage() {
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
+    const [reportCategory, setReportCategory] = useState('No se presentó');
+    const [customCategory, setCustomCategory] = useState('');
+    const [reportReason, setReportReason] = useState('');
     const [cancelOpen, setCancelOpen] = useState(false);
     const [cancelTarget, setCancelTarget] = useState(null);
 
@@ -171,11 +174,29 @@ export function ClientRequestsPage() {
             <Modal open={reportOpen} onClose={() => setReportOpen(false)}>
                 <div className="modal-title">Reportar oferente</div>
                 <div className="modal-sub">El administrador revisará el caso.</div>
-                <div className="input-group"><label className="label">Motivo</label><select className="input"><option>No se presentó</option><option>Comportamiento inapropiado</option><option>Fraude</option><option>Otro</option></select></div>
-                <div className="input-group"><label className="label">Descripción</label><textarea className="input" rows="3" placeholder="Describe lo que ocurrió..." /></div>
+                <div className="input-group"><label className="label">Categoría</label><select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}><option>No se presentó</option><option>Comportamiento inapropiado</option><option>Fraude</option><option>Otra</option></select></div>
+                {reportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
+                <div className="input-group"><label className="label">Descripción</label><textarea className="input" rows="3" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => { setReportOpen(false); showToast('Reporte enviado', 'info'); }}>Enviar reporte</button>
+                    <button className="btn btn-danger btn-full" onClick={async () => {
+                        try {
+                            await reportApi.createRequestReport({
+                                reportedUserId: 2,
+                                category: reportCategory,
+                                customCategory,
+                                reason: reportReason,
+                                requestId: 1,
+                            });
+                            setReportOpen(false);
+                            setReportCategory('No se presentó');
+                            setCustomCategory('');
+                            setReportReason('');
+                            showToast('Reporte enviado', 'success');
+                        } catch (error) {
+                            showToast(error.message || 'No se pudo enviar el reporte', 'danger');
+                        }
+                    }}>Enviar reporte</button>
                 </div>
             </Modal>
             <ToastContainer toasts={toasts} />

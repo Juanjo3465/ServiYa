@@ -17,6 +17,7 @@ export {
     profileApi, 
     serviceApi, 
     categoryApi,
+    reportApi,
     addressApi,
     requestApi,
     saveToken, 

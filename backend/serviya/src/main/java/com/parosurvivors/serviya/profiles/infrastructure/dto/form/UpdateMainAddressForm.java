@@ -9,5 +9,5 @@ import jakarta.validation.constraints.NotNull;
  */
 @Schema(description = "Direccion a marcar como principal")
 public record UpdateMainAddressForm(
-        @NotNull Long addressId) {
+        Long addressId) {
 }
