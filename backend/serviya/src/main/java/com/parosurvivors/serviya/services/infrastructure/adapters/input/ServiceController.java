@@ -2,6 +2,8 @@ package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
 
 import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
+import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
+import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.services.infrastructure.adapters.input.api.ServiceApi;
@@ -25,8 +27,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +45,7 @@ public class ServiceController implements ServiceApi {
 
     private final MarketplaceServicePort marketplaceService;
     private final ServiceWebMapper mapper;
+    private final UserProfileServicePort userProfileService;
 
     @Override
     @PostMapping("/api/v1/services")
@@ -116,8 +121,22 @@ public class ServiceController implements ServiceApi {
         Page<Service> servicePage = marketplaceService.search(criteria, pageable);
         Map<Long, ServiceMetrics> metricsMap = marketplaceService.getMetricsForServices(
                 servicePage.getContent().stream().map(Service::getId).collect(Collectors.toList()));
-        Page<ServiceResponse> page = servicePage.map(service ->
-                mapper.toResponse(service, metricsMap.get(service.getId())));
+
+        Set<Long> offererIds = servicePage.getContent().stream()
+                .map(Service::getOffererId).collect(Collectors.toSet());
+        Map<Long, String> offererNames = new HashMap<>();
+        for (Long oid : offererIds) {
+            try {
+                offererNames.put(oid, userProfileService.getProfileInfo(oid).getFullName());
+            } catch (Exception e) {
+                offererNames.put(oid, "Oferente");
+            }
+        }
+
+        Page<ServiceResponse> page = servicePage.map(service -> {
+            ServiceResponse r = mapper.toResponse(service, metricsMap.get(service.getId()));
+            return withOffererName(r, offererNames.getOrDefault(service.getOffererId(), "Oferente"));
+        });
         return ResponseEntity.ok(page);
     }
 
@@ -164,5 +183,14 @@ public class ServiceController implements ServiceApi {
 
     private Long currentOffererId() {
         return CurrentUser.id();
+    }
+
+    private ServiceResponse withOffererName(ServiceResponse r, String name) {
+        return new ServiceResponse(
+                r.id(), r.offererId(), name,
+                r.title(), r.description(), r.photos(), r.priceHourly(),
+                r.categoryId(), r.averageDurationMinutes(), r.active(),
+                r.operationRadiusKm(), r.createdAt(), r.updatedAt(), r.deletedAt(),
+                r.averageRating(), r.totalRatings(), r.totalComments());
     }
 }

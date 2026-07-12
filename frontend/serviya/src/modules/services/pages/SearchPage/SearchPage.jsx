@@ -421,7 +421,7 @@ export function SearchPage() {
                                             <div className="r-card-name">{s.title}</div>
                                             <div className="r-oferer">
                                                 <div className="av av-xs">OF</div>
-                                                <span>Oferente #{s.offererId}</span>
+                                                <span>{s.offererName || 'Oferente'}</span>
                                             </div>
                                             <div style={{ fontSize: '11px', marginBottom: '8px' }}>
                                                 <span style={{ color: 'var(--c-primary)', fontWeight: 600 }}>{serviceCatName}</span>
