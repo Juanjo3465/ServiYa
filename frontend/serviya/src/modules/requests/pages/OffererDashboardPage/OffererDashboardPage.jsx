@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 
 import './OffererDashboardPage.css';
@@ -18,10 +18,36 @@ const AGENDA = [
     { day: '16', month: 'Mayo', title: 'Destape de cañerías', sub: 'Mario V. · 2:00 PM · Usaquén', badge: 'badge-success', label: 'Aceptada' },
 ];
 
+const COMPLETABLE_REQUEST = { id: 2, clientId: 20, clientName: 'Sandra R.' };
+
 export function OffererDashboardPage() {
     const { toasts, showToast } = useToast();
     const [proposalOpen, setProposalOpen] = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
+    const [clientTags, setClientTags] = useState([]);
+    const [savingFeedback, setSavingFeedback] = useState(false);
+
+    useEffect(() => {
+        feedbackApi.getClientFeedbackTags()
+            .then(setClientTags)
+            .catch(() => setClientTags([]));
+    }, []);
+
+    const submitClientFeedback = async (payload) => {
+        setSavingFeedback(true);
+        try {
+            await feedbackApi.submitClientFeedback(COMPLETABLE_REQUEST.id, {
+                clientId: COMPLETABLE_REQUEST.clientId,
+                ...payload,
+            });
+            setCompleteOpen(false);
+            showToast('Servicio marcado como realizado. Cliente notificado', 'success');
+        } catch (error) {
+            showToast(error.message || 'No se pudo enviar la reseña del cliente', 'danger');
+        } finally {
+            setSavingFeedback(false);
+        }
+    };
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
@@ -108,12 +134,14 @@ export function OffererDashboardPage() {
                 open={completeOpen}
                 onClose={() => setCompleteOpen(false)}
                 title="Confirmar servicio realizado"
-                sub="Confirma que prestaste el servicio a Sandra R. correctamente."
+                sub={`Confirma que prestaste el servicio a ${COMPLETABLE_REQUEST.clientName} correctamente.`}
                 ratingLabel="Califica al cliente (RF-043)"
                 reviewLabel="Reseña del cliente (RF-044)"
                 confirmLabel="Confirmar realizado"
                 confirmClass="btn-success"
-                onConfirm={() => { setCompleteOpen(false); showToast('Servicio marcado como realizado. Cliente notificado', 'success'); }}
+                tags={clientTags}
+                loading={savingFeedback}
+                onConfirm={submitClientFeedback}
             />
             <ToastContainer toasts={toasts} />
         </DashboardLayout>

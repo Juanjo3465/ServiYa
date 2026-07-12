@@ -88,6 +88,39 @@ export const serviceApi = {
     deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
 };
 
+export const feedbackApi = {
+    submitServiceFeedback: (requestId, payload) =>
+        request(`/api/v1/service-requests/${requestId}/feedback`, {
+            method: 'POST',
+            body: payload,
+            auth: true,
+        }),
+    submitClientFeedback: (requestId, payload) =>
+        request(`/api/v1/service-requests/${requestId}/client-feedback`, {
+            method: 'POST',
+            body: payload,
+            auth: true,
+        }),
+    getServiceFeedbackList: (serviceId, { page = 0, size = 10 } = {}) =>
+        request(`/api/v1/services/${serviceId}/feedback?page=${page}&size=${size}`),
+    getClientFeedbackList: (clientId, { page = 0, size = 10 } = {}) =>
+        request(`/api/v1/users/${clientId}/client-feedback?page=${page}&size=${size}`, { auth: true }),
+    getServiceFeedbackTags: () => request('/api/v1/service-feedback-tags'),
+    getClientFeedbackTags: () => request('/api/v1/client-feedback-tags', { auth: true }),
+    searchAdminFeedback: (params = {}) => {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') query.set(key, value);
+        });
+        return request(`/api/v1/admin/feedback${query.toString() ? `?${query}` : ''}`, { auth: true });
+    },
+};
+
+export const metricsApi = {
+    getServiceMetrics: (serviceId) => request(`/api/v1/services/${serviceId}/metrics`),
+    getOffererMetrics: (offererId) => request(`/api/v1/offerers/${offererId}/metrics/main`),
+};
+
 export const addressApi = {
     getMyAddresses: () => request('/api/v1/users/me/addresses', { auth: true }),
     createAddress: (payload) => request('/api/v1/users/me/addresses', { method: 'POST', body: payload, auth: true }),

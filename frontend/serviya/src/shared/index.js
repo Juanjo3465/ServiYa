@@ -16,6 +16,8 @@ export {
     authApi, 
     profileApi, 
     serviceApi, 
+    feedbackApi,
+    metricsApi,
     categoryApi,
     addressApi,
     clientAgendaApi,

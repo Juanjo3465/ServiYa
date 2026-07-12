@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 
 import './ClientDashboardPage.css';
@@ -35,6 +35,34 @@ export function ClientDashboardPage() {
     const { toasts, showToast } = useToast();
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
+    const [activeRequest, setActiveRequest] = useState(null);
+    const [serviceTags, setServiceTags] = useState([]);
+    const [savingFeedback, setSavingFeedback] = useState(false);
+
+    useEffect(() => {
+        feedbackApi.getServiceFeedbackTags()
+            .then(setServiceTags)
+            .catch(() => setServiceTags([]));
+    }, []);
+
+    const openConfirm = (request) => {
+        setActiveRequest(request);
+        setConfirmOpen(true);
+    };
+
+    const submitServiceFeedback = async (payload) => {
+        if (!activeRequest) return;
+        setSavingFeedback(true);
+        try {
+            await feedbackApi.submitServiceFeedback(activeRequest.id, payload);
+            setConfirmOpen(false);
+            showToast('Servicio confirmado y reseña enviada', 'success');
+        } catch (error) {
+            showToast(error.message || 'No se pudo enviar la reseña', 'danger');
+        } finally {
+            setSavingFeedback(false);
+        }
+    };
 
     return (
         <DashboardLayout sections={CLIENT_NAV} avatar="JP">
@@ -80,7 +108,7 @@ export function ClientDashboardPage() {
                             <div className="req-actions">
                                 <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate('/services/1')}>Ver detalle</button>
                                 {r.status === 'Pendiente' && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
-                                {r.canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
+                                {r.canConfirm && <button className="btn btn-primary btn-sm" onClick={() => openConfirm(r)}><Icon name="check" size={13} />Confirmar servicio</button>}
                                 <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud cancelada', 'danger')}><Icon name="close" size={13} />Cancelar</button>
                             </div>
                         </div>
@@ -113,11 +141,13 @@ export function ClientDashboardPage() {
                 open={confirmOpen}
                 onClose={() => setConfirmOpen(false)}
                 title="Confirmar cumplimiento del servicio"
-                sub="¿El servicio de limpieza fue realizado correctamente por María L.?"
+                sub={`¿El servicio ${activeRequest?.name ? `de ${activeRequest.name.toLowerCase()}` : ''} fue realizado correctamente?`}
                 ratingLabel="Calificación del servicio (RF-041)"
                 reviewLabel="Reseña del servicio (RF-045)"
                 confirmLabel="Confirmar servicio"
-                onConfirm={() => { setConfirmOpen(false); showToast('Servicio confirmado y reseña enviada', 'success'); }}
+                tags={serviceTags}
+                loading={savingFeedback}
+                onConfirm={submitServiceFeedback}
             />
 
             <Modal open={reschedOpen} onClose={() => setReschedOpen(false)}>

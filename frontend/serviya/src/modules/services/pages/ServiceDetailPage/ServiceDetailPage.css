@@ -150,6 +150,12 @@ body {
     border-bottom: none;
 }
 
+.reviews-empty {
+    padding: 14px 0;
+    color: var(--c-soft);
+    font-size: 13px;
+}
+
 .tag-chips {
     display: flex;
     flex-wrap: wrap;

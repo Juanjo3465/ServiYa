@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate } from 'react-router-dom';
-import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast } from '../../../../shared';
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, feedbackApi, metricsApi } from '../../../../shared';
 
 import './ServiceDetailPage.css';
 
@@ -20,9 +20,51 @@ const REVIEWS = [
 
 export function ServiceDetailPage() {
     const navigate = useNavigate();
+    const { id } = useParams();
     const { toasts, showToast } = useToast();
     const [activeSlot, setActiveSlot] = useState(0);
     const [reportOpen, setReportOpen] = useState(false);
+    const [metrics, setMetrics] = useState(null);
+    const [reviews, setReviews] = useState(REVIEWS);
+    const [loadingReviews, setLoadingReviews] = useState(false);
+    const serviceId = id ?? 1;
+
+    useEffect(() => {
+        let active = true;
+        metricsApi.getServiceMetrics(serviceId)
+            .then((data) => active && setMetrics(data))
+            .catch(() => active && setMetrics(null));
+
+        setLoadingReviews(true);
+        feedbackApi.getServiceFeedbackList(serviceId, { size: 6 })
+            .then((page) => {
+                if (!active) return;
+                const content = page?.content ?? [];
+                if (content.length === 0) return;
+                setReviews(content.map((item) => ({
+                    initials: `C${item.clientId ?? ''}`.slice(0, 2),
+                    name: `Cliente ${item.clientId ?? ''}`,
+                    rating: item.rating ?? 0,
+                    time: formatDate(item.createdAt),
+                    text: item.comment || 'Sin comentario adicional.',
+                    tags: item.tags ?? [],
+                })));
+            })
+            .catch(() => active && setReviews(REVIEWS))
+            .finally(() => active && setLoadingReviews(false));
+
+        return () => {
+            active = false;
+        };
+    }, [serviceId]);
+
+    const ratingValue = Number(metrics?.averageRating ?? 4.9);
+    const ratingCount = metrics?.totalRatings ?? 32;
+    const reviewCount = metrics?.totalComments ?? reviews.length;
+    const visibleTags = useMemo(
+        () => [...new Set(reviews.flatMap((review) => review.tags ?? []))].slice(0, 6),
+        [reviews]
+    );
 
     return (
         <>
@@ -40,7 +82,7 @@ export function ServiceDetailPage() {
                     </div>
                     <div className="detail-title">Reparación de tuberías y filtraciones</div>
                     <div className="detail-meta">
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Stars rating={4.9} size={12} /><strong style={{ color: 'var(--c-text)' }}>4.9</strong>(32 reseñas)</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Stars rating={ratingValue} size={12} /><strong style={{ color: 'var(--c-text)' }}>{ratingValue.toFixed(1)}</strong>({reviewCount} reseñas)</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Icon name="mapPin" size={13} />2.3 km</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Icon name="clock" size={13} />Duración est.: 2–4 hrs</span>
                         <span className="badge badge-primary">Plomería</span>
@@ -52,7 +94,7 @@ export function ServiceDetailPage() {
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)' }}>Carlos Martínez</div>
                                 <div style={{ fontSize: '12px', color: 'var(--c-mid)', margin: '2px 0' }}>Plomero profesional · 8 años de experiencia</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Stars rating={5} size={11} /><span style={{ fontSize: '12px', color: 'var(--c-soft)' }}>4.9 · 42 servicios</span><span className="badge badge-success" style={{ fontSize: '10px' }}>Verificado</span></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Stars rating={ratingValue} size={11} /><span style={{ fontSize: '12px', color: 'var(--c-soft)' }}>{ratingValue.toFixed(1)} · 42 servicios</span><span className="badge badge-success" style={{ fontSize: '10px' }}>Verificado</span></div>
                             </div>
                             <span style={{ color: 'var(--c-primary)', fontSize: '12px', fontWeight: 600 }}>Ver perfil →</span>
                         </div>
@@ -86,15 +128,17 @@ export function ServiceDetailPage() {
 
                     <div className="sec-card">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <h3 style={{ margin: 0 }}>Reseñas (32)</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Stars rating={5} /><strong style={{ fontSize: '18px' }}>4.9</strong></div>
+                            <h3 style={{ margin: 0 }}>Reseñas ({reviewCount})</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Stars rating={ratingValue} /><strong style={{ fontSize: '18px' }}>{ratingValue.toFixed(1)}</strong></div>
                         </div>
                         <div className="tag-chips" style={{ marginBottom: '16px' }}>
-                            <span className="tag-chip pos">Puntual</span><span className="tag-chip pos">Profesional</span>
-                            <span className="tag-chip pos">Buen trabajo</span><span className="tag-chip neg">Tardó un poco</span>
+                            {(visibleTags.length ? visibleTags : ['Puntual', 'Profesional', 'Buen trabajo', 'Tardó un poco']).map((tag, index) => (
+                                <span className={`tag-chip ${index === 3 ? 'neg' : 'pos'}`} key={tag}>{tag}</span>
+                            ))}
                         </div>
-                        {REVIEWS.map((r, i) => (
-                            <div className="review-item" key={i}>
+                        {loadingReviews && <div className="reviews-empty">Cargando reseñas...</div>}
+                        {reviews.map((r, i) => (
+                            <div className="review-item" key={`${r.name}-${i}`}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '7px' }}>
                                     <div className="av av-sm">{r.initials}</div>
                                     <strong style={{ fontSize: '13px' }}>{r.name}</strong>
@@ -104,7 +148,7 @@ export function ServiceDetailPage() {
                                 <div style={{ fontSize: '13px', color: 'var(--c-mid)', lineHeight: 1.6 }}>{r.text}</div>
                             </div>
                         ))}
-                        <button className="btn btn-ghost btn-full" style={{ marginTop: '8px', border: '1px solid var(--c-border)' }}>Ver todas las reseñas →</button>
+                        {!loadingReviews && reviews.length === 0 && <div className="reviews-empty">Este servicio aún no tiene reseñas.</div>}
                     </div>
                 </div>
 
@@ -112,7 +156,7 @@ export function ServiceDetailPage() {
                     <div className="booking-card">
                         <div className="booking-price">desde $50.000</div>
                         <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '16px' }}>/ por servicio</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '18px', fontSize: '12px', color: 'var(--c-mid)' }}><Stars rating={5} size={12} /> 4.9 · 32 reseñas</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '18px', fontSize: '12px', color: 'var(--c-mid)' }}><Stars rating={ratingValue} size={12} /> {ratingValue.toFixed(1)} · {reviewCount} reseñas</div>
 
                         <div className="input-group"><label className="label">Fecha</label><input className="input" type="date" /></div>
                         <div className="input-group"><label className="label">Hora</label><select className="input"><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>2:00 PM</option><option>3:00 PM</option></select></div>
@@ -122,7 +166,7 @@ export function ServiceDetailPage() {
                             <div className="mm"><div className="mm-val">98%</div><div className="mm-lbl">Cumplimiento</div></div>
                             <div className="mm"><div className="mm-val">2%</div><div className="mm-lbl">Cancelaciones</div></div>
                             <div className="mm"><div className="mm-val">42</div><div className="mm-lbl">Servicios</div></div>
-                            <div className="mm"><div className="mm-val">4.9★</div><div className="mm-lbl">Calificación</div></div>
+                            <div className="mm"><div className="mm-val">{ratingValue.toFixed(1)}★</div><div className="mm-lbl">Calificación</div></div>
                         </div>
 
                         <button className="btn btn-primary btn-full btn-lg" onClick={() => navigate('/request-service')} style={{ marginBottom: '8px' }}>
@@ -155,3 +199,10 @@ export function ServiceDetailPage() {
 }
 
 export default ServiceDetailPage;
+
+function formatDate(value) {
+    if (!value) return 'Reciente';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Reciente';
+    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(date);
+}

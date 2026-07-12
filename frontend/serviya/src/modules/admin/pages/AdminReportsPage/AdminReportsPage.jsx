@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
 import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
 import { ReportCard } from '../../components/ReportCard/ReportCard';
 import { ManagementModal } from '../../components/ManagementModal/ManagementModal';
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
 import { useToast } from '../../../../shared/hooks/useToast';
+import { feedbackApi, Stars } from '../../../../shared';
 
 import './AdminReportsPage.css';
 
@@ -50,6 +51,13 @@ export function AdminReportsPage() {
     const { toasts, showToast } = useToast();
     const [activeTab, setActiveTab] = useState('Todos');
     const [selectedReport, setSelectedReport] = useState(null);
+    const [clientReviews, setClientReviews] = useState([]);
+
+    useEffect(() => {
+        feedbackApi.searchAdminFeedback({ type: 'CLIENT', size: 5 })
+            .then((page) => setClientReviews(page?.content ?? []))
+            .catch(() => setClientReviews([]));
+    }, []);
 
     const handleOpenManagement = (report) => {
         setSelectedReport(report);
@@ -106,6 +114,38 @@ export function AdminReportsPage() {
                                 onDelete={() => showToast('Reseña eliminada (RF-049)', 'danger')}
                             />
                         ))}
+                    </div>
+
+                    <div className="card" style={{ marginTop: '18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                                <div style={{ fontSize: '15px', fontWeight: 700 }}>Reseñas de clientes</div>
+                                <div style={{ fontSize: '12px', color: 'var(--c-soft)' }}>Vista administrativa (RF-048)</div>
+                            </div>
+                            <span className="badge badge-primary">Cliente</span>
+                        </div>
+
+                        {clientReviews.length === 0 ? (
+                            <div style={{ fontSize: '13px', color: 'var(--c-soft)' }}>
+                                No hay reseñas de clientes disponibles.
+                            </div>
+                        ) : (
+                            clientReviews.map((review) => (
+                                <div className="review-admin-row" key={`${review.type}-${review.requestId}`}>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                            <strong style={{ fontSize: '13px' }}>Cliente #{review.clientId}</strong>
+                                            <Stars rating={review.rating ?? 0} size={11} />
+                                            <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>Solicitud #{review.requestId}</span>
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>
+                                            {review.comment || 'Sin comentario adicional.'}
+                                        </div>
+                                    </div>
+                                    <span className="badge badge-gray">Oferente #{review.offererId}</span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </main>
             </div>
