@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.users.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -40,8 +41,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Documentacion OpenAPI/Swagger
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                // Perfil y cuenta del usuario autenticado — RF-005 (identidad del JWT)
-                .requestMatchers("/api/v1/users/me/**").permitAll()  //Remember to change later
+                // Perfil publico del oferente — RF-027: accesible tambien por visitantes (sin JWT).
+                .requestMatchers(HttpMethod.GET, "/api/v1/offerers/*", "/api/v1/offerers/*/**").permitAll()
+                // Perfil y cuenta del usuario autenticado — RF-005/006/008/010/011.
+                // La identidad SIEMPRE sale del JWT (CurrentUser.id()), nunca del body/path: exige login.
+                .requestMatchers("/api/v1/users/me/**").authenticated()
                 // Modulo admin (modulo 9): gestion de usuarios/roles, detalle admin y feedback -> solo ADMIN.
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 // Acciones de moderacion sobre un reporte (warn/ban/revert-feedback/close/mark-not-provided) -> solo ADMIN.

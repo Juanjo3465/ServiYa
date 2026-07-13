@@ -35,6 +35,19 @@ public class OffererMetricsService implements OffererMetricsServicePort {
                 .orElse(OffererMetrics.builder().offererId(offererId).build());
     }
 
+    /**
+     * RF-010/065: fila de métricas en cero al adquirir el rol OFFERER. A diferencia de los apply*
+     * (que corren AFTER_COMMIT en transacción propia), esta se une a la transacción del llamador
+     * para que "asignar rol + inicializar métricas" sea atómico.
+     */
+    @Override
+    @Transactional
+    public void initializeMetrics(Long offererId) {
+        if (offererMetricsPersistencePort.findByOffererId(offererId).isEmpty()) {
+            offererMetricsPersistencePort.save(OffererMetrics.builder().offererId(offererId).build());
+        }
+    }
+
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyServiceFeedbackSubmitted(Long offererId, Integer rating, boolean hasComment,

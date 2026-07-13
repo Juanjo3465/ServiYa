@@ -35,6 +35,19 @@ public class ClientMetricsService implements ClientMetricsServicePort {
                 .orElse(ClientMetrics.builder().clientId(clientId).build());
     }
 
+    /**
+     * RF-011/065: fila de métricas en cero al adquirir el rol CLIENT. A diferencia de los apply*
+     * (que corren AFTER_COMMIT en transacción propia), esta se une a la transacción del llamador
+     * para que "asignar rol + inicializar métricas" sea atómico. Idempotente.
+     */
+    @Override
+    @Transactional
+    public void initializeMetrics(Long clientId) {
+        if (clientMetricsPersistencePort.findByClientId(clientId).isEmpty()) {
+            clientMetricsPersistencePort.save(ClientMetrics.builder().clientId(clientId).build());
+        }
+    }
+
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void applyClientFeedbackSubmitted(Long clientId, Integer rating, boolean hasComment,
