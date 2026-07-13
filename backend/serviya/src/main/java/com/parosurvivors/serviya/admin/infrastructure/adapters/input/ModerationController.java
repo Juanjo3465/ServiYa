@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.admin.application.ports.input.ModerationService
 import com.parosurvivors.serviya.admin.infrastructure.adapters.input.api.ModerationApi;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.RemoveFeedbackForm;
 import com.parosurvivors.serviya.admin.infrastructure.mappers.AdminWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,47 +27,42 @@ public class ModerationController implements ModerationApi {
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/warn")
     public ResponseEntity<Void> warnUser(@PathVariable Long id) {
-        moderationService.warnUser(id, currentAdminId());
+        moderationService.warnUser(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/ban")
     public ResponseEntity<Void> banUserFromReport(@PathVariable Long id) {
-        moderationService.banUserFromReport(id, currentAdminId());
+        moderationService.banUserFromReport(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/revert-feedback")
     public ResponseEntity<Void> revertFeedback(@PathVariable Long id) {
-        moderationService.revertFeedbackFromReport(id, currentAdminId());
+        moderationService.revertFeedbackFromReport(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/close")
     public ResponseEntity<Void> closeReport(@PathVariable Long id) {
-        moderationService.closeReport(id, currentAdminId());
+        moderationService.closeReport(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/mark-not-provided")
     public ResponseEntity<Void> markRequestAsNotProvided(@PathVariable Long id) {
-        moderationService.markRequestAsNotProvided(id, currentAdminId());
+        moderationService.markRequestAsNotProvided(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/api/v1/admin/feedback/remove")
     public ResponseEntity<Void> removeFeedbackDirectly(@Valid @RequestBody RemoveFeedbackForm form) {
-        moderationService.removeFeedbackDirectly(mapper.toCommand(form, currentAdminId()));
+        moderationService.removeFeedbackDirectly(mapper.toCommand(form, CurrentUser.id()));
         return ResponseEntity.noContent().build();
-    }
-
-    /** TODO: reemplazar por el id del admin extraido del JWT autenticado. */
-    private Long currentAdminId() {
-        return 0L;
     }
 }

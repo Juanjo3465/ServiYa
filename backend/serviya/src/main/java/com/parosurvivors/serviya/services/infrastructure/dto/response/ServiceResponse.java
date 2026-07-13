@@ -14,6 +14,7 @@ import java.util.List;
 public record ServiceResponse(
         @Schema(accessMode = Schema.AccessMode.READ_ONLY) Long id,
         Long offererId,
+        String offererName,
         String title,
         String description,
         List<String> photos,

@@ -136,18 +136,6 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
         return history;
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public int countClientRequests(Long clientId) {
-        return (int) serviceRequestReadPort.countByClientId(clientId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public int countOffererRequests(Long offererId) {
-        return (int) serviceRequestReadPort.countByOffererId(offererId);
-    }
-
     // =====================================================
     // HELPERS
     // =====================================================

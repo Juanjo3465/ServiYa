@@ -33,5 +33,6 @@ public interface MarketplaceServicePort {
     void softDelete(Long id);
     void activate(Long id);
     void deactivate(Long id);
+    void deactivateAllByOfferer(Long offererId);
     
 }

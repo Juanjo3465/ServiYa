@@ -94,13 +94,13 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         int dayIndex = javaDayOfWeek == 7 ? 0 : javaDayOfWeek;
         LocalTime scheduledTime = scheduledDate.toLocalTime();
         boolean isAvailable = false;
-        
+
         List<ServiceAvailability> availabilities = serviceAvailabilityPersistencePort
                 .findByServiceId(serviceId);
 
 
         for (ServiceAvailability availability : availabilities) {
-            if (availability.isActive() 
+            if (availability.isActive()
                 && availability.getWeekDay() == dayIndex
                 && !scheduledTime.isBefore(availability.getStartTime())
                 && !scheduledTime.isAfter(availability.getEndTime())
@@ -111,7 +111,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         }
         if (!isAvailable) {
             throw new BusinessRuleException(
-                    "El servicio no está disponible en la fecha y hora solicitadas " 
+                    "El servicio no está disponible en la fecha y hora solicitadas "
                 );
         }
         return true;
@@ -303,6 +303,20 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
                 requestId,
                 null,
                 Map.of());
+    }
+
+    @Override
+    @Transactional
+    public void cancelActiveRequestsForUser(Long userId) {
+        // Cancela las solicitudes activas (PENDING/ACCEPTED) en las que el usuario participa como cliente
+        // u oferente. Lo invoca UserDeletionService al eliminar la cuenta para no dejar solicitudes huérfanas.
+        // Se filtra en BD por participante + estado (no se traen las ya finalizadas); el usuario es participante
+        // de todas ellas, así que cancelRequest(id, userId) supera el check de propiedad.
+        List<ServiceRequest> active = serviceRequestReadPort.findByParticipantAndStatusIn(
+                userId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED));
+        for (ServiceRequest request : active) {
+            cancelRequest(request.getId(), userId);
+        }
     }
 
     @Override

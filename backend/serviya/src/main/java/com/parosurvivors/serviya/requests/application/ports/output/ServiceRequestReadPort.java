@@ -26,7 +26,7 @@ import org.springframework.data.domain.Pageable;
  */
 public interface ServiceRequestReadPort {
 
-    // --- Finds de dominio + conteos ---
+    // --- Finds de dominio ---
     Optional<ServiceRequest> findById(Long id);
 
     List<ServiceRequest> findByClientId(Long clientId);
@@ -39,9 +39,8 @@ public interface ServiceRequestReadPort {
 
     Optional<ServiceRequest> findByPreviousRequestId(Long previousRequestId);
 
-    long countByClientId(Long clientId);
-
-    long countByOffererId(Long offererId);
+    /** Solicitudes en las que el usuario participa (cliente u oferente) con estado en {@code statuses}. */
+    List<ServiceRequest> findByParticipantAndStatusIn(Long userId, List<RequestStatus> statuses);
 
     // --- Agenda: solicitudes futuras (no completadas) ---
     Page<ServiceRequest> findClientFutureRequests(Long clientId, List<String> statuses, Pageable pageable);
