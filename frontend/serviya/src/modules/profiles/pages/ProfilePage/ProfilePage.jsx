@@ -258,6 +258,10 @@ export function ProfilePage() {
     const [addresses, setAddresses] = useState([]);
     const [editedAddress, setEditedAddress] = useState(null);
 
+    // --- Edicion del perfil personal (RF-006) ---
+    const [form, setForm] = useState({ fullName: '', phone: '', description: '' });
+    const [savingProfile, setSavingProfile] = useState(false);
+
     // --- Cambio de contraseña (RF-007) ---
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -271,10 +275,47 @@ export function ProfilePage() {
             return;
         }
         profileApi.getMyProfile()
-            .then(setProfile)
+            .then((data) => {
+                setProfile(data);
+                // RF-006: campos editables precargados con los valores actuales.
+                setForm({
+                    fullName: data.fullName ?? '',
+                    phone: data.phoneNumber ?? '',
+                    description: data.bio ?? '',
+                });
+            })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    /**
+     * RF-006: guarda solo los campos que realmente cambiaron (PATCH parcial).
+     * El documento no se envia nunca: es inmutable por regla de negocio.
+     */
+    const handleSaveProfile = () => {
+        const changes = {};
+        if (form.fullName !== (profile?.fullName ?? '')) changes.fullName = form.fullName;
+        if (form.phone !== (profile?.phoneNumber ?? '')) changes.phone = form.phone;
+        if (form.description !== (profile?.bio ?? '')) changes.description = form.description;
+
+        if (Object.keys(changes).length === 0) {
+            showToast('No hay cambios por guardar', 'warn');
+            return;
+        }
+        if (!form.fullName.trim()) {
+            showToast('El nombre no puede quedar vacío', 'danger');
+            return;
+        }
+
+        setSavingProfile(true);
+        profileApi.updateMyProfile(changes)
+            .then((updated) => {
+                setProfile(updated);
+                showToast('Perfil actualizado correctamente', 'success');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo actualizar el perfil', 'danger'))
+            .finally(() => setSavingProfile(false));
+    };
 
     useEffect(() => {
         addressApi.getMyAddresses()
@@ -486,16 +527,34 @@ export function ProfilePage() {
                         </div>
                     </div>
                     <div className="g2">
-                        <div className="input-group"><label className="label">Nombre completo</label><input className="input" value={profile?.fullName ?? ''} readOnly /></div>
-                        <div className="input-group"><label className="label">Teléfono</label><div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" value={profile?.phoneNumber ?? ''} readOnly /></div></div>
+                        <div className="input-group">
+                            <label className="label">Nombre completo</label>
+                            <input className="input" value={form.fullName}
+                                onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+                        </div>
+                        <div className="input-group">
+                            <label className="label">Teléfono</label>
+                            <div className="input-wrap">
+                                <div className="input-ico"><Icon name="phone" size={15} /></div>
+                                <input className="input" value={form.phone}
+                                    onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                            </div>
+                        </div>
                     </div>
                     <div className="g2">
-                        <div className="input-group"><label className="label">Tipo de documento</label><input className="input" value={profile?.documentType ?? ''} readOnly /></div>
-                        <div className="input-group"><label className="label">Número de documento</label><input className="input" value={profile?.documentNumber ?? ''} readOnly /></div>
+                        <div className="input-group"><label className="label">Tipo de documento</label><input className="input" value={profile?.documentType ?? ''} readOnly disabled /></div>
+                        <div className="input-group"><label className="label">Número de documento</label><input className="input" value={profile?.documentNumber ?? ''} readOnly disabled /></div>
                     </div>
-                    <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly /></div>
-                    <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos protegidos:</strong> Tu documento y teléfono se almacenan cifrados (AES-256-GCM) y solo tú puedes verlos aquí (RF-005).</div>
-                    <button className="btn btn-primary" onClick={() => showToast('Perfil actualizado', 'success')}><Icon name="save" size={15} />Guardar cambios</button>
+                    <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly disabled /></div>
+                    <div className="input-group">
+                        <label className="label">Descripción personal</label>
+                        <textarea className="input" rows="3" value={form.description}
+                            onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                    </div>
+                    <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos no editables:</strong> Tipo y número de documento — se establecen al registrarte y se guardan cifrados (AES-256-GCM). Tu teléfono también viaja cifrado (RF-005/RF-006).</div>
+                    <button className="btn btn-primary" onClick={handleSaveProfile} disabled={savingProfile}>
+                        <Icon name="save" size={15} />{savingProfile ? 'Guardando…' : 'Guardar cambios'}
+                    </button>
                 </div>
             )}
 

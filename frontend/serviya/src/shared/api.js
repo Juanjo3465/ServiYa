@@ -74,6 +74,11 @@ export const authApi = {
 export const profileApi = {
     // RF-005 — identidad tomada del JWT por el backend
     getMyProfile: () => request('/api/v1/users/me/profile', { auth: true }),
+
+    // RF-006 — PATCH parcial: solo se envian los campos modificados.
+    // El documento (tipo/numero) NO es editable y por eso nunca se manda.
+    updateMyProfile: (payload) =>
+        request('/api/v1/users/me/profile', { method: 'PATCH', body: payload, auth: true }),
     getProfile: (id) => request(`/api/v1/offerers/${id}`, { auth: true }),
     changeMainAddress: (payload) => request(`/api/v1/users/me/main-address`, { method: 'PATCH', body: payload, auth: true }),
  
