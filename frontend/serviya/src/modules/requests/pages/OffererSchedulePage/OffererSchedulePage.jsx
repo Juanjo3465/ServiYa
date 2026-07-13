@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
+import { requestApi } from '../../../../shared/api';
 
 const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MONTH_NAMES = [
@@ -11,6 +12,7 @@ const MONTH_NAMES = [
 const STATUS_BADGE = {
     PENDING: { className: 'badge-warn', label: 'Pendiente aceptar' },
     ACCEPTED: { className: 'badge-success', label: 'Aceptada' },
+    PRESUMABLY_COMPLETED: { className: 'badge-warn', label: 'Esperando confirmación' },
 };
 
 function dayKey(date) {
@@ -59,11 +61,9 @@ export function OffererSchedulePage() {
     const [selectedDate, setSelectedDate] = useState(null);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/v1/users/me/offerer-agenda')
-            .then((response) => response.json())
-            .then((data) => {
-                setRequests(data.content ?? []);
-            });
+        requestApi.getOffererRequests({ size: 50 })
+            .then(data => setRequests(data.content ?? []))
+            .catch(() => {});
     }, []);
 
     const allDays = groupByDay(requests);
