@@ -1,7 +1,7 @@
 package com.parosurvivors.serviya.admin.infrastructure.adapters.input.api;
 
-import com.parosurvivors.serviya.admin.application.dto.query.SearchUsersQuery;
-import com.parosurvivors.serviya.admin.infrastructure.dto.form.AssignRoleForm;
+import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
@@ -32,7 +32,7 @@ public interface AdminApi {
     @ApiResponse(responseCode = "200", description = "Detalle del usuario")
     ResponseEntity<UserAdminDetailResponse> getUserAdminDetail(Long id);
 
-    @Operation(summary = "Crear un usuario (CLIENT/OFFERER; ADMIN va por grantAdminRole)")
+    @Operation(summary = "Crear un usuario con cualquier rol, incluido ADMIN (cuenta nueva)")
     @ApiResponse(responseCode = "201", description = "Usuario creado")
     ResponseEntity<UserSummaryResponse> createUserByAdmin(CreateUserByAdminForm form);
 
@@ -56,13 +56,10 @@ public interface AdminApi {
     @ApiResponse(responseCode = "200", description = "Roles del usuario")
     ResponseEntity<List<RoleResponse>> getUserRoles(Long id);
 
-    @Operation(summary = "Asignar un rol (CLIENT/OFFERER) a un usuario", description = "RF-065.")
-    @ApiResponse(responseCode = "204", description = "Rol asignado")
-    ResponseEntity<Void> assignRole(Long id, AssignRoleForm form);
-
-    @Operation(summary = "Promover a un usuario existente a ADMIN")
-    @ApiResponse(responseCode = "204", description = "Rol ADMIN concedido")
-    ResponseEntity<Void> grantAdminRole(Long id);
+    @Operation(summary = "Conceder un rol a un usuario existente (cualquier rol, incl. ADMIN)",
+            description = "RF-065. El rol va por nombre en el body.")
+    @ApiResponse(responseCode = "204", description = "Rol concedido")
+    ResponseEntity<Void> grantRoleByAdmin(Long id, GrantRoleForm form);
 
     @Operation(summary = "Quitar un rol a un usuario", description = "RF-066.")
     @ApiResponse(responseCode = "204", description = "Rol removido")

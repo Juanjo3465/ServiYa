@@ -39,21 +39,27 @@ public class UserRoleService implements UserRoleServicePort {
     }
 
     @Override
-    public void assignRole(Long userId, Long roleId) {
-        // Mecanismo de bajo nivel SIN restriccion de rol (lo usan grantAdminRole y la gestion admin de roles);
-        // la validacion de que rol se permite vive en el caso de uso que llama, no aqui.
-        Integer rid = toRoleId(roleId);
-        rolePersistencePort.findById(rid)
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + roleId));
-        if (userRolePersistencePort.existsByUserIdAndRoleId(userId, rid)) {
-            throw new InvalidStateException("User " + userId + " already has role with id: " + roleId);
-        }
-        userRolePersistencePort.assignRole(userId, rid);
+    public void assignRole(Long userId, RoleName roleName) {
+        // Punto unico de validacion de existencia del rol (por nombre) + duplicado + persistencia.
+        Role role = rolePersistencePort.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+        doAssign(userId, role.getId());
     }
 
     @Override
     public void removeRole(Long userId, Long roleId) {
         userRolePersistencePort.removeRole(userId, toRoleId(roleId));
+    }
+
+    /**
+     * Punto unico de asignacion: valida duplicado y persiste. La existencia del rol ya la garantizaron las
+     * sobrecargas publicas de assignRole (por id o por nombre), asi que ningun llamador la revalida.
+     */
+    private void doAssign(Long userId, Integer roleId) {
+        if (userRolePersistencePort.existsByUserIdAndRoleId(userId, roleId)) {
+            throw new InvalidStateException("User " + userId + " already has role id: " + roleId);
+        }
+        userRolePersistencePort.assignRole(userId, roleId);
     }
 
     /** Las claves de la tabla roles son INT (Integer); las firmas de entrada usan Long. */
@@ -70,10 +76,8 @@ public class UserRoleService implements UserRoleServicePort {
         if (target == RoleName.ADMIN) {
             throw new InvalidStateException("Cannot self-assign the ADMIN role");
         }
-        Role role = rolePersistencePort.findByName(target)
-                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + target));
-        // assignRole en el adaptador es idempotente (no duplica si ya existe).
-        userRolePersistencePort.assignRole(userId, role.getId());
+        // Existencia + duplicado + persistencia centralizados en assignRole (por nombre).
+        assignRole(userId, target);
     }
 
     private RoleName parseRole(String roleName) {

@@ -24,8 +24,6 @@ public interface ServiceRequestRepository extends JpaRepository<ServiceRequestEn
     List<ServiceRequestEntity> findByServiceId(Long serviceId);
     List<ServiceRequestEntity> findByStatus(RequestStatus status);
     Optional<ServiceRequestEntity> findByPreviousRequestId(Long previousRequestId);
-    long countByClientId(Long clientId);
-    long countByOffererId(Long offererId);
     //These next two methods are meant for the Agenda feature. Will return future requests, and not completed.
     List<ServiceRequestEntity> findByClientIdAndScheduledDateAfter(Long clientId, LocalDateTime tomorrowOrNow);
     List<ServiceRequestEntity> findByOffererIdAndScheduledDateAfter(Long offererId, LocalDateTime tomorrowOrNow);

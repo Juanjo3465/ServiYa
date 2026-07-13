@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.services.application.ports.input.MarketplaceSer
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
+import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserDeletionService implements UserDeletionServicePort {
 
     private final UserPersistencePort userPersistencePort;
+    private final UserReadPort userReadPort;
     private final MarketplaceServicePort marketplaceServicePort;
     private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final NotificationServicePort notificationServicePort;
@@ -29,7 +31,7 @@ public class UserDeletionService implements UserDeletionServicePort {
     @Override
     @Transactional
     public void deleteUser(Long userId) {
-        User user = userPersistencePort.findById(userId)
+        User user = userReadPort.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         if (user.isDeleted()) {
             return; // idempotente: la cuenta ya está eliminada.

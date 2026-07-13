@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,7 +26,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * Reglas de negocio de HU-002 (registro) y HU-004 (consentimiento) en el orquestador.
+ * Reglas del mecanismo interno de creacion (HU-002/HU-004). NO restringe la POLITICA de rol: asigna el rol
+ * recibido —incluido ADMIN— delegando en el mecanismo assignRole(userId, RoleName), que es el unico punto
+ * que valida la existencia del rol. La restriccion "solo CLIENT/OFFERER" vive en el llamador register
+ * (ver UserAuthenticationServiceTest). Aqui solo aplica RF-004 (consentimiento).
  */
 @ExtendWith(MockitoExtension.class)
 class UserCreationServiceTest {
@@ -55,7 +57,8 @@ class UserCreationServiceTest {
         assertThat(result.getId()).isEqualTo(42L);
         assertThat(result.getRoles()).containsExactly(RoleName.CLIENT);
         verify(userServicePort).createUser("new.user@example.com", "password123");
-        verify(userRoleServicePort).acquireRole(42L, "CLIENT");
+        // Delega en assignRole(userId, RoleName) — la existencia del rol la valida ese mecanismo, no aqui.
+        verify(userRoleServicePort).assignRole(42L, RoleName.CLIENT);
         verify(userProfileServicePort).createProfile(any(CreateUserProfileCommand.class));
         verify(consentServicePort).createConsent(42L, true);
     }
@@ -78,16 +81,22 @@ class UserCreationServiceTest {
     }
 
     @Test
-    void rejectsRegistration_whenRoleIsAdmin() {
-        assertThatThrownBy(() -> service.createUserAccount(command("ADMIN", true)))
-                .isInstanceOf(InvalidStateException.class);
-        verify(userServicePort, never()).createUser(anyString(), anyString());
+    void allowsAdminRole_sinceRolePolicyLivesInCallers() {
+        // El mecanismo interno NO restringe roles: crear un ADMIN es valido aqui (lo llama createUserByAdmin).
+        when(userServicePort.createUser(anyString(), anyString()))
+                .thenReturn(User.builder().id(9L).build());
+
+        User result = service.createUserAccount(command("ADMIN", true));
+
+        assertThat(result.getRoles()).containsExactly(RoleName.ADMIN);
+        verify(userRoleServicePort).assignRole(9L, RoleName.ADMIN);
     }
 
     @Test
     void rejectsRegistration_whenRoleIsInvalid() {
         assertThatThrownBy(() -> service.createUserAccount(command("SUPERUSER", true)))
                 .isInstanceOf(InvalidStateException.class);
+        verify(userServicePort, never()).createUser(anyString(), anyString());
     }
 
     @Test
@@ -98,6 +107,6 @@ class UserCreationServiceTest {
         User result = service.createUserAccount(command("OFFERER", true));
 
         assertThat(result.getRoles()).containsExactly(RoleName.OFFERER);
-        verify(userRoleServicePort).acquireRole(eq(7L), eq("OFFERER"));
+        verify(userRoleServicePort).assignRole(7L, RoleName.OFFERER);
     }
 }

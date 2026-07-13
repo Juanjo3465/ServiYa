@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.users.application.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -9,16 +10,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import com.parosurvivors.serviya.users.application.dto.command.LoginCommand;
+import com.parosurvivors.serviya.users.application.dto.command.RegisterUserCommand;
 import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
+import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.TokenProviderPort;
-import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
+import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.domain.User;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,7 +43,7 @@ class UserAuthenticationServiceTest {
     @Mock UserServicePort userServicePort;
     @Mock UserCreationServicePort userCreationServicePort;
     @Mock PasswordResetTokenServicePort passwordResetTokenServicePort;
-    @Mock UserPersistencePort userPersistencePort;
+    @Mock UserReadPort userReadPort;
     @Mock NotificationServicePort notificationServicePort;
     @Mock UserRoleServicePort userRoleServicePort;
     @Mock PasswordEncoder passwordEncoder;
@@ -55,7 +59,7 @@ class UserAuthenticationServiceTest {
 
     @Test
     void login_succeeds_withValidCredentials() {
-        when(userPersistencePort.findByEmail("user@example.com")).thenReturn(Optional.of(activeUser()));
+        when(userReadPort.findByEmail("user@example.com")).thenReturn(Optional.of(activeUser()));
         when(passwordEncoder.matches("raw-password", "$2a$hash")).thenReturn(true);
         when(userRoleServicePort.getUserRoles(1L)).thenReturn(List.of());
         when(tokenProvider.issue(anyLong(), anyList()))
@@ -69,7 +73,7 @@ class UserAuthenticationServiceTest {
 
     @Test
     void login_fails_whenEmailNotFound() {
-        when(userPersistencePort.findByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(userReadPort.findByEmail("user@example.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.login(command)).isInstanceOf(UnauthorizedException.class);
         verify(tokenProvider, never()).issue(anyLong(), anyList());
@@ -77,7 +81,7 @@ class UserAuthenticationServiceTest {
 
     @Test
     void login_fails_whenPasswordDoesNotMatch() {
-        when(userPersistencePort.findByEmail("user@example.com")).thenReturn(Optional.of(activeUser()));
+        when(userReadPort.findByEmail("user@example.com")).thenReturn(Optional.of(activeUser()));
         when(passwordEncoder.matches("raw-password", "$2a$hash")).thenReturn(false);
 
         assertThatThrownBy(() -> service.login(command)).isInstanceOf(UnauthorizedException.class);
@@ -87,7 +91,7 @@ class UserAuthenticationServiceTest {
     void login_fails_whenUserIsBanned() {
         User banned = activeUser();
         banned.ban();
-        when(userPersistencePort.findByEmail("user@example.com")).thenReturn(Optional.of(banned));
+        when(userReadPort.findByEmail("user@example.com")).thenReturn(Optional.of(banned));
         when(passwordEncoder.matches("raw-password", "$2a$hash")).thenReturn(true);
 
         assertThatThrownBy(() -> service.login(command)).isInstanceOf(UnauthorizedException.class);
@@ -98,10 +102,37 @@ class UserAuthenticationServiceTest {
     void login_fails_whenUserIsSoftDeleted() {
         User deleted = activeUser();
         deleted.softDelete();
-        when(userPersistencePort.findByEmail("user@example.com")).thenReturn(Optional.of(deleted));
+        when(userReadPort.findByEmail("user@example.com")).thenReturn(Optional.of(deleted));
         when(passwordEncoder.matches("raw-password", "$2a$hash")).thenReturn(true);
 
         assertThatThrownBy(() -> service.login(command)).isInstanceOf(UnauthorizedException.class);
         verify(tokenProvider, never()).issue(anyLong(), anyList());
+    }
+
+    private RegisterUserCommand registerCommand(String role) {
+        return new RegisterUserCommand(
+                "new.user@example.com", "password123", "New User",
+                role, "CC", "123456", "3001234567", true);
+    }
+
+    @Test
+    void register_rejectsAdminRole() {
+        // La restriccion "solo CLIENT/OFFERER" vive en este llamador (no en el mecanismo createUserAccount).
+        assertThatThrownBy(() -> service.register(registerCommand("ADMIN")))
+                .isInstanceOf(InvalidStateException.class);
+        verify(userCreationServicePort, never()).createUserAccount(any());
+    }
+
+    @Test
+    void register_delegatesToCreation_forPublicRole() {
+        User created = User.builder().id(5L).roles(List.of(RoleName.CLIENT)).build();
+        when(userCreationServicePort.createUserAccount(any())).thenReturn(created);
+        when(tokenProvider.issue(anyLong(), anyList()))
+                .thenReturn(new IssuedToken("jwt", LocalDateTime.now().plusHours(1)));
+
+        AuthResult result = service.register(registerCommand("CLIENT"));
+
+        assertThat(result.userId()).isEqualTo(5L);
+        verify(userCreationServicePort).createUserAccount(any());
     }
 }

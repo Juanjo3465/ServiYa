@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.users.application.services;
 
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
 import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
 import com.parosurvivors.serviya.users.application.ports.input.UserQueryServicePort;
@@ -7,6 +8,7 @@ import com.parosurvivors.serviya.users.application.ports.output.RolePersistenceP
 import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
+import com.parosurvivors.serviya.users.domain.User;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -43,5 +45,11 @@ public class UserQueryService implements UserQueryServicePort {
             roleId = role.get().getId();
         }
         return userReadPort.searchUsers(query, roleId, pageable);
+    }
+
+    @Override
+    public User getUserById(Long id) {
+        return userReadPort.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 }

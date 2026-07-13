@@ -25,7 +25,6 @@ public interface MarketplaceServicePort {
     Optional<Service> getById(Long id);
     List<Service> getAll();
     List<ServiceDetail> getByOffererId(Long offererId);
-    int countServicesByOfferer(Long offererId);
     Optional<ServiceDetail> getDetailById(Long id);
     Service update(UpdateServiceCommand command);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);

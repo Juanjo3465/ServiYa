@@ -3,6 +3,9 @@ package com.parosurvivors.serviya.users.infrastructure.adapters.output;
 import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
 import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
 import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
+import com.parosurvivors.serviya.users.domain.User;
+import com.parosurvivors.serviya.users.infrastructure.mappers.UserPersistenceMapper;
+import com.parosurvivors.serviya.users.infrastructure.repositories.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -10,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +37,24 @@ public class UserReadAdapter implements UserReadPort {
 
     @PersistenceContext
     private EntityManager em;
+
+    private final UserRepository repository;
+    private final UserPersistenceMapper mapper;
+
+    @Override
+    public Optional<User> findById(Long id) {
+        return repository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return repository.findByEmail(email).map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return repository.existsByEmail(email);
+    }
 
     @Override
     public Page<UserSummaryItem> searchUsers(SearchUsersQuery query, Integer roleId, Pageable pageable) {

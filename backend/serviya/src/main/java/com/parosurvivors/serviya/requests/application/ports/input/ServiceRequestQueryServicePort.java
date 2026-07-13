@@ -35,8 +35,4 @@ public interface ServiceRequestQueryServicePort {
 
     /** Solo accesible para el cliente/oferente participante o un admin (isAdmin hace bypass del check). */
     List<RequestHistoryItem> getRequestHistory(Long requestId, Long requesterId, boolean isAdmin);
-
-    int countClientRequests(Long clientId);
-
-    int countOffererRequests(Long offererId);
 }

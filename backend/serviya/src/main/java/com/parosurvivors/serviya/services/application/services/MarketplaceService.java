@@ -108,12 +108,6 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public int countServicesByOfferer(Long offererId) {
-        // Conteo de servicios (no eliminados) del oferente; usado por el panel admin (detalle de usuario).
-        return (int) persistencePort.countByOffererId(offererId);
-    }
-
-    @Override
     public Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds) {
         return serviceMetricsService.getMetricsByServiceIds(serviceIds);
     }
