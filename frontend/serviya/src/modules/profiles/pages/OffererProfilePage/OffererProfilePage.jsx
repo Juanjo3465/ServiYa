@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
-import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
 
 import './OffererProfilePage.css';
