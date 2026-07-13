@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.profiles.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererPublicProfileServicePort;
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.OffererProfileApi;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateOffererProfileForm;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererProfileSummaryResponse;
@@ -27,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class OffererProfileController implements OffererProfileApi {
 
     private final OffererProfileServicePort offererProfileService;
+    /** RF-027: el agregado publico vive en su propio servicio para no crear un ciclo con el marketplace. */
+    private final OffererPublicProfileServicePort offererPublicProfileService;
     private final OffererProfileWebMapper mapper;
 
     @Override
@@ -42,7 +45,7 @@ public class OffererProfileController implements OffererProfileApi {
     @Override
     @GetMapping("/{id}/public-profile")
     public ResponseEntity<OffererPublicProfileDetailResponse> getPublicProfileDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfileDetail(id)));
+        return ResponseEntity.ok(mapper.toResponse(offererPublicProfileService.getPublicProfileDetail(id)));
     }
 
     @Override
