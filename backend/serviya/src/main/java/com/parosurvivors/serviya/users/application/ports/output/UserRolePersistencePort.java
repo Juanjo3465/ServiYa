@@ -12,4 +12,6 @@ public interface UserRolePersistencePort {
     void removeRole(Long userId, Integer roleId);
     boolean existsByUserIdAndRoleId(Long userId, Integer roleId);
     List<Integer> findRoleIdsByUserId(Long userId);
+    /** Ids de los usuarios que tienen un rol dado (p. ej. todos los ADMIN, para notificarles). */
+    List<Long> findUserIdsByRoleId(Integer roleId);
 }

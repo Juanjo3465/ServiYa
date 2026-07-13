@@ -20,5 +20,11 @@ public interface UserRoleServicePort {
 
     void removeRole(Long userId, Long roleId);
 
+    /**
+     * Ids de los usuarios que tienen un rol dado. Lo usa el modulo de reportes para notificar a la
+     * cola de administradores (RF-073) sin acoplarse a la persistencia de usuarios.
+     */
+    List<Long> findUserIdsByRole(RoleName roleName);
+
     void acquireRole(Long userId, String roleName);
 }

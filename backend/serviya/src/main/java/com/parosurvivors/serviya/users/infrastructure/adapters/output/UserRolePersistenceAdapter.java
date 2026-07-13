@@ -44,4 +44,11 @@ public class UserRolePersistenceAdapter implements UserRolePersistencePort {
                 .map(UserRoleEntity::getRoleId)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Long> findUserIdsByRoleId(Integer roleId) {
+        return repository.findByRoleId(roleId).stream()
+                .map(UserRoleEntity::getUserId)
+                .collect(Collectors.toList());
+    }
 }

@@ -57,6 +57,13 @@ public class UserRoleService implements UserRoleServicePort {
         userRolePersistencePort.removeRole(userId, toRoleId(roleId));
     }
 
+    @Override
+    public List<Long> findUserIdsByRole(RoleName roleName) {
+        Role role = rolePersistencePort.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+        return userRolePersistencePort.findUserIdsByRoleId(role.getId());
+    }
+
     /**
      * Punto unico de asignacion: valida duplicado, persiste y publica {@link RoleAssignedEvent}.
      * La existencia del rol ya la garantizaron las sobrecargas publicas de assignRole, asi que ningun
