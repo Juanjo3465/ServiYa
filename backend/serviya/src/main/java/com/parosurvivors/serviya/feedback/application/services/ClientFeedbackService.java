@@ -111,6 +111,19 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<ClientFeedbackResult> getClientFeedbackById(Long feedbackId) {
+        return clientFeedbackPersistencePort.findById(feedbackId).map(f -> new ClientFeedbackResult(
+                f.getRequestId(),
+                f.getClientId(),
+                f.getOffererId(),
+                f.getRating(),
+                f.getComment(),
+                resolveTagNames(clientFeedbackTagPersistencePort.findTagIdsByFeedbackId(f.getId())),
+                f.getCreatedAt()));
+    }
+
+    @Override
     public Page<ClientFeedbackResult> getClientFeedbackList(Long clientId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getClientFeedbackList — placeholder, ver estructura-servicios.docx");
     }
@@ -118,6 +131,19 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
     @Override
     public Page<ClientFeedbackResult> getClientFeedbackByOfferer(Long offererId, Pageable pageable) {
         throw new UnsupportedOperationException("TODO: getClientFeedbackByOfferer — placeholder, ver estructura-servicios.docx");
+    }
+
+    /** Resuelve los nombres de las etiquetas desde el catálogo (para vistas de lectura como el detalle de reporte). */
+    private List<String> resolveTagNames(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> nameById = clientFeedbackTagCatalogPersistencePort.findAll().stream()
+                .collect(Collectors.toMap(ClientFeedbackTagCatalog::getId, ClientFeedbackTagCatalog::getTagName));
+        return tagIds.stream()
+                .map(nameById::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     /** Empareja cada tagId con su sentimiento (P/N) del catálogo para armar el payload autocontenido. */

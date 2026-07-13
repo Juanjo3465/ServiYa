@@ -3,10 +3,10 @@ package com.parosurvivors.serviya.reports.application.dto.result;
 import java.time.LocalDateTime;
 
 /**
- * Salida de aplicacion (Result) del detalle de un reporte (CQRS-light). Vista paraguas del dispatch por
- * tipo: trae los campos base del Report + los campos especificos del subtipo (solo uno no-nulo segun reportType).
- * Lo devuelve ReportService.getReportDetail (y los subservicios al despachar). Evita un Result/Response por subtipo.
- * TODO: revisar campos enriquecidos por subtipo.
+ * Salida de aplicacion (Result) del detalle enriquecido de un reporte (CQRS-light), para el panel de
+ * moderación. Trae los campos base del Report + el resumen de ambas partes (reportante/reportado) +
+ * el payload del subtipo correspondiente al reportType (solo uno no-nulo: {@code request} para REQUEST,
+ * {@code feedback} para SERVICE_FEEDBACK/CLIENT_FEEDBACK). Lo compone ReportService.getReportDetail.
  */
 public record ReportDetailResult(
         Long id,
@@ -19,8 +19,10 @@ public record ReportDetailResult(
         String priority,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        // Campos especificos del subtipo (solo el correspondiente al reportType viene no-nulo)
-        Long requestId,
-        Long serviceFeedbackId,
-        Long clientFeedbackId) {
+        // Partes del reporte (nombre + foto), siempre presentes.
+        PartySummary reporter,
+        PartySummary reported,
+        // Payload por subtipo: solo el correspondiente al reportType viene no-nulo.
+        RequestReportDetail request,
+        FeedbackReportDetail feedback) {
 }
