@@ -27,17 +27,142 @@ body {
 .service-hero {
     background: linear-gradient(145deg, var(--c-primary-l), var(--c-primary-xl));
     border-radius: var(--r-xl);
-    height: 200px;
+    min-height: 320px;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     position: relative;
     margin-bottom: 18px;
     color: var(--c-primary);
+    padding: 12px;
+    overflow: hidden;
 }
 
 .service-hero svg {
     opacity: .6;
+}
+
+.service-hero-placeholder {
+    width: 100%;
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.65);
+}
+
+.service-gallery {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.service-gallery-main {
+    position: relative;
+    height: 450px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+    cursor: pointer;
+}
+
+.service-gallery-main img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.gallery-nav,
+.gallery-expand {
+    position: absolute;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--c-text);
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+    cursor: pointer;
+}
+
+.gallery-nav:hover,
+.gallery-expand:hover {
+    background: white;
+}
+
+.gallery-nav-left {
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.gallery-nav-right {
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.gallery-expand {
+    top: 12px;
+    right: 12px;
+}
+
+.gallery-thumbs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.gallery-thumb {
+    flex: 0 0 76px;
+    height: 76px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    cursor: pointer;
+    transition: border-color .2s ease, transform .2s ease;
+}
+
+.gallery-thumb:hover {
+    transform: translateY(-1px);
+}
+
+.gallery-thumb.active {
+    border-color: var(--c-primary);
+}
+
+.gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.gallery-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 4px;
+}
+
+.gallery-preview img {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 16px;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
 }
 
 .service-hero-av {

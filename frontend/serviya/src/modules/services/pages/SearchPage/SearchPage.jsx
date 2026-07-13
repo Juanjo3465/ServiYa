@@ -20,6 +20,10 @@ export function SearchPage() {
         const catId = searchParams.get('categoryId');
         return catId ? Number(catId) : null;
     });
+    const [offererIdFilter, setOffererIdFilter] = useState(() => {
+        const oid = searchParams.get('offererId');
+        return oid ? Number(oid) : null;
+    });
 
     // Estado de la búsqueda y paginación
     const [results, setResults] = useState([]);
@@ -30,7 +34,6 @@ export function SearchPage() {
 
     const [minPrice, setMinPrice] = useState("");
     const [maxPrice, setMaxPrice] = useState("");
-    const [availableOnly, setAvailableOnly] = useState(false);
     const [minRating, setMinRating] = useState(null);
     const [maxDistanceKm, setMaxDistanceKm] = useState(null);
     const [sort, setSort] = useState("createdAt,desc");
@@ -40,9 +43,11 @@ export function SearchPage() {
     const [sidebarName, setSidebarName] = useState(() => searchParams.get('q') || "");
     const [sidebarMinPrice, setSidebarMinPrice] = useState("");
     const [sidebarMaxPrice, setSidebarMaxPrice] = useState("");
-    const [sidebarAvailable, setSidebarAvailable] = useState(false);
     const [sidebarMinRating, setSidebarMinRating] = useState(null);
     const [sidebarDistance, setSidebarDistance] = useState(null);
+
+    // Ubicación real del usuario (geolocalización del navegador)
+    const [userLocation, setUserLocation] = useState(null);
 
     // Cargar categorías al montar
     useEffect(() => {
@@ -57,15 +62,29 @@ export function SearchPage() {
         loadCategories();
     }, []);
 
+    // Obtener ubicación real del usuario
+    useEffect(() => {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => setUserLocation({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude
+            }),
+            () => setUserLocation(null)
+        );
+    }, []);
+
     // Sincronizar URL query params con estados locales
     useEffect(() => {
         const q = searchParams.get('q') || "";
         const catId = searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : null;
+        const oid = searchParams.get('offererId') ? Number(searchParams.get('offererId')) : null;
 
         setNameQuery(q);
         setTopSearch(q);
         setSidebarName(q);
         setActiveCatId(catId);
+        setOffererIdFilter(oid);
     }, [searchParams]);
 
     // Función de búsqueda
@@ -74,19 +93,18 @@ export function SearchPage() {
         try {
             const params = {
                 page: page,
-                size: 6,
+                size: 20,
             };
             if (nameQuery.trim()) params.name = nameQuery.trim();
             if (currentCatId) params.categoryId = currentCatId;
+            if (offererIdFilter) params.offererId = offererIdFilter;
             if (minPrice) params.minPrice = minPrice;
             if (maxPrice) params.maxPrice = maxPrice;
-            if (availableOnly) params.available = true;
             if (minRating) params.minRating = minRating;
-            if (maxDistanceKm) {
+            if (maxDistanceKm && userLocation) {
                 params.maxDistanceKm = maxDistanceKm;
-                // Coordenadas por defecto (Bogotá)
-                params.latitude = 4.6097;
-                params.longitude = -74.0817;
+                params.latitude = userLocation.latitude;
+                params.longitude = userLocation.longitude;
             }
             if (currentSort) {
                 params.sort = currentSort;
@@ -107,7 +125,7 @@ export function SearchPage() {
     // Recargar cuando cambian los filtros principales o ordenación
     useEffect(() => {
         fetchServices(0, activeCatId, sort);
-    }, [nameQuery, activeCatId, minPrice, maxPrice, availableOnly, minRating, maxDistanceKm, sort]);
+    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, minRating, maxDistanceKm, sort, userLocation]);
 
     // Manejar selección de categoría y actualizar URL params
     const handleCategorySelect = (catId) => {
@@ -140,7 +158,6 @@ export function SearchPage() {
         setTopSearch(sidebarName);
         setMinPrice(sidebarMinPrice);
         setMaxPrice(sidebarMaxPrice);
-        setAvailableOnly(sidebarAvailable);
         setMinRating(sidebarMinRating);
         setMaxDistanceKm(sidebarDistance);
 
@@ -162,17 +179,16 @@ export function SearchPage() {
         setSidebarName("");
         setSidebarMinPrice("");
         setSidebarMaxPrice("");
-        setSidebarAvailable(false);
         setSidebarMinRating(null);
         setSidebarDistance(null);
 
         setNameQuery("");
         setMinPrice("");
         setMaxPrice("");
-        setAvailableOnly(false);
         setMinRating(null);
         setMaxDistanceKm(null);
         setActiveCatId(null);
+        setOffererIdFilter(null);
 
         setSearchParams({});
         showToast("Filtros limpiados", "info");
@@ -185,10 +201,10 @@ export function SearchPage() {
             const cat = categories.find(c => c.id === activeCatId);
             if (cat) list.push({ key: 'cat', val: cat.name });
         }
+        if (offererIdFilter) list.push({ key: 'offerer', val: `Oferente #${offererIdFilter}` });
         if (minPrice || maxPrice) {
             list.push({ key: 'price', val: `Precio: ${minPrice ? `$${minPrice}` : '$0'} - ${maxPrice ? `$${maxPrice}` : '∞'}` });
         }
-        if (availableOnly) list.push({ key: 'avail', val: 'Disponible hoy' });
         if (minRating) list.push({ key: 'rating', val: `${minRating}★+` });
         if (maxDistanceKm) list.push({ key: 'distance', val: `Cerca de ${maxDistanceKm}km` });
         return list;
@@ -206,14 +222,15 @@ export function SearchPage() {
             params.delete('categoryId');
             setSearchParams(params);
             setActiveCatId(null);
+        } else if (item.key === 'offerer') {
+            params.delete('offererId');
+            setSearchParams(params);
+            setOffererIdFilter(null);
         } else if (item.key === 'price') {
             setMinPrice("");
             setMaxPrice("");
             setSidebarMinPrice("");
             setSidebarMaxPrice("");
-        } else if (item.key === 'avail') {
-            setAvailableOnly(false);
-            setSidebarAvailable(false);
         } else if (item.key === 'rating') {
             setMinRating(null);
             setSidebarMinRating(null);
@@ -345,18 +362,6 @@ export function SearchPage() {
                     <div className="divider" />
 
                     <div className="filter-sec">
-                        <div className="filter-sec-title">Disponibilidad</div>
-                        <label className="filter-opt">
-                            <input 
-                                type="checkbox" 
-                                checked={sidebarAvailable} 
-                                onChange={(e) => setSidebarAvailable(e.target.checked)} 
-                            /> Disponible hoy
-                        </label>
-                    </div>
-                    <div className="divider" />
-
-                    <div className="filter-sec">
                         <div className="filter-sec-title">Cercanía</div>
                         <select 
                             className="input" 
@@ -369,6 +374,11 @@ export function SearchPage() {
                             <option value="10">Menos de 10 km</option>
                             <option value="20">Menos de 20 km</option>
                         </select>
+                        {sidebarDistance && !userLocation && (
+                            <div style={{ fontSize: '11px', color: '#e74c3c', marginTop: '6px' }}>
+                                Activa la ubicación en tu navegador para usar este filtro.
+                            </div>
+                        )}
                     </div>
                     <div className="divider" />
 
@@ -419,7 +429,11 @@ export function SearchPage() {
                                 return (
                                     <div className="r-card" key={s.id} onClick={() => navigate(`/services/${s.id}`)}>
                                         <div className="r-card-img">
-                                            <Icon name="wrench" size={38} strokeWidth={1.5} />
+                                            {s.photos?.[0] ? (
+                                                <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${s.photos[0]}`} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <Icon name="wrench" size={38} strokeWidth={1.5} />
+                                            )}
                                             <div className="r-card-av">
                                                 <span className={`badge ${availBadge(s.active)}`}>
                                                     {s.active ? 'Disponible' : 'Inactivo'}
@@ -430,7 +444,7 @@ export function SearchPage() {
                                             <div className="r-card-name">{s.title}</div>
                                             <div className="r-oferer">
                                                 <div className="av av-xs">OF</div>
-                                                <span>Oferente #{s.offererId}</span>
+                                                <span>{s.offererName || 'Oferente'}</span>
                                             </div>
                                             <div style={{ fontSize: '11px', marginBottom: '8px' }}>
                                                 <span style={{ color: 'var(--c-primary)', fontWeight: 600 }}>{serviceCatName}</span>

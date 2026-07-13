@@ -1,25 +1,70 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, reportApi, requestApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
+import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice, isTerminal } from '../../utils';
 
 import './ClientRequestsPage.css';
 
-const FILTERS = ['Todas (3)', 'Pendientes (1)', 'Aceptadas (2)'];
-
-const REQUESTS = [
-    { id: 'SR-4821', initials: 'CM', name: 'Reparación de tuberías', offerer: 'Carlos Martínez · Plomería', date: 'Lun 12 mayo, 9:00 AM', addr: 'Calle 45 #12-34', price: 'desde $50.000', status: 'Pendiente', badge: 'badge-warn', age: 'Hace 5 min', isNew: true, canConfirm: false, canReschedule: true },
-    { id: 'SR-4815', initials: 'ML', name: 'Limpieza de hogar', offerer: 'María López · Limpieza', date: 'Mié 14 mayo, 10:00 AM', addr: 'Carrera 7 #80-21', price: 'desde $60.000', status: 'Aceptada', badge: 'badge-success', age: 'Hace 2 días', isNew: false, canConfirm: true, canReschedule: false },
-    { id: 'SR-4810', initials: 'AR', name: 'Instalación eléctrica', offerer: 'Ana Rodríguez · Electricidad', date: 'Vie 16 mayo, 2:00 PM', addr: 'Calle 45 #12-34', price: 'desde $80.000', status: 'Aceptada', badge: 'badge-success', age: '', isNew: false, canConfirm: false, canReschedule: false },
+const FILTERS = [
+    { key: '',        label: 'Todas' },
+    { key: 'PENDING', label: 'Pendientes' },
+    { key: 'ACCEPTED', label: 'Aceptadas' },
 ];
 
 export function ClientRequestsPage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
     const [filter, setFilter] = useState(0);
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
+    const [reportCategory, setReportCategory] = useState('No se presentó');
+    const [customCategory, setCustomCategory] = useState('');
+    const [reportReason, setReportReason] = useState('');
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const [cancelTarget, setCancelTarget] = useState(null);
+
+    const fetchRequests = (page = 0) => {
+        setLoading(true);
+        const params = { page, size: 10 };
+        const statusKey = FILTERS[filter].key;
+        if (statusKey) {
+            params.statuses = statusKey;
+        }
+        requestApi.getMyClientRequests(params)
+            .then(data => {
+                setRequests(data.content || []);
+                setTotalPages(data.totalPages || 1);
+                setCurrentPage(data.number || 0);
+            })
+            .catch(err => showToast('Error al cargar solicitudes: ' + err.message, 'error'))
+            .finally(() => setLoading(false));
+    };
+
+    const handleCancel = () => {
+        if (!cancelTarget) return;
+        requestApi.cancelRequest(cancelTarget.requestId)
+            .then(() => {
+                setRequests(prev => prev.map(r =>
+                    r.requestId === cancelTarget.requestId
+                        ? { ...r, status: 'CANCELLED' }
+                        : r
+                ));
+                setCancelOpen(false);
+                setCancelTarget(null);
+                showToast('Solicitud cancelada. Oferente notificado', 'success');
+            })
+            .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
+    };
+
+    useEffect(() => {
+        fetchRequests(0);
+    }, [filter]);
 
     return (
         <DashboardLayout sections={CLIENT_NAV} avatar="JP">
@@ -30,39 +75,70 @@ export function ClientRequestsPage() {
 
             <div className="filter-chips">
                 {FILTERS.map((f, i) => (
-                    <div key={f} className={`chip ${filter === i ? 'active' : ''}`} onClick={() => setFilter(i)}>{f}</div>
+                    <div key={f.label} className={`chip ${filter === i ? 'active' : ''}`} onClick={() => setFilter(i)}>{f.label}</div>
                 ))}
             </div>
 
-            {REQUESTS.map((r) => (
-                <div className={`req-card ${r.isNew ? 'new' : ''}`} key={r.id}>
-                    <div className="rq-top">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                            <span className={`badge ${r.badge}`}>{r.status}</span>
-                            <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>#{r.id}{r.age && ` · ${r.age}`}</span>
-                        </div>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setReportOpen(true)} style={{ color: 'var(--c-danger)' }}><Icon name="alertTriangle" size={13} />Reportar</button>
-                    </div>
-                    <div className="rq-main">
-                        <div className="av av-md">{r.initials}</div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: 700 }}>{r.name}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '2px' }}>{r.offerer}</div>
-                            <div className="rq-meta">
-                                <span><Icon name="calendar" size={12} />{r.date}</span>
-                                <span><Icon name="mapPin" size={12} />{r.addr}</span>
-                                <span><Icon name="dollar" size={12} />{r.price}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate('/services/1')}>Ver detalle</button>
-                        {r.canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
-                        {r.canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
-                        <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud cancelada. Oferente notificado', 'danger')}><Icon name="close" size={13} />Cancelar</button>
-                    </div>
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--c-soft)' }}>Cargando solicitudes...</div>
+            ) : requests.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--c-soft)' }}>
+                    <p>No tienes solicitudes activas</p>
+                    <Link to="/services" className="btn btn-primary btn-sm" style={{ marginTop: '12px' }}><Icon name="plus" size={13} />Solicitar un servicio</Link>
                 </div>
-            ))}
+            ) : (
+                <>
+                    {requests.map((r) => {
+                        const st = STATUS_MAP[r.status] || { label: r.status, badge: '' };
+                        const isNew = r.status === 'PENDING' && timeAgo(r.createdAt) === 'Hace 1 min';
+                        const canConfirm = r.status === 'PRESUMABLY_COMPLETED';
+                        const canReschedule = r.status === 'PENDING' || r.status === 'ACCEPTED';
+
+                        return (
+                            <div className={`req-card ${isNew ? 'new' : ''}`} key={r.requestId}>
+                                <div className="rq-top">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                        <span className={`badge ${st.badge}`}>{st.label}</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>#{r.requestId}{timeAgo(r.createdAt) ? ` · ${timeAgo(r.createdAt)}` : ''}</span>
+                                    </div>
+                                    {!isTerminal(r.status) && <button className="btn btn-ghost btn-sm" onClick={() => setReportOpen(true)} style={{ color: 'var(--c-danger)' }}><Icon name="alertTriangle" size={13} />Reportar</button>}
+                                </div>
+                                <div className="rq-main">
+                                    <div className="av av-md">{getInitials(r.counterpartyName)}</div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '14px', fontWeight: 700 }}>{r.serviceTitle}</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '2px' }}>{r.counterpartyName}{r.categoryName ? ` · ${r.categoryName}` : ''}</div>
+                                        <div className="rq-meta">
+                                            {r.scheduledDate && <span><Icon name="calendar" size={12} />{formatDate(r.scheduledDate)}</span>}
+                                            {r.city && <span><Icon name="mapPin" size={12} />{r.city}</span>}
+                                            {r.requestedPrice != null && <span><Icon name="dollar" size={12} />{formatPrice(r.requestedPrice)}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
+                                    {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
+                                    {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
+                                    {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {totalPages > 1 && (
+                        <div className="pager">
+                            {Array.from({ length: totalPages }, (_, i) => (
+                                <button
+                                    key={i}
+                                    className={`btn ${currentPage === i ? 'btn-primary' : 'btn-ghost'} btn-sm`}
+                                    onClick={() => fetchRequests(i)}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
 
             <ReviewModal
                 open={confirmOpen}
@@ -86,14 +162,41 @@ export function ClientRequestsPage() {
                 </div>
             </Modal>
 
+            <Modal open={cancelOpen} onClose={() => { setCancelOpen(false); setCancelTarget(null); }}>
+                <div className="modal-title">Cancelar solicitud</div>
+                <div className="modal-sub">¿Estás seguro de cancelar esta solicitud? Esta acción no se puede deshacer.</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={() => { setCancelOpen(false); setCancelTarget(null); }}>Volver</button>
+                    <button className="btn btn-danger btn-full" onClick={handleCancel}><Icon name="close" size={13} />Sí, cancelar solicitud</button>
+                </div>
+            </Modal>
+
             <Modal open={reportOpen} onClose={() => setReportOpen(false)}>
                 <div className="modal-title">Reportar oferente</div>
                 <div className="modal-sub">El administrador revisará el caso.</div>
-                <div className="input-group"><label className="label">Motivo</label><select className="input"><option>No se presentó</option><option>Comportamiento inapropiado</option><option>Fraude</option><option>Otro</option></select></div>
-                <div className="input-group"><label className="label">Descripción</label><textarea className="input" rows="3" placeholder="Describe lo que ocurrió..." /></div>
+                <div className="input-group"><label className="label">Categoría</label><select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}><option>No se presentó</option><option>Comportamiento inapropiado</option><option>Fraude</option><option>Otra</option></select></div>
+                {reportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
+                <div className="input-group"><label className="label">Descripción</label><textarea className="input" rows="3" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => { setReportOpen(false); showToast('Reporte enviado', 'info'); }}>Enviar reporte</button>
+                    <button className="btn btn-danger btn-full" onClick={async () => {
+                        try {
+                            await reportApi.createRequestReport({
+                                reportedUserId: 2,
+                                category: reportCategory,
+                                customCategory,
+                                reason: reportReason,
+                                requestId: 1,
+                            });
+                            setReportOpen(false);
+                            setReportCategory('No se presentó');
+                            setCustomCategory('');
+                            setReportReason('');
+                            showToast('Reporte enviado', 'success');
+                        } catch (error) {
+                            showToast(error.message || 'No se pudo enviar el reporte', 'danger');
+                        }
+                    }}>Enviar reporte</button>
                 </div>
             </Modal>
             <ToastContainer toasts={toasts} />

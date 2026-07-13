@@ -11,6 +11,7 @@ export const ServiceCard = ({
     rating,
     icon,
     availability,
+    photos = [],
 }) => {
     const navigate = useNavigate();
     return (
@@ -18,13 +19,17 @@ export const ServiceCard = ({
             className="s-card"
             onClick={() => navigate(`/services/${id}`)}>
             <div className="s-card-img">
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5">
-                    {icon}
-                </svg>
+                {photos[0] ? (
+                    <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photos[0]}`} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5">
+                        {icon}
+                    </svg>
+                )}
                 <div className="s-card-avail">
                     <span
                         className={`badge ${availability === 'Hoy'

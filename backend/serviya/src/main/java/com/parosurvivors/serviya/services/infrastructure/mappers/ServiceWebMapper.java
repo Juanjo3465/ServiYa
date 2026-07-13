@@ -16,7 +16,7 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = {CategoryWebMapper.class})
+@Mapper(componentModel = "spring", uses = {CategoryWebMapper.class, ServiceAvailabilityWebMapper.class})
 public interface ServiceWebMapper {
 
     @Mapping(target = "offererId", source = "offererId")
@@ -25,10 +25,12 @@ public interface ServiceWebMapper {
     @Mapping(target = "serviceId", source = "serviceId")
     UpdateServiceCommand toCommand(UpdateServiceForm form, Long serviceId);
 
+    @Mapping(target = "offererName", ignore = true)
     ServiceResponse toResponse(Service service);
 
     @Mapping(target = "id", source = "service.id")
     @Mapping(target = "offererId", source = "service.offererId")
+    @Mapping(target = "offererName", ignore = true)
     @Mapping(target = "title", source = "service.title")
     @Mapping(target = "description", source = "service.description")
     @Mapping(target = "photos", source = "service.photos")

@@ -9,4 +9,5 @@ public interface NotificationPersistencePort {
     Notification save(Notification notification);
     Optional<Notification> findById(Long id);
     List<Notification> findByUserId(Long userId);
+    List<Notification> findAllById(List<Long> ids);
 }

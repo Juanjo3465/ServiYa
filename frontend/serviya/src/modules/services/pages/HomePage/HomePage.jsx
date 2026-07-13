@@ -95,12 +95,13 @@ function HomePage() {
                                 key={s.id}
                                 id={s.id}
                                 name={s.title}
-                                provider={`Oferente #${s.offererId}`}
+                                provider={s.offererName || 'Oferente'}
                                 category={catName}
                                 price={s.priceHourly ? `$${s.priceHourly.toLocaleString()}` : 'Consultar'}
                                 rating={s.averageRating ?? 0}
                                 availability={s.active ? 'Hoy' : 'No disponible'}
                                 icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
+                                photos={s.photos || []}
                             />
                         );
                     })}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, serviceApi, addressApi, requestApi } from '../../../../shared';
+import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi, serviceApi, addressApi, requestApi } from '../../../../shared';
 
 import './ServiceDetailPage.css';
 
@@ -27,6 +27,44 @@ export function ServiceDetailPage() {
     const { toasts, showToast } = useToast();
     const [activeSlot, setActiveSlot] = useState(0);
     const [reportOpen, setReportOpen] = useState(false);
+    const [reportCategory, setReportCategory] = useState('Comportamiento inapropiado');
+    const [customCategory, setCustomCategory] = useState('');
+    const [reportReason, setReportReason] = useState('');
+    const [feedbackReportOpen, setFeedbackReportOpen] = useState(false);
+    const [feedbackTarget, setFeedbackTarget] = useState(null);
+    const [feedbackReportCategory, setFeedbackReportCategory] = useState('Contenido inapropiado');
+    const [feedbackCustomCategory, setFeedbackCustomCategory] = useState('');
+    const [feedbackReportReason, setFeedbackReportReason] = useState('');
+
+    const handleOpenFeedbackReport = (review) => {
+        setFeedbackTarget(review);
+        setFeedbackReportCategory('Contenido inapropiado');
+        setFeedbackCustomCategory('');
+        setFeedbackReportReason('');
+        setFeedbackReportOpen(true);
+    };
+
+    const handleSubmitFeedbackReport = async () => {
+        if (!feedbackTarget) return;
+
+        try {
+            await reportApi.createServiceFeedbackReport({
+                reportedUserId: feedbackTarget.userId,
+                category: feedbackReportCategory,
+                customCategory: feedbackCustomCategory,
+                reason: feedbackReportReason,
+                serviceFeedbackId: feedbackTarget.id,
+            });
+            setFeedbackReportOpen(false);
+            setFeedbackTarget(null);
+            setFeedbackReportCategory('Contenido inapropiado');
+            setFeedbackCustomCategory('');
+            setFeedbackReportReason('');
+            showToast('Reporte de reseña enviado al administrador', 'success');
+        } catch (error) {
+            showToast(error.message || 'No se pudo enviar el reporte de la reseña', 'danger');
+        }
+    };
 
     // Estados para la carga del detalle del servicio
     const [service, setService] = useState(null);
@@ -40,6 +78,8 @@ export function ServiceDetailPage() {
     const [addresses, setAddresses] = useState([]);
     const [submitting, setSubmitting] = useState(false);
     const [successOpen, setSuccessOpen] = useState(false);
+    const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+    const [previewPhoto, setPreviewPhoto] = useState(null);
 
     useEffect(() => {
         const loadServiceDetail = async () => {
@@ -47,6 +87,7 @@ export function ServiceDetailPage() {
             try {
                 const data = await serviceApi.getServiceDetail(id);
                 setService(data);
+                setActivePhotoIndex(0);
             } catch (err) {
                 setError(err.message);
                 showToast("Error al cargar detalle del servicio: " + err.message, "error");
@@ -127,6 +168,9 @@ export function ServiceDetailPage() {
     const offererRating = service.offererAverageRating != null ? service.offererAverageRating : 0.0;
     const feedbacksCount = service.feedbacks ? service.feedbacks.length : 0;
     const initials = service.fullName ? service.fullName.substring(0, 2).toUpperCase() : "OF";
+    const photos = service.photos || [];
+    const activePhoto = photos[activePhotoIndex] || null;
+    const getPhotoSrc = (photo) => `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`;
 
     return (
         <>
@@ -139,7 +183,55 @@ export function ServiceDetailPage() {
             <div className="detail-layout">
                 <div>
                     <div className="service-hero">
-                        <Icon name="wrench" size={64} strokeWidth={1.2} />
+                        {photos.length > 0 ? (
+                            <div className="service-gallery">
+                                <div className="service-gallery-main" onClick={() => setPreviewPhoto(getPhotoSrc(activePhoto))}>
+                                    <img src={getPhotoSrc(activePhoto)} alt={`${service.title}-${activePhotoIndex + 1}`} />
+                                    {photos.length > 1 && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="gallery-nav gallery-nav-left"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActivePhotoIndex((prev) => (prev === 0 ? photos.length - 1 : prev - 1));
+                                                }}
+                                            >
+                                                <Icon name="chevronLeft" size={18} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="gallery-nav gallery-nav-right"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActivePhotoIndex((prev) => (prev === photos.length - 1 ? 0 : prev + 1));
+                                                }}
+                                            >
+                                                <Icon name="chevronRight" size={18} />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                {photos.length > 1 && (
+                                    <div className="gallery-thumbs">
+                                        {photos.map((photo, index) => (
+                                            <button
+                                                key={`${photo}-${index}`}
+                                                type="button"
+                                                className={`gallery-thumb ${index === activePhotoIndex ? 'active' : ''}`}
+                                                onClick={() => setActivePhotoIndex(index)}
+                                            >
+                                                <img src={getPhotoSrc(photo)} alt={`${service.title}-${index + 1}`} />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="service-hero-placeholder">
+                                <Icon name="wrench" size={64} strokeWidth={1.2} />
+                            </div>
+                        )}
                         <div className="service-hero-av">
                             <span className={`badge ${service.active ? 'badge-success' : 'badge-warn'}`}>
                                 {service.active ? 'Disponible' : 'Inactivo'}
@@ -245,6 +337,9 @@ export function ServiceDetailPage() {
                                             <span style={{ fontSize: '11px', color: 'var(--c-soft)', marginLeft: 'auto' }}>
                                                 {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Hace poco'}
                                             </span>
+                                            <button className="btn btn-ghost btn-sm" style={{ color: 'var(--c-danger)', padding: '4px 8px', marginLeft: '4px' }} onClick={() => handleOpenFeedbackReport(r)}>
+                                                <Icon name="alertTriangle" size={13} />Reportar reseña
+                                            </button>
                                         </div>
                                         <div style={{ fontSize: '13px', color: 'var(--c-mid)', lineHeight: 1.6 }}>{r.comment}</div>
                                     </div>
@@ -367,11 +462,41 @@ export function ServiceDetailPage() {
             <Modal open={reportOpen} onClose={() => setReportOpen(false)}>
                 <div className="modal-title">Reportar oferente</div>
                 <div className="modal-sub">Indica el motivo del reporte. El administrador revisará el caso.</div>
-                <div className="input-group"><label className="label">Motivo</label><select className="input"><option>Comportamiento inapropiado</option><option>No se presentó</option><option>Fraude</option><option>Otro</option></select></div>
-                <div className="input-group"><label className="label">Descripción</label><textarea className="input" placeholder="Describe lo que ocurrió..." /></div>
+                <div className="input-group"><label className="label">Categoría</label><select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}><option>Comportamiento inapropiado</option><option>No se presentó</option><option>Fraude</option><option>Otra</option></select></div>
+                {reportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
+                <div className="input-group"><label className="label">Descripción</label><textarea className="input" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => { setReportOpen(false); showToast('Reporte enviado al administrador', 'info'); }}>Enviar reporte</button>
+                    <button className="btn btn-danger btn-full" onClick={async () => {
+                        try {
+                            await reportApi.createRequestReport({
+                                reportedUserId: 2,
+                                category: reportCategory,
+                                customCategory,
+                                reason: reportReason,
+                                requestId: 1,
+                            });
+                            setReportOpen(false);
+                            setReportCategory('Comportamiento inapropiado');
+                            setCustomCategory('');
+                            setReportReason('');
+                            showToast('Reporte enviado al administrador', 'success');
+                        } catch (error) {
+                            showToast(error.message || 'No se pudo enviar el reporte', 'danger');
+                        }
+                    }}>Enviar reporte</button>
+                </div>
+            </Modal>
+
+            <Modal open={feedbackReportOpen} onClose={() => setFeedbackReportOpen(false)}>
+                <div className="modal-title">Reportar reseña</div>
+                <div className="modal-sub">{feedbackTarget ? `Estás reportando la reseña de ${feedbackTarget.name}.` : 'Indica el motivo del reporte.'}</div>
+                <div className="input-group"><label className="label">Categoría</label><select className="input" value={feedbackReportCategory} onChange={(e) => setFeedbackReportCategory(e.target.value)}><option>Contenido inapropiado</option><option>Spam</option><option>Amenaza o acoso</option><option>Otra</option></select></div>
+                {feedbackReportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={feedbackCustomCategory} onChange={(e) => setFeedbackCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
+                <div className="input-group"><label className="label">Descripción</label><textarea className="input" value={feedbackReportReason} onChange={(e) => setFeedbackReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={() => setFeedbackReportOpen(false)}>Cancelar</button>
+                    <button className="btn btn-danger btn-full" onClick={handleSubmitFeedbackReport}>Enviar reporte</button>
                 </div>
             </Modal>
 
@@ -388,6 +513,14 @@ export function ServiceDetailPage() {
                     <button className="btn btn-ghost btn-full" style={{ marginTop: '8px' }} onClick={() => setSuccessOpen(false)}>Seguir explorando</button>
                 </div>
             </Modal>
+
+            {previewPhoto && (
+                <Modal open={true} onClose={() => setPreviewPhoto(null)} maxWidth={860}>
+                    <div className="gallery-preview">
+                        <img src={previewPhoto} alt="Vista previa de la imagen" />
+                    </div>
+                </Modal>
+            )}
 
             <ToastContainer toasts={toasts} />
         </>

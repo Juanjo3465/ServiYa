@@ -11,5 +11,6 @@ public record ServiceAvailabilityResponse (
     Long id,
     byte weekDay,
     LocalTime startTime,
-    LocalTime endTime
+    LocalTime endTime,
+    boolean activeStatus
 ){}

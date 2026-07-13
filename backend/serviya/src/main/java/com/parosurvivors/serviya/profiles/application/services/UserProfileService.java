@@ -8,6 +8,8 @@ import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePe
 import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -50,6 +52,12 @@ public class UserProfileService implements UserProfileServicePort {
 
     @Override
     public void updateMainAddress(Long userId, Long addressId) {
-        throw new UnsupportedOperationException("TODO: updateMainAddress — placeholder, ver estructura-servicios.docx");
+        Optional<UserProfile> userProfile = userProfilePersistencePort.findByUserId(userId);
+
+        if (userProfile.isPresent()) {
+            UserProfile profile = userProfile.get();
+            profile.setPrimaryAddressId(addressId);
+            userProfilePersistencePort.save(profile);
+        }
     }
 }
