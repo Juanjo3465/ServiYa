@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import com.parosurvivors.serviya.users.application.dto.command.ConfirmPasswordResetCommand;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
@@ -15,7 +16,7 @@ import com.parosurvivors.serviya.users.application.ports.input.UserCreationServi
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.TokenProviderPort;
-import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
+import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.domain.User;
@@ -36,7 +37,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     private final UserServicePort userServicePort;
     private final UserCreationServicePort userCreationServicePort;
     private final PasswordResetTokenServicePort passwordResetTokenServicePort;
-    private final UserPersistencePort userPersistencePort;
+    private final UserReadPort userReadPort;
     private final NotificationServicePort notificationServicePort;
     private final UserRoleServicePort userRoleServicePort;
     private final PasswordEncoder passwordEncoder;
@@ -45,7 +46,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     @Override
     public AuthResult login(LoginCommand command) {
         // Mensaje generico para no revelar si el email existe.
-        User user = userPersistencePort.findByEmail(command.email())
+        User user = userReadPort.findByEmail(command.email())
                 .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
         if (!passwordEncoder.matches(command.password(), user.getPasswordHash())) {
@@ -68,6 +69,9 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
 
     @Override
     public AuthResult register(RegisterUserCommand command) {
+        // Restricción de POLÍTICA del registro público: solo CLIENT u OFFERER, nunca ADMIN. El mecanismo
+        // interno de creación (createUserAccount) no restringe roles; la política vive en este llamador.
+        requirePublicRole(command.role());
         CreateUserAccountCommand accountCommand = new CreateUserAccountCommand(
                 command.email(),
                 command.password(),
@@ -90,6 +94,19 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     @Override
     public void confirmPasswordReset(ConfirmPasswordResetCommand command) {
         throw new UnsupportedOperationException("TODO: confirmPasswordReset — placeholder, ver estructura-servicios.docx");
+    }
+
+    /** El registro público solo permite roles CLIENT u OFFERER; ADMIN nunca por esta vía. */
+    private void requirePublicRole(String role) {
+        RoleName roleName;
+        try {
+            roleName = RoleName.valueOf(role == null ? "" : role.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidStateException("Invalid role: " + role);
+        }
+        if (roleName == RoleName.ADMIN) {
+            throw new InvalidStateException("Public registration cannot create ADMIN accounts");
+        }
     }
 
     private AuthResult toAuthResult(Long userId, List<RoleName> roles) {

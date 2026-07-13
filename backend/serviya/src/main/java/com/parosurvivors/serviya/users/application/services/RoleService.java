@@ -20,6 +20,6 @@ public class RoleService implements RoleServicePort {
 
     @Override
     public List<Role> getRoles() {
-        throw new UnsupportedOperationException("TODO: getRoles — placeholder, ver estructura-servicios.docx");
+        return rolePersistencePort.findAll();
     }
 }

@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Size;
 
 /**
  * Entrada web (Form) para crear un usuario desde el panel admin. POST /api/v1/admin/users.
- * El adminId se extrae del JWT. El rol va en el body (puede ser CLIENT/OFFERER; ADMIN va por grantAdminRole).
- * TODO: revisar validaciones y campos de perfil.
+ * El adminId se extrae del JWT. El rol va en el body y puede ser cualquiera, incluido ADMIN (crear un ADMIN
+ * de cuenta nueva); la promocion de una cuenta existente a ADMIN va por grantRoleByAdmin.
  */
 @Schema(description = "Datos para crear un usuario (admin)")
 public record CreateUserByAdminForm(

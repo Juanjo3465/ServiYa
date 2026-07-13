@@ -201,4 +201,18 @@ public class MarketplaceService implements MarketplaceServicePort {
         persistencePort.update(service);
     }
 
+    @Override
+    public void deactivateAllByOfferer(Long offererId) {
+        // Usado por UserDeletionService al eliminar un oferente: oculta todos sus servicios del buscador.
+        // Corre dentro de la transacción del orquestador llamante.
+        LocalDateTime now = LocalDateTime.now();
+        for (Service service : persistencePort.findByOffererId(offererId)) {
+            if (service.isAvailable()) {
+                service.deactivate();
+                service.setUpdatedAt(now);
+                persistencePort.update(service);
+            }
+        }
+    }
+
 }

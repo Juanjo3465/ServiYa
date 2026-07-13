@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.users.application.ports.input;
 
 import com.parosurvivors.serviya.users.domain.Role;
+import com.parosurvivors.serviya.users.domain.RoleName;
 
 import java.util.List;
 
@@ -14,7 +15,8 @@ public interface UserRoleServicePort {
 
     boolean hasRole(Long userId, String roleName);
 
-    void assignRole(Long userId, Long roleId);
+    /** Asigna un rol por nombre. Punto unico de validacion de existencia del rol y de duplicado. */
+    void assignRole(Long userId, RoleName roleName);
 
     void removeRole(Long userId, Long roleId);
 

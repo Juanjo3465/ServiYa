@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.config;
 
+import com.parosurvivors.serviya.shared.exception.handlers.RestAccessErrorHandler;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtAuthenticationFilter;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtService jwtService;
+    private final RestAccessErrorHandler restAccessErrorHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -40,9 +42,18 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 // Perfil y cuenta del usuario autenticado — RF-005 (identidad del JWT)
                 .requestMatchers("/api/v1/users/me/**").permitAll()  //Remember to change later
+                // Modulo admin (modulo 9): gestion de usuarios/roles, detalle admin y feedback -> solo ADMIN.
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                // Acciones de moderacion sobre un reporte (warn/ban/revert-feedback/close/mark-not-provided) -> solo ADMIN.
+                .requestMatchers("/api/v1/reports/*/actions/**").hasRole("ADMIN")
                 // El resto se mantiene abierto por ahora (modulos aun no implementados)
                 .anyRequest().permitAll()
             )
+            // Sin token valido -> 401; token valido sin el rol -> 403. Cuerpo ErrorResponse uniforme
+            // (mismo formato que GlobalExceptionHandler) via RestAccessErrorHandler. API stateless, sin login page.
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(restAccessErrorHandler)
+                .accessDeniedHandler(restAccessErrorHandler))
             .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

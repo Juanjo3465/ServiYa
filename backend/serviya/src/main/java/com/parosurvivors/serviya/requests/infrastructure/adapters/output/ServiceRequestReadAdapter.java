@@ -46,7 +46,7 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
     private final ServiceRequestPersistenceMapper mapper;
 
     // =====================================================
-    // FINDS DE DOMINIO + CONTEOS (repository + mapper)
+    // FINDS DE DOMINIO (repository + mapper)
     // =====================================================
 
     @Override
@@ -80,13 +80,9 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
     }
 
     @Override
-    public long countByClientId(Long clientId) {
-        return repository.countByClientId(clientId);
-    }
-
-    @Override
-    public long countByOffererId(Long offererId) {
-        return repository.countByOffererId(offererId);
+    public List<ServiceRequest> findByParticipantAndStatusIn(Long userId, List<RequestStatus> statuses) {
+        return repository.findByParticipantAndStatusIn(userId, statuses).stream()
+                .map(mapper::toDomain).collect(Collectors.toList());
     }
 
     // =====================================================
