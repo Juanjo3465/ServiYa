@@ -808,6 +808,14 @@ CREATE TABLE report_actions (
 
     admin_id BIGINT UNSIGNED NOT NULL,
 
+    action_type ENUM(
+        'WARN',
+        'BAN',
+        'REVERT_FEEDBACK',
+        'MARK_REQUEST_NOT_PROVIDED',
+        'CLOSE'
+    ) NOT NULL,
+
     action_description TEXT NOT NULL,
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

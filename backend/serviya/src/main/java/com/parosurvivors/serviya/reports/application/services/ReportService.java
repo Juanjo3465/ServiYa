@@ -2,9 +2,15 @@ package com.parosurvivors.serviya.reports.application.services;
 
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.output.ClientFeedbackReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportPersistencePort;
+import com.parosurvivors.serviya.reports.application.ports.output.RequestReportPersistencePort;
+import com.parosurvivors.serviya.reports.application.ports.output.ServiceFeedbackReportPersistencePort;
+import com.parosurvivors.serviya.reports.domain.ClientFeedbackReport;
 import com.parosurvivors.serviya.reports.domain.Report;
 import com.parosurvivors.serviya.reports.domain.ReportPriority;
+import com.parosurvivors.serviya.reports.domain.RequestReport;
+import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
 import com.parosurvivors.serviya.reports.domain.ReportStatus;
 import com.parosurvivors.serviya.reports.domain.ReportType;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
@@ -22,6 +28,9 @@ import org.springframework.stereotype.Component;
 public class ReportService implements ReportServicePort {
 
     private final ReportPersistencePort reportPersistencePort;
+    private final RequestReportPersistencePort requestReportPersistencePort;
+    private final ServiceFeedbackReportPersistencePort serviceFeedbackReportPersistencePort;
+    private final ClientFeedbackReportPersistencePort clientFeedbackReportPersistencePort;
 
     @Override
     public Report createBaseReport(Long reporterId, Long reportedUserId, String type, String category, String reason) {
@@ -44,6 +53,22 @@ public class ReportService implements ReportServicePort {
         Report report = reportPersistencePort.findById(reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reporte no encontrado: " + reportId));
 
+        // Despacho por tipo: solo el id del subtipo correspondiente viene no-nulo; el resto queda null.
+        Long requestId = null;
+        Long serviceFeedbackId = null;
+        Long clientFeedbackId = null;
+        switch (report.getReportType()) {
+            case REQUEST -> requestId = requestReportPersistencePort.findByReportId(reportId)
+                    .map(RequestReport::getRequestId)
+                    .orElse(null);
+            case SERVICE_FEEDBACK -> serviceFeedbackId = serviceFeedbackReportPersistencePort.findByReportId(reportId)
+                    .map(ServiceFeedbackReport::getFeedbackId)
+                    .orElse(null);
+            case CLIENT_FEEDBACK -> clientFeedbackId = clientFeedbackReportPersistencePort.findByReportId(reportId)
+                    .map(ClientFeedbackReport::getFeedbackId)
+                    .orElse(null);
+        }
+
         return new ReportDetailResult(
                 report.getId(),
                 report.getReporterId(),
@@ -55,9 +80,9 @@ public class ReportService implements ReportServicePort {
                 report.getPriority().name(),
                 report.getCreatedAt(),
                 report.getUpdatedAt(),
-                null,
-                null,
-                null);
+                requestId,
+                serviceFeedbackId,
+                clientFeedbackId);
     }
 
     @Override

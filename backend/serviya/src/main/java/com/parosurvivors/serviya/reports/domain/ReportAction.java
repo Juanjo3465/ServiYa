@@ -21,6 +21,8 @@ public class ReportAction {
     private Long id;
     private Long reportId;
     private Long adminId;
+    /** Discriminador máquina-legible de la acción; determina la plantilla de {@code actionDescription}. */
+    private ReportActionType actionType;
     private String actionDescription;
     private LocalDateTime createdAt;
 }
