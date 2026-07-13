@@ -140,6 +140,7 @@ export const requestApi = {
     acceptRequest: (id) => request(`/api/v1/service-requests/${id}/accept`, { method: 'POST', auth: true }),
     rejectRequest: (id) => request(`/api/v1/service-requests/${id}/reject`, { method: 'POST', auth: true }),
     markCompleted: (id) => request(`/api/v1/service-requests/${id}/mark-completed`, { method: 'POST', auth: true }),
+    confirmCompletion: (id) => request(`/api/v1/service-requests/${id}/confirm-completion`, { method: 'POST', auth: true }),
 };
 
 export const categoryApi = {

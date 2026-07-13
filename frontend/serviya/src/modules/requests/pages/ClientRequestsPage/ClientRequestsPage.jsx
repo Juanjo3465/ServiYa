@@ -21,6 +21,7 @@ export function ClientRequestsPage() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState(null);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
     const [reportCategory, setReportCategory] = useState('No se presentó');
@@ -118,7 +119,7 @@ export function ClientRequestsPage() {
                                 <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
                                     <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
                                     {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
-                                    {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
+                                    {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => { setSelectedRequest(r); setConfirmOpen(true); }}><Icon name="check" size={13} />Confirmar servicio</button>}
                                     {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}
                                 </div>
                             </div>
@@ -142,13 +143,24 @@ export function ClientRequestsPage() {
 
             <ReviewModal
                 open={confirmOpen}
-                onClose={() => setConfirmOpen(false)}
+                onClose={() => { setConfirmOpen(false); setSelectedRequest(null); }}
                 title="Confirmar servicio"
-                sub="¿El servicio fue realizado correctamente?"
+                sub={selectedRequest ? `¿El servicio "${selectedRequest.serviceTitle}" fue realizado correctamente por ${selectedRequest.counterpartyName}?` : '¿El servicio fue realizado correctamente?'}
                 ratingLabel="Calificación"
                 reviewLabel="Reseña"
                 confirmLabel="Confirmar"
-                onConfirm={() => { setConfirmOpen(false); showToast('Servicio confirmado y reseña enviada', 'success'); }}
+                onConfirm={async () => {
+                    if (!selectedRequest) return;
+                    try {
+                        await requestApi.confirmCompletion(selectedRequest.requestId);
+                        setConfirmOpen(false);
+                        setSelectedRequest(null);
+                        showToast('Servicio confirmado. Oferente notificado', 'success');
+                        fetchRequests(currentPage);
+                    } catch (e) {
+                        showToast(e.message || 'Error al confirmar servicio', 'danger');
+                    }
+                }}
             />
 
             <Modal open={reschedOpen} onClose={() => setReschedOpen(false)}>
