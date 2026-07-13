@@ -53,17 +53,7 @@ public class OffererPublicProfileService implements OffererPublicProfileServiceP
         // getMainMetrics devuelve ceros si aun no tiene actividad: el perfil siempre se puede pintar.
         OffererMetrics metrics = offererMetricsService.getMainMetrics(userId);
 
-        List<OffererPublicProfileResult.PublishedService> services =
-                marketplaceServicePort.getByOffererId(userId).stream()
-                        .filter(detail -> Boolean.TRUE.equals(detail.getService().getActive()))
-                        .map(detail -> new OffererPublicProfileResult.PublishedService(
-                                detail.getService().getId(),
-                                detail.getService().getTitle(),
-                                detail.getService().getDescription(),
-                                detail.getService().getPriceHourly(),
-                                detail.getCategory() == null ? null : detail.getCategory().getName(),
-                                detail.getService().getAverageDurationMinutes()))
-                        .toList();
+        List<OffererPublicProfileResult.PublishedService> services = activeServicesOf(userId);
 
         return new OffererPublicProfileResult(
                 userId,
@@ -81,5 +71,30 @@ public class OffererPublicProfileService implements OffererPublicProfileServiceP
                 metrics.getTotalCancelledServices(),
                 metrics.getTotalNotProvidedServices(),
                 services);
+    }
+
+    /**
+     * Servicios ACTIVOS del oferente, o lista vacia si aun no publica ninguno.
+     *
+     * <p>{@code getByOffererId} lanza ResourceNotFoundException cuando el oferente no tiene servicios.
+     * Eso tiene sentido en la vista de "mis servicios", pero NO aqui: un oferente recien registrado —o
+     * uno cuyos servicios se desactivaron— sigue teniendo un perfil publico valido que debe poder verse,
+     * simplemente con la vitrina vacia. Por eso se traduce a una lista vacia en lugar de un 404.</p>
+     */
+    private List<OffererPublicProfileResult.PublishedService> activeServicesOf(Long userId) {
+        try {
+            return marketplaceServicePort.getByOffererId(userId).stream()
+                    .filter(detail -> Boolean.TRUE.equals(detail.getService().getActive()))
+                    .map(detail -> new OffererPublicProfileResult.PublishedService(
+                            detail.getService().getId(),
+                            detail.getService().getTitle(),
+                            detail.getService().getDescription(),
+                            detail.getService().getPriceHourly(),
+                            detail.getCategory() == null ? null : detail.getCategory().getName(),
+                            detail.getService().getAverageDurationMinutes()))
+                    .toList();
+        } catch (ResourceNotFoundException ex) {
+            return List.of();
+        }
     }
 }
