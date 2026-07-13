@@ -8,12 +8,15 @@ import com.parosurvivors.serviya.reports.application.dto.result.FeedbackReportDe
 import com.parosurvivors.serviya.reports.application.dto.result.PartySummary;
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.application.dto.result.RequestReportDetail;
+import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ReportActionServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ClientFeedbackReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.RequestReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ServiceFeedbackReportPersistencePort;
 import com.parosurvivors.serviya.reports.domain.Report;
+import com.parosurvivors.serviya.reports.domain.ReportActionType;
 import com.parosurvivors.serviya.reports.domain.ReportPriority;
 import com.parosurvivors.serviya.reports.domain.ReportStatus;
 import com.parosurvivors.serviya.reports.domain.ReportType;
@@ -28,6 +31,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -42,6 +46,9 @@ public class ReportService implements ReportServicePort {
     private final ServiceRequestQueryServicePort serviceRequestQueryServicePort;
     private final ServiceFeedbackServicePort serviceFeedbackServicePort;
     private final ClientFeedbackServicePort clientFeedbackServicePort;
+    // Finalización de reportes (transición + trazabilidad + notificación al reporter).
+    private final ReportActionServicePort reportActionServicePort;
+    private final NotificationServicePort notificationServicePort;
 
     @Override
     public Report createBaseReport(Long reporterId, Long reportedUserId, String type, String category, String reason) {
@@ -178,5 +185,58 @@ public class ReportService implements ReportServicePort {
     @Override
     public int countReportsByReporter(Long reporterId) {
         return Math.toIntExact(reportPersistencePort.countByReporterId(reporterId));
+    }
+
+    @Override
+    @Transactional
+    public void resolveReport(Long reportId, Long adminId, ReportActionType actionType) {
+        Report report = reportPersistencePort.findById(reportId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reporte no encontrado: " + reportId));
+        report.resolve();
+        reportPersistencePort.update(report);
+        reportActionServicePort.createAction(reportId, adminId, actionType);
+        notifyReporterResolved(report, actionType);
+    }
+
+    @Override
+    @Transactional
+    public void closeReport(Long reportId, Long adminId) {
+        Report report = reportPersistencePort.findById(reportId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reporte no encontrado: " + reportId));
+        report.close();
+        reportPersistencePort.update(report);
+        reportActionServicePort.createAction(reportId, adminId, ReportActionType.CLOSE);
+        notifyReporterClosed(report);
+    }
+
+    private void notifyReporterResolved(Report report, ReportActionType actionType) {
+        notificationServicePort.createNotification(
+                report.getReporterId(),
+                "REPORT_RESOLVED",
+                "Tu reporte fue resuelto",
+                "Tu reporte #" + report.getId() + " fue revisado: " + describeResolution(actionType) + ".",
+                "REPORT",
+                report.getId());
+    }
+
+    private void notifyReporterClosed(Report report) {
+        notificationServicePort.createNotification(
+                report.getReporterId(),
+                "REPORT_CLOSED",
+                "Tu reporte fue cerrado",
+                "Tu reporte #" + report.getId() + " fue revisado y se cerró sin acciones adicionales.",
+                "REPORT",
+                report.getId());
+    }
+
+    /** Frase legible de la resolución para la notificación al reporter, según la acción tomada. */
+    private String describeResolution(ReportActionType actionType) {
+        return switch (actionType) {
+            case WARN -> "se advirtió al usuario reportado";
+            case BAN -> "se suspendió al usuario reportado";
+            case REVERT_FEEDBACK -> "se eliminó el feedback reportado";
+            case MARK_REQUEST_NOT_PROVIDED -> "se marcó la solicitud como no prestada";
+            case CLOSE -> "se cerró sin acciones adicionales";
+        };
     }
 }

@@ -4,15 +4,18 @@ import com.parosurvivors.serviya.feedback.application.dto.result.ClientFeedbackR
 import com.parosurvivors.serviya.feedback.application.dto.result.ServiceFeedbackResult;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
+import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
+import com.parosurvivors.serviya.reports.application.ports.input.ReportActionServicePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ClientFeedbackReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.RequestReportPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ServiceFeedbackReportPersistencePort;
 import com.parosurvivors.serviya.reports.domain.ClientFeedbackReport;
 import com.parosurvivors.serviya.reports.domain.Report;
+import com.parosurvivors.serviya.reports.domain.ReportActionType;
 import com.parosurvivors.serviya.reports.domain.ReportStatus;
 import com.parosurvivors.serviya.reports.domain.ReportType;
 import com.parosurvivors.serviya.reports.domain.RequestReport;
@@ -20,9 +23,11 @@ import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
+import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -34,6 +39,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +55,8 @@ class ReportServiceTest {
     @Mock private ServiceRequestQueryServicePort serviceRequestQueryServicePort;
     @Mock private ServiceFeedbackServicePort serviceFeedbackServicePort;
     @Mock private ClientFeedbackServicePort clientFeedbackServicePort;
+    @Mock private ReportActionServicePort reportActionServicePort;
+    @Mock private NotificationServicePort notificationServicePort;
 
     @InjectMocks
     private ReportService service;
@@ -141,5 +151,57 @@ class ReportServiceTest {
 
         assertThatThrownBy(() -> service.getReportDetail(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void resolveReportSetsResolvedRecordsActionAndNotifiesReporter() {
+        Report report = report(5L, ReportType.REQUEST);
+        when(reportPersistencePort.findById(5L)).thenReturn(Optional.of(report));
+
+        service.resolveReport(5L, 12L, ReportActionType.BAN);
+
+        ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
+        verify(reportPersistencePort).update(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(ReportStatus.RESOLVED);
+        verify(reportActionServicePort).createAction(5L, 12L, ReportActionType.BAN);
+        // Notifica al reporter (id 8) sobre la resolución, entidad REPORT #5.
+        verify(notificationServicePort).createNotification(
+                eq(8L), eq("REPORT_RESOLVED"), eq("Tu reporte fue resuelto"),
+                org.mockito.ArgumentMatchers.contains("se suspendió"), eq("REPORT"), eq(5L));
+    }
+
+    @Test
+    void closeReportSetsClosedRecordsCloseActionAndNotifiesReporter() {
+        Report report = report(6L, ReportType.REQUEST);
+        when(reportPersistencePort.findById(6L)).thenReturn(Optional.of(report));
+
+        service.closeReport(6L, 12L);
+
+        ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
+        verify(reportPersistencePort).update(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(ReportStatus.CLOSED);
+        verify(reportActionServicePort).createAction(6L, 12L, ReportActionType.CLOSE);
+        verify(notificationServicePort).createNotification(
+                eq(8L), eq("REPORT_CLOSED"), eq("Tu reporte fue cerrado"),
+                org.mockito.ArgumentMatchers.anyString(), eq("REPORT"), eq(6L));
+    }
+
+    @Test
+    void resolveReportOnClosedReportFailsWithoutSideEffects() {
+        Report closed = Report.builder().id(7L).reporterId(8L).reportedUserId(45L)
+                .reportType(ReportType.REQUEST).category("x").reason("y").status(ReportStatus.CLOSED).build();
+        when(reportPersistencePort.findById(7L)).thenReturn(Optional.of(closed));
+
+        assertThatThrownBy(() -> service.resolveReport(7L, 12L, ReportActionType.WARN))
+                .isInstanceOf(InvalidStateException.class);
+
+        verify(reportPersistencePort, never()).update(org.mockito.ArgumentMatchers.any());
+        verify(reportActionServicePort, never()).createAction(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any());
+        verify(notificationServicePort, never()).createNotification(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong());
     }
 }

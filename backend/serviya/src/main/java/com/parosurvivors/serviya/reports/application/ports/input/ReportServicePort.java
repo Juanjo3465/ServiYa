@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.reports.application.ports.input;
 
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.domain.Report;
+import com.parosurvivors.serviya.reports.domain.ReportActionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -27,4 +28,19 @@ public interface ReportServicePort {
     int countReportsByReportedUser(Long reportedUserId);
 
     int countReportsByReporter(Long reporterId);
+
+    /**
+     * Finaliza un reporte como RESOLVED tras una acción de moderación distinta de cerrar. Método interno
+     * (no expuesto como endpoint): lo invocan los métodos de ModerationService. Encapsula la transición de
+     * estado + el registro de la {@link ReportActionType} indicada + la notificación al reporter sobre cómo
+     * se resolvió. Idempotente si ya está RESOLVED; falla si el reporte estaba CLOSED.
+     */
+    void resolveReport(Long reportId, Long adminId, ReportActionType actionType);
+
+    /**
+     * Finaliza un reporte como CLOSED (cerrado SIN tomar ninguna acción de moderación). Método interno
+     * (no expuesto como endpoint): lo invoca ModerationService.closeReport. Encapsula la transición de
+     * estado + el registro de la acción CLOSE + la notificación al reporter. Idempotente si ya está CLOSED.
+     */
+    void closeReport(Long reportId, Long adminId);
 }
