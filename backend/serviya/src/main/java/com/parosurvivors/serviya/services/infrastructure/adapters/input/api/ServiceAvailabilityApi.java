@@ -21,7 +21,7 @@ public interface ServiceAvailabilityApi {
         @ApiResponse(responseCode = "201", description = "Disponibilidad creada exitosamente"),
         @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
-    ResponseEntity<ServiceAvailabilityResponse> create(CreateServiceAvailabilityForm form);
+    ResponseEntity<ServiceAvailabilityResponse> create(Long serviceId, CreateServiceAvailabilityForm form);
 
     @Operation(summary = "Eliminar una disponibilidad de un servicio")
     @ApiResponses({
@@ -44,4 +44,10 @@ public interface ServiceAvailabilityApi {
         @ApiResponse(responseCode = "404", description = "Servicio no encontrado")
     })
     ResponseEntity<List<ServiceAvailabilityResponse>> getByServiceId(Long serviceId);
+
+    @Operation(summary = "Aplicar la plantilla general del oferente al servicio")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Plantilla aplicada exitosamente")
+    })
+    ResponseEntity<Void> applyGeneralTemplate(Long serviceId);
 }

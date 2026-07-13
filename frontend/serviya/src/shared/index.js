@@ -25,5 +25,6 @@ export {
     clearToken, 
     isAuthenticated, 
     rolesFromToken, 
-    homePathForRoles 
+    homePathForRoles,
+    getApiImageUrl
 } from './api';

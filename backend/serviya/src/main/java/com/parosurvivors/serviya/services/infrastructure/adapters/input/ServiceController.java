@@ -217,24 +217,36 @@ public class ServiceController implements ServiceApi {
     }
 
     private BigDecimal parseDecimal(String value) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.isBlank() || value.equalsIgnoreCase("NaN")) {
             return null;
         }
-        return new BigDecimal(value);
+        try {
+            return new BigDecimal(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private Long parseLong(String value) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.isBlank() || value.equalsIgnoreCase("NaN")) {
             return null;
         }
-        return Long.valueOf(value);
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private Integer parseInteger(String value) {
-        if (value == null || value.isBlank()) {
+        if (value == null || value.isBlank() || value.equalsIgnoreCase("NaN")) {
             return null;
         }
-        return Integer.valueOf(value);
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     @Override

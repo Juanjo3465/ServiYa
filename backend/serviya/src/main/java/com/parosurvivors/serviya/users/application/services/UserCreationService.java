@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateUserProfileCommand;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.ProfileType;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
@@ -35,6 +36,7 @@ public class UserCreationService implements UserCreationServicePort {
     private final UserRoleServicePort userRoleServicePort;
     private final ConsentServicePort consentServicePort;
     private final UserProfileServicePort userProfileServicePort;
+    private final OffererProfileServicePort offererProfileServicePort;
 
     @Override
     @Transactional
@@ -52,6 +54,10 @@ public class UserCreationService implements UserCreationServicePort {
 
         // Rol elegido.
         userRoleServicePort.acquireRole(user.getId(), roleName.name());
+
+        if (roleName == RoleName.OFFERER) {
+            offererProfileServicePort.createOffererProfile(user.getId());
+        }
 
         // Perfil personal (document/phone se cifran al persistir).
         userProfileServicePort.createProfile(new CreateUserProfileCommand(

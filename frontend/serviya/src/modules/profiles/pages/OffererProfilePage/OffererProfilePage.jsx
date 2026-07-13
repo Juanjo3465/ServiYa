@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi } from '../../../../shared';
+import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
 
 import './OffererProfilePage.css';
 
@@ -23,35 +23,52 @@ export function OffererProfilePage() {
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
     const [profile, setProfile] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
 
     useEffect(() => {
-        profileApi.getProfile(id)
-            .then(setProfile)
+        Promise.all([
+            profileApi.getProfile(id),
+            profileApi.getMyProfile().catch(() => null),
+        ])
+            .then(([offererData, currentUserData]) => {
+                setProfile(offererData);
+                setUserProfile(currentUserData);
+            })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [id]);
+
+    const offererPhotoSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
+    const navbarAvatarSrc = getApiImageUrl(userProfile?.profilePhotoUrl || null);
 
     const openWhatsApp = () => {
-        if (!profile?.phoneNumber) {
+        const whatsappNumber = profile?.whatsappNumber || profile?.phoneNumber;
+        if (!whatsappNumber) {
             showToast('Número de WhatsApp no disponible', 'warning');
             return;
         }
-        window.open(`https://wa.me/${profile.phoneNumber}`, '_blank');
+        window.open(`https://wa.me/${whatsappNumber}`, '_blank');
     }
 
     return (
         <>
-            <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+            <AppNavbar avatar={userProfile?.fullName ? userProfile.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={navbarAvatarSrc} links={[{ to: '/services', label: '← Resultados' }]} />
 
             <div className="profile-hero">
                 <div className="profile-top">
                     <div className="profile-av-wrap">
-                        <div className="av av-xl">CM</div>
+                        <div className="av av-xl">
+                            {offererPhotoSrc ? (
+                                <img src={offererPhotoSrc} alt="Foto del oferente" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                            ) : (
+                                (profile?.specialty || 'OF').slice(0, 2).toUpperCase()
+                            )}
+                        </div>
                         <div className="profile-verified"><Icon name="check" size={12} strokeWidth={2.5} /></div>
                     </div>
                     <div className="profile-info">
-                        <div className="profile-name">Carlos Martínez</div>
-                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>Plomero profesional · Persona natural</div>
+                        <div className="profile-name">{profile?.specialty ? profile.specialty : 'Perfil de oferente'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>{profile?.publicDescription || 'Información pública del oferente'}</div>
                         <div className="profile-meta">
                             <span className="pm-item"><Stars rating={5} size={11} />&nbsp;<strong style={{ color: 'var(--c-text)' }}>4.9</strong>&nbsp;(32 reseñas)</span>
                             <span className="pm-item"><Icon name="mapPin" size={13} />Bogotá, Colombia</span>

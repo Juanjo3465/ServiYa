@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated, rolesFromToken, getApiImageUrl } from '../../../../shared';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
@@ -255,8 +255,14 @@ export function ProfilePage() {
     const [editAddressOpen, setEditAddressOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [offererProfile, setOffererProfile] = useState(null);
     const [addresses, setAddresses] = useState([]);
     const [editedAddress, setEditedAddress] = useState(null);
+    const [isOfferer, setIsOfferer] = useState(false);
+    const [offererForm, setOffererForm] = useState({ whatsappNumber: '', publicDescription: '', specialty: '' });
+    const [savingOffererProfile, setSavingOffererProfile] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const fileInputRef = useRef(null);
 
     // --- Cambio de contraseña (RF-007) ---
     const [currentPassword, setCurrentPassword] = useState('');
@@ -271,7 +277,10 @@ export function ProfilePage() {
             return;
         }
         profileApi.getMyProfile()
-            .then(setProfile)
+            .then((data) => {
+                setProfile(data);
+                setIsOfferer(rolesFromToken().includes('OFFERER'));
+            })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -282,9 +291,24 @@ export function ProfilePage() {
             .catch((e) => showToast(e.message || 'No se pudieron cargar tus direcciones', 'danger'));
     }, [profile?.id]);
 
+    useEffect(() => {
+        if (!isOfferer) return;
+        profileApi.getOffererProfile()
+            .then((data) => {
+                setOffererProfile(data);
+                setOffererForm({
+                    whatsappNumber: data?.whatsappNumber || '',
+                    publicDescription: data?.publicDescription || '',
+                    specialty: data?.specialty || '',
+                });
+            })
+            .catch((e) => showToast(e.message || 'No se pudo cargar el perfil de oferente', 'danger'));
+    }, [isOfferer]);
+
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
         .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    const profilePhotoSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
 
     const openEditAddresss = (address) => () => {
         setEditedAddress({
@@ -436,6 +460,44 @@ export function ProfilePage() {
             );
     };
 
+    const handleOffererProfileSave = () => {
+        setSavingOffererProfile(true);
+        profileApi.updateOffererProfile(offererForm)
+            .then((data) => {
+                setOffererProfile(data);
+                setOffererForm({
+                    whatsappNumber: data?.whatsappNumber || '',
+                    publicDescription: data?.publicDescription || '',
+                    specialty: data?.specialty || '',
+                });
+                showToast('Perfil público del oferente actualizado', 'success');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo actualizar el perfil de oferente', 'danger'))
+            .finally(() => setSavingOffererProfile(false));
+    };
+
+    const handleProfilePhotoPick = () => fileInputRef.current?.click();
+
+    const handleProfilePhotoUpload = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('photoUrl', file);
+
+        setUploadingPhoto(true);
+        try {
+            const updated = await profileApi.updateMyProfilePhoto(formData);
+            setProfile(prev => prev ? { ...prev, profilePhotoUrl: updated?.profilePhotoUrl || prev.profilePhotoUrl } : prev);
+            showToast('Foto de perfil actualizada', 'success');
+        } catch (e) {
+            showToast(e.message || 'No se pudo actualizar la foto de perfil', 'danger');
+        } finally {
+            setUploadingPhoto(false);
+            event.target.value = '';
+        }
+    };
+
     function handleChangePassword() {
         if (!currentPassword) {
             showToast('Ingresa tu contraseña actual', 'danger');
@@ -463,7 +525,7 @@ export function ProfilePage() {
     }
 
     return (
-        <DashboardLayout sections={CLIENT_NAV} avatar={initials}>
+        <DashboardLayout sections={CLIENT_NAV} avatar={initials} avatarSrc={profilePhotoSrc}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
 
             <div className="tabs">
@@ -476,8 +538,17 @@ export function ProfilePage() {
                 <div className="card">
                     <div className="profile-id">
                         <div style={{ position: 'relative' }}>
-                            <div className="av av-xl">{initials}</div>
-                            <button className="avatar-edit" onClick={() => showToast('Foto actualizada', 'success')}><Icon name="camera" size={12} strokeWidth={2.5} /></button>
+                            <div className="av av-xl">
+                                {profilePhotoSrc ? (
+                                    <img src={profilePhotoSrc} alt="Foto de perfil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
+                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfilePhotoUpload} />
+                            <button className="avatar-edit" onClick={handleProfilePhotoPick} disabled={uploadingPhoto}>
+                                {uploadingPhoto ? '…' : <Icon name="camera" size={12} strokeWidth={2.5} />}
+                            </button>
                         </div>
                         <div>
                             <div style={{ fontSize: '18px', fontWeight: 700 }}>{profile?.fullName ?? 'Cargando…'}</div>
@@ -496,6 +567,27 @@ export function ProfilePage() {
                     <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly /></div>
                     <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos protegidos:</strong> Tu documento y teléfono se almacenan cifrados (AES-256-GCM) y solo tú puedes verlos aquí (RF-005).</div>
                     <button className="btn btn-primary" onClick={() => showToast('Perfil actualizado', 'success')}><Icon name="save" size={15} />Guardar cambios</button>
+
+                    {isOfferer && (
+                        <div className="card" style={{ marginTop: '16px' }}>
+                            <div className="card-title">Perfil público del oferente</div>
+                            <div className="input-group">
+                                <label className="label">WhatsApp</label>
+                                <input className="input" value={offererForm.whatsappNumber} onChange={(e) => setOffererForm(prev => ({ ...prev, whatsappNumber: e.target.value }))} />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Descripción pública</label>
+                                <textarea className="input" rows={4} value={offererForm.publicDescription} onChange={(e) => setOffererForm(prev => ({ ...prev, publicDescription: e.target.value }))} />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Especialidad</label>
+                                <input className="input" value={offererForm.specialty} onChange={(e) => setOffererForm(prev => ({ ...prev, specialty: e.target.value }))} />
+                            </div>
+                            <button className="btn btn-primary" onClick={handleOffererProfileSave} disabled={savingOffererProfile}>
+                                {savingOffererProfile ? 'Guardando...' : 'Guardar perfil público'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 

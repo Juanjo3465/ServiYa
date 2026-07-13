@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateUserProfileCommand;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
@@ -36,6 +37,7 @@ class UserCreationServiceTest {
     @Mock UserRoleServicePort userRoleServicePort;
     @Mock ConsentServicePort consentServicePort;
     @Mock UserProfileServicePort userProfileServicePort;
+    @Mock OffererProfileServicePort offererProfileServicePort;
 
     @InjectMocks UserCreationService service;
 
@@ -99,5 +101,6 @@ class UserCreationServiceTest {
 
         assertThat(result.getRoles()).containsExactly(RoleName.OFFERER);
         verify(userRoleServicePort).acquireRole(eq(7L), eq("OFFERER"));
+        verify(offererProfileServicePort).createOffererProfile(7L);
     }
 }

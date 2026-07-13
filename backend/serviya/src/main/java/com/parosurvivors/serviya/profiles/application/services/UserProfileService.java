@@ -47,7 +47,23 @@ public class UserProfileService implements UserProfileServicePort {
 
     @Override
     public UserProfile patchProfile(UpdateProfileCommand command) {
-        throw new UnsupportedOperationException("TODO: patchProfile — placeholder, ver estructura-servicios.docx");
+        UserProfile existing = userProfilePersistencePort.findByUserId(command.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for user: " + command.userId()));
+
+        if (command.fullName() != null) {
+            existing.setFullName(command.fullName());
+        }
+        if (command.phone() != null) {
+            existing.setPhoneNumber(command.phone());
+        }
+        if (command.photoUrl() != null) {
+            existing.setProfilePhotoUrl(command.photoUrl());
+        }
+        if (command.description() != null) {
+            existing.setBio(command.description());
+        }
+
+        return userProfilePersistencePort.save(existing);
     }
 
     @Override

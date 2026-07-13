@@ -38,4 +38,11 @@ public class ServiceAvailabilityPersistenceAdapter implements ServiceAvailabilit
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public ServiceAvailability findById(Long id) {
+        return repository.findById(id)
+                .map(mapper::toDomain)
+                .orElseThrow(() -> new IllegalArgumentException("Disponibilidad no encontrada"));
+    }
 }

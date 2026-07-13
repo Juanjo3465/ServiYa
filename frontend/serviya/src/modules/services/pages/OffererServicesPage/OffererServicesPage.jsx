@@ -268,15 +268,33 @@ export function OffererServicesPage() {
         setSelectedPhotos([]);
     };
 
+    const normalizeNumericValue = (value) => {
+        if (value === null || value === undefined || value === '' || value === 'NaN') return null;
+        const numericValue = typeof value === 'number' ? value : Number(value);
+        return Number.isFinite(numericValue) ? numericValue : null;
+    };
+
     const createService = (formData) => {
-        const category = categories.find(c => c.id === formData.categoryId);
+        const categoryId = normalizeNumericValue(formData.categoryId);
+        if (categoryId === null) {
+            showToast('Selecciona una categoría antes de crear el servicio', 'danger');
+            return;
+        }
+
+        const category = categories.find(c => c.id === categoryId);
         const formDataToSend = new FormData();
         formDataToSend.append('title', formData.title || '');
         formDataToSend.append('description', formData.description || '');
-        formDataToSend.append('priceHourly', String(formData.priceHourly ?? 0));
-        formDataToSend.append('categoryId', String(formData.categoryId));
-        if (formData.averageDurationMinutes != null) formDataToSend.append('averageDurationMinutes', String(formData.averageDurationMinutes));
-        if (formData.operationRadiusKm != null) formDataToSend.append('operationRadiusKm', String(formData.operationRadiusKm));
+        const priceHourly = normalizeNumericValue(formData.priceHourly);
+        formDataToSend.append('priceHourly', String(priceHourly ?? 0));
+        formDataToSend.append('categoryId', String(categoryId));
+
+        const averageDurationMinutes = normalizeNumericValue(formData.averageDurationMinutes);
+        if (averageDurationMinutes !== null) formDataToSend.append('averageDurationMinutes', String(averageDurationMinutes));
+
+        const operationRadiusKm = normalizeNumericValue(formData.operationRadiusKm);
+        if (operationRadiusKm !== null) formDataToSend.append('operationRadiusKm', String(operationRadiusKm));
+
         selectedPhotos.forEach((photo) => formDataToSend.append('photos', photo));
 
         serviceApi
@@ -304,14 +322,22 @@ export function OffererServicesPage() {
     };
 
     const saveEditedService = (formData) => {
-        const category = categories.find(c => c.id === formData.categoryId);
+        const categoryId = normalizeNumericValue(formData.categoryId);
+        const category = categories.find(c => c.id === categoryId);
         const formDataToSend = new FormData();
         if (formData.title != null) formDataToSend.append('title', formData.title || '');
         if (formData.description != null) formDataToSend.append('description', formData.description || '');
-        if (formData.priceHourly != null) formDataToSend.append('priceHourly', String(formData.priceHourly));
-        if (formData.categoryId != null) formDataToSend.append('categoryId', String(formData.categoryId));
-        if (formData.averageDurationMinutes != null) formDataToSend.append('averageDurationMinutes', String(formData.averageDurationMinutes));
-        if (formData.operationRadiusKm != null) formDataToSend.append('operationRadiusKm', String(formData.operationRadiusKm));
+
+        const priceHourly = normalizeNumericValue(formData.priceHourly);
+        if (priceHourly !== null) formDataToSend.append('priceHourly', String(priceHourly));
+
+        if (categoryId !== null) formDataToSend.append('categoryId', String(categoryId));
+
+        const averageDurationMinutes = normalizeNumericValue(formData.averageDurationMinutes);
+        if (averageDurationMinutes !== null) formDataToSend.append('averageDurationMinutes', String(averageDurationMinutes));
+
+        const operationRadiusKm = normalizeNumericValue(formData.operationRadiusKm);
+        if (operationRadiusKm !== null) formDataToSend.append('operationRadiusKm', String(operationRadiusKm));
 
         const retainedExistingPhotos = selectedPhotos.filter((photo) => typeof photo === 'string');
         const removedPhotos = (editedService?.photos || []).filter((photo) => !retainedExistingPhotos.includes(photo));

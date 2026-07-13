@@ -4,6 +4,14 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 const TOKEN_KEY = 'serviya_token';
 
+export function getApiImageUrl(path) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path) || path.startsWith('data:')) return path;
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const base = API_BASE.replace(/\/$/, '');
+    return `${base}${normalizedPath}`;
+}
+
 // --- Token (JWT) ---
 export function saveToken(token) {
     localStorage.setItem(TOKEN_KEY, token);
@@ -74,6 +82,10 @@ export const authApi = {
 export const profileApi = {
     // RF-005 — identidad tomada del JWT por el backend
     getMyProfile: () => request('/api/v1/users/me/profile', { auth: true }),
+    updateMyProfile: (payload) => request('/api/v1/users/me/profile', { method: 'PATCH', body: payload, auth: true }),
+    updateMyProfilePhoto: (payload) => request('/api/v1/users/me/profile/photo', { method: 'PATCH', body: payload, auth: true, formData: true }),
+    getOffererProfile: () => request('/api/v1/offerers/me', { auth: true }),
+    updateOffererProfile: (payload) => request('/api/v1/offerers/me', { method: 'PATCH', body: payload, auth: true }),
     getProfile: (id) => request(`/api/v1/offerers/${id}`, { auth: true }),
     changeMainAddress: (payload) => request(`/api/v1/users/me/main-address`, { method: 'PATCH', body: payload, auth: true }),
  
@@ -91,6 +103,11 @@ export const serviceApi = {
     createService: (payload, formData = false) => request('/api/v1/services', { method: 'POST', body: payload, auth: true, formData }),
     updateService: (id, payload, formData = false) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true, formData }),
     deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
+    getServiceAvailability: (serviceId) => request(`/api/v1/service-availabilities/service/${serviceId}`, { auth: true }),
+    createServiceAvailability: (serviceId, payload) => request(`/api/v1/service-availabilities/service/${serviceId}`, { method: 'POST', body: payload, auth: true }),
+    updateServiceAvailability: (id, payload) => request(`/api/v1/service-availabilities/${id}`, { method: 'PUT', body: payload, auth: true }),
+    deleteServiceAvailability: (id) => request(`/api/v1/service-availabilities/${id}`, { method: 'DELETE', auth: true }),
+    applyGeneralTemplateToService: (serviceId) => request(`/api/v1/service-availabilities/service/${serviceId}/apply-template`, { method: 'POST', auth: true }),
     searchServices: (params) => {
         const queryParams = new URLSearchParams();
         Object.entries(params || {}).forEach(([key, val]) => {

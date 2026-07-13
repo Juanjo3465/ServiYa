@@ -29,6 +29,12 @@ public class OffererProfileController implements OffererProfileApi {
     private final OffererProfileWebMapper mapper;
 
     @Override
+    @GetMapping("/me")
+    public ResponseEntity<OffererPublicProfileResponse> getOwnPublicProfile() {
+        return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfile(currentUserId())));
+    }
+
+    @Override
     @GetMapping("/{id}")
     public ResponseEntity<OffererPublicProfileResponse> getPublicProfile(@PathVariable Long id) {
         return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfile(id)));
