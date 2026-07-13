@@ -8,6 +8,9 @@ import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdmin
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
 import com.parosurvivors.serviya.admin.infrastructure.mappers.AdminWebMapper;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.AdminRequestDetailResponse;
+import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.users.application.ports.input.RoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.RoleResponse;
@@ -40,6 +43,7 @@ public class AdminController implements AdminApi {
     private final UserRoleServicePort userRoleService;
     private final RoleServicePort roleService;
     private final AdminWebMapper mapper;
+    private final ServiceRequestWebMapper serviceRequestWebMapper;
 
     @Override
     @GetMapping("/users")
@@ -54,30 +58,37 @@ public class AdminController implements AdminApi {
     }
 
     @Override
+    @GetMapping("/service-requests/{id}")
+    public ResponseEntity<AdminRequestDetailResponse> getRequestDetailForAdmin(@PathVariable Long id) {
+        // Vista administrativa (ambas partes). El gate de rol ADMIN lo aplica SecurityConfig (/api/v1/admin/**).
+        return ResponseEntity.ok(serviceRequestWebMapper.toResponse(adminService.getRequestDetailForAdmin(id)));
+    }
+
+    @Override
     @PostMapping("/users")
     public ResponseEntity<UserSummaryResponse> createUserByAdmin(@Valid @RequestBody CreateUserByAdminForm form) {
-        var created = adminService.createUserByAdmin(mapper.toCommand(form, currentAdminId()));
+        var created = adminService.createUserByAdmin(mapper.toCommand(form, CurrentUser.id()));
         return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(created));
     }
 
     @Override
     @PostMapping("/users/{id}/ban")
     public ResponseEntity<Void> banUser(@PathVariable Long id) {
-        adminService.banUser(currentAdminId(), id);
+        adminService.banUser(CurrentUser.id(), id);
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/users/{id}/unban")
     public ResponseEntity<Void> unbanUser(@PathVariable Long id) {
-        adminService.unbanUser(currentAdminId(), id);
+        adminService.unbanUser(CurrentUser.id(), id);
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @DeleteMapping("/users/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        adminService.deleteUser(currentAdminId(), id);
+        adminService.deleteUser(CurrentUser.id(), id);
         return ResponseEntity.noContent().build();
     }
 
@@ -96,7 +107,7 @@ public class AdminController implements AdminApi {
     @Override
     @PostMapping("/users/{id}/roles")
     public ResponseEntity<Void> grantRoleByAdmin(@PathVariable Long id, @Valid @RequestBody GrantRoleForm form) {
-        adminService.grantRoleByAdmin(currentAdminId(), id, form.role());
+        adminService.grantRoleByAdmin(CurrentUser.id(), id, form.role());
         return ResponseEntity.noContent().build();
     }
 
@@ -105,10 +116,5 @@ public class AdminController implements AdminApi {
     public ResponseEntity<Void> removeRole(@PathVariable Long id, @PathVariable Long roleId) {
         userRoleService.removeRole(id, roleId);
         return ResponseEntity.noContent().build();
-    }
-
-    /** TODO: reemplazar por el id del admin extraido del JWT autenticado. */
-    private Long currentAdminId() {
-        return 0L;
     }
 }

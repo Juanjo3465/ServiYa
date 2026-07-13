@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
+import com.parosurvivors.serviya.requests.infrastructure.dto.response.AdminRequestDetailResponse;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.RoleResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -31,6 +32,11 @@ public interface AdminApi {
     @Operation(summary = "Detalle de un usuario para el panel admin", description = "RF-081.")
     @ApiResponse(responseCode = "200", description = "Detalle del usuario")
     ResponseEntity<UserAdminDetailResponse> getUserAdminDetail(Long id);
+
+    @Operation(summary = "Detalle administrativo de una solicitud (ambas partes)",
+            description = "Vista completa cliente+oferente de una solicitud, para el panel admin.")
+    @ApiResponse(responseCode = "200", description = "Detalle de la solicitud")
+    ResponseEntity<AdminRequestDetailResponse> getRequestDetailForAdmin(Long id);
 
     @Operation(summary = "Crear un usuario con cualquier rol, incluido ADMIN (cuenta nueva)")
     @ApiResponse(responseCode = "201", description = "Usuario creado")
