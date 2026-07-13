@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken } from '../../../../shared';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
@@ -262,6 +262,53 @@ export function ProfilePage() {
     const [form, setForm] = useState({ fullName: '', phone: '', description: '' });
     const [savingProfile, setSavingProfile] = useState(false);
 
+    // --- Roles del usuario (RF-010/011) ---
+    const [roles, setRoles] = useState([]);
+    const [acquiringRole, setAcquiringRole] = useState(null);
+
+    // --- Eliminacion de cuenta (RF-008) ---
+    const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
+
+    /** RF-008: soft delete de la cuenta; el backend cancela solicitudes y desactiva servicios. */
+    const handleDeleteAccount = () => {
+        setDeletingAccount(true);
+        accountApi.deleteMyAccount()
+            .then(() => {
+                clearToken(); // la sesion deja de ser valida: no se puede volver a iniciar sesion
+                showToast('Tu cuenta ha sido eliminada', 'success');
+                setTimeout(() => navigate('/login'), 1000);
+            })
+            .catch((e) => {
+                showToast(e.message || 'No se pudo eliminar la cuenta', 'danger');
+                setDeletingAccount(false);
+            });
+    };
+
+    const hasRole = (name) => roles.includes(name);
+
+    /**
+     * RF-010/011: adquiere el rol y guarda el JWT NUEVO que devuelve el backend (ya trae el rol),
+     * de modo que el acceso es inmediato sin volver a iniciar sesion.
+     */
+    const handleAcquireRole = (roleName) => {
+        setAcquiringRole(roleName);
+        const call = roleName === 'OFFERER'
+            ? accountApi.acquireOffererRole()
+            : accountApi.acquireClientRole();
+
+        call.then((auth) => {
+            saveToken(auth.token); // acceso inmediato: el token ya incluye el rol nuevo
+            setRoles(rolesFromToken(auth.token));
+            showToast(
+                roleName === 'OFFERER' ? '¡Ya eres oferente! Completa tu perfil público.' : '¡Ya puedes solicitar servicios!',
+                'success');
+            setTimeout(() => navigate(roleName === 'OFFERER' ? '/offerer/dashboard' : '/dashboard'), 1200);
+        })
+            .catch((e) => showToast(e.message || 'No se pudo adquirir el rol', 'danger'))
+            .finally(() => setAcquiringRole(null));
+    };
+
     // --- Cambio de contraseña (RF-007) ---
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -285,6 +332,11 @@ export function ProfilePage() {
                 });
             })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
+
+        // RF-010/011/067: roles reales del usuario (fuente de verdad: el backend).
+        accountApi.getMyRoles()
+            .then((data) => setRoles(data.map((r) => r.name)))
+            .catch(() => setRoles(rolesFromToken())); // fallback: los del token
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -661,16 +713,40 @@ export function ProfilePage() {
                 <div className="card">
                     <div className="card-title" style={{ marginBottom: '4px' }}>Tus roles actuales</div>
                     <div style={{ fontSize: '13px', color: 'var(--c-mid)', marginBottom: '16px' }}>Un mismo usuario puede ser cliente y oferente sin crear otra cuenta.</div>
-                    <div className="role-row role-active">
-                        <div className="stat-ico" style={{ margin: 0 }}><Icon name="user" size={18} /></div>
-                        <div style={{ flex: 1 }}><div style={{ fontWeight: 700 }}>Cliente</div><div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Puedes buscar y contratar servicios</div></div>
-                        <span className="badge badge-success">Activo</span>
-                    </div>
-                    <div className="role-row role-inactive">
-                        <div className="stat-ico" style={{ margin: 0, background: 'var(--c-bg-s)', color: 'var(--c-soft)' }}><Icon name="wrench" size={18} /></div>
-                        <div style={{ flex: 1 }}><div style={{ fontWeight: 700, color: 'var(--c-text)' }}>Oferente</div><div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Ofrece tus servicios y llega a más clientes</div></div>
-                        <button className="btn btn-primary btn-sm" onClick={() => { showToast('¡Rol de oferente adquirido! Redirigiendo...', 'success'); setTimeout(() => navigate('/offerer/dashboard'), 1200); }}>Adquirir rol</button>
-                    </div>
+                    {/* RF-067 (vista propia) + RF-010/011: estado real de cada rol segun el backend. */}
+                    {[
+                        { id: 'CLIENT', label: 'Cliente', icon: 'user', desc: 'Puedes buscar y contratar servicios', cta: 'Solicitar servicios' },
+                        { id: 'OFFERER', label: 'Oferente', icon: 'wrench', desc: 'Ofrece tus servicios y llega a más clientes', cta: 'Conviértete en oferente' },
+                    ].map((r) => (
+                        <div key={r.id} className={`role-row ${hasRole(r.id) ? 'role-active' : 'role-inactive'}`}>
+                            <div className="stat-ico" style={hasRole(r.id) ? { margin: 0 } : { margin: 0, background: 'var(--c-bg-s)', color: 'var(--c-soft)' }}>
+                                <Icon name={r.icon} size={18} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, color: 'var(--c-text)' }}>{r.label}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>{r.desc}</div>
+                            </div>
+                            {hasRole(r.id)
+                                ? <span className="badge badge-success">Activo</span>
+                                : (
+                                    <button className="btn btn-primary btn-sm"
+                                        disabled={acquiringRole === r.id}
+                                        onClick={() => handleAcquireRole(r.id)}>
+                                        {acquiringRole === r.id ? 'Adquiriendo…' : r.cta}
+                                    </button>
+                                )}
+                        </div>
+                    ))}
+                    {hasRole('ADMIN') && (
+                        <div className="role-row role-active">
+                            <div className="stat-ico" style={{ margin: 0 }}><Icon name="shield" size={18} /></div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Administrador</div>
+                                <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Solo otro administrador puede conceder este rol</div>
+                            </div>
+                            <span className="badge badge-success">Activo</span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -698,10 +774,27 @@ export function ProfilePage() {
             <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
                 <div className="modal-title" style={{ color: 'var(--c-danger)' }}>Eliminar cuenta</div>
                 <div className="modal-sub">Esta acción es irreversible. Tu cuenta será marcada como eliminada y no podrás volver a iniciar sesión.</div>
-                <div className="input-group"><label className="label">Confirma tu contraseña</label><input className="input" type="password" placeholder="••••••••" /></div>
+                {/* RF-008: el usuario debe conocer las consecuencias en cascada antes de confirmar. */}
+                <div className="note-box" style={{ marginBottom: '12px' }}>
+                    Al eliminar tu cuenta:
+                    <ul style={{ margin: '6px 0 0 16px' }}>
+                        <li>Tus servicios publicados quedarán desactivados.</li>
+                        <li>Tus solicitudes pendientes y aceptadas se cancelarán.</li>
+                        <li>Se notificará a la otra parte de cada solicitud cancelada.</li>
+                    </ul>
+                </div>
+                <label className="check-line">
+                    <input type="checkbox" checked={deleteConfirmed}
+                        onChange={(e) => setDeleteConfirmed(e.target.checked)} />
+                    Entiendo las consecuencias y quiero eliminar mi cuenta permanentemente
+                </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setDeleteOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => navigate('/login')}>Eliminar definitivamente</button>
+                    <button className="btn btn-danger btn-full"
+                        disabled={!deleteConfirmed || deletingAccount}
+                        onClick={handleDeleteAccount}>
+                        {deletingAccount ? 'Eliminando…' : 'Eliminar definitivamente'}
+                    </button>
                 </div>
             </Modal>
             <ToastContainer toasts={toasts} />

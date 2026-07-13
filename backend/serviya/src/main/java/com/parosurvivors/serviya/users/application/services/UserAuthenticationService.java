@@ -24,6 +24,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Orquestador de autenticacion (RF-001 login, RF-002 registro). El registro delega la creacion
@@ -84,6 +85,26 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
 
         User created = userCreationServicePort.createUserAccount(accountCommand);
         return toAuthResult(created.getId(), created.getRoles());
+    }
+
+    /**
+     * RF-010/011: adquiere el rol y re-emite el JWT con los roles ya actualizados.
+     *
+     * <p>Atomica: la asignacion del rol y la inicializacion de sus filas 1-a-1 (perfil de oferente,
+     * metricas — que reaccionan a RoleAssignedEvent en BEFORE_COMMIT) ocurren en esta transaccion.
+     * El token se emite despues de releer los roles, por lo que el usuario obtiene acceso inmediato
+     * sin volver a iniciar sesion.</p>
+     */
+    @Override
+    @Transactional
+    public AuthResult acquireRole(Long userId, String roleName) {
+        userRoleServicePort.acquireRole(userId, roleName);
+
+        List<RoleName> roles = userRoleServicePort.getUserRoles(userId).stream()
+                .map(Role::getName)
+                .toList();
+
+        return toAuthResult(userId, roles);
     }
 
     @Override

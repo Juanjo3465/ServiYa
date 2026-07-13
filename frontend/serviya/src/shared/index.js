@@ -12,10 +12,11 @@ export { WhatsAppButton } from './components/WhatsAppButton/WhatsAppButton';
 export { ToastContainer } from './components/Toast/Toast';
 export { useToast } from './hooks/useToast';
 export { CLIENT_NAV, OFFERER_NAV } from './navConfig';
-export { 
-    authApi, 
-    profileApi, 
-    serviceApi, 
+export {
+    authApi,
+    accountApi,
+    profileApi,
+    serviceApi,
     categoryApi,
     reportApi,
     addressApi,

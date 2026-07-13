@@ -91,6 +91,20 @@ export const profileApi = {
         }),
 };
 
+// Cuenta del usuario autenticado (/users/me): roles y eliminación.
+export const accountApi = {
+    // RF-067 (vista propia): roles actuales del usuario.
+    getMyRoles: () => request('/api/v1/users/me/roles', { auth: true }),
+
+    // RF-010 / RF-011 — devuelven un JWT NUEVO que ya incluye el rol recién adquirido.
+    // Hay que guardarlo (saveToken) para tener acceso inmediato sin volver a iniciar sesión.
+    acquireOffererRole: () => request('/api/v1/users/me/roles/offerer', { method: 'POST', auth: true }),
+    acquireClientRole: () => request('/api/v1/users/me/roles/client', { method: 'POST', auth: true }),
+
+    // RF-008 — soft delete de la cuenta propia (cancela solicitudes y desactiva servicios).
+    deleteMyAccount: () => request('/api/v1/users/me', { method: 'DELETE', auth: true }),
+};
+
 export const serviceApi = {
     getMyServices: (offererId) => request(`/api/v1/offerers/${offererId}/services`, { auth: true }),
     createService: (payload, formData = false) => request('/api/v1/services', { method: 'POST', body: payload, auth: true, formData }),
