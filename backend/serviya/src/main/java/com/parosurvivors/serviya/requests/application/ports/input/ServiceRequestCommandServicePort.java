@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.requests.application.dto.command.CreateServiceR
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Puerto de entrada de ServiceRequestCommandService (comandos / transiciones de estado — CQRS).
@@ -40,7 +41,7 @@ public interface ServiceRequestCommandServicePort {
      * No se expone como endpoint: la invoca el orquestador de eliminación de cuenta (UserDeletionService)
      * para no dejar solicitudes huérfanas. El control de acceso es responsabilidad del llamador.
      */
-    void cancelActiveRequestsForUser(Long userId);
+    List<ServiceRequest> cancelActiveRequestsForUser(Long userId);
 
     ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId);
 }

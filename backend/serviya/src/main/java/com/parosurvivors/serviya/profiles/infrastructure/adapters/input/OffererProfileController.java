@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfile
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.OffererProfileApi;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateOffererProfileForm;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererProfileSummaryResponse;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererPublicProfileDetailResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererPublicProfileResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.mappers.OffererProfileWebMapper;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
@@ -32,6 +33,16 @@ public class OffererProfileController implements OffererProfileApi {
     @GetMapping("/{id}")
     public ResponseEntity<OffererPublicProfileResponse> getPublicProfile(@PathVariable Long id) {
         return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfile(id)));
+    }
+
+    /**
+     * RF-027. Endpoint PUBLICO (SecurityConfig lo abre para GET /api/v1/offerers/**): lo consultan
+     * clientes, administradores y visitantes sin sesion. Funciona igual con o sin JWT.
+     */
+    @Override
+    @GetMapping("/{id}/public-profile")
+    public ResponseEntity<OffererPublicProfileDetailResponse> getPublicProfileDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfileDetail(id)));
     }
 
     @Override

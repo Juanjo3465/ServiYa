@@ -1,7 +1,12 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
+import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
 import com.parosurvivors.serviya.profiles.application.dto.command.UpdateOffererProfileCommand;
+import com.parosurvivors.serviya.profiles.application.dto.result.OffererPublicProfileResult;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
+import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.OffererProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
@@ -19,6 +24,62 @@ public class OffererProfileService implements OffererProfileServicePort {
     private final OffererProfilePersistencePort offererProfilePersistencePort;
     private final UserProfilePersistencePort userProfilePersistencePort;
     private final OffererMetricsServicePort offererMetricsService;
+    /** RF-027: la vitrina publica lista los servicios ACTIVOS del oferente. */
+    private final MarketplaceServicePort marketplaceServicePort;
+
+    /**
+     * RF-027: perfil publico completo del oferente (foto, descripcion, especialidad, calificacion
+     * promedio, metricas de desempeño y sus servicios activos).
+     *
+     * <p>Endpoint publico (visitantes sin sesion), por eso NO se expone ningun PII sensible: el
+     * documento y el telefono personal se quedan fuera; solo va el whatsapp que el oferente publica
+     * como canal de contacto.</p>
+     *
+     * <p>Solo se listan los servicios ACTIVOS: los desactivados (p. ej. tras eliminar la cuenta,
+     * RF-008) no deben aparecer en la vitrina publica.</p>
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public OffererPublicProfileResult getPublicProfileDetail(Long userId) {
+        OffererProfile offererProfile = offererProfilePersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Offerer profile not found for userId: " + userId));
+        UserProfile userProfile = userProfilePersistencePort.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User profile not found for userId: " + userId));
+
+        // getMainMetrics devuelve ceros si aun no tiene actividad: el perfil siempre se puede pintar.
+        OffererMetrics metrics = offererMetricsService.getMainMetrics(userId);
+
+        List<OffererPublicProfileResult.PublishedService> services =
+                marketplaceServicePort.getByOffererId(userId).stream()
+                        .filter(detail -> Boolean.TRUE.equals(detail.getService().getActive()))
+                        .map(detail -> new OffererPublicProfileResult.PublishedService(
+                                detail.getService().getId(),
+                                detail.getService().getTitle(),
+                                detail.getService().getDescription(),
+                                detail.getService().getPriceHourly(),
+                                detail.getCategory() == null ? null : detail.getCategory().getName(),
+                                detail.getService().getAverageDurationMinutes()))
+                        .toList();
+
+        return new OffererPublicProfileResult(
+                userId,
+                userProfile.getFullName(),
+                userProfile.getProfilePhotoUrl(),
+                offererProfile.getSpecialty(),
+                offererProfile.getPublicDescription(),
+                offererProfile.getWhatsappNumber(),
+                metrics.getAverageRating(),
+                metrics.getTotalRatings(),
+                metrics.getTotalComments(),
+                metrics.getTotalPositiveTags(),
+                metrics.getTotalNegativeTags(),
+                metrics.getTotalCompletedServices(),
+                metrics.getTotalCancelledServices(),
+                metrics.getTotalNotProvidedServices(),
+                services);
+    }
 
     @Override
     public OffererProfile getPublicProfile(Long userId) {
