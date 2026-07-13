@@ -9,6 +9,7 @@ import com.parosurvivors.serviya.users.application.ports.output.RolePersistenceP
 import com.parosurvivors.serviya.users.application.ports.output.UserRolePersistencePort;
 import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
+import com.parosurvivors.serviya.users.domain.UserRoleAssignment;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -55,6 +56,34 @@ public class UserRoleService implements UserRoleServicePort {
     @Override
     public void removeRole(Long userId, Long roleId) {
         userRolePersistencePort.removeRole(userId, toRoleId(roleId));
+    }
+
+    /**
+     * RF-066: quita el rol identificandolo por NOMBRE (el admin razona en CLIENT/OFFERER/ADMIN, no en ids).
+     * Solo retira la fila de user_roles; la cascada sobre servicios y solicitudes la orquesta AdminService,
+     * que es quien conoce esa regla de negocio.
+     */
+    @Override
+    public void revokeRole(Long userId, RoleName roleName) {
+        Role role = rolePersistencePort.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
+        if (!userRolePersistencePort.existsByUserIdAndRoleId(userId, role.getId())) {
+            throw new InvalidStateException("User " + userId + " does not have role: " + roleName);
+        }
+        userRolePersistencePort.removeRole(userId, role.getId());
+    }
+
+    /** RF-067: roles del usuario con la fecha en que se le concedio cada uno. */
+    @Override
+    public List<UserRoleAssignment> getUserRoleAssignments(Long userId) {
+        return userRolePersistencePort.findAssignmentsByUserId(userId).stream()
+                .map(assignment -> {
+                    Role role = rolePersistencePort.findById(assignment.roleId())
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Role not found with id: " + assignment.roleId()));
+                    return new UserRoleAssignment(role.getId(), role.getName(), assignment.assignedAt());
+                })
+                .toList();
     }
 
     @Override

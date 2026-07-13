@@ -321,6 +321,26 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         return active;
     }
 
+    /**
+     * RF-066: variante acotada a UN rol. Al remover el rol OFFERER solo se cancelan las solicitudes en
+     * las que el usuario es el oferente; las que tiene como cliente siguen vivas porque conserva ese rol.
+     */
+    @Override
+    @Transactional
+    public List<ServiceRequest> cancelActiveRequestsForRole(Long userId, boolean asOfferer) {
+        List<ServiceRequest> scoped = serviceRequestReadPort
+                .findByParticipantAndStatusIn(userId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED))
+                .stream()
+                .filter(request -> asOfferer
+                        ? userId.equals(request.getOffererId())
+                        : userId.equals(request.getClientId()))
+                .toList();
+        for (ServiceRequest request : scoped) {
+            cancelRequest(request.getId(), userId);
+        }
+        return scoped;
+    }
+
     @Override
     @Transactional
     public ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId) {

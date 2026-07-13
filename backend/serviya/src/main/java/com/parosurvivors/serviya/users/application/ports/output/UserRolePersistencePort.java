@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.users.application.ports.output;
 
+import com.parosurvivors.serviya.users.domain.RoleAssignment;
 import java.util.List;
 
 /**
@@ -12,6 +13,8 @@ public interface UserRolePersistencePort {
     void removeRole(Long userId, Integer roleId);
     boolean existsByUserIdAndRoleId(Long userId, Integer roleId);
     List<Integer> findRoleIdsByUserId(Long userId);
+    /** Roles del usuario CON su fecha de concesion (RF-067). */
+    List<RoleAssignment> findAssignmentsByUserId(Long userId);
     /** Ids de los usuarios que tienen un rol dado (p. ej. todos los ADMIN, para notificarles). */
     List<Long> findUserIdsByRoleId(Integer roleId);
 }

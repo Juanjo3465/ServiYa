@@ -43,5 +43,15 @@ public interface ServiceRequestCommandServicePort {
      */
     List<ServiceRequest> cancelActiveRequestsForUser(Long userId);
 
+    /**
+     * RF-066: cancela las solicitudes activas del usuario SOLO en el rol indicado. Al removerle el rol
+     * OFFERER se cancelan las solicitudes en las que actuaba como oferente, pero NO las que tiene como
+     * cliente (ese rol lo conserva), y viceversa.
+     *
+     * @param asOfferer true = solicitudes donde es oferente; false = donde es cliente
+     * @return las solicitudes canceladas, para notificar a cada contraparte
+     */
+    List<ServiceRequest> cancelActiveRequestsForRole(Long userId, boolean asOfferer);
+
     ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId);
 }

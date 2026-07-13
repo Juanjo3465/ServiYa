@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.admin.application.ports.input;
 
 import com.parosurvivors.serviya.admin.application.dto.command.CreateUserByAdminCommand;
+import com.parosurvivors.serviya.admin.application.dto.command.UpdateUserByAdminCommand;
 import com.parosurvivors.serviya.admin.application.dto.result.UserAdminDetailResult;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
@@ -21,6 +22,15 @@ public interface AdminServicePort {
 
     /** Concede cualquier rol (por nombre) a un usuario existente. adminId proviene del JWT. */
     void grantRoleByAdmin(Long adminId, Long userId, String roleName);
+
+    /**
+     * RF-066: retira un rol con cascada conservadora (desactiva servicios y cancela solicitudes activas
+     * de ESE rol, notificando a las contrapartes). Ver la justificacion en AdminService.
+     */
+    void revokeRoleByAdmin(Long adminId, Long userId, String roleName);
+
+    /** RF-068: edicion parcial de un usuario por el administrador (PII cifrada, documento inmutable). */
+    void updateUserByAdmin(Long adminId, Long userId, UpdateUserByAdminCommand command);
 
     Page<UserSummaryItem> searchUsers(SearchUsersQuery query, Pageable pageable);
 
