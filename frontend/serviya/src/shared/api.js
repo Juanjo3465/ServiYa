@@ -80,6 +80,10 @@ export const profileApi = {
     updateMyProfile: (payload) =>
         request('/api/v1/users/me/profile', { method: 'PATCH', body: payload, auth: true }),
     getProfile: (id) => request(`/api/v1/offerers/${id}`, { auth: true }),
+
+    // RF-027 — perfil publico completo del oferente: identidad, especialidad, rating,
+    // metricas de desempeño y servicios activos. Es PUBLICO: no requiere token (visitantes).
+    getOffererPublicProfile: (id) => request(`/api/v1/offerers/${id}/public-profile`),
     changeMainAddress: (payload) => request(`/api/v1/users/me/main-address`, { method: 'PATCH', body: payload, auth: true }),
  
     // RF-007 — cambia la contraseña del usuario autenticado
@@ -103,6 +107,34 @@ export const accountApi = {
 
     // RF-008 — soft delete de la cuenta propia (cancela solicitudes y desactiva servicios).
     deleteMyAccount: () => request('/api/v1/users/me', { method: 'DELETE', auth: true }),
+};
+
+// Panel de administracion (requiere rol ADMIN).
+export const adminApi = {
+    searchUsers: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') qs.append(k, v);
+        });
+        const q = qs.toString();
+        return request(`/api/v1/admin/users${q ? '?' + q : ''}`, { auth: true });
+    },
+    getUser: (id) => request(`/api/v1/admin/users/${id}`, { auth: true }),
+    createUser: (payload) => request('/api/v1/admin/users', { method: 'POST', body: payload, auth: true }),
+
+    // RF-068 — edicion parcial (el documento NO es editable, por eso nunca se envia).
+    updateUser: (id, payload) =>
+        request(`/api/v1/admin/users/${id}`, { method: 'PATCH', body: payload, auth: true }),
+    deleteUser: (id) => request(`/api/v1/admin/users/${id}`, { method: 'DELETE', auth: true }),
+
+    // RF-067 — roles del usuario CON su fecha de concesion.
+    getUserRoles: (id) => request(`/api/v1/admin/users/${id}/roles`, { auth: true }),
+    // RF-065 — el admin es la unica via legitima para conceder ADMIN.
+    grantRole: (id, role) =>
+        request(`/api/v1/admin/users/${id}/roles`, { method: 'POST', body: { role }, auth: true }),
+    // RF-066 — retirar rol: dispara la cascada conservadora en el backend.
+    revokeRole: (id, role) =>
+        request(`/api/v1/admin/users/${id}/roles/${role}`, { method: 'DELETE', auth: true }),
 };
 
 export const serviceApi = {

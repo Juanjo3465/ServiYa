@@ -15,6 +15,7 @@ export { CLIENT_NAV, OFFERER_NAV } from './navConfig';
 export {
     authApi,
     accountApi,
+    adminApi,
     profileApi,
     serviceApi,
     categoryApi,

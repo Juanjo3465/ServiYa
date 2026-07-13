@@ -28,22 +28,29 @@ export function OffererProfilePage() {
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(true);
 
+    /**
+     * RF-027: una sola llamada al agregado PUBLICO trae identidad, especialidad, rating, metricas de
+     * desempeño y servicios activos. No requiere token: funciona igual para un visitante sin cuenta.
+     */
     useEffect(() => {
-        profileApi.getProfile(id)
-            .then(setProfile)
-            .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
-        metricsApi.getOffererMetrics(id)
-            .then(setMetrics)
-            .catch(() => showToast('Error al cargar métricas del oferente', 'danger'))
+        profileApi.getOffererPublicProfile(id)
+            .then((data) => {
+                setProfile(data);
+                setMetrics(data); // el agregado ya incluye las metricas de reputacion/desempeño
+            })
+            .catch((e) => showToast(e.message || 'No se pudo cargar el perfil del oferente', 'danger'))
             .finally(() => setLoadingMetrics(false));
     }, [id, showToast]);
 
+    const initials = (profile?.fullName || '?')
+        .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+
     const openWhatsApp = () => {
-        if (!profile?.phoneNumber) {
+        if (!profile?.whatsappNumber) {
             showToast('Número de WhatsApp no disponible', 'warning');
             return;
         }
-        window.open(`https://wa.me/${profile.phoneNumber}`, '_blank');
+        window.open(`https://wa.me/${profile.whatsappNumber}`, '_blank');
     }
 
     return (
@@ -53,12 +60,12 @@ export function OffererProfilePage() {
             <div className="profile-hero">
                 <div className="profile-top">
                     <div className="profile-av-wrap">
-                        <div className="av av-xl">CM</div>
+                        <div className="av av-xl">{initials}</div>
                         <div className="profile-verified"><Icon name="check" size={12} strokeWidth={2.5} /></div>
                     </div>
                     <div className="profile-info">
-                        <div className="profile-name">Carlos Martínez</div>
-                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>Plomero profesional · Persona natural</div>
+                        <div className="profile-name">{profile?.fullName ?? 'Cargando…'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>{profile?.specialty || 'Sin especialidad'}</div>
                         <div className="profile-meta">
                             <span className="pm-item">
                                 {loadingMetrics ? (
