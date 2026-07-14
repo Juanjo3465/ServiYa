@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi } from '../../../../shared';
+import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi, getApiImageUrl } from '../../../../shared';
 
 import './SearchPage.css';
 
@@ -430,7 +430,7 @@ export function SearchPage() {
                                     <div className="r-card" key={s.id} onClick={() => navigate(`/services/${s.id}`)}>
                                         <div className="r-card-img">
                                             {s.photos?.[0] ? (
-                                                <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${s.photos[0]}`} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <img src={getApiImageUrl(s.photos[0])} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (
                                                 <Icon name="wrench" size={38} strokeWidth={1.5} />
                                             )}

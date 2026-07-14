@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, profileApi, serviceApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, profileApi, serviceApi, availabilityApi, isAuthenticated } from '../../../../shared';
 
 import './AvailabilityPage.css';
 
@@ -108,18 +108,17 @@ export function AvailabilityPage() {
             .then((profile) => {
                 if (!profile?.id) return;
                 return serviceApi.getMyServices(profile.id).then((data) => {
-                    setServices(data || []);
+                    setServices(data ?? []);
                     if (data?.length) {
                         setSelectedServiceId(String(data[0].id));
                     }
-                });
+                }).catch(() => setServices([]));
             })
             .catch(() => showToast('No se pudo cargar tu perfil o tus servicios', 'danger'));
     }, [navigate, showToast]);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/v1/offerers/me/availability')
-            .then((response) => response.json())
+        availabilityApi.getMyAvailability()
             .then((data) => {
                 const grouped = { ...EMPTY_SCHEDULE };
                 for (const slot of data) {
@@ -218,13 +217,8 @@ export function AvailabilityPage() {
             return;
         }
 
-        fetch('http://localhost:8080/api/v1/offerers/me/availability', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(allSlots),
-        })
-            .then((response) => {
-                if (!response.ok) throw new Error('Save failed');
+        availabilityApi.saveMyAvailability(allSlots)
+            .then(() => {
                 showToast('Horario general guardado', 'success');
             })
             .catch(() => showToast('No se pudo guardar el horario', 'error'));
