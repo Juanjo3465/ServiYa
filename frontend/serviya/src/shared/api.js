@@ -212,6 +212,8 @@ export const clientAgendaApi = {
 
 export const offererAgendaApi = {
     getOffererAgenda: () => request('/api/v1/users/me/offerer-agenda', { auth: true }),
+};
+
 export const reportApi = {
     createRequestReport: (payload) => request('/api/v1/reports/requests', { method: 'POST', body: payload, auth: true }),
     createServiceFeedbackReport: (payload) => request('/api/v1/reports/service-feedback', { method: 'POST', body: payload, auth: true }),

@@ -33,8 +33,6 @@ export {
     clearToken, 
     isAuthenticated, 
     rolesFromToken, 
-    homePathForRoles 
-} from './api';
     homePathForRoles,
     getApiImageUrl
 } from './api';
