@@ -1,8 +1,11 @@
 package com.parosurvivors.serviya.users.application.services;
 
+import com.parosurvivors.serviya.profiles.application.dto.command.CreateAddressCommand;
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateUserProfileCommand;
+import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
+import com.parosurvivors.serviya.profiles.domain.Address;
 import com.parosurvivors.serviya.profiles.domain.ProfileType;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
@@ -35,6 +38,8 @@ public class UserCreationService implements UserCreationServicePort {
     private final ConsentServicePort consentServicePort;
     private final UserProfileServicePort userProfileServicePort;
     private final OffererProfileServicePort offererProfileServicePort;
+    /** Direccion principal opcional capturada en el registro (queda en "Mis direcciones"). */
+    private final AddressServicePort addressServicePort;
 
     @Override
     @Transactional
@@ -68,6 +73,19 @@ public class UserCreationService implements UserCreationServicePort {
 
         // RF-004: registro del consentimiento aceptado.
         consentServicePort.createConsent(user.getId(), true);
+
+        // Direccion principal (opcional): si el registro la incluyo, se crea aqui mismo y queda como
+        // principal, de modo que el usuario entra con su direccion ya cargada en "Mis direcciones".
+        // Va dentro de la misma transaccion: si falla, no queda ni cuenta ni direccion a medias.
+        if (command.hasAddress()) {
+            Address address = addressServicePort.createAddress(new CreateAddressCommand(
+                    user.getId(),
+                    command.addressLine(),
+                    command.city(),
+                    command.latitude(),
+                    command.longitude()));
+            userProfileServicePort.updateMainAddress(user.getId(), address.getId());
+        }
 
         user.setRoles(List.of(roleName));
         return user;

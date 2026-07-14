@@ -14,6 +14,7 @@ public interface OffererProfileServicePort {
 
     OffererProfile getPublicProfile(Long userId);
 
+
     OffererProfileSummary getProfileSummary(Long userId);
 
     OffererProfile patchOffererProfile(UpdateOffererProfileCommand command);

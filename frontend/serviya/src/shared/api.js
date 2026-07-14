@@ -82,12 +82,19 @@ export const authApi = {
 export const profileApi = {
     // RF-005 — identidad tomada del JWT por el backend
     getMyProfile: () => request('/api/v1/users/me/profile', { auth: true }),
+
+    // RF-006 — PATCH parcial: solo se envian los campos modificados.
+    // El documento (tipo/numero) NO es editable y por eso nunca se manda.
     updateMyProfile: (payload) => request('/api/v1/users/me/profile', { method: 'PATCH', body: payload, auth: true }),
     updateMyProfilePhoto: (payload) => request('/api/v1/users/me/profile/photo', { method: 'PATCH', body: payload, auth: true, formData: true }),
     getOffererProfile: () => request('/api/v1/offerers/me', { auth: true }),
     updateOffererProfile: (payload) => request('/api/v1/offerers/me', { method: 'PATCH', body: payload, auth: true }),
     getProfile: (id) => request(`/api/v1/offerers/${id}`, { auth: true }),
     getUserById: (userId) => request(`/api/v1/users/${userId}`, { auth: false }),
+
+    // RF-027 — perfil publico completo del oferente: identidad, especialidad, rating,
+    // metricas de desempeño y servicios activos. Es PUBLICO: no requiere token (visitantes).
+    getOffererPublicProfile: (id) => request(`/api/v1/offerers/${id}/public-profile`),
     changeMainAddress: (payload) => request(`/api/v1/users/me/main-address`, { method: 'PATCH', body: payload, auth: true }),
  
     // RF-007 — cambia la contraseña del usuario autenticado
@@ -97,6 +104,48 @@ export const profileApi = {
             auth: true,
             body: { currentPassword, newPassword },
         }),
+};
+
+// Cuenta del usuario autenticado (/users/me): roles y eliminación.
+export const accountApi = {
+    // RF-067 (vista propia): roles actuales del usuario.
+    getMyRoles: () => request('/api/v1/users/me/roles', { auth: true }),
+
+    // RF-010 / RF-011 — devuelven un JWT NUEVO que ya incluye el rol recién adquirido.
+    // Hay que guardarlo (saveToken) para tener acceso inmediato sin volver a iniciar sesión.
+    acquireOffererRole: () => request('/api/v1/users/me/roles/offerer', { method: 'POST', auth: true }),
+    acquireClientRole: () => request('/api/v1/users/me/roles/client', { method: 'POST', auth: true }),
+
+    // RF-008 — soft delete de la cuenta propia (cancela solicitudes y desactiva servicios).
+    deleteMyAccount: () => request('/api/v1/users/me', { method: 'DELETE', auth: true }),
+};
+
+// Panel de administracion (requiere rol ADMIN).
+export const adminApi = {
+    searchUsers: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') qs.append(k, v);
+        });
+        const q = qs.toString();
+        return request(`/api/v1/admin/users${q ? '?' + q : ''}`, { auth: true });
+    },
+    getUser: (id) => request(`/api/v1/admin/users/${id}`, { auth: true }),
+    createUser: (payload) => request('/api/v1/admin/users', { method: 'POST', body: payload, auth: true }),
+
+    // RF-068 — edicion parcial (el documento NO es editable, por eso nunca se envia).
+    updateUser: (id, payload) =>
+        request(`/api/v1/admin/users/${id}`, { method: 'PATCH', body: payload, auth: true }),
+    deleteUser: (id) => request(`/api/v1/admin/users/${id}`, { method: 'DELETE', auth: true }),
+
+    // RF-067 — roles del usuario CON su fecha de concesion.
+    getUserRoles: (id) => request(`/api/v1/admin/users/${id}/roles`, { auth: true }),
+    // RF-065 — el admin es la unica via legitima para conceder ADMIN.
+    grantRole: (id, role) =>
+        request(`/api/v1/admin/users/${id}/roles`, { method: 'POST', body: { role }, auth: true }),
+    // RF-066 — retirar rol: dispara la cascada conservadora en el backend.
+    revokeRole: (id, role) =>
+        request(`/api/v1/admin/users/${id}/roles/${role}`, { method: 'DELETE', auth: true }),
 };
 
 export const serviceApi = {

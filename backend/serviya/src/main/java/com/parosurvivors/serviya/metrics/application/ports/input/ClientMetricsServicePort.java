@@ -15,6 +15,13 @@ public interface ClientMetricsServicePort {
 
     ClientMetrics getMainMetrics(Long clientId);
 
+    /**
+     * Crea la fila 1-a-1 de métricas en cero al adquirir el rol CLIENT (RF-011/065). Idempotente:
+     * si ya existe no hace nada. Corre en la transacción del llamador para que la asignación del rol
+     * y la inicialización sean atómicas.
+     */
+    void initializeMetrics(Long clientId);
+
     /** Feedback del oferente al cliente: recalcula promedio, comentarios y tags +/-. */
     void applyClientFeedbackSubmitted(Long clientId, Integer rating, boolean hasComment, int positiveTags, int negativeTags);
 

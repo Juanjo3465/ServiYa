@@ -5,6 +5,8 @@ import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.AdminFeedbackSearchResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.UpdateUserByAdminForm;
+import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserRoleAssignmentResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.AdminRequestDetailResponse;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.RoleResponse;
@@ -61,7 +63,13 @@ public interface AdminApi {
 
     @Operation(summary = "Listar los roles de un usuario", description = "RF-067.")
     @ApiResponse(responseCode = "200", description = "Roles del usuario")
-    ResponseEntity<List<RoleResponse>> getUserRoles(Long id);
+    ResponseEntity<List<UserRoleAssignmentResponse>> getUserRoles(Long id);
+
+    @Operation(summary = "Editar parcialmente un usuario",
+            description = "RF-068. Solo se actualizan los campos enviados. El documento es inmutable y "
+                    + "no se puede cambiar ni desde el panel admin. La PII (telefono) se cifra al persistir.")
+    @ApiResponse(responseCode = "204", description = "Usuario actualizado")
+    ResponseEntity<Void> updateUserByAdmin(Long id, UpdateUserByAdminForm form);
 
     @Operation(summary = "Conceder un rol a un usuario existente (cualquier rol, incl. ADMIN)",
             description = "RF-065. El rol va por nombre en el body.")
@@ -70,7 +78,9 @@ public interface AdminApi {
 
     @Operation(summary = "Quitar un rol a un usuario", description = "RF-066.")
     @ApiResponse(responseCode = "204", description = "Rol removido")
-    ResponseEntity<Void> removeRole(Long id, Long roleId);
+    // RF-066: el rol se identifica por NOMBRE (CLIENT/OFFERER/ADMIN), no por id numerico, que es como
+    // razona un admin. Reemplaza a la variante anterior removeRole(Long id, Long roleId).
+    ResponseEntity<Void> removeRole(Long id, String role);
 
     @Operation(summary = "Busqueda combinada de feedback (service_feedback + client_feedback)",
             description = "RF-048. Filtros opcionales: clientId, offererId, serviceId, keyword, ratingMin, ratingMax.")

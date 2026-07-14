@@ -12,4 +12,6 @@ public interface UserRoleRepository extends JpaRepository<UserRoleEntity, Long> 
     List<UserRoleEntity> findByUserId(Long userId);
     Optional<UserRoleEntity> findByUserIdAndRoleId(Long userId, Integer roleId);
     boolean existsByUserIdAndRoleId(Long userId, Integer roleId);
+    /** Titulares de un rol; usado para notificar a la cola de administradores (RF-073). */
+    List<UserRoleEntity> findByRoleId(Integer roleId);
 }

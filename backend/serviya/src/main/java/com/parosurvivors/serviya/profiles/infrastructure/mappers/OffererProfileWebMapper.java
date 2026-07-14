@@ -1,6 +1,8 @@
 package com.parosurvivors.serviya.profiles.infrastructure.mappers;
 
 import com.parosurvivors.serviya.profiles.application.dto.command.UpdateOffererProfileCommand;
+import com.parosurvivors.serviya.profiles.application.dto.result.OffererPublicProfileResult;
+import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererPublicProfileDetailResponse;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
 import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateOffererProfileForm;
@@ -22,4 +24,7 @@ public interface OffererProfileWebMapper {
     OffererPublicProfileResponse toResponse(OffererProfile profile);
 
     OffererProfileSummaryResponse toResponse(OffererProfileSummary summary);
+
+    /** RF-027: agregado publico (identidad + reputacion + metricas + servicios activos). */
+    OffererPublicProfileDetailResponse toResponse(OffererPublicProfileResult result);
 }

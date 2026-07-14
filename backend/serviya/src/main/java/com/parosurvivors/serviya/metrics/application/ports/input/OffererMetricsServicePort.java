@@ -15,6 +15,13 @@ public interface OffererMetricsServicePort {
 
     OffererMetrics getMainMetrics(Long offererId);
 
+    /**
+     * Crea la fila 1-a-1 de métricas en cero al adquirir el rol OFFERER (RF-010/065). Idempotente:
+     * si ya existe no hace nada. Corre en la transacción del llamador para que la asignación del rol
+     * y la inicialización sean atómicas.
+     */
+    void initializeMetrics(Long offererId);
+
     /** Feedback del cliente a un servicio del oferente: recalcula promedio, comentarios y tags +/-. */
     void applyServiceFeedbackSubmitted(Long offererId, Integer rating, boolean hasComment, int positiveTags, int negativeTags);
 

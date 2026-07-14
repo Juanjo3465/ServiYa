@@ -1,6 +1,12 @@
 package com.parosurvivors.serviya.admin.application.services;
 
 import com.parosurvivors.serviya.admin.application.dto.command.CreateUserByAdminCommand;
+import com.parosurvivors.serviya.admin.application.dto.command.UpdateUserByAdminCommand;
+import com.parosurvivors.serviya.profiles.application.dto.command.UpdateProfileCommand;
+import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
+import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
+import java.util.Map;
 import com.parosurvivors.serviya.admin.application.dto.query.AdminFeedbackSearchQuery;
 import com.parosurvivors.serviya.admin.application.dto.result.AdminFeedbackSearchResult;
 import com.parosurvivors.serviya.admin.application.dto.result.UserAdminDetailResult;
@@ -64,9 +70,11 @@ public class AdminService implements AdminServicePort {
     private final ReportServicePort reportServicePort;
     private final ServiceRequestQueryServicePort serviceRequestQueryServicePort;
     private final NotificationServicePort notificationServicePort;
+    /** RF-066: la cascada conservadora al retirar un rol desactiva servicios y cancela solicitudes. */
+    private final MarketplaceServicePort marketplaceServicePort;
+    private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
-    private final MarketplaceServicePort marketplaceServicePort;
 
     @Override
     public UserSummaryItem createUserByAdmin(CreateUserByAdminCommand command) {
@@ -75,7 +83,9 @@ public class AdminService implements AdminServicePort {
         // unicidad de email la valida createUserAccount. Devuelve el read-model de listado (sin foto aun).
         CreateUserAccountCommand accountCommand = new CreateUserAccountCommand(
                 command.email(), command.password(), command.fullName(), command.role(),
-                command.documentType(), command.documentNumber(), command.phone(), true);
+                command.documentType(), command.documentNumber(), command.phone(), true,
+                // El alta desde el panel admin no captura direccion; el usuario la agrega luego.
+                null, null, null, null);
         User created = userCreationServicePort.createUserAccount(accountCommand);
         return new UserSummaryItem(created.getId(), created.getEmail(), command.fullName(), null,
                 created.getBanned(), created.getDeletedAt(), created.getCreatedAt());
@@ -91,6 +101,70 @@ public class AdminService implements AdminServicePort {
         // Cualquier rol , por nombre. La existencia del rol y el duplicado los valida assignRole.
         userRoleServicePort.assignRole(userId, parseRole(roleName));
         // TODO(notif): opcionalmente notificar al usuario la concesion del rol.
+    }
+
+    /**
+     * RF-066: retira un rol a un usuario, con la cascada conservadora que evita dejar datos huerfanos.
+     *
+     * <p><b>Decision de diseño documentada</b>: el documento no define que ocurre con los servicios y
+     * solicitudes activas al retirar un rol. Se aplica el mismo criterio que en la eliminacion de cuenta
+     * (RF-008), acotado al rol retirado:
+     * <ul>
+     *   <li>OFFERER → se desactivan sus servicios y se cancelan las solicitudes donde actuaba como
+     *       oferente (las que tenga como cliente NO se tocan: conserva ese rol).</li>
+     *   <li>CLIENT → se cancelan las solicitudes donde actuaba como cliente.</li>
+     *   <li>ADMIN → no arrastra datos operativos: solo se retira el rol.</li>
+     * </ul>
+     * cancelRequest ya avisa a cada contraparte y publica el evento de metricas, asi que no se duplica
+     * esa logica aqui. Todo en una sola transaccion.</p>
+     */
+    @Override
+    @Transactional
+    public void revokeRoleByAdmin(Long adminId, Long userId, String roleName) {
+        RoleName role = parseRole(roleName);
+        userQueryServicePort.getUserById(userId); // 404 si no existe
+
+        switch (role) {
+            case OFFERER -> {
+                marketplaceServicePort.deactivateAllByOfferer(userId);
+                serviceRequestCommandServicePort.cancelActiveRequestsForRole(userId, true);
+            }
+            case CLIENT -> serviceRequestCommandServicePort.cancelActiveRequestsForRole(userId, false);
+            case ADMIN -> {
+                // Sin datos operativos asociados.
+            }
+        }
+
+        userRoleServicePort.revokeRole(userId, role);
+
+        notificationServicePort.notify(
+                userId,
+                "role_revoked",
+                "Se retiro un rol de tu cuenta",
+                "Un administrador retiro el rol " + role.name() + " de tu cuenta.",
+                "USER",
+                userId,
+                null,
+                Map.of());
+    }
+
+    /**
+     * RF-068: edicion de un usuario por el administrador. Solo se tocan los campos enviados (PATCH
+     * parcial). Los datos PII (telefono) se cifran al persistir igual que en el resto del sistema, y el
+     * documento sigue siendo inmutable (no viaja en el command), como en RF-006.
+     */
+    @Override
+    @Transactional
+    public void updateUserByAdmin(Long adminId, Long userId, UpdateUserByAdminCommand command) {
+        userQueryServicePort.getUserById(userId); // 404 si no existe
+
+        if (command.email() != null) {
+            userServicePort.changeEmail(new ChangeEmailCommand(userId, command.email()));
+        }
+        // Reutiliza el mismo caso de uso de RF-006: filtro de palabras, PATCH parcial y cifrado de PII
+        // viven ahi, no se duplican aqui.
+        userProfileServicePort.patchProfile(new UpdateProfileCommand(
+                userId, command.fullName(), command.phone(), command.photoUrl(), command.description()));
     }
 
     private RoleName parseRole(String roleName) {

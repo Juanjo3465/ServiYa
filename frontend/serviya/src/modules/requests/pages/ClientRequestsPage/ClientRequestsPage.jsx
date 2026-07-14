@@ -24,6 +24,8 @@ export function ClientRequestsPage() {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
+    // RF-073: solicitud concreta que se esta reportando (antes iba fija a la #1).
+    const [reportTarget, setReportTarget] = useState(null);
     const [reportCategory, setReportCategory] = useState('No se presentó');
     const [customCategory, setCustomCategory] = useState('');
     const [reportReason, setReportReason] = useState('');
@@ -106,7 +108,7 @@ export function ClientRequestsPage() {
                                         <span className={`badge ${st.badge}`}>{st.label}</span>
                                         <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>#{r.requestId}{timeAgo(r.createdAt) ? ` · ${timeAgo(r.createdAt)}` : ''}</span>
                                     </div>
-                                    {!isTerminal(r.status) && <button className="btn btn-ghost btn-sm" onClick={() => setReportOpen(true)} style={{ color: 'var(--c-danger)' }}><Icon name="alertTriangle" size={13} />Reportar</button>}
+                                    {!isTerminal(r.status) && <button className="btn btn-ghost btn-sm" onClick={() => { setReportTarget(r); setReportOpen(true); }} style={{ color: 'var(--c-danger)' }}><Icon name="alertTriangle" size={13} />Reportar</button>}
                                 </div>
                                 <div className="rq-main">
                                     <div className="av av-md">{getInitials(r.counterpartyName)}</div>
@@ -211,22 +213,28 @@ export function ClientRequestsPage() {
                 </div>
             </Modal>
 
-            <Modal open={reportOpen} onClose={() => setReportOpen(false)}>
-                <div className="modal-title">Reportar oferente</div>
-                <div className="modal-sub">El administrador revisará el caso.</div>
+            <Modal open={reportOpen} onClose={() => { setReportOpen(false); setReportTarget(null); }}>
+                <div className="modal-title">Reportar incumplimiento</div>
+                <div className="modal-sub">
+                    {reportTarget
+                        ? <>Solicitud <strong>#{reportTarget.id}</strong>{reportTarget.serviceTitle ? ` · ${reportTarget.serviceTitle}` : ''}. El administrador revisará el caso.</>
+                        : 'El administrador revisará el caso.'}
+                </div>
                 <div className="input-group"><label className="label">Categoría</label><select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}><option>No se presentó</option><option>Comportamiento inapropiado</option><option>Fraude</option><option>Otra</option></select></div>
                 {reportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
                 <div className="input-group"><label className="label">Descripción</label><textarea className="input" rows="3" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={async () => {
+                    <button className="btn btn-danger btn-full" disabled={!reportReason.trim()} onClick={async () => {
                         try {
+                            // RF-073: se reporta LA solicitud seleccionada. El backend deriva a quien se
+                            // reporta desde la contraparte de esa solicitud, por eso no se manda reportedUserId
+                            // (mandarlo permitiria incriminar a un tercero).
                             await reportApi.createRequestReport({
-                                reportedUserId: 2,
                                 category: reportCategory,
                                 customCategory,
                                 reason: reportReason,
-                                requestId: 1,
+                                requestId: reportTarget?.id,
                             });
                             setReportOpen(false);
                             setReportCategory('No se presentó');

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 
 /**
  * Entrada web (Form) de registro de un nuevo usuario. POST /api/v1/auth/register (RF-002, RF-004).
@@ -20,8 +21,18 @@ public record RegisterUserForm(
         // Rol deseado: CLIENT u OFFERER (nunca ADMIN). Va en el body, no en query.
         @NotBlank String role,
         // TODO datos de perfil (documentacion-BD.docx): tipo/numero de documento, telefono.
-        String documentType,
-        String documentNumber,
+        @NotBlank String documentType,
+        @NotBlank String documentNumber,
         String phone,
-        @NotNull Boolean acceptedTerms) {
+        @NotNull Boolean acceptedTerms,
+
+        // --- Direccion principal (opcional) ---
+        // Si se envia, se crea en la MISMA transaccion del registro y queda como direccion principal,
+        // de modo que el usuario entra con su direccion ya cargada en "Mis direcciones".
+        // Los cuatro campos van juntos: la tabla addresses exige coordenadas (lat/lng NOT NULL), asi que
+        // una linea de direccion sin coordenadas no es persistible. Si falta alguno, se ignora el bloque.
+        @Schema(description = "Direccion (se cifra con AES-256-GCM)") String addressLine,
+        String city,
+        BigDecimal latitude,
+        BigDecimal longitude) {
 }

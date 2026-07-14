@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.parosurvivors.serviya.users.application.dto.command.ChangePasswordCommand;
+import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
@@ -41,7 +42,12 @@ class AccountControllerIntegrationTest {
     @MockitoBean private UserServicePort userService;
     @MockitoBean private UserDeletionServicePort userDeletionService;
     @MockitoBean private UserRoleServicePort userRoleService;
+    /** RF-010/011: adquirir un rol re-emite el JWT, por eso AccountController depende del orquestador de auth. */
+    @MockitoBean private UserAuthenticationServicePort authService;
     @MockitoBean private UserWebMapper mapper;
+    /** AccountController tambien consulta estos repositorios (GET /users/{id}); el slice web no los crea. */
+    @MockitoBean private com.parosurvivors.serviya.users.infrastructure.repositories.UserRepository userRepository;
+    @MockitoBean private com.parosurvivors.serviya.profiles.infrastructure.repositories.UserProfileRepository userProfileRepository;
 
     private static final Long USER_ID = 1L;
 

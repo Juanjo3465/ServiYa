@@ -1,8 +1,10 @@
 package com.parosurvivors.serviya.users.infrastructure.adapters.input;
 
+import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
+import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.users.infrastructure.adapters.input.api.AccountApi;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangeEmailForm;
@@ -38,6 +40,8 @@ public class AccountController implements AccountApi {
     private final UserServicePort userService;
     private final UserDeletionServicePort userDeletionService;
     private final UserRoleServicePort userRoleService;
+    /** RF-010/011: adquirir rol re-emite el JWT, por eso pasa por el orquestador de autenticacion. */
+    private final UserAuthenticationServicePort authService;
     private final UserWebMapper mapper;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
@@ -83,18 +87,22 @@ public class AccountController implements AccountApi {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * RF-010. Devuelve un JWT nuevo con el rol ya incluido: los roles viajan como claim del token, asi
+     * que sin re-emitirlo el usuario tendria que volver a iniciar sesion para usarlo. El front guarda
+     * este token y obtiene "acceso inmediato".
+     */
     @Override
     @PostMapping("/me/roles/offerer")
-    public ResponseEntity<Void> acquireOffererRole() {
-        userRoleService.acquireRole(currentUserId(), "OFFERER");
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<AuthResponse> acquireOffererRole() {
+        return ResponseEntity.ok(mapper.toResponse(authService.acquireRole(currentUserId(), "OFFERER")));
     }
 
+    /** RF-011. Ver nota de {@link #acquireOffererRole()} sobre la re-emision del token. */
     @Override
     @PostMapping("/me/roles/client")
-    public ResponseEntity<Void> acquireClientRole() {
-        userRoleService.acquireRole(currentUserId(), "CLIENT");
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<AuthResponse> acquireClientRole() {
+        return ResponseEntity.ok(mapper.toResponse(authService.acquireRole(currentUserId(), "CLIENT")));
     }
 
     @Override
