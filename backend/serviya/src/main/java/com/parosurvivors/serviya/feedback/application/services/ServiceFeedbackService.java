@@ -22,6 +22,7 @@ import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -84,7 +85,7 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
                 request.getClientId(),
                 saved.getRating(),
                 saved.hasComment(),
-                resolveTags(tagIds)));
+                resolveTagRefs(tagIds)));
     }
 
     @Override
@@ -111,23 +112,28 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
                 feedback.getClientId(),
                 feedback.getRating(),
                 feedback.hasComment(),
-                resolveTags(tagIds)));
+                resolveTagRefs(tagIds)));
         return true;
     }
 
     @Override
     public ServiceFeedbackResult getServiceFeedback(Long requestId) {
-        throw new UnsupportedOperationException("TODO: getServiceFeedback — placeholder, ver estructura-servicios.docx");
+        ServiceFeedback feedback = serviceFeedbackPersistencePort.findByRequestId(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Feedback de servicio no encontrado para la solicitud: " + requestId));
+        return toResult(feedback);
     }
 
     @Override
     public Page<ServiceFeedbackResult> getServiceFeedbackList(Long serviceId, Pageable pageable) {
-        throw new UnsupportedOperationException("TODO: getServiceFeedbackList — placeholder, ver estructura-servicios.docx");
+        return serviceFeedbackPersistencePort.findByServiceId(serviceId, pageable)
+                .map(this::toResult);
     }
 
     @Override
     public Page<ServiceFeedbackResult> getServiceFeedbackByClient(Long clientId, Pageable pageable) {
-        throw new UnsupportedOperationException("TODO: getServiceFeedbackByClient — placeholder, ver estructura-servicios.docx");
+        return serviceFeedbackPersistencePort.findByClientId(clientId, pageable)
+                .map(this::toResult);
     }
 
     @Override
@@ -138,8 +144,34 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
         return serviceFeedbackPersistencePort.findRecentByServiceId(serviceId, limit);
     }
 
+    /** Arma el Result de una entrada, resolviendo sus tagIds a nombres de tag desde el catalogo. */
+    private ServiceFeedbackResult toResult(ServiceFeedback feedback) {
+        List<Long> tagIds = serviceFeedbackTagPersistencePort.findTagIdsByFeedbackId(feedback.getId());
+        return new ServiceFeedbackResult(
+                feedback.getRequestId(),
+                feedback.getServiceId(),
+                feedback.getClientId(),
+                feedback.getRating(),
+                feedback.getComment(),
+                resolveTagNames(tagIds),
+                feedback.getCreatedAt());
+    }
+
+    /** Empareja cada tagId con su nombre del catalogo, para la vista de lectura (Result). */
+    private List<String> resolveTagNames(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> nameByTag = serviceFeedbackTagCatalogPersistencePort.findAll().stream()
+                .collect(Collectors.toMap(ServiceFeedbackTagCatalog::getId, ServiceFeedbackTagCatalog::getTagName));
+        return tagIds.stream()
+                .map(nameByTag::get)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
     /** Empareja cada tagId con su sentimiento (P/N) del catálogo para armar el payload autocontenido. */
-    private List<TagRef> resolveTags(List<Long> tagIds) {
+    private List<TagRef> resolveTagRefs(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return List.of();
         }

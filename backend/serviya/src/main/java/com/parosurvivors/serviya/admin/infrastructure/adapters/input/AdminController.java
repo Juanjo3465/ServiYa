@@ -1,10 +1,12 @@
 package com.parosurvivors.serviya.admin.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
+import com.parosurvivors.serviya.admin.application.dto.query.AdminFeedbackSearchQuery;
 import com.parosurvivors.serviya.admin.application.ports.input.AdminServicePort;
 import com.parosurvivors.serviya.admin.infrastructure.adapters.input.api.AdminApi;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
+import com.parosurvivors.serviya.admin.infrastructure.dto.response.AdminFeedbackSearchResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
 import com.parosurvivors.serviya.admin.infrastructure.mappers.AdminWebMapper;
@@ -117,4 +119,14 @@ public class AdminController implements AdminApi {
         userRoleService.removeRole(id, roleId);
         return ResponseEntity.noContent().build();
     }
+
+    @Override
+    @GetMapping("/feedback")
+    public ResponseEntity<Page<AdminFeedbackSearchResponse>> searchFeedback(
+            Long clientId, Long offererId, Long serviceId, String keyword,
+            Integer ratingMin, Integer ratingMax, Pageable pageable) {
+        AdminFeedbackSearchQuery query = new AdminFeedbackSearchQuery(clientId, offererId, serviceId, keyword, ratingMin, ratingMax);
+        return ResponseEntity.ok(adminService.searchFeedback(query, pageable).map(mapper::toFeedbackResponse));
+    }
+
 }

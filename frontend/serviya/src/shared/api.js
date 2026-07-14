@@ -219,6 +219,28 @@ export const notificationApi = {
         request('/api/v1/notification-channels', { auth: true }),
 };
 
+// RF-048 — Búsqueda combinada de feedback por parte del admin
+export const adminFeedbackApi = {
+    search: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/admin/feedback?${qs.toString()}`, { auth: true });
+    },
+    removeDirect: (payload) =>
+        request('/api/v1/admin/feedback/remove', { method: 'POST', body: payload, auth: true }),
+};
+
+// RF-041/RF-045 — Feedback de servicio (cliente califica servicio)
+// RF-043/RF-044 — Feedback de cliente (oferente califica cliente)
+export const feedbackApi = {
+    submitServiceFeedback: (requestId, payload) =>
+        request(`/api/v1/service-requests/${requestId}/feedback`, { method: 'POST', body: payload, auth: true }),
+    submitClientFeedback: (requestId, payload) =>
+        request(`/api/v1/service-requests/${requestId}/client-feedback`, { method: 'POST', body: payload, auth: true }),
+};
+
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {
     if (roles.includes('ADMIN')) return '/admin/dashboard';

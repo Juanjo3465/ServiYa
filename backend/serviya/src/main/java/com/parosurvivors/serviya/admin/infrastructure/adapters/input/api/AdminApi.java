@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.admin.infrastructure.adapters.input.api;
 import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
+import com.parosurvivors.serviya.admin.infrastructure.dto.response.AdminFeedbackSearchResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.AdminRequestDetailResponse;
@@ -70,4 +71,12 @@ public interface AdminApi {
     @Operation(summary = "Quitar un rol a un usuario", description = "RF-066.")
     @ApiResponse(responseCode = "204", description = "Rol removido")
     ResponseEntity<Void> removeRole(Long id, Long roleId);
+
+    @Operation(summary = "Busqueda combinada de feedback (service_feedback + client_feedback)",
+            description = "RF-048. Filtros opcionales: clientId, offererId, serviceId, keyword, ratingMin, ratingMax.")
+    @ApiResponse(responseCode = "200", description = "Pagina de feedback unificado")
+    ResponseEntity<Page<AdminFeedbackSearchResponse>> searchFeedback(
+            Long clientId, Long offererId, Long serviceId, String keyword,
+            Integer ratingMin, Integer ratingMax, Pageable pageable);
+
 }

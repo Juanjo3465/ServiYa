@@ -8,9 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Implementacion placeholder de ServiceFeedbackTagCatalogServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
+ * Catálogo de tags disponibles para reseñas de servicio (service_feedback_tags_catalog).
+ * Solo lectura; no hay alta/edición de tags desde la aplicación (se gestionan por script/admin BD).
  */
 @Component
 @RequiredArgsConstructor
@@ -20,6 +19,6 @@ public class ServiceFeedbackTagCatalogService implements ServiceFeedbackTagCatal
 
     @Override
     public List<ServiceFeedbackTagCatalog> getCatalog() {
-        throw new UnsupportedOperationException("TODO: getCatalog — placeholder, ver estructura-servicios.docx");
+        return serviceFeedbackTagCatalogPersistencePort.findAll();
     }
 }
