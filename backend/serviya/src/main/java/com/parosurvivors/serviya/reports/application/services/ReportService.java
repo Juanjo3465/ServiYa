@@ -19,6 +19,7 @@ import com.parosurvivors.serviya.reports.domain.Report;
 import com.parosurvivors.serviya.reports.domain.ReportActionType;
 import com.parosurvivors.serviya.reports.domain.ReportPriority;
 import com.parosurvivors.serviya.reports.domain.ReportStatus;
+import com.parosurvivors.serviya.reports.domain.ReportSummary;
 import com.parosurvivors.serviya.reports.domain.ReportType;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
@@ -106,6 +107,35 @@ public class ReportService implements ReportServicePort {
                 feedback);
     }
 
+    @Override
+    public ReportSummary getReportSummary(Long reportId) {
+        Report report = reportPersistencePort.findById(reportId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reporte no encontrado: " + reportId));
+
+        Long requestId = null;
+        Long serviceFeedbackId = null;
+        Long clientFeedbackId = null;
+        switch (report.getReportType()) {
+            case REQUEST -> requestId = requestReportPersistencePort.findByReportId(reportId)
+                    .map(link -> link.getRequestId()).orElse(null);
+            case SERVICE_FEEDBACK -> serviceFeedbackId = serviceFeedbackReportPersistencePort.findByReportId(reportId)
+                    .map(link -> link.getFeedbackId()).orElse(null);
+            case CLIENT_FEEDBACK -> clientFeedbackId = clientFeedbackReportPersistencePort.findByReportId(reportId)
+                    .map(link -> link.getFeedbackId()).orElse(null);
+        }
+
+        return new ReportSummary(
+                report.getId(),
+                report.getReporterId(),
+                report.getReportedUserId(),
+                report.getReportType(),
+                report.getCategory(),
+                report.getStatus(),
+                requestId,
+                serviceFeedbackId,
+                clientFeedbackId);
+    }
+
     /** Resumen (nombre + foto) de una parte; si el usuario no tiene perfil, solo el id. */
     private PartySummary toParty(Long userId) {
         if (userId == null) {
@@ -138,15 +168,21 @@ public class ReportService implements ReportServicePort {
         }
     }
 
-    /** Contenido del feedback de servicio reportado; si fue revertido (borrado), solo id + kind. */
+    /** Contenido del feedback de servicio reportado; si fue revertido (feedbackId null tras SET NULL, o borrado), solo kind. */
     private FeedbackReportDetail buildServiceFeedbackDetail(Long feedbackId) {
+        if (feedbackId == null) {
+            return new FeedbackReportDetail(null, "SERVICE", null, null, List.of(), null);
+        }
         return serviceFeedbackServicePort.getServiceFeedbackById(feedbackId)
                 .map(f -> new FeedbackReportDetail(feedbackId, "SERVICE", f.rating(), f.comment(), f.tags(), f.createdAt()))
                 .orElseGet(() -> new FeedbackReportDetail(feedbackId, "SERVICE", null, null, List.of(), null));
     }
 
-    /** Contenido del feedback de cliente reportado; si fue revertido (borrado), solo id + kind. */
+    /** Contenido del feedback de cliente reportado; si fue revertido (feedbackId null tras SET NULL, o borrado), solo kind. */
     private FeedbackReportDetail buildClientFeedbackDetail(Long feedbackId) {
+        if (feedbackId == null) {
+            return new FeedbackReportDetail(null, "CLIENT", null, null, List.of(), null);
+        }
         return clientFeedbackServicePort.getClientFeedbackById(feedbackId)
                 .map(f -> new FeedbackReportDetail(feedbackId, "CLIENT", f.rating(), f.comment(), f.tags(), f.createdAt()))
                 .orElseGet(() -> new FeedbackReportDetail(feedbackId, "CLIENT", null, null, List.of(), null));

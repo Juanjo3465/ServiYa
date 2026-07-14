@@ -772,7 +772,9 @@ CREATE TABLE service_feedback_reports (
 
     report_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
-    feedback_id BIGINT UNSIGNED NOT NULL,
+    -- Nullable + ON DELETE SET NULL: al revertir (borrar) el feedback, el reporte sobrevive como
+    -- auditoria con feedback_id = NULL (feedback eliminado). Ver NOTAS.txt (moderacion).
+    feedback_id BIGINT UNSIGNED NULL,
 
     CONSTRAINT fk_service_feedback_reports_report
         FOREIGN KEY (report_id)
@@ -782,6 +784,7 @@ CREATE TABLE service_feedback_reports (
     CONSTRAINT fk_service_feedback_reports_feedback
         FOREIGN KEY (feedback_id)
         REFERENCES service_feedback(id)
+        ON DELETE SET NULL
 );
 
 CREATE TABLE client_feedback_reports (
@@ -789,7 +792,9 @@ CREATE TABLE client_feedback_reports (
 
     report_id BIGINT UNSIGNED NOT NULL UNIQUE,
 
-    feedback_id BIGINT UNSIGNED NOT NULL,
+    -- Nullable + ON DELETE SET NULL: al revertir (borrar) el feedback, el reporte sobrevive como
+    -- auditoria con feedback_id = NULL (feedback eliminado). Ver NOTAS.txt (moderacion).
+    feedback_id BIGINT UNSIGNED NULL,
 
     CONSTRAINT fk_client_feedback_reports_report
         FOREIGN KEY (report_id)
@@ -799,6 +804,7 @@ CREATE TABLE client_feedback_reports (
     CONSTRAINT fk_client_feedback_reports_feedback
         FOREIGN KEY (feedback_id)
         REFERENCES client_feedback(id)
+        ON DELETE SET NULL
 );
 
 CREATE TABLE report_actions (

@@ -18,6 +18,7 @@ import com.parosurvivors.serviya.reports.domain.Report;
 import com.parosurvivors.serviya.reports.domain.ReportActionType;
 import com.parosurvivors.serviya.reports.domain.ReportStatus;
 import com.parosurvivors.serviya.reports.domain.ReportType;
+import com.parosurvivors.serviya.reports.domain.ReportSummary;
 import com.parosurvivors.serviya.reports.domain.RequestReport;
 import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
@@ -47,6 +48,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -156,6 +158,35 @@ class ReportServiceTest {
 
         assertThatThrownBy(() -> service.getReportDetail(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getReportSummaryReturnsBaseFieldsAndRequestIdWithoutEnrichment() {
+        when(reportPersistencePort.findById(10L)).thenReturn(Optional.of(report(10L, ReportType.REQUEST)));
+        when(requestReportPersistencePort.findByReportId(10L))
+                .thenReturn(Optional.of(RequestReport.builder().reportId(10L).requestId(99L).build()));
+
+        ReportSummary summary = service.getReportSummary(10L);
+
+        assertThat(summary.reportType()).isEqualTo(ReportType.REQUEST);
+        assertThat(summary.reportedUserId()).isEqualTo(45L);
+        assertThat(summary.requestId()).isEqualTo(99L);
+        assertThat(summary.serviceFeedbackId()).isNull();
+        // No enriquece: no toca perfiles ni el detalle de la solicitud.
+        verifyNoInteractions(userProfileServicePort, serviceRequestQueryServicePort);
+    }
+
+    @Test
+    void getReportSummaryReturnsServiceFeedbackId() {
+        when(reportPersistencePort.findById(11L)).thenReturn(Optional.of(report(11L, ReportType.SERVICE_FEEDBACK)));
+        when(serviceFeedbackReportPersistencePort.findByReportId(11L))
+                .thenReturn(Optional.of(ServiceFeedbackReport.builder().reportId(11L).feedbackId(77L).build()));
+
+        ReportSummary summary = service.getReportSummary(11L);
+
+        assertThat(summary.serviceFeedbackId()).isEqualTo(77L);
+        assertThat(summary.requestId()).isNull();
+        verifyNoInteractions(serviceFeedbackServicePort);
     }
 
     @Test

@@ -5,57 +5,129 @@ import com.parosurvivors.serviya.admin.application.ports.input.ModerationService
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.reports.application.ports.input.ReportActionServicePort;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateClientFeedbackReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceFeedbackReportCommand;
+import com.parosurvivors.serviya.reports.application.ports.input.ClientFeedbackReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ServiceFeedbackReportServicePort;
+import com.parosurvivors.serviya.reports.domain.ReportActionType;
+import com.parosurvivors.serviya.reports.domain.ReportSummary;
+import com.parosurvivors.serviya.reports.domain.ReportType;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
+import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implementacion placeholder de ModerationServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
+ * Orquestador de moderación (rol ADMIN, módulo 9). Cada método ejecuta su acción de dominio (advertir/
+ * banear/revertir feedback/marcar no prestada) y luego DELEGA la finalización del reporte en
+ * {@link ReportServicePort#resolveReport}/{@link ReportServicePort#closeReport}, que se encargan de la
+ * transición de estado + registrar la {@link ReportActionType} + notificar al reporter. Las notificaciones
+ * al usuario reportado (advertido/suspendido) sí las emite este servicio, pues son la acción en sí.
+ * Ver documents/project-structure/estructura-servicios.docx (módulo 9).
  */
 @Component
 @RequiredArgsConstructor
 public class ModerationService implements ModerationServicePort {
 
     private final ReportServicePort reportServicePort;
-    private final ReportActionServicePort reportActionServicePort;
     private final ServiceFeedbackServicePort serviceFeedbackServicePort;
     private final ClientFeedbackServicePort clientFeedbackServicePort;
+    private final ServiceFeedbackReportServicePort serviceFeedbackReportServicePort;
+    private final ClientFeedbackReportServicePort clientFeedbackReportServicePort;
     private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final UserServicePort userServicePort;
     private final NotificationServicePort notificationServicePort;
 
     @Override
+    @Transactional
     public void warnUser(Long reportId, Long adminId) {
-        throw new UnsupportedOperationException("TODO: warnUser — placeholder, ver estructura-servicios.docx");
+        ReportSummary report = reportServicePort.getReportSummary(reportId);
+        // La advertencia es la propia notificación al reportado; no hay cambio de estado sobre la cuenta.
+        notificationServicePort.notify(
+                report.reportedUserId(),
+                "USER_WARNED",
+                "Has recibido una advertencia",
+                "Un administrador revisó un reporte en tu contra (categoría \"" + report.category()
+                        + "\") y te ha advertido. Reincidir puede llevar a la suspensión de tu cuenta.",
+                "REPORT",
+                reportId,
+                null,
+                null);
+        reportServicePort.resolveReport(reportId, adminId, ReportActionType.WARN);
     }
 
     @Override
+    @Transactional
     public void banUserFromReport(Long reportId, Long adminId) {
-        throw new UnsupportedOperationException("TODO: banUserFromReport — placeholder, ver estructura-servicios.docx");
+        ReportSummary report = reportServicePort.getReportSummary(reportId);
+        userServicePort.banUser(report.reportedUserId());
+        reportServicePort.resolveReport(reportId, adminId, ReportActionType.BAN);
     }
 
     @Override
+    @Transactional
     public void revertFeedbackFromReport(Long reportId, Long adminId) {
-        throw new UnsupportedOperationException("TODO: revertFeedbackFromReport — placeholder, ver estructura-servicios.docx");
+        ReportSummary report = reportServicePort.getReportSummary(reportId);
+        if (report.reportType() == ReportType.CLIENT_FEEDBACK && report.clientFeedbackId() != null) {
+            Long requestId = clientFeedbackServicePort.getClientFeedbackById(report.clientFeedbackId())
+                    .map(f -> f.requestId())
+                    .orElseThrow(() -> new InvalidStateException("El feedback de cliente ya no existe (¿revertido?)"));
+            clientFeedbackServicePort.revertFeedback(requestId);
+        } else if (report.reportType() == ReportType.SERVICE_FEEDBACK && report.serviceFeedbackId() != null) {
+            Long requestId = serviceFeedbackServicePort.getServiceFeedbackById(report.serviceFeedbackId())
+                    .map(f -> f.requestId())
+                    .orElseThrow(() -> new InvalidStateException("El feedback de servicio ya no existe (¿revertido?)"));
+            serviceFeedbackServicePort.revertFeedback(requestId);
+        } else {
+            throw new InvalidStateException("El reporte " + reportId + " no referencia un feedback vigente");
+        }
+        reportServicePort.resolveReport(reportId, adminId, ReportActionType.REVERT_FEEDBACK);
     }
 
     @Override
+    @Transactional
     public void removeFeedbackDirectly(RemoveFeedbackCommand command) {
-        throw new UnsupportedOperationException("TODO: removeFeedbackDirectly — placeholder, ver estructura-servicios.docx");
+        // Atajo del admin: se auto-reporta (crea el reporte + link) y lo resuelve reutilizando el revert.
+        Long reportId;
+        if (isClientFeedback(command.targetType())) {
+            reportId = clientFeedbackReportServicePort.createReport(new CreateClientFeedbackReportCommand(
+                    command.adminId(), command.reportedUserId(), command.category(), command.reason(),
+                    command.targetId())).getReportId();
+        } else if (isServiceFeedback(command.targetType())) {
+            reportId = serviceFeedbackReportServicePort.createReport(new CreateServiceFeedbackReportCommand(
+                    command.adminId(), command.reportedUserId(), command.category(), command.reason(),
+                    command.targetId())).getReportId();
+        } else {
+            throw new InvalidStateException("targetType inválido (esperado SERVICE/CLIENT): " + command.targetType());
+        }
+        revertFeedbackFromReport(reportId, command.adminId());
+    }
+
+    private boolean isClientFeedback(String targetType) {
+        return targetType != null && targetType.toUpperCase().contains("CLIENT");
+    }
+
+    private boolean isServiceFeedback(String targetType) {
+        return targetType != null && targetType.toUpperCase().contains("SERVICE");
     }
 
     @Override
+    @Transactional
     public void markRequestAsNotProvided(Long reportId, Long adminId) {
-        throw new UnsupportedOperationException("TODO: markRequestAsNotProvided — placeholder, ver estructura-servicios.docx");
+        ReportSummary report = reportServicePort.getReportSummary(reportId);
+        if (report.reportType() != ReportType.REQUEST || report.requestId() == null) {
+            throw new InvalidStateException("El reporte " + reportId + " no referencia una solicitud");
+        }
+        serviceRequestCommandServicePort.markAsNotProvided(report.requestId(), adminId);
+        reportServicePort.resolveReport(reportId, adminId, ReportActionType.MARK_REQUEST_NOT_PROVIDED);
     }
 
     @Override
+    @Transactional
     public void closeReport(Long reportId, Long adminId) {
-        throw new UnsupportedOperationException("TODO: closeReport — placeholder, ver estructura-servicios.docx");
+        reportServicePort.closeReport(reportId, adminId);
     }
 }

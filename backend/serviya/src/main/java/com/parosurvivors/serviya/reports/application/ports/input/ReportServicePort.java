@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.reports.application.ports.input;
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.domain.Report;
 import com.parosurvivors.serviya.reports.domain.ReportActionType;
+import com.parosurvivors.serviya.reports.domain.ReportSummary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -18,6 +19,12 @@ public interface ReportServicePort {
     Report createBaseReport(Long reporterId, Long reportedUserId, String type, String category, String reason);
 
     ReportDetailResult getReportDetail(Long reportId);
+
+    /**
+     * Vista reducida (base + id de la entidad objetivo) para orquestación interna de moderación. No enriquece
+     * con perfiles ni con el detalle de solicitud/feedback: úsese cuando solo se necesita el reporte y su objetivo.
+     */
+    ReportSummary getReportSummary(Long reportId);
 
     Page<Report> getReports(String type, String category, String status, Pageable pageable);
 
