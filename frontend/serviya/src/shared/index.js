@@ -17,6 +17,7 @@ export {
     profileApi, 
     serviceApi, 
     categoryApi,
+    platformApi,
     reportApi,
     addressApi,
     clientAgendaApi,

@@ -14,21 +14,35 @@ import java.util.Optional;
 @Repository
 public interface ServiceRequestRepository extends JpaRepository<ServiceRequestEntity, Long> {
     List<ServiceRequestEntity> findByClientId(Long clientId);
+
     List<ServiceRequestEntity> findByOffererId(Long offererId);
 
-    /** Solicitudes en las que el usuario participa (cliente u oferente) y cuyo estado está en la lista dada. */
+    /**
+     * Solicitudes en las que el usuario participa (cliente u oferente) y cuyo estado está en la lista dada.
+     */
     @Query("SELECT r FROM ServiceRequestEntity r WHERE (r.clientId = :userId OR r.offererId = :userId)"
             + " AND r.status IN :statuses")
     List<ServiceRequestEntity> findByParticipantAndStatusIn(@Param("userId") Long userId,
                                                             @Param("statuses") List<RequestStatus> statuses);
+
     List<ServiceRequestEntity> findByServiceId(Long serviceId);
+
     List<ServiceRequestEntity> findByStatus(RequestStatus status);
+
     Optional<ServiceRequestEntity> findByPreviousRequestId(Long previousRequestId);
+
     //These next two methods are meant for the Agenda feature. Will return future requests, and not completed.
     List<ServiceRequestEntity> findByClientIdAndScheduledDateAfter(Long clientId, LocalDateTime tomorrowOrNow);
+
     List<ServiceRequestEntity> findByOffererIdAndScheduledDateAfter(Long offererId, LocalDateTime tomorrowOrNow);
 
     // Mantenimiento por tiempo (tareas @Scheduled): solicitudes vencidas por fecha en un estado dado.
     List<ServiceRequestEntity> findByStatusAndScheduledDateBefore(RequestStatus status, LocalDateTime cutoff);
+
     List<ServiceRequestEntity> findByStatusAndCompletedAtBefore(RequestStatus status, LocalDateTime cutoff);
+
+    /**
+     * Contar solicitudes por estado.
+     */
+    long countByStatus(RequestStatus status);
 }

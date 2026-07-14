@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.feedback.infrastructure.entities.ServiceFeedbac
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -27,4 +28,8 @@ public interface ServiceFeedbackRepository extends JpaRepository<ServiceFeedback
 
     /** Todo el feedback de servicio dejado por un cliente en cualquier servicio. */
     Page<ServiceFeedbackEntity> findByClientId(Long clientId, Pageable pageable);
+    
+    /** Calificación promedio de todos los feedback de servicio. */
+    @Query("SELECT AVG(CAST(f.rating AS DOUBLE)) FROM ServiceFeedbackEntity f")
+    Double findAverageRating();
 }

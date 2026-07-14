@@ -71,7 +71,6 @@ function GeneralDayRow({ weekDay, label, slots, onAddSlot, onRemoveSlot, onChang
 function normalizeSchedule(data = []) {
     const grouped = { ...EMPTY_SCHEDULE };
     data.forEach((slot) => {
-        if (slot.active === false && slot.activeStatus === false) return;
         const weekDay = Number(slot.weekDay);
         grouped[weekDay] = [
             ...(grouped[weekDay] || []),
@@ -79,11 +78,37 @@ function normalizeSchedule(data = []) {
                 id: slot.id,
                 startTime: toInputTime(slot.startTime),
                 endTime: toInputTime(slot.endTime),
-                active: slot.active ?? slot.activeStatus ?? true,
+                active: slot.activeStatus ?? slot.active ?? true,
             },
         ];
     });
     return grouped;
+}
+
+function checkOverlappingSlots(slots) {
+    // Group slots by weekDay and check for overlaps within each day
+    const slotsByDay = {};
+    slots.forEach((slot) => {
+        const day = slot.weekDay;
+        if (!slotsByDay[day]) slotsByDay[day] = [];
+        slotsByDay[day].push(slot);
+    });
+
+    for (const day in slotsByDay) {
+        const daySlots = slotsByDay[day];
+        for (let i = 0; i < daySlots.length; i++) {
+            for (let j = i + 1; j < daySlots.length; j++) {
+                const slot1 = daySlots[i];
+                const slot2 = daySlots[j];
+                // Check if slot1 and slot2 overlap
+                // They overlap if: start1 < end2 AND start2 < end1
+                if (slot1.startTime < slot2.endTime && slot2.startTime < slot1.endTime) {
+                    return `Las franjas de ${WEEKDAYS[day].label} se cruzan: ${slot1.startTime}-${slot1.endTime} y ${slot2.startTime}-${slot2.endTime}`;
+                }
+            }
+        }
+    }
+    return null;
 }
 
 export function AvailabilityPage() {
@@ -217,6 +242,12 @@ export function AvailabilityPage() {
             return;
         }
 
+        const overlapError = checkOverlappingSlots(allSlots);
+        if (overlapError) {
+            showToast(overlapError, 'error');
+            return;
+        }
+
         availabilityApi.saveMyAvailability(allSlots)
             .then(() => {
                 showToast('Horario general guardado', 'success');
@@ -235,7 +266,7 @@ export function AvailabilityPage() {
                 weekDay: Number(weekDay),
                 startTime: toBackendTime(s.startTime),
                 endTime: toBackendTime(s.endTime),
-                active: true,
+                isActive: true,
             }))
         );
 
@@ -245,18 +276,31 @@ export function AvailabilityPage() {
             return;
         }
 
+        const overlapError = checkOverlappingSlots(allSlots);
+        if (overlapError) {
+            showToast(overlapError, 'error');
+            return;
+        }
+
         try {
-            await Promise.all(initialServiceSlots.map((slot) => serviceApi.deleteServiceAvailability(slot.id)));
+            // Delete only existing slots with IDs
+            const toDelete = initialServiceSlots.filter((slot) => slot.id > 0);
+            await Promise.all(toDelete.map((slot) => serviceApi.deleteServiceAvailability(slot.id)));
+            
+            // Create all new slots
             await Promise.all(allSlots.map((slot) => serviceApi.createServiceAvailability(selectedServiceId, slot)));
+            
+            // Refresh the list
             const refreshed = await serviceApi.getServiceAvailability(selectedServiceId);
             setServiceSchedule(normalizeSchedule(refreshed));
             setInitialServiceSlots((refreshed || []).map((slot) => ({
                 ...slot,
-                active: slot.active ?? slot.activeStatus ?? true,
+                active: slot.activeStatus ?? slot.active ?? true,
             })));
             showToast('Disponibilidad del servicio guardada', 'success');
-        } catch {
-            showToast('No se pudo guardar la disponibilidad del servicio', 'error');
+        } catch (err) {
+            console.error('Error saving service availability:', err);
+            showToast('No se pudo guardar la disponibilidad del servicio: ' + err.message, 'error');
         }
     }
 
@@ -269,14 +313,16 @@ export function AvailabilityPage() {
         try {
             await serviceApi.applyGeneralTemplateToService(selectedServiceId);
             const refreshed = await serviceApi.getServiceAvailability(selectedServiceId);
-            setServiceSchedule(normalizeSchedule(refreshed));
+            const normalized = normalizeSchedule(refreshed);
+            setServiceSchedule(normalized);
             setInitialServiceSlots((refreshed || []).map((slot) => ({
                 ...slot,
-                active: slot.active ?? slot.activeStatus ?? true,
+                active: slot.activeStatus ?? slot.active ?? true,
             })));
             showToast('Plantilla general aplicada al servicio', 'success');
-        } catch {
-            showToast('No se pudo aplicar la plantilla general', 'error');
+        } catch (err) {
+            console.error('Error applying template:', err);
+            showToast('No se pudo aplicar la plantilla general: ' + err.message, 'error');
         }
     }
 

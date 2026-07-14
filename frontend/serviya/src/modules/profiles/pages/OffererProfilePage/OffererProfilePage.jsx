@@ -27,24 +27,38 @@ export function OffererProfilePage() {
     const [userProfile, setUserProfile] = useState(null);
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(true);
+    const [offererPhotoSrc, setOffererPhotoSrc] = useState(null);
+    const [navbarAvatarSrc, setNavbarAvatarSrc] = useState(null);
 
     useEffect(() => {
         Promise.all([
             profileApi.getProfile(id),
             profileApi.getMyProfile().catch(() => null),
         ])
-            .then(([offererData, currentUserData]) => {
+            .then(async ([offererData, currentUserData]) => {
                 setProfile(offererData);
                 setUserProfile(currentUserData);
+                
+                // Obtener los datos del usuario del oferente (para la foto)
+                if (offererData?.userId) {
+                    try {
+                        const offererUserData = await profileApi.getUserById(offererData.userId);
+                        setOffererPhotoSrc(getApiImageUrl(offererUserData?.profilePhotoUrl || null));
+                    } catch (e) {
+                        console.warn('No se pudo obtener datos del usuario oferente:', e);
+                    }
+                }
             })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
-        const offererPhotoSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
-        const navbarAvatarSrc = getApiImageUrl(userProfile?.profilePhotoUrl || null);
         metricsApi.getOffererMetrics(id)
             .then(setMetrics)
             .catch(() => showToast('Error al cargar métricas del oferente', 'danger'))
             .finally(() => setLoadingMetrics(false));
     }, [id, showToast]);
+
+    useEffect(() => {
+        setNavbarAvatarSrc(getApiImageUrl(userProfile?.profilePhotoUrl || null));
+    }, [userProfile]);
 
     const openWhatsApp = () => {
         const whatsappNumber = profile?.whatsappNumber || profile?.phoneNumber;

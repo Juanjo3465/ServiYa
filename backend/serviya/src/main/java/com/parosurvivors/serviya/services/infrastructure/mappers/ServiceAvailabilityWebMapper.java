@@ -25,13 +25,13 @@ public interface ServiceAvailabilityWebMapper {
     @Mapping(target = "weekDay", source = "form.weekDay")
     @Mapping(target = "startTime", source = "form.startTime")
     @Mapping(target = "endTime", source = "form.endTime")
-    @Mapping(target = "isActive", source = "form.isActive")
+    @Mapping(target = "isActive", source = "form.isActive", defaultValue = "true")
     CreateServiceAvailabilityCommand toCommand(CreateServiceAvailabilityForm form, Long serviceId);
 
     @Mapping(target = "id", source = "id")
     @Mapping(target = "weekDay", source = "form.weekDay")
     @Mapping(target = "startTime", source = "form.startTime")
     @Mapping(target = "endTime", source = "form.endTime")
-    @Mapping(target = "isActive", source = "form.isActive")
+    @Mapping(target = "isActive", source = "form.isActive", defaultValue = "true")
     UpdateServiceAvailabilityCommand toCommand(UpdateServiceAvailabilityForm form, Long id);
 }

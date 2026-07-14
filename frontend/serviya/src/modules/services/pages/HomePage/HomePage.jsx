@@ -7,7 +7,7 @@ import { CategoryCard } from '../../components/CategoryCard/CategoryCard';
 import { ServiceCard } from '../../components/ServiceCard/ServiceCard';
 import { Hero } from '../../components/Hero/Hero';
 import { Link } from 'react-router-dom';
-import { categoryApi, serviceApi } from '../../../../shared';
+import { categoryApi, serviceApi, platformApi } from '../../../../shared';
 
 import "./HomePage.css";
 
@@ -32,6 +32,13 @@ function HomePage() {
     const { toasts, showToast } = useToast();
     const [categories, setCategories] = useState([]);
     const [featServices, setFeatServices] = useState([]);
+    const [loadingServices, setLoadingServices] = useState(false);
+    const [stats, setStats] = useState({
+        activeOfferers: 0,
+        completedServices: 0,
+        averageRating: 0,
+        totalCategories: 0
+    });
 
     useEffect(() => {
         const loadCategories = async () => {
@@ -39,22 +46,51 @@ function HomePage() {
                 const data = await categoryApi.getCategories();
                 setCategories(data || []);
             } catch (err) {
-                showToast("Error al cargar categorías de la base de datos: " + err.message, "error");
+                console.error('Error loading categories:', err);
+                showToast("Error al cargar categorías: " + err.message, "error");
             }
         };
         loadCategories();
-    }, []);
+    }, [showToast]);
 
     useEffect(() => {
         const loadFeaturedServices = async () => {
+            setLoadingServices(true);
             try {
-                const data = await serviceApi.searchServices({ size: 4, sort: 'createdAt,desc' });
+                // Busca servicios activos, ordenados por fecha de creación descendente
+                const data = await serviceApi.searchServices({
+                    page: 0,
+                    size: 4,
+                    available: true,
+                    sort: 'createdAt,desc'
+                });
                 setFeatServices(data?.content || []);
-            } catch {
-                // Si falla silenciosamente, la sección queda vacía
+            } catch (err) {
+                console.error('Error loading featured services:', err);
+                // Silenciosamente, la sección queda vacía si falla
+            } finally {
+                setLoadingServices(false);
             }
         };
         loadFeaturedServices();
+    }, []);
+
+    useEffect(() => {
+        const loadStats = async () => {
+            try {
+                const data = await platformApi.getStats();
+                setStats(data || {
+                    activeOfferers: 0,
+                    completedServices: 0,
+                    averageRating: 0,
+                    totalCategories: 0
+                });
+            } catch (err) {
+                console.error('Error loading platform stats:', err);
+                // Mantiene los valores por defecto si falla
+            }
+        };
+        loadStats();
     }, []);
 
     return (
@@ -63,10 +99,10 @@ function HomePage() {
             <Hero categories={categories} />
             {/* Stats Bar */}
             <div className="stats-bar">
-                <div className="stat-it"><div className="stat-big">+500</div><div className="stat-lbl">Oferentes activos</div></div>
-                <div className="stat-it"><div className="stat-big">+2.000</div><div className="stat-lbl">Servicios realizados</div></div>
-                <div className="stat-it"><div className="stat-big">4.8 ★</div><div className="stat-lbl">Calificación promedio</div></div>
-                <div className="stat-it"><div className="stat-big">15+</div><div className="stat-lbl">Categorías</div></div>
+                <div className="stat-it"><div className="stat-big">+{stats.activeOfferers}</div><div className="stat-lbl">Oferentes activos</div></div>
+                <div className="stat-it"><div className="stat-big">+{stats.completedServices}</div><div className="stat-lbl">Servicios realizados</div></div>
+                <div className="stat-it"><div className="stat-big">{stats.averageRating.toFixed(1)} ★</div><div className="stat-lbl">Calificación promedio</div></div>
+                <div className="stat-it"><div className="stat-big">{stats.totalCategories}</div><div className="stat-lbl">Categorías</div></div>
             </div>
             {/* Categorías */}
             <section className="sec">
@@ -87,25 +123,31 @@ function HomePage() {
             <section className="sec sec-gray">
                 <div className="sec-title">Servicios destacados</div>
                 <div className="sec-sub">Los más recientes</div>
-                <div className="s-cards">
-                    {featServices.map((s) => {
-                        const catName = categories.find(c => c.id === s.categoryId)?.name || 'Servicio';
-                        return (
-                            <ServiceCard
-                                key={s.id}
-                                id={s.id}
-                                name={s.title}
-                                provider={s.offererName || 'Oferente'}
-                                category={catName}
-                                price={s.priceHourly ? `$${s.priceHourly.toLocaleString()}` : 'Consultar'}
-                                rating={s.averageRating ?? 0}
-                                availability={s.active ? 'Hoy' : 'No disponible'}
-                                icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
-                                photos={s.photos || []}
-                            />
-                        );
-                    })}
-                </div>
+                {loadingServices ? (
+                    <p style={{ fontSize: '13px', color: 'var(--c-mid)', textAlign: 'center', padding: '20px' }}>Cargando servicios...</p>
+                ) : featServices.length === 0 ? (
+                    <p style={{ fontSize: '13px', color: 'var(--c-soft)', textAlign: 'center', padding: '20px' }}>No hay servicios disponibles</p>
+                ) : (
+                    <div className="s-cards">
+                        {featServices.map((s) => {
+                            const catName = categories.find(c => c.id === s.categoryId)?.name || 'Servicio';
+                            return (
+                                <ServiceCard
+                                    key={s.id}
+                                    id={s.id}
+                                    name={s.title}
+                                    provider={s.offererName || 'Oferente'}
+                                    category={catName}
+                                    price={s.priceHourly ? `$${s.priceHourly.toLocaleString()}` : 'Consultar'}
+                                    rating={s.averageRating ?? 0}
+                                    availability={s.active ? 'Disponible' : 'No disponible'}
+                                    icon={CATEGORY_ICONS[catName] || DEFAULT_ICON}
+                                    photos={s.photos || []}
+                                />
+                            );
+                        })}
+                    </div>
+                )}
             </section>
             {/* Cómo funciona */}
             <section className="sec" id="como">

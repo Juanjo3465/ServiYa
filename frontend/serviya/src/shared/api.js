@@ -87,6 +87,7 @@ export const profileApi = {
     getOffererProfile: () => request('/api/v1/offerers/me', { auth: true }),
     updateOffererProfile: (payload) => request('/api/v1/offerers/me', { method: 'PATCH', body: payload, auth: true }),
     getProfile: (id) => request(`/api/v1/offerers/${id}`, { auth: true }),
+    getUserById: (userId) => request(`/api/v1/users/${userId}`, { auth: false }),
     changeMainAddress: (payload) => request(`/api/v1/users/me/main-address`, { method: 'PATCH', body: payload, auth: true }),
  
     // RF-007 — cambia la contraseña del usuario autenticado
@@ -104,8 +105,16 @@ export const serviceApi = {
     updateService: (id, payload, formData = false) => request(`/api/v1/services/${id}`, { method: 'PATCH', body: payload, auth: true, formData }),
     deleteService: (id) => request(`/api/v1/services/${id}`, { method: 'DELETE', auth: true }),
     getServiceAvailability: (serviceId) => request(`/api/v1/service-availabilities/service/${serviceId}`, { auth: true }),
-    createServiceAvailability: (serviceId, payload) => request(`/api/v1/service-availabilities/service/${serviceId}`, { method: 'POST', body: payload, auth: true }),
-    updateServiceAvailability: (id, payload) => request(`/api/v1/service-availabilities/${id}`, { method: 'PUT', body: payload, auth: true }),
+    createServiceAvailability: (serviceId, payload) => {
+        const body = { ...payload, isActive: payload.active ?? true };
+        delete body.active;
+        return request(`/api/v1/service-availabilities/service/${serviceId}`, { method: 'POST', body, auth: true });
+    },
+    updateServiceAvailability: (id, payload) => {
+        const body = { ...payload, isActive: payload.active ?? payload.isActive ?? true };
+        delete body.active;
+        return request(`/api/v1/service-availabilities/${id}`, { method: 'PUT', body, auth: true });
+    },
     deleteServiceAvailability: (id) => request(`/api/v1/service-availabilities/${id}`, { method: 'DELETE', auth: true }),
     applyGeneralTemplateToService: (serviceId) => request(`/api/v1/service-availabilities/service/${serviceId}/apply-template`, { method: 'POST', auth: true }),
     searchServices: (params) => {
@@ -205,6 +214,10 @@ export const availabilityApi = {
 export const categoryApi = {
     getCategories: () => request('/api/v1/categories', { auth: true }),
 }
+
+export const platformApi = {
+    getStats: () => request('/api/v1/platform/stats', { auth: false }),
+};
 
 export const clientAgendaApi = {
     getClientAgenda: () => request('/api/v1/users/me/client-agenda', { auth: true }),

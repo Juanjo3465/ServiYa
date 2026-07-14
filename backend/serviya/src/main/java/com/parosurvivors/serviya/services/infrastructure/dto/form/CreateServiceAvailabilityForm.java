@@ -12,5 +12,6 @@ public record CreateServiceAvailabilityForm (
     @NotNull Integer weekDay,
     @NotNull LocalTime startTime,
     @NotNull LocalTime endTime,
+    @Schema(description = "Si está activo. Por defecto true si no se proporciona.")
     Boolean isActive
 ){}
