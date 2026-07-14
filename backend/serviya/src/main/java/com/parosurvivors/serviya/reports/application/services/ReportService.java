@@ -210,23 +210,28 @@ public class ReportService implements ReportServicePort {
     }
 
     private void notifyReporterResolved(Report report, ReportActionType actionType) {
-        notificationServicePort.createNotification(
+        // notify (no createNotification) para registrar la entrega; channelIds null -> canal INTERNAL por defecto.
+        notificationServicePort.notify(
                 report.getReporterId(),
                 "REPORT_RESOLVED",
                 "Tu reporte fue resuelto",
                 "Tu reporte #" + report.getId() + " fue revisado: " + describeResolution(actionType) + ".",
                 "REPORT",
-                report.getId());
+                report.getId(),
+                null,
+                null);
     }
 
     private void notifyReporterClosed(Report report) {
-        notificationServicePort.createNotification(
+        notificationServicePort.notify(
                 report.getReporterId(),
                 "REPORT_CLOSED",
                 "Tu reporte fue cerrado",
                 "Tu reporte #" + report.getId() + " fue revisado y se cerró sin acciones adicionales.",
                 "REPORT",
-                report.getId());
+                report.getId(),
+                null,
+                null);
     }
 
     /** Frase legible de la resolución para la notificación al reporter, según la acción tomada. */

@@ -39,7 +39,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -164,10 +169,10 @@ class ReportServiceTest {
         verify(reportPersistencePort).update(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(ReportStatus.RESOLVED);
         verify(reportActionServicePort).createAction(5L, 12L, ReportActionType.BAN);
-        // Notifica al reporter (id 8) sobre la resolución, entidad REPORT #5.
-        verify(notificationServicePort).createNotification(
+        // Notifica al reporter (id 8) sobre la resolución vía notify (registra entrega), entidad REPORT #5.
+        verify(notificationServicePort).notify(
                 eq(8L), eq("REPORT_RESOLVED"), eq("Tu reporte fue resuelto"),
-                org.mockito.ArgumentMatchers.contains("se suspendió"), eq("REPORT"), eq(5L));
+                contains("se suspendió"), eq("REPORT"), eq(5L), isNull(), isNull());
     }
 
     @Test
@@ -181,9 +186,9 @@ class ReportServiceTest {
         verify(reportPersistencePort).update(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(ReportStatus.CLOSED);
         verify(reportActionServicePort).createAction(6L, 12L, ReportActionType.CLOSE);
-        verify(notificationServicePort).createNotification(
+        verify(notificationServicePort).notify(
                 eq(8L), eq("REPORT_CLOSED"), eq("Tu reporte fue cerrado"),
-                org.mockito.ArgumentMatchers.anyString(), eq("REPORT"), eq(6L));
+                anyString(), eq("REPORT"), eq(6L), isNull(), isNull());
     }
 
     @Test
@@ -195,13 +200,9 @@ class ReportServiceTest {
         assertThatThrownBy(() -> service.resolveReport(7L, 12L, ReportActionType.WARN))
                 .isInstanceOf(InvalidStateException.class);
 
-        verify(reportPersistencePort, never()).update(org.mockito.ArgumentMatchers.any());
-        verify(reportActionServicePort, never()).createAction(
-                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(),
-                org.mockito.ArgumentMatchers.any());
-        verify(notificationServicePort, never()).createNotification(
-                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong());
+        verify(reportPersistencePort, never()).update(any());
+        verify(reportActionServicePort, never()).createAction(anyLong(), anyLong(), any());
+        verify(notificationServicePort, never()).notify(
+                anyLong(), anyString(), anyString(), anyString(), anyString(), anyLong(), any(), any());
     }
 }
