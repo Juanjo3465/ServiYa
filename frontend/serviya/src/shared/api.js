@@ -285,6 +285,18 @@ export const feedbackApi = {
         request(`/api/v1/service-requests/${requestId}/client-feedback`, { method: 'POST', body: payload, auth: true }),
 };
 
+// RF-064 — Eliminar servicio desde el panel de administración
+export const adminServiceApi = {
+    search: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/services/search?${qs.toString()}`, { auth: true });
+    },
+    deleteService: (id) => request(`/api/v1/admin/services/${id}`, { method: 'DELETE', auth: true }),
+};
+
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {
     if (roles.includes('ADMIN')) return '/admin/dashboard';

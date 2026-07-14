@@ -129,4 +129,10 @@ public class AdminController implements AdminApi {
         return ResponseEntity.ok(adminService.searchFeedback(query, pageable).map(mapper::toFeedbackResponse));
     }
 
+    @Override
+    @DeleteMapping("/services/{id}")
+    public ResponseEntity<Void> deleteService(@PathVariable Long id) {
+        adminService.deleteService(id);
+        return ResponseEntity.noContent().build();
+    }
 }

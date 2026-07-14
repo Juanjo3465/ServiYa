@@ -19,7 +19,7 @@ import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
-
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
 import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
@@ -66,6 +66,7 @@ public class AdminService implements AdminServicePort {
     private final NotificationServicePort notificationServicePort;
     private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
+    private final MarketplaceServicePort marketplaceServicePort;
 
     @Override
     public UserSummaryItem createUserByAdmin(CreateUserByAdminCommand command) {
@@ -222,4 +223,8 @@ public class AdminService implements AdminServicePort {
                         f.getRating(), f.getComment(), f.getCreatedAt()));
     }
 
+    @Override
+    public void deleteService(Long serviceId) {
+        marketplaceServicePort.delete(serviceId);
+    }
 }

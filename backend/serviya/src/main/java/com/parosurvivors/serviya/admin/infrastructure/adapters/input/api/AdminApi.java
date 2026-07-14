@@ -79,4 +79,7 @@ public interface AdminApi {
             Long clientId, Long offererId, Long serviceId, String keyword,
             Integer ratingMin, Integer ratingMax, Pageable pageable);
 
+    @Operation(summary = "Eliminar un servicio del marketplace", description = "RF-064.")
+    @ApiResponse(responseCode = "204", description = "Servicio eliminado")
+    ResponseEntity<Void> deleteService(Long id);
 }

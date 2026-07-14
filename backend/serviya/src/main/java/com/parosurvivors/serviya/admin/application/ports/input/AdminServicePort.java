@@ -38,4 +38,7 @@ public interface AdminServicePort {
     void deleteUser(Long adminId, Long userId);
 
     Page<AdminFeedbackSearchResult> searchFeedback(AdminFeedbackSearchQuery query, Pageable pageable);
+
+    /** Elimina un servicio del marketplace (RF-064). */
+    void deleteService(Long serviceId);
 }
