@@ -79,7 +79,7 @@ class RequestReportServiceTest {
         when(wordFilterPort.filter(anyString())).thenAnswer(inv -> inv.getArgument(0));
 
         RequestReport result = service.createReport(new CreateRequestReportCommand(
-                REPORTER_ID, COUNTERPARTY_ID, "Fraude", "No asistio", REQUEST_ID));
+                REPORTER_ID, "Fraude", "No asistio", REQUEST_ID));
 
         assertThat(result.getReportId()).isEqualTo(10L);
         assertThat(result.getRequestId()).isEqualTo(REQUEST_ID);
@@ -92,7 +92,7 @@ class RequestReportServiceTest {
                 .thenThrow(new UnauthorizedException("El usuario no participa en la solicitud"));
 
         assertThatThrownBy(() -> service.createReport(new CreateRequestReportCommand(
-                REPORTER_ID, COUNTERPARTY_ID, "Fraude", "No asistio", REQUEST_ID)))
+                REPORTER_ID, "Fraude", "No asistio", REQUEST_ID)))
                 .isInstanceOf(UnauthorizedException.class);
 
         verify(reportServicePort, never()).createBaseReport(any(), any(), any(), any(), any());
@@ -108,9 +108,9 @@ class RequestReportServiceTest {
         happyPathStubs();
         when(wordFilterPort.filter(anyString())).thenAnswer(inv -> inv.getArgument(0));
 
-        Long victimaInocente = 777L; // id manipulado por el cliente
+        // El command ya ni siquiera admite un reportedUserId: el cliente no puede proponerlo.
         service.createReport(new CreateRequestReportCommand(
-                REPORTER_ID, victimaInocente, "Fraude", "No asistio", REQUEST_ID));
+                REPORTER_ID, "Fraude", "No asistio", REQUEST_ID));
 
         verify(reportServicePort).createBaseReport(
                 eq(REPORTER_ID), eq(COUNTERPARTY_ID), eq("REQUEST"), any(), any());
@@ -123,7 +123,7 @@ class RequestReportServiceTest {
         when(wordFilterPort.filter("el idiota no vino")).thenReturn("el *** no vino");
 
         service.createReport(new CreateRequestReportCommand(
-                REPORTER_ID, COUNTERPARTY_ID, "Fraude", "el idiota no vino", REQUEST_ID));
+                REPORTER_ID, "Fraude", "el idiota no vino", REQUEST_ID));
 
         verify(reportServicePort).createBaseReport(any(), any(), any(), any(), eq("el *** no vino"));
     }
@@ -135,7 +135,7 @@ class RequestReportServiceTest {
         when(wordFilterPort.filter(anyString())).thenAnswer(inv -> inv.getArgument(0));
 
         service.createReport(new CreateRequestReportCommand(
-                REPORTER_ID, COUNTERPARTY_ID, "Fraude", "No asistio", REQUEST_ID));
+                REPORTER_ID, "Fraude", "No asistio", REQUEST_ID));
 
         verify(notificationServicePort).notify(
                 eq(ADMIN_ID), anyString(), anyString(), anyString(), eq("REPORT"), eq(10L),

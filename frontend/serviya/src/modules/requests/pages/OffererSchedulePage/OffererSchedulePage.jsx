@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, reportApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
 
 const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -52,11 +52,52 @@ function groupByDay(requests) {
     return Array.from(buckets.values()).sort((a, b) => a.date - b.date);
 }
 
+/** Estados en los que ya no tiene sentido reportar: la solicitud esta cerrada. */
+const TERMINAL_LABELS = ['Completada', 'Cancelada', 'Rechazada', 'No prestada'];
+
 export function OffererSchedulePage() {
     const { toasts, showToast } = useToast();
 
     const [requests, setRequests] = useState([]);
     const [selectedDate, setSelectedDate] = useState(null);
+
+    // RF-073 (lado oferente): reporte de incumplimiento del cliente.
+    const [reportOpen, setReportOpen] = useState(false);
+    const [reportTarget, setReportTarget] = useState(null);
+    const [reportCategory, setReportCategory] = useState('El cliente no estaba en casa');
+    const [customCategory, setCustomCategory] = useState('');
+    const [reportReason, setReportReason] = useState('');
+    const [sendingReport, setSendingReport] = useState(false);
+
+    const closeReport = () => {
+        setReportOpen(false);
+        setReportTarget(null);
+        setReportCategory('El cliente no estaba en casa');
+        setCustomCategory('');
+        setReportReason('');
+    };
+
+    /**
+     * Se manda SOLO el id de la solicitud: el backend deriva a quién se reporta desde la contraparte
+     * de esa solicitud (aquí, el cliente). Mandar el reportedUserId permitiría incriminar a un tercero.
+     */
+    const submitReport = async () => {
+        setSendingReport(true);
+        try {
+            await reportApi.createRequestReport({
+                category: reportCategory,
+                customCategory,
+                reason: reportReason,
+                requestId: reportTarget?.id,
+            });
+            closeReport();
+            showToast('Reporte enviado. Un administrador lo revisará.', 'success');
+        } catch (err) {
+            showToast(err.message || 'No se pudo enviar el reporte', 'danger');
+        } finally {
+            setSendingReport(false);
+        }
+    };
 
     useEffect(() => {
         fetch('http://localhost:8080/api/v1/users/me/offerer-agenda')
@@ -121,6 +162,19 @@ export function OffererSchedulePage() {
                                                     Aceptar
                                                 </button>
                                             )}
+                                            {/* RF-073: el oferente también puede reportar incumplimiento
+                                                (p. ej. el cliente no estaba en casa). Solo mientras la
+                                                solicitud sigue viva: una ya cerrada no se reporta por aquí. */}
+                                            {!TERMINAL_LABELS.includes(e.label) && (
+                                                <button
+                                                    className="btn btn-ghost btn-sm"
+                                                    style={{ color: 'var(--c-danger)' }}
+                                                    onClick={() => { setReportTarget(e); setReportOpen(true); }}
+                                                >
+                                                    <Icon name="alertTriangle" size={13} />
+                                                    Reportar
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -129,6 +183,46 @@ export function OffererSchedulePage() {
                     ))}
                 </div>
             </div>
+            {/* RF-073: mismo flujo que el del cliente, pero reportando al cliente. */}
+            <Modal open={reportOpen} onClose={closeReport}>
+                <div className="modal-title">Reportar incumplimiento</div>
+                <div className="modal-sub">
+                    {reportTarget
+                        ? <>Solicitud <strong>#{reportTarget.id}</strong> · {reportTarget.sub}. Un administrador revisará el caso.</>
+                        : 'Un administrador revisará el caso.'}
+                </div>
+
+                <div className="input-group">
+                    <label className="label">Categoría</label>
+                    <select className="input" value={reportCategory} onChange={(ev) => setReportCategory(ev.target.value)}>
+                        <option>El cliente no estaba en casa</option>
+                        <option>No permitió realizar el servicio</option>
+                        <option>Comportamiento inapropiado</option>
+                        <option>Otra</option>
+                    </select>
+                </div>
+                {reportCategory === 'Otra' && (
+                    <div className="input-group">
+                        <label className="label">Categoría personalizada</label>
+                        <input className="input" value={customCategory}
+                            onChange={(ev) => setCustomCategory(ev.target.value)} placeholder="Escribe la categoría" />
+                    </div>
+                )}
+                <div className="input-group">
+                    <label className="label">Descripción</label>
+                    <textarea className="input" rows="3" value={reportReason}
+                        onChange={(ev) => setReportReason(ev.target.value)} placeholder="Describe lo que ocurrió..." />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={closeReport}>Cancelar</button>
+                    <button className="btn btn-danger btn-full" disabled={!reportReason.trim() || sendingReport}
+                        onClick={submitReport}>
+                        {sendingReport ? 'Enviando…' : 'Enviar reporte'}
+                    </button>
+                </div>
+            </Modal>
+
             <ToastContainer toasts={toasts} />
         </DashboardLayout>
     );
