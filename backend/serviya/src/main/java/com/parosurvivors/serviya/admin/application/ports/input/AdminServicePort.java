@@ -2,6 +2,8 @@ package com.parosurvivors.serviya.admin.application.ports.input;
 
 import com.parosurvivors.serviya.admin.application.dto.command.CreateUserByAdminCommand;
 import com.parosurvivors.serviya.admin.application.dto.command.UpdateUserByAdminCommand;
+import com.parosurvivors.serviya.admin.application.dto.query.AdminFeedbackSearchQuery;
+import com.parosurvivors.serviya.admin.application.dto.result.AdminFeedbackSearchResult;
 import com.parosurvivors.serviya.admin.application.dto.result.UserAdminDetailResult;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
@@ -44,4 +46,9 @@ public interface AdminServicePort {
     void unbanUser(Long adminId, Long userId);
 
     void deleteUser(Long adminId, Long userId);
+
+    Page<AdminFeedbackSearchResult> searchFeedback(AdminFeedbackSearchQuery query, Pageable pageable);
+
+    /** Elimina un servicio del marketplace (RF-064). */
+    void deleteService(Long serviceId);
 }

@@ -7,10 +7,12 @@ import { Modal, StarRating, Icon } from '../../../../shared';
  */
 export function ReviewModal({ open, onClose, title, sub, ratingLabel, reviewLabel, confirmLabel, confirmClass = 'btn-primary', onConfirm }) {
     const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState('');
 
     const handleConfirm = () => {
+        onConfirm?.({ rating, comment });
         setRating(0);
-        onConfirm?.(rating);
+        setComment('');
     };
 
     return (
@@ -23,7 +25,7 @@ export function ReviewModal({ open, onClose, title, sub, ratingLabel, reviewLabe
             </div>
             <div className="input-group">
                 <label className="label">{reviewLabel}</label>
-                <textarea className="input" rows="3" placeholder="¿Cómo fue la experiencia?" />
+                <textarea className="input" rows="3" placeholder="¿Cómo fue la experiencia?" value={comment} onChange={(e) => setComment(e.target.value)} />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
                 <button className="btn btn-ghost btn-full" onClick={onClose}>Cancelar</button>

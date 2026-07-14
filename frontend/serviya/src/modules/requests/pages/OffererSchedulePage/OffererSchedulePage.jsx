@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, reportApi } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, offererAgendaApi, reportApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
+import { requestApi } from '../../../../shared/api';
 
 const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MONTH_NAMES = [
@@ -11,6 +12,7 @@ const MONTH_NAMES = [
 const STATUS_BADGE = {
     PENDING: { className: 'badge-warn', label: 'Pendiente aceptar' },
     ACCEPTED: { className: 'badge-success', label: 'Aceptada' },
+    PRESUMABLY_COMPLETED: { className: 'badge-warn', label: 'Esperando confirmación' },
 };
 
 function dayKey(date) {
@@ -100,10 +102,13 @@ export function OffererSchedulePage() {
     };
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/v1/users/me/offerer-agenda')
-            .then((response) => response.json())
+        offererAgendaApi
+            .getOffererAgenda()
             .then((data) => {
                 setRequests(data.content ?? []);
+            })
+            .catch((err) => {
+                showToast(err.message || 'No se pudo cargar la agenda', 'error');
             });
     }, []);
 

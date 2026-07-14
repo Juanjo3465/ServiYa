@@ -12,4 +12,5 @@ public interface ServiceAvailabilityServicePort {
     void delete(Long id);
     ServiceAvailability update(UpdateServiceAvailabilityCommand command);
     List<ServiceAvailability> getByServiceId(long serviceId);
+    void applyGeneralTemplate(Long serviceId, Long offererId);
 }

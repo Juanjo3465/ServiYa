@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi, serviceApi, addressApi, requestApi } from '../../../../shared';
+import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi, serviceApi, addressApi, requestApi, getApiImageUrl } from '../../../../shared';
 
 import './ServiceDetailPage.css';
 
@@ -132,7 +132,7 @@ export function ServiceDetailPage() {
     if (loading) {
         return (
             <>
-                <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+                <AppNavbar avatar={service?.fullName ? service.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={getApiImageUrl(service?.profilePhotoUrl || null)} links={[{ to: '/services', label: '← Resultados' }]} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--c-soft)' }}>
                     <div className="loading-spinner" style={{ width: '40px', height: '40px', border: '4px solid var(--c-border)', borderTop: '4px solid var(--c-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '15px' }} />
                     <span>Cargando detalles del servicio...</span>
@@ -170,11 +170,11 @@ export function ServiceDetailPage() {
     const initials = service.fullName ? service.fullName.substring(0, 2).toUpperCase() : "OF";
     const photos = service.photos || [];
     const activePhoto = photos[activePhotoIndex] || null;
-    const getPhotoSrc = (photo) => `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`;
+    const getPhotoSrc = (photo) => getApiImageUrl(photo);
 
     return (
         <>
-            <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+            <AppNavbar avatar={service?.fullName ? service.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={service?.profilePhotoUrl || null} links={[{ to: '/services', label: '← Resultados' }]} />
 
             <div className="breadcrumb">
                 <Link to="/">Inicio</Link> / <Link to="/services">{service.category?.name || "Categoría"}</Link> / {service.title}
@@ -260,7 +260,13 @@ export function ServiceDetailPage() {
 
                     <div className="sec-card">
                         <div className="oferer-row" onClick={() => navigate(`/offerers/${service.userId}`)}>
-                            <div className="av av-lg">{initials}</div>
+                            <div className="av av-lg">
+                                {service.profilePhotoUrl ? (
+                                    <img src={getApiImageUrl(service.profilePhotoUrl)} alt="Foto del oferente" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)' }}>{service.fullName || "Oferente"}</div>
                                 <div style={{ fontSize: '12px', color: 'var(--c-mid)', margin: '2px 0' }}>{service.specialty || "Especialista en ServiYa"}</div>

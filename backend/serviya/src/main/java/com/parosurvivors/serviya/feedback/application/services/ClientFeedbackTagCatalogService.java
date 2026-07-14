@@ -20,6 +20,6 @@ public class ClientFeedbackTagCatalogService implements ClientFeedbackTagCatalog
 
     @Override
     public List<ClientFeedbackTagCatalog> getCatalog() {
-        throw new UnsupportedOperationException("TODO: getCatalog — placeholder, ver estructura-servicios.docx");
+        return clientFeedbackTagCatalogPersistencePort.findAll();
     }
 }

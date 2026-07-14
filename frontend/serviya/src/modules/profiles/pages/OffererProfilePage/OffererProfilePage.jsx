@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi } from '../../../../shared';
+import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
-
 
 import './OffererProfilePage.css';
 
@@ -25,6 +24,7 @@ export function OffererProfilePage() {
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
     const [profile, setProfile] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(true);
 
@@ -33,6 +33,8 @@ export function OffererProfilePage() {
      * desempeño y servicios activos. No requiere token: funciona igual para un visitante sin cuenta.
      */
     useEffect(() => {
+        // RF-027: una sola llamada al agregado PUBLICO (identidad + especialidad + reputacion +
+        // metricas + servicios activos). NO requiere token: funciona para un visitante sin cuenta.
         profileApi.getOffererPublicProfile(id)
             .then((data) => {
                 setProfile(data);
@@ -40,27 +42,41 @@ export function OffererProfilePage() {
             })
             .catch((e) => showToast(e.message || 'No se pudo cargar el perfil del oferente', 'danger'))
             .finally(() => setLoadingMetrics(false));
+
+        // Perfil del usuario que MIRA la pagina: solo alimenta el avatar de la navbar.
+        // Si es un visitante sin sesion, no hay ninguno y la pagina funciona igual.
+        profileApi.getMyProfile().then(setUserProfile).catch(() => setUserProfile(null));
     }, [id, showToast]);
+
+    const offererPhotoSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
+    const navbarAvatarSrc = getApiImageUrl(userProfile?.profilePhotoUrl || null);
 
     const initials = (profile?.fullName || '?')
         .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
     const openWhatsApp = () => {
-        if (!profile?.whatsappNumber) {
+        const whatsappNumber = profile?.whatsappNumber || profile?.phoneNumber;
+        if (!whatsappNumber) {
             showToast('Número de WhatsApp no disponible', 'warning');
             return;
         }
-        window.open(`https://wa.me/${profile.whatsappNumber}`, '_blank');
+        window.open(`https://wa.me/${whatsappNumber}`, '_blank');
     }
 
     return (
         <>
-            <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+            <AppNavbar avatar={userProfile?.fullName ? userProfile.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={navbarAvatarSrc} links={[{ to: '/services', label: '← Resultados' }]} />
 
             <div className="profile-hero">
                 <div className="profile-top">
                     <div className="profile-av-wrap">
-                        <div className="av av-xl">{initials}</div>
+                        <div className="av av-xl">
+                            {offererPhotoSrc ? (
+                                <img src={offererPhotoSrc} alt="Foto del oferente" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                            ) : (
+                                initials
+                            )}
+                        </div>
                         <div className="profile-verified"><Icon name="check" size={12} strokeWidth={2.5} /></div>
                     </div>
                     <div className="profile-info">

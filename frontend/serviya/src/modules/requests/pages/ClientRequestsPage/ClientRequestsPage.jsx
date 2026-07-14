@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, reportApi, requestApi } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, reportApi, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice, isTerminal } from '../../utils';
 
@@ -21,6 +21,7 @@ export function ClientRequestsPage() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState(null);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
     // RF-073: solicitud concreta que se esta reportando (antes iba fija a la #1).
@@ -30,6 +31,10 @@ export function ClientRequestsPage() {
     const [reportReason, setReportReason] = useState('');
     const [cancelOpen, setCancelOpen] = useState(false);
     const [cancelTarget, setCancelTarget] = useState(null);
+    const [confirmTarget, setConfirmTarget] = useState(null);
+    const [reschedTarget, setReschedTarget] = useState(null);
+    const [reschedDate, setReschedDate] = useState('');
+    const [reschedTime, setReschedTime] = useState('09:00');
 
     const fetchRequests = (page = 0) => {
         setLoading(true);
@@ -119,8 +124,8 @@ export function ClientRequestsPage() {
                                 </div>
                                 <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
                                     <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
-                                    {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
-                                    {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => setConfirmOpen(true)}><Icon name="check" size={13} />Confirmar servicio</button>}
+                                    {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setReschedTarget(r); setReschedOpen(true); }}><Icon name="reschedule" size={13} />Reprogramar</button>}
+                                    {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => { setConfirmTarget(r); setConfirmOpen(true); }}><Icon name="check" size={13} />Confirmar servicio</button>}
                                     {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}
                                 </div>
                             </div>
@@ -144,23 +149,58 @@ export function ClientRequestsPage() {
 
             <ReviewModal
                 open={confirmOpen}
-                onClose={() => setConfirmOpen(false)}
+                onClose={() => { setConfirmOpen(false); setConfirmTarget(null); }}
                 title="Confirmar servicio"
-                sub="¿El servicio fue realizado correctamente?"
+                sub={confirmTarget ? `¿El servicio "${confirmTarget.serviceTitle}" fue realizado correctamente por ${confirmTarget.counterpartyName}?` : '¿El servicio fue realizado correctamente?'}
                 ratingLabel="Calificación"
                 reviewLabel="Reseña"
                 confirmLabel="Confirmar"
-                onConfirm={() => { setConfirmOpen(false); showToast('Servicio confirmado y reseña enviada', 'success'); }}
+                onConfirm={async ({ rating, comment }) => {
+                    if (!confirmTarget) return;
+                    try {
+                        await requestApi.confirmCompletion(confirmTarget.requestId);
+                        if (rating > 0 || comment) {
+                            await feedbackApi.submitServiceFeedback(confirmTarget.requestId, { rating: rating || null, comment: comment || null });
+                        }
+                        setRequests(prev => prev.map(r =>
+                            r.requestId === confirmTarget.requestId ? { ...r, status: 'COMPLETED' } : r
+                        ));
+                        setConfirmOpen(false);
+                        setConfirmTarget(null);
+                        showToast('Servicio confirmado y reseña enviada', 'success');
+                    } catch (err) {
+                        showToast(err.message || 'No se pudo confirmar el servicio', 'danger');
+                    }
+                }}
             />
 
-            <Modal open={reschedOpen} onClose={() => setReschedOpen(false)}>
+            <Modal open={reschedOpen} onClose={() => { setReschedOpen(false); setReschedTarget(null); }}>
                 <div className="modal-title">Reprogramar solicitud</div>
                 <div className="modal-sub">Elige nueva fecha y hora disponible</div>
-                <div className="input-group"><label className="label">Nueva fecha</label><input className="input" type="date" /></div>
-                <div className="input-group"><label className="label">Nueva hora</label><select className="input"><option>9:00 AM</option><option>10:00 AM</option><option>2:00 PM</option></select></div>
+                <div className="input-group"><label className="label">Nueva fecha</label><input className="input" type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} /></div>
+                <div className="input-group"><label className="label">Nueva hora</label><select className="input" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)}><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option></select></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-ghost btn-full" onClick={() => setReschedOpen(false)}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" onClick={() => { setReschedOpen(false); showToast('Solicitud reprogramada', 'success'); }}>Confirmar</button>
+                    <button className="btn btn-ghost btn-full" onClick={() => { setReschedOpen(false); setReschedTarget(null); }}>Cancelar</button>
+                    <button className="btn btn-primary btn-full" disabled={!reschedDate} onClick={async () => {
+                        if (!reschedTarget || !reschedDate) return;
+                        try {
+                            const newDate = `${reschedDate}T${reschedTime}:00`;
+                            const result = await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
+                            setRequests(prev => prev.map(r =>
+                                r.requestId === reschedTarget.requestId ? { ...r, status: 'RESCHEDULED' } : r
+                            ));
+                            if (result && result.requestId) {
+                                setRequests(prev => [result, ...prev]);
+                            }
+                            setReschedOpen(false);
+                            setReschedTarget(null);
+                            setReschedDate('');
+                            setReschedTime('09:00');
+                            showToast('Solicitud reprogramada. Oferente notificado', 'success');
+                        } catch (err) {
+                            showToast(err.message || 'No se pudo reprogramar', 'danger');
+                        }
+                    }}>Confirmar</button>
                 </div>
             </Modal>
 

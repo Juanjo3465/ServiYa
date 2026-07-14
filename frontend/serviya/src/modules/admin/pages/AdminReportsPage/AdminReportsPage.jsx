@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
 import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
 import { ReportCard } from '../../components/ReportCard/ReportCard';
 import { ManagementModal } from '../../components/ManagementModal/ManagementModal';
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
 import { useToast } from '../../../../shared/hooks/useToast';
-import { reportApi, userApi } from '../../../../shared/api';
+import { reportApi, moderationApi, userApi } from '../../../../shared/api';
 
 import './AdminReportsPage.css';
 
@@ -49,6 +49,7 @@ export function AdminReportsPage() {
                     return {
                         id: `#RPT-${String(report.id).padStart(3, '0')}`,
                         rawId: report.id,
+                        rawReportType: report.reportType,
                         date: new Date(report.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
                         type: REPORT_TYPE_LABELS[report.reportType] ?? report.reportType,
                         priority: PRIORITY_LABELS[report.priority] ?? report.priority,
@@ -79,10 +80,54 @@ export function AdminReportsPage() {
         setSelectedReport(report);
     };
 
-    const handleExecuteManagement = () => {
-        setSelectedReport(null);
-        showToast('Reporte cerrado. Usuarios notificados.', 'success');
-    };
+    const handleExecuteManagement = useCallback(async (action) => {
+        if (!selectedReport) return;
+        const rawId = selectedReport.rawId;
+        try {
+            switch (action) {
+                case 'warn':
+                    await moderationApi.warnUser(rawId);
+                    showToast('Advertencia enviada y reporte cerrado', 'success');
+                    break;
+                case 'ban':
+                    await moderationApi.banUser(rawId);
+                    showToast('Usuario baneado y reporte cerrado', 'success');
+                    break;
+                case 'revert':
+                    await moderationApi.revertFeedback(rawId);
+                    showToast('Reseña revertida y reporte cerrado', 'success');
+                    break;
+                case 'mark_not_provided':
+                    await moderationApi.markNotProvided(rawId);
+                    showToast('Solicitud marcada como no prestada', 'success');
+                    break;
+                case 'close':
+                default:
+                    await moderationApi.closeReport(rawId);
+                    showToast('Reporte cerrado sin penalización', 'success');
+                    break;
+            }
+            setReports((prev) => prev.filter((r) => r.rawId !== rawId));
+        } catch (err) {
+            showToast(err.message || 'No fue posible ejecutar la acción', 'danger');
+        } finally {
+            setSelectedReport(null);
+        }
+    }, [selectedReport, showToast]);
+
+    const handleDeleteFeedback = useCallback(async (report) => {
+        try {
+            if (report.rawReportType === 'SERVICE_FEEDBACK') {
+                await moderationApi.revertFeedback(report.rawId);
+            } else if (report.rawReportType === 'CLIENT_FEEDBACK') {
+                await moderationApi.revertFeedback(report.rawId);
+            }
+            showToast('Reseña eliminada correctamente', 'success');
+            setReports((prev) => prev.filter((r) => r.rawId !== report.rawId));
+        } catch (err) {
+            showToast(err.message || 'No fue posible eliminar la reseña', 'danger');
+        }
+    }, [showToast]);
 
     return (
         <>
@@ -112,7 +157,7 @@ export function AdminReportsPage() {
                                 report={report} 
                                 onManage={handleOpenManagement}
                                 onNotify={() => showToast('Notificación enviada por correo', 'success')}
-                                onDelete={() => showToast('Reseña eliminada (RF-049)', 'danger')}
+                                onDelete={() => handleDeleteFeedback(report)}
                             />
                         ))}
                     </div>

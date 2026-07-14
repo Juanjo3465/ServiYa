@@ -34,6 +34,9 @@ public interface OffererProfileApi {
             @ApiResponse(responseCode = "404", description = "Oferente no encontrado")
     })
     ResponseEntity<OffererPublicProfileDetailResponse> getPublicProfileDetail(Long id);
+    @Operation(summary = "Obtener el perfil publico propio del oferente autenticado")
+    @ApiResponse(responseCode = "200", description = "Perfil propio del oferente")
+    ResponseEntity<OffererPublicProfileResponse> getOwnPublicProfile();
 
     @Operation(summary = "Obtener el resumen del perfil de un oferente")
     @ApiResponse(responseCode = "200", description = "Resumen del perfil")

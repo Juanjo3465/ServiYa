@@ -4,7 +4,7 @@ import { Sidebar } from '../Sidebar/Sidebar';
 import { notificationApi } from '../../api';
 import { useToast } from '../../hooks/useToast';
 
-export function DashboardLayout({ sections, avatar, navLinks = [], children }) {
+export function DashboardLayout({ sections, avatar, avatarSrc, navLinks = [], children }) {
     const { showToast } = useToast();
     const [unreadCount, setUnreadCount] = useState(0);
     const prevCountRef = useRef(0);
@@ -34,7 +34,7 @@ export function DashboardLayout({ sections, avatar, navLinks = [], children }) {
 
     return (
         <>
-            <AppNavbar avatar={avatar} links={navLinks} unreadCount={unreadCount} />
+            <AppNavbar avatar={avatar} avatarSrc={avatarSrc} links={navLinks} unreadCount={unreadCount} />
             <div className="layout">
                 <Sidebar sections={sections} />
                 <main className="main">{children}</main>

@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.users.application.services;
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateAddressCommand;
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateUserProfileCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.Address;
 import com.parosurvivors.serviya.profiles.domain.ProfileType;
@@ -36,6 +37,7 @@ public class UserCreationService implements UserCreationServicePort {
     private final UserRoleServicePort userRoleServicePort;
     private final ConsentServicePort consentServicePort;
     private final UserProfileServicePort userProfileServicePort;
+    private final OffererProfileServicePort offererProfileServicePort;
     /** Direccion principal opcional capturada en el registro (queda en "Mis direcciones"). */
     private final AddressServicePort addressServicePort;
 
@@ -55,6 +57,10 @@ public class UserCreationService implements UserCreationServicePort {
 
         // Asignacion via el mecanismo interno assignRole (por nombre), sin restricciones de politica.
         userRoleServicePort.assignRole(user.getId(), roleName);
+
+        if (roleName == RoleName.OFFERER) {
+            offererProfileServicePort.createOffererProfile(user.getId());
+        }
 
         // Perfil personal (document/phone se cifran al persistir).
         userProfileServicePort.createProfile(new CreateUserProfileCommand(
