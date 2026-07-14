@@ -158,6 +158,36 @@ export const requestApi = {
     rejectRequest: (id) => request(`/api/v1/service-requests/${id}/reject`, { method: 'POST', auth: true }),
     markCompleted: (id) => request(`/api/v1/service-requests/${id}/mark-completed`, { method: 'POST', auth: true }),
     confirmCompletion: (id) => request(`/api/v1/service-requests/${id}/confirm-completion`, { method: 'POST', auth: true }),
+    rescheduleRequest: (id, payload) => request(`/api/v1/service-requests/${id}/reschedule`, { method: 'POST', body: payload, auth: true }),
+    getMyOffererRequests: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/offerer-requests${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
+};
+
+// RF-023/RF-034/RF-035/RF-036 — Propuestas de reprogramación
+export const proposalApi = {
+    createProposal: (payload) => request('/api/v1/reschedule-proposals', { method: 'POST', body: payload, auth: true }),
+    acceptProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/accept`, { method: 'POST', auth: true }),
+    rejectProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/reject`, { method: 'POST', auth: true }),
+    cancelProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/cancel`, { method: 'POST', auth: true }),
+    getReceived: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/proposals/received${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
+    getSent: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/proposals/sent${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
 };
 
 export const categoryApi = {
@@ -223,6 +253,54 @@ export const notificationApi = {
         request(`/api/v1/notifications/${id}/read`, { method: 'POST', auth: true }),
     getChannels: () =>
         request('/api/v1/notification-channels', { auth: true }),
+};
+
+// RF-048 — Búsqueda combinada de feedback por parte del admin
+export const adminFeedbackApi = {
+    search: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/admin/feedback?${qs.toString()}`, { auth: true });
+    },
+    removeDirect: (payload) =>
+        request('/api/v1/admin/feedback/remove', { method: 'POST', body: payload, auth: true }),
+};
+
+// RF-049 — Acciones de moderación sobre reportes
+export const moderationApi = {
+    warnUser: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/warn`, { method: 'POST', auth: true }),
+    banUser: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/ban`, { method: 'POST', auth: true }),
+    revertFeedback: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/revert-feedback`, { method: 'POST', auth: true }),
+    closeReport: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/close`, { method: 'POST', auth: true }),
+    markNotProvided: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/mark-not-provided`, { method: 'POST', auth: true }),
+};
+
+// RF-041/RF-045 — Feedback de servicio (cliente califica servicio)
+// RF-043/RF-044 — Feedback de cliente (oferente califica cliente)
+export const feedbackApi = {
+    submitServiceFeedback: (requestId, payload) =>
+        request(`/api/v1/service-requests/${requestId}/feedback`, { method: 'POST', body: payload, auth: true }),
+    submitClientFeedback: (requestId, payload) =>
+        request(`/api/v1/service-requests/${requestId}/client-feedback`, { method: 'POST', body: payload, auth: true }),
+};
+
+// RF-064 — Eliminar servicio desde el panel de administración
+export const adminServiceApi = {
+    search: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/services/search?${qs.toString()}`, { auth: true });
+    },
+    deleteService: (id) => request(`/api/v1/admin/services/${id}`, { method: 'DELETE', auth: true }),
 };
 
 // Ruta de inicio según el rol devuelto por el backend.

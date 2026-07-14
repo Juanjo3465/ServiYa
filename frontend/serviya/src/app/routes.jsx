@@ -16,7 +16,7 @@ import {
     RequestServicePage,
 } from "../modules/requests";
 import { NotificationsPage } from "../modules/notifications";
-import { AdminDashboardPage, AdminUsersPage, AdminReportsPage } from "../modules/admin";
+import { AdminDashboardPage, AdminUsersPage, AdminReportsPage, AdminFeedbackPage, AdminServicesPage } from "../modules/admin";
 
 const page = (element) => ({ element: <App>{element}</App> });
 
@@ -53,4 +53,6 @@ export const router = createBrowserRouter([
     { path: "/admin/dashboard", ...page(<AdminDashboardPage />) },
     { path: "/admin/users", ...page(<AdminUsersPage />) },
     { path: "/admin/reports", ...page(<AdminReportsPage />) },
+    { path: "/admin/feedback", ...page(<AdminFeedbackPage />) },
+    { path: "/admin/services", ...page(<AdminServicesPage />) },
 ]);

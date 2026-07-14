@@ -86,7 +86,7 @@ public interface ServiceRequestApi {
     @ApiResponse(responseCode = "204", description = "Solicitud marcada como presuntamente cumplida")
     ResponseEntity<Void> markCompleted(Long id);
 
-    @Operation(summary = "Confirmar la realizacion del servicio (cliente)", description = "RF-037.")
+    @Operation(summary = "Confirmar la realizacion del servicio (cliente)", description = "RF-037, RF-020.")
     @ApiResponse(responseCode = "204", description = "Servicio confirmado como completado")
     ResponseEntity<Void> confirmCompletion(Long id);
 

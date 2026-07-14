@@ -94,4 +94,12 @@ public class ReportService implements ReportServicePort {
     public int countReportsByReporter(Long reporterId) {
         return Math.toIntExact(reportPersistencePort.countByReporterId(reporterId));
     }
+
+    @Override
+    public void closeReport(Long reportId) {
+        Report report = reportPersistencePort.findById(reportId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reporte no encontrado: " + reportId));
+        report.close();
+        reportPersistencePort.update(report);
+    }
 }
