@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, profileApi, serviceApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, profileApi, serviceApi, availabilityApi, isAuthenticated } from '../../../../shared';
 
 import './AvailabilityPage.css';
 
@@ -118,8 +118,8 @@ export function AvailabilityPage() {
     }, [navigate, showToast]);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/v1/offerers/me/availability')
-            .then((response) => response.json())
+        // Va autenticado: el backend identifica al oferente por el JWT.
+        availabilityApi.getMySchedule()
             .then((data) => {
                 const grouped = { ...EMPTY_SCHEDULE };
                 for (const slot of data) {
@@ -132,6 +132,7 @@ export function AvailabilityPage() {
                 }
                 setSchedule(grouped);
             })
+            .catch((e) => showToast(e.message || 'No se pudo cargar tu horario', 'danger'))
             .finally(() => setLoading(false));
     }, []);
 
@@ -218,16 +219,9 @@ export function AvailabilityPage() {
             return;
         }
 
-        fetch('http://localhost:8080/api/v1/offerers/me/availability', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(allSlots),
-        })
-            .then((response) => {
-                if (!response.ok) throw new Error('Save failed');
-                showToast('Horario general guardado', 'success');
-            })
-            .catch(() => showToast('No se pudo guardar el horario', 'error'));
+        availabilityApi.saveMySchedule(allSlots)
+            .then(() => showToast('Horario general guardado', 'success'))
+            .catch((e) => showToast(e.message || 'No se pudo guardar el horario', 'danger'));
     }
 
     async function handleSaveServiceSchedule() {
@@ -241,7 +235,10 @@ export function AvailabilityPage() {
                 weekDay: Number(weekDay),
                 startTime: toBackendTime(s.startTime),
                 endTime: toBackendTime(s.endTime),
-                active: true,
+                // OJO: el endpoint de servicio espera "isActive" (el de horario general usa "active").
+                // Enviar el nombre equivocado dejaba el flag en null -> la franja se guardaba INACTIVA
+                // y, al filtrarse las inactivas, el cliente no podia reservar en ella.
+                isActive: true,
             }))
         );
 
@@ -261,8 +258,8 @@ export function AvailabilityPage() {
                 active: slot.active ?? slot.activeStatus ?? true,
             })));
             showToast('Disponibilidad del servicio guardada', 'success');
-        } catch {
-            showToast('No se pudo guardar la disponibilidad del servicio', 'error');
+        } catch (e) {
+            showToast(e.message || 'No se pudo guardar la disponibilidad del servicio', 'danger');
         }
     }
 

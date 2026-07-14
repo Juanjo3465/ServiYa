@@ -251,6 +251,19 @@ export const offererAgendaApi = {
     getOffererAgenda: () => request('/api/v1/users/me/offerer-agenda', { auth: true }),
 };
 
+/**
+ * Disponibilidad del oferente. La identidad sale del JWT (/offerers/me/...), asi que estas llamadas
+ * DEBEN ir autenticadas: antes se hacian con fetch crudo, sin token y con la URL quemada, y por eso
+ * el horario nunca llegaba a guardarse.
+ */
+export const availabilityApi = {
+    getMySchedule: () => request('/api/v1/offerers/me/availability', { auth: true }),
+    saveMySchedule: (slots) =>
+        request('/api/v1/offerers/me/availability', { method: 'PUT', body: slots, auth: true }),
+    deleteSlot: (id) =>
+        request(`/api/v1/offerers/me/availability/slots/${id}`, { method: 'DELETE', auth: true }),
+};
+
 export const reportApi = {
     createRequestReport: (payload) => request('/api/v1/reports/requests', { method: 'POST', body: payload, auth: true }),
     createServiceFeedbackReport: (payload) => request('/api/v1/reports/service-feedback', { method: 'POST', body: payload, auth: true }),

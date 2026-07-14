@@ -23,6 +23,7 @@ export {
     addressApi,
     clientAgendaApi,
     offererAgendaApi,
+    availabilityApi,
     requestApi,
     proposalApi,
     userApi,
