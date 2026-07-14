@@ -8,5 +8,6 @@ public record FeedbackResponse (
     String userName,
     String userPhotoUrl,
     String comment,
+    Integer rating,
     LocalDateTime createdAt
 ){}

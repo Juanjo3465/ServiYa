@@ -10,5 +10,6 @@ public interface ServiceAvailabilityPersistencePort {
     void deleteById(Long id);
     ServiceAvailability update(ServiceAvailability availability);
     List<ServiceAvailability> findByServiceId(long serviceId);
+    ServiceAvailability findById(Long id);
     
 }

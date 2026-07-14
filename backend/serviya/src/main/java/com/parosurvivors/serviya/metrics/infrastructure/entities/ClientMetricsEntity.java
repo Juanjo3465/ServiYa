@@ -34,6 +34,9 @@ public class ClientMetricsEntity {
     @Column(name = "total_negative_tags", nullable = false)
     private Integer totalNegativeTags;
 
+    @Column(name = "total_requests_sent", nullable = false)
+    private Integer totalRequestsSent;
+
     @Column(name = "total_accepted_requests", nullable = false)
     private Integer totalAcceptedRequests;
 
@@ -43,8 +46,8 @@ public class ClientMetricsEntity {
     @Column(name = "total_cancelled_requests", nullable = false)
     private Integer totalCancelledRequests;
 
-    @Column(name = "total_scheduled_requests", nullable = false)
-    private Integer totalScheduledRequests;
+    @Column(name = "total_rescheduled_requests", nullable = false)
+    private Integer totalRescheduledRequests;
 
     @Column(name = "total_not_provided_requests", nullable = false)
     private Integer totalNotProvidedRequests;

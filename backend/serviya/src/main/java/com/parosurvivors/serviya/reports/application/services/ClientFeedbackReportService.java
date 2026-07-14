@@ -6,14 +6,10 @@ import com.parosurvivors.serviya.reports.application.ports.input.ClientFeedbackR
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ClientFeedbackReportPersistencePort;
 import com.parosurvivors.serviya.reports.domain.ClientFeedbackReport;
+import com.parosurvivors.serviya.reports.domain.Report;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Implementacion placeholder de ClientFeedbackReportServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
- */
 @Component
 @RequiredArgsConstructor
 public class ClientFeedbackReportService implements ClientFeedbackReportServicePort {
@@ -23,11 +19,23 @@ public class ClientFeedbackReportService implements ClientFeedbackReportServiceP
 
     @Override
     public ClientFeedbackReport createReport(CreateClientFeedbackReportCommand command) {
-        throw new UnsupportedOperationException("TODO: createReport — placeholder, ver estructura-servicios.docx");
+        Report baseReport = reportServicePort.createBaseReport(
+                command.reporterId(),
+                command.reportedUserId(),
+                "CLIENT_FEEDBACK",
+                command.category(),
+                command.reason());
+
+        ClientFeedbackReport link = ClientFeedbackReport.builder()
+                .reportId(baseReport.getId())
+                .feedbackId(command.clientFeedbackId())
+                .build();
+
+        return clientFeedbackReportPersistencePort.save(link);
     }
 
     @Override
     public ReportDetailResult getReportDetail(Long reportId) {
-        throw new UnsupportedOperationException("TODO: getReportDetail — placeholder, ver estructura-servicios.docx");
+        return reportServicePort.getReportDetail(reportId);
     }
 }

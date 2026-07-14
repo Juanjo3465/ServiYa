@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.notifications.infrastructure.adapters.input.api
 import com.parosurvivors.serviya.notifications.infrastructure.dto.response.NotificationChannelResponse;
 import com.parosurvivors.serviya.notifications.infrastructure.dto.response.NotificationDeliveryResponse;
 import com.parosurvivors.serviya.notifications.infrastructure.mappers.NotificationWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -55,8 +56,8 @@ public class NotificationController implements NotificationApi {
         return ResponseEntity.ok(mapper.toChannelResponses(notificationChannelService.getChannels()));
     }
 
-    /** TODO: reemplazar por el id extraido del JWT autenticado. */
+    
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }

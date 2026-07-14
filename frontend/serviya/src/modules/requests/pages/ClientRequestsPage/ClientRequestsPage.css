@@ -41,3 +41,10 @@
     align-items: center;
     gap: 4px;
 }
+
+.pager {
+    display: flex;
+    justify-content: center;
+    margin-top: 22px;
+    gap: 5px;
+}

@@ -35,6 +35,6 @@ public class ServiceFeedbackEntity {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }

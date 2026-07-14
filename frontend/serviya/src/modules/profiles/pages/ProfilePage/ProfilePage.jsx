@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated, rolesFromToken, getApiImageUrl } from '../../../../shared';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
@@ -26,7 +26,8 @@ function AddressModal({
     title,
     onSave,
     editedAddress,
-    showToast
+    showToast,
+    profile
 }) {
     const [location, setLocation] = useState(null);
     const [geoLoading, setGeoLoading] = useState(false);
@@ -43,6 +44,8 @@ function AddressModal({
         if (!editedAddress) return;
 
         reset(editedAddress);
+
+        setValue("main", profile?.primaryAddressId === editedAddress.id);
 
         if (editedAddress.latitude != null && editedAddress.longitude != null) {
             setLocation({
@@ -177,6 +180,15 @@ function AddressModal({
                     />
                 </div>
 
+                <label className="check-line">
+                    <input
+                        type="checkbox"
+                        readOnly={!location || geoLoading}
+                        {...register("main")}
+                    />
+                    Establecer como dirección principal
+                </label>
+
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={onClose}>
                         Cancelar
@@ -243,8 +255,14 @@ export function ProfilePage() {
     const [editAddressOpen, setEditAddressOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [offererProfile, setOffererProfile] = useState(null);
     const [addresses, setAddresses] = useState([]);
     const [editedAddress, setEditedAddress] = useState(null);
+    const [isOfferer, setIsOfferer] = useState(false);
+    const [offererForm, setOffererForm] = useState({ whatsappNumber: '', publicDescription: '', specialty: '' });
+    const [savingOffererProfile, setSavingOffererProfile] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const fileInputRef = useRef(null);
 
     // --- Cambio de contraseña (RF-007) ---
     const [currentPassword, setCurrentPassword] = useState('');
@@ -259,7 +277,10 @@ export function ProfilePage() {
             return;
         }
         profileApi.getMyProfile()
-            .then(setProfile)
+            .then((data) => {
+                setProfile(data);
+                setIsOfferer(rolesFromToken().includes('OFFERER'));
+            })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -270,9 +291,24 @@ export function ProfilePage() {
             .catch((e) => showToast(e.message || 'No se pudieron cargar tus direcciones', 'danger'));
     }, [profile?.id]);
 
+    useEffect(() => {
+        if (!isOfferer) return;
+        profileApi.getOffererProfile()
+            .then((data) => {
+                setOffererProfile(data);
+                setOffererForm({
+                    whatsappNumber: data?.whatsappNumber || '',
+                    publicDescription: data?.publicDescription || '',
+                    specialty: data?.specialty || '',
+                });
+            })
+            .catch((e) => showToast(e.message || 'No se pudo cargar el perfil de oferente', 'danger'));
+    }, [isOfferer]);
+
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
         .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    const profilePhotoSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
 
     const openEditAddresss = (address) => () => {
         setEditedAddress({
@@ -287,6 +323,56 @@ export function ProfilePage() {
         setEditedAddress(null);
     };
 
+    const changeMainAddress = (addressId) => {
+        return profileApi
+            .changeMainAddress({ addressId })
+            .then(() => {
+                setAddresses(prev =>
+                    prev.map(a => ({
+                        ...a,
+                        main: a.id === addressId
+                    }))
+                );
+
+                setProfile(prev => ({
+                    ...prev,
+                    primaryAddressId: addressId
+                }));
+            })
+            .catch(e => {
+                showToast(
+                    e.message || 'No se pudo establecer la dirección principal',
+                    'danger'
+                );
+                throw e;
+            });
+    };
+
+    const clearMainAddress = () => {
+        return profileApi
+            .changeMainAddress({ addressId: null })
+            .then(() => {
+                setAddresses(prev =>
+                    prev.map(a => ({
+                        ...a,
+                        main: false
+                    }))
+                );
+
+                setProfile(prev => ({
+                    ...prev,
+                    primaryAddressId: null
+                }));
+            })
+            .catch(e => {
+                showToast(
+                    e.message || 'No se pudo quitar la dirección principal',
+                    'danger'
+                );
+                throw e;
+            });
+    };
+
     const createAddress = (formData) => {
         const payload = {
             ...formData
@@ -299,6 +385,9 @@ export function ProfilePage() {
                     ...prev,
                     { ...created }
                 ]);
+                if (payload.main === true) {
+                    changeMainAddress(created.id);
+                }
                 setNewAddressOpen(false);
                 showToast('Dirección creada exitosamente', 'success');
             })
@@ -316,6 +405,14 @@ export function ProfilePage() {
             ...editedAddress,
             ...formData
         };
+
+        if (editedAddress.id === profile?.primaryAddressId && payload.main === false) {
+            clearMainAddress();
+        }
+
+        if (editedAddress.id !== profile?.primaryAddressId && payload.main === true) {
+            changeMainAddress(editedAddress.id);
+        }
 
         addressApi
             .updateAddress(payload.id, payload)
@@ -344,6 +441,10 @@ export function ProfilePage() {
     }
 
     const deleteAddress = (address) => () => {
+        if (address.id === profile?.primaryAddressId) {
+            clearMainAddress();
+        }
+
         addressApi
             .deleteAddress(address.id)
             .then(() => {
@@ -357,6 +458,44 @@ export function ProfilePage() {
                     'danger'
                 )
             );
+    };
+
+    const handleOffererProfileSave = () => {
+        setSavingOffererProfile(true);
+        profileApi.updateOffererProfile(offererForm)
+            .then((data) => {
+                setOffererProfile(data);
+                setOffererForm({
+                    whatsappNumber: data?.whatsappNumber || '',
+                    publicDescription: data?.publicDescription || '',
+                    specialty: data?.specialty || '',
+                });
+                showToast('Perfil público del oferente actualizado', 'success');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo actualizar el perfil de oferente', 'danger'))
+            .finally(() => setSavingOffererProfile(false));
+    };
+
+    const handleProfilePhotoPick = () => fileInputRef.current?.click();
+
+    const handleProfilePhotoUpload = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('photoUrl', file);
+
+        setUploadingPhoto(true);
+        try {
+            const updated = await profileApi.updateMyProfilePhoto(formData);
+            setProfile(prev => prev ? { ...prev, profilePhotoUrl: updated?.profilePhotoUrl || prev.profilePhotoUrl } : prev);
+            showToast('Foto de perfil actualizada', 'success');
+        } catch (e) {
+            showToast(e.message || 'No se pudo actualizar la foto de perfil', 'danger');
+        } finally {
+            setUploadingPhoto(false);
+            event.target.value = '';
+        }
     };
 
     function handleChangePassword() {
@@ -386,7 +525,7 @@ export function ProfilePage() {
     }
 
     return (
-        <DashboardLayout sections={CLIENT_NAV} avatar={initials}>
+        <DashboardLayout sections={CLIENT_NAV} avatar={initials} avatarSrc={profilePhotoSrc}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
 
             <div className="tabs">
@@ -399,8 +538,17 @@ export function ProfilePage() {
                 <div className="card">
                     <div className="profile-id">
                         <div style={{ position: 'relative' }}>
-                            <div className="av av-xl">{initials}</div>
-                            <button className="avatar-edit" onClick={() => showToast('Foto actualizada', 'success')}><Icon name="camera" size={12} strokeWidth={2.5} /></button>
+                            <div className="av av-xl">
+                                {profilePhotoSrc ? (
+                                    <img src={profilePhotoSrc} alt="Foto de perfil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
+                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfilePhotoUpload} />
+                            <button className="avatar-edit" onClick={handleProfilePhotoPick} disabled={uploadingPhoto}>
+                                {uploadingPhoto ? '…' : <Icon name="camera" size={12} strokeWidth={2.5} />}
+                            </button>
                         </div>
                         <div>
                             <div style={{ fontSize: '18px', fontWeight: 700 }}>{profile?.fullName ?? 'Cargando…'}</div>
@@ -419,6 +567,27 @@ export function ProfilePage() {
                     <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly /></div>
                     <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos protegidos:</strong> Tu documento y teléfono se almacenan cifrados (AES-256-GCM) y solo tú puedes verlos aquí (RF-005).</div>
                     <button className="btn btn-primary" onClick={() => showToast('Perfil actualizado', 'success')}><Icon name="save" size={15} />Guardar cambios</button>
+
+                    {isOfferer && (
+                        <div className="card" style={{ marginTop: '16px' }}>
+                            <div className="card-title">Perfil público del oferente</div>
+                            <div className="input-group">
+                                <label className="label">WhatsApp</label>
+                                <input className="input" value={offererForm.whatsappNumber} onChange={(e) => setOffererForm(prev => ({ ...prev, whatsappNumber: e.target.value }))} />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Descripción pública</label>
+                                <textarea className="input" rows={4} value={offererForm.publicDescription} onChange={(e) => setOffererForm(prev => ({ ...prev, publicDescription: e.target.value }))} />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Especialidad</label>
+                                <input className="input" value={offererForm.specialty} onChange={(e) => setOffererForm(prev => ({ ...prev, specialty: e.target.value }))} />
+                            </div>
+                            <button className="btn btn-primary" onClick={handleOffererProfileSave} disabled={savingOffererProfile}>
+                                {savingOffererProfile ? 'Guardando...' : 'Guardar perfil público'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -429,16 +598,16 @@ export function ProfilePage() {
                         <button className="btn btn-primary btn-sm" onClick={() => setNewAddressOpen(true)}><Icon name="plus" size={13} />Agregar dirección</button>
                     </div>
                     {addresses.map((a, i) => (
-                        <div className="card addr-card" key={i} style={a.main ? { borderLeft: '3px solid var(--c-primary)' } : undefined}>
+                        <div className="card addr-card" key={i} style={a.id === profile?.primaryAddressId ? { borderLeft: '3px solid var(--c-primary)' } : undefined}>
                             <div className="addr-row">
-                                <div className="stat-ico" style={{ margin: 0, flexShrink: 0, ...(a.main ? {} : { background: 'var(--c-bg-s)', color: 'var(--c-soft)' }) }}><Icon name="mapPin" size={18} /></div>
+                                <div className="stat-ico" style={{ margin: 0, flexShrink: 0, ...(a.id === profile?.primaryAddressId ? {} : { background: 'var(--c-bg-s)', color: 'var(--c-soft)' }) }}><Icon name="mapPin" size={18} /></div>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{a.addressLine} {a.main && <span className="badge badge-primary">Principal</span>}</div>
+                                    <div style={{ fontSize: '13px', fontWeight: 700 }}>{a.addressLine} {a.id === profile?.primaryAddressId && <span className="badge badge-primary">Principal</span>}</div>
                                     <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '3px' }}>{a.city}</div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '5px' }}>
                                     <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={openEditAddresss(a)}><Icon name="edit" size={13} /></button>
-                                    {!a.main && <button className="btn btn-danger btn-sm" onClick={deleteAddress(a)}><Icon name="trash" size={13} /></button>}
+                                    <button className="btn btn-danger btn-sm" onClick={deleteAddress(a)}><Icon name="trash" size={13} /></button>
                                 </div>
                             </div>
                         </div>
@@ -545,6 +714,7 @@ export function ProfilePage() {
                     onSave={createAddress}
                     editedAddress={null}
                     showToast={showToast}
+                    profile={profile}
                 />
             )}
             {editAddressOpen && editedAddress && (
@@ -554,6 +724,7 @@ export function ProfilePage() {
                     onSave={saveEditedAddress}
                     editedAddress={editedAddress}
                     showToast={showToast}
+                    profile={profile}
                 />
             )}
 

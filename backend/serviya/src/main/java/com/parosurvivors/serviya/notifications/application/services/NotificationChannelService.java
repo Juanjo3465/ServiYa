@@ -4,14 +4,10 @@ import com.parosurvivors.serviya.notifications.application.ports.input.Notificat
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationChannelPersistencePort;
 import com.parosurvivors.serviya.notifications.domain.NotificationChannel;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Implementacion placeholder de NotificationChannelServicePort.
- * Metodos sin logica aun (lanzan UnsupportedOperationException); dependencias inyectadas.
- * Ver documents/project-structure/estructura-servicios.docx.
- */
 @Component
 @RequiredArgsConstructor
 public class NotificationChannelService implements NotificationChannelServicePort {
@@ -20,6 +16,11 @@ public class NotificationChannelService implements NotificationChannelServicePor
 
     @Override
     public List<NotificationChannel> getChannels() {
-        throw new UnsupportedOperationException("TODO: getChannels — placeholder, ver estructura-servicios.docx");
+        return notificationChannelPersistencePort.findAll();
+    }
+
+    @Override
+    public Optional<NotificationChannel> findByName(String name) {
+        return notificationChannelPersistencePort.findByName(name);
     }
 }

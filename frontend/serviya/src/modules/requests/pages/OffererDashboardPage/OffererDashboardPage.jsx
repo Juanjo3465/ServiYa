@@ -1,95 +1,262 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
+import { metricsApi, notificationApi, requestApi, profileApi } from '../../../../shared/api';
+import { timeAgo } from '../../utils';
 
 import './OffererDashboardPage.css';
 
-const STATS = [
-    { icon: 'tasks', value: '4', label: 'Solicitudes recibidas' },
-    { icon: 'checkCircle', value: '42', label: 'Servicios completados', variant: 'success' },
-    { icon: 'star', value: '4.9★', label: 'Calificación promedio', variant: 'warn', fill: 'currentColor' },
-    { icon: 'xCircle', value: '2%', label: 'Cancelaciones', variant: 'danger' },
-];
+const TYPE_META = {
+    new_request:         { icon: 'tasks',     cls: '' },
+    request_accepted:    { icon: 'check',     cls: 'success' },
+    request_rejected:    { icon: 'close',     cls: 'danger' },
+    request_cancelled:   { icon: 'close',     cls: 'danger' },
+    service_completed:   { icon: 'check',     cls: 'success' },
+    reschedule_proposed: { icon: 'reschedule', cls: 'warn' },
+    request_rescheduled: { icon: 'reschedule', cls: 'warn' },
+};
 
-const AGENDA = [
-    { day: '12', month: 'Mayo', title: 'Reparación de tuberías', sub: 'Juan P. · 9:00 AM · Calle 45 #12-34', badge: 'badge-warn', label: 'Pendiente' },
-    { day: '14', month: 'Mayo', title: 'Reparación de tuberías', sub: 'Sandra R. · 10:00 AM · Carrera 7', badge: 'badge-success', label: 'Aceptada' },
-    { day: '16', month: 'Mayo', title: 'Destape de cañerías', sub: 'Mario V. · 2:00 PM · Usaquén', badge: 'badge-success', label: 'Aceptada' },
-];
+function metaForType(type) {
+    return TYPE_META[type] || { icon: 'bell', cls: '' };
+}
+
+const STATUS_CONFIG = {
+    PENDING:                { badgeClass: 'badge-primary', label: 'Nueva' },
+    ACCEPTED:               { badgeClass: 'badge-success', label: 'Aceptada' },
+    PRESUMABLY_COMPLETED:   { badgeClass: 'badge-warn',    label: 'Esperando confirmación' },
+};
+
+function formatScheduledDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function timeAgoShort(dateStr) {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Recibida hace un momento';
+    if (mins < 60) return `Recibida hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Recibida hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `Recibida hace ${days}d`;
+}
+
+function initials(name) {
+    if (!name) return '??';
+    return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
 
 export function OffererDashboardPage() {
     const { toasts, showToast } = useToast();
     const [proposalOpen, setProposalOpen] = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState(null);
+    const [offererMetrics, setOffererMetrics] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [requests, setRequests] = useState([]);
+    const [loadingRequests, setLoadingRequests] = useState(true);
+    const [notifications, setNotifications] = useState([]);
+    const [loadingNotifications, setLoadingNotifications] = useState(true);
+    const [profile, setProfile] = useState(null);
+    const [acting, setActing] = useState(null);
+
+    const loadRequests = useCallback(() => {
+        setLoadingRequests(true);
+        requestApi.getOffererRequests({ statuses: ['PENDING', 'ACCEPTED', 'PRESUMABLY_COMPLETED'], size: 20 })
+            .then(data => setRequests(data.content || []))
+            .catch(() => showToast('Error al cargar solicitudes', 'danger'))
+            .finally(() => setLoadingRequests(false));
+    }, [showToast]);
+
+    useEffect(() => {
+        metricsApi.getMyMetrics()
+            .then(data => setOffererMetrics(data.offererMetrics))
+            .catch(() => showToast('Error al cargar métricas', 'danger'))
+            .finally(() => setLoading(false));
+    }, [showToast]);
+
+    useEffect(() => { loadRequests(); }, [loadRequests]);
+
+    useEffect(() => {
+        notificationApi.getNotifications({ page: 0, size: 3 })
+            .then(data => setNotifications(data.content || []))
+            .catch(() => {})
+            .finally(() => setLoadingNotifications(false));
+    }, []);
+
+    useEffect(() => {
+        profileApi.getMyProfile()
+            .then(data => setProfile(data))
+            .catch(() => {});
+    }, []);
+
+    const userName = profile?.fullName || profile?.name || '';
+    const avatarText = initials(userName);
+
+    const stats = offererMetrics ? [
+        { icon: 'tasks', value: String(offererMetrics.totalRequestsReceived ?? 0), label: 'Solicitudes recibidas' },
+        { icon: 'checkCircle', value: String(offererMetrics.totalCompletedServices ?? 0), label: 'Servicios completados', variant: 'success' },
+        { icon: 'star', value: (offererMetrics.averageRating ?? 0).toFixed(1) + '★', label: 'Calificación promedio', variant: 'warn', fill: 'currentColor' },
+        {
+            icon: 'xCircle',
+            value: (offererMetrics.totalRequestsReceived > 0 ? (offererMetrics.totalCancelledServices / offererMetrics.totalRequestsReceived * 100) : 0).toFixed(0) + '%',
+            label: 'Cancelaciones',
+            variant: 'danger',
+        },
+    ] : [];
+
+    async function handleAccept(req) {
+        setActing(req.requestId);
+        try {
+            await requestApi.acceptRequest(req.requestId);
+            showToast('Solicitud aceptada. Cliente notificado', 'success');
+            loadRequests();
+        } catch (e) {
+            showToast(e.message || 'Error al aceptar solicitud', 'danger');
+        } finally {
+            setActing(null);
+        }
+    }
+
+    async function handleReject(req) {
+        setActing(req.requestId);
+        try {
+            await requestApi.rejectRequest(req.requestId);
+            showToast('Solicitud rechazada. Cliente notificado', 'success');
+            loadRequests();
+        } catch (e) {
+            showToast(e.message || 'Error al rechazar solicitud', 'danger');
+        } finally {
+            setActing(null);
+        }
+    }
+
+    async function handleMarkCompleted() {
+        if (!selectedRequest) return;
+        setActing(selectedRequest.requestId);
+        try {
+            await requestApi.markCompleted(selectedRequest.requestId);
+            setCompleteOpen(false);
+            setSelectedRequest(null);
+            showToast('Servicio marcado como realizado. Cliente notificado', 'success');
+            loadRequests();
+        } catch (e) {
+            showToast(e.message || 'Error al marcar servicio', 'danger');
+        } finally {
+            setActing(null);
+        }
+    }
+
+    function openCompleteModal(req) {
+        setSelectedRequest(req);
+        setCompleteOpen(true);
+    }
 
     return (
-        <DashboardLayout sections={OFFERER_NAV} avatar="CM">
-            <div className="ph"><h1>¡Hola, Carlos!</h1><p>Gestiona tus servicios y solicitudes recibidas</p></div>
+        <DashboardLayout sections={OFFERER_NAV} avatar={avatarText}>
+            <div className="ph">
+                <h1>{userName ? `¡Hola, ${userName}!` : '¡Hola!'}</h1>
+                <p>Gestiona tus servicios y solicitudes recibidas</p>
+            </div>
 
             <div className="g4" style={{ marginBottom: '22px' }}>
-                {STATS.map((s) => <StatCard key={s.label} {...s} />)}
+                {loading ? <div className="loading-pulse" style={{ height: 80 }} /> : stats.map((s) => <StatCard key={s.label} {...s} />)}
             </div>
 
             <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>Solicitudes recibidas</div>
 
-            <div className="req-card new" style={{ marginBottom: '10px' }}>
-                <div className="inc-head">
-                    <span className="badge badge-primary">Nueva</span>
-                    <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>Recibida hace 5 min</span>
+            {loadingRequests ? (
+                <div className="loading-pulse" style={{ height: 120, marginBottom: 10 }} />
+            ) : requests.length === 0 ? (
+                <div className="card" style={{ padding: '20px', textAlign: 'center', color: 'var(--c-mid)', fontSize: '13px' }}>
+                    No tienes solicitudes activas en este momento.
                 </div>
-                <div className="inc-body">
-                    <div className="av av-md">JP</div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>Juan Pablo Bernal</div>
-                        <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Reparación de tuberías · Lun 12 mayo, 9:00 AM · Calle 45 #12-34</div>
-                        <div className="client-metrics">
-                            <div className="cm-pill"><strong>96%</strong> Cumplimiento</div>
-                            <div className="cm-pill"><strong>3%</strong> Cancelaciones</div>
-                            <div className="cm-pill"><Stars rating={5} size={11} /><strong>4.8</strong></div>
-                            <div className="cm-pill"><strong>18</strong> servicios</div>
+            ) : requests.map((req) => {
+                const st = STATUS_CONFIG[req.status] || { badgeClass: 'badge-gray', label: req.status };
+                const isPending = req.status === 'PENDING';
+                const isAccepted = req.status === 'ACCEPTED';
+
+                return (
+                    <div className={`req-card${isPending ? ' new' : ''}`} style={{ marginBottom: '10px' }} key={req.requestId}>
+                        <div className="inc-head">
+                            <span className={`badge ${st.badgeClass}`}>{st.label}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>{timeAgoShort(req.createdAt)}</span>
+                        </div>
+                        <div className="inc-body">
+                            <div className="av av-md">{initials(req.counterpartyName)}</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>{req.counterpartyName}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>
+                                    {req.serviceTitle} · {req.categoryName} · {formatScheduledDate(req.scheduledDate)}
+                                    {req.city ? ` · ${req.city}` : ''}
+                                </div>
+                                {req.requestedPrice && (
+                                    <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '2px' }}>
+                                        Precio: ${req.requestedPrice}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+                            {isPending && (
+                                <>
+                                    <button className="btn btn-success btn-sm" disabled={acting === req.requestId} onClick={() => handleAccept(req)}>
+                                        <Icon name="check" size={13} />Aceptar
+                                    </button>
+                                    <button className="btn btn-danger btn-sm" disabled={acting === req.requestId} onClick={() => handleReject(req)}>
+                                        <Icon name="close" size={13} />Rechazar
+                                    </button>
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setProposalOpen(true)}>
+                                        <Icon name="reschedule" size={13} />Proponer reprogramación
+                                    </button>
+                                </>
+                            )}
+                            {isAccepted && (
+                                <>
+                                    <button className="btn btn-primary btn-sm" disabled={acting === req.requestId} onClick={() => openCompleteModal(req)}>
+                                        <Icon name="check" size={13} />Marcar como realizado
+                                    </button>
+                                    <button className="btn btn-danger btn-sm" disabled={acting === req.requestId} onClick={() => handleReject(req)}>
+                                        Cancelar
+                                    </button>
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setProposalOpen(true)}>
+                                        Reprogramar
+                                    </button>
+                                </>
+                            )}
+                            {req.status === 'PRESUMABLY_COMPLETED' && (
+                                <span style={{ fontSize: '12px', color: 'var(--c-mid)', fontStyle: 'italic' }}>
+                                    Esperando confirmación del cliente...
+                                </span>
+                            )}
                         </div>
                     </div>
-                </div>
-                <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-                    <button className="btn btn-success btn-sm" onClick={() => showToast('Solicitud aceptada. Cliente notificado', 'success')}><Icon name="check" size={13} />Aceptar</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => showToast('Solicitud rechazada. Cliente notificado', 'danger')}><Icon name="close" size={13} />Rechazar</button>
-                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setProposalOpen(true)}><Icon name="reschedule" size={13} />Proponer reprogramación</button>
-                </div>
-            </div>
+                );
+            })}
 
-            <div className="req-card" style={{ marginBottom: '10px' }}>
-                <div className="inc-head">
-                    <span className="badge badge-success">Aceptada</span>
-                    <span style={{ fontSize: '11px', color: 'var(--c-soft)' }}>Mié 14 mayo, 10:00 AM</span>
-                </div>
-                <div className="inc-body" style={{ alignItems: 'center' }}>
-                    <div className="av av-md">SR</div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--c-text)' }}>Sandra Rivera</div>
-                        <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Reparación de tuberías · Carrera 7 #80-21</div>
+            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px', marginTop: '20px' }}>Notificaciones recientes</div>
+            {loadingNotifications ? (
+                <div style={{ padding: '12px 0', color: 'var(--c-soft)', fontSize: '13px' }}>Cargando notificaciones...</div>
+            ) : notifications.length === 0 ? (
+                <div style={{ padding: '12px 0', color: 'var(--c-soft)', fontSize: '13px' }}>No hay notificaciones</div>
+            ) : notifications.map((n) => {
+                const meta = metaForType(n.notificationType);
+                const isUnread = !n.readAt;
+                return (
+                    <div className={`notif-item ${isUnread ? 'unread' : 'read'}`} key={n.deliveryId}>
+                        <div className={`notif-ico ${meta.cls}`}><Icon name={meta.icon} size={16} /></div>
+                        <div className="notif-body">
+                            <div className="notif-title">{n.title}</div>
+                            <div className="notif-msg">{n.message}</div>
+                            <div className="notif-time">{timeAgo(n.createdAt)}</div>
+                        </div>
                     </div>
-                </div>
-                <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-                    <button className="btn btn-primary btn-sm" onClick={() => setCompleteOpen(true)}><Icon name="check" size={13} />Marcar como realizado</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => showToast('Servicio cancelado. Cliente notificado', 'danger')}>Cancelar</button>
-                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setProposalOpen(true)}>Reprogramar</button>
-                </div>
-            </div>
-
-            <div style={{ fontSize: '15px', fontWeight: 700, margin: '20px 0 14px' }}>Próximos servicios</div>
-            <div className="card" style={{ marginBottom: '18px' }}>
-                {AGENDA.map((a, i) => (
-                    <div className="agenda-row" key={i}>
-                        <div className="agenda-date"><div className="agenda-day">{a.day}</div><div className="agenda-month">{a.month}</div></div>
-                        <div className="agenda-info"><div className="agenda-title">{a.title}</div><div className="agenda-sub">{a.sub}</div><span className={`badge ${a.badge}`} style={{ marginTop: '5px' }}>{a.label}</span></div>
-                    </div>
-                ))}
-            </div>
-
-            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Notificaciones recientes</div>
-            <div className="notif-item unread"><div className="notif-ico"><Icon name="tasks" size={16} /></div><div className="notif-body"><div className="notif-title">Nueva solicitud recibida</div><div className="notif-msg">Juan P. solicita "Reparación de tuberías" para el 12 de mayo.</div><div className="notif-time">Hace 5 min</div></div></div>
-            <div className="notif-item unread"><div className="notif-ico success"><Icon name="check" size={16} /></div><div className="notif-body"><div className="notif-title">Solicitud confirmada</div><div className="notif-msg">Sandra R. confirmó el servicio del 14 de mayo.</div><div className="notif-time">Hace 2 horas</div></div></div>
+                );
+            })}
             <Link to="/notifications" className="link-more" style={{ display: 'block', textAlign: 'center', marginTop: '10px' }}>Ver todas las notificaciones →</Link>
 
             <Modal open={proposalOpen} onClose={() => setProposalOpen(false)}>
@@ -106,14 +273,14 @@ export function OffererDashboardPage() {
 
             <ReviewModal
                 open={completeOpen}
-                onClose={() => setCompleteOpen(false)}
+                onClose={() => { setCompleteOpen(false); setSelectedRequest(null); }}
                 title="Confirmar servicio realizado"
-                sub="Confirma que prestaste el servicio a Sandra R. correctamente."
+                sub={selectedRequest ? `Confirma que prestaste el servicio a ${selectedRequest.counterpartyName} correctamente.` : ''}
                 ratingLabel="Califica al cliente (RF-043)"
                 reviewLabel="Reseña del cliente (RF-044)"
                 confirmLabel="Confirmar realizado"
                 confirmClass="btn-success"
-                onConfirm={() => { setCompleteOpen(false); showToast('Servicio marcado como realizado. Cliente notificado', 'success'); }}
+                onConfirm={handleMarkCompleted}
             />
             <ToastContainer toasts={toasts} />
         </DashboardLayout>

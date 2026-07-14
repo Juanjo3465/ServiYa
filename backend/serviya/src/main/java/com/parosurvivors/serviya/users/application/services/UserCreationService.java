@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.profiles.application.dto.command.CreateUserProfileCommand;
+import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.domain.ProfileType;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
@@ -17,15 +18,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Flujo compartido de creacion de usuario (RF-002), reutilizable por el registro publico.
- * Es atomico ({@link Transactional}): credenciales + rol + perfil + consentimiento se crean
- * en una sola transaccion; si algo falla, no queda informacion parcial.
+ * Mecanismo interno compartido de creacion de usuario (RF-002), reutilizado por los llamadores expuestos
+ * {@code register} (visitante) y {@code createUserByAdmin} (admin). Es atomico ({@link Transactional}):
+ * credenciales + rol + perfil + consentimiento se crean en una sola transaccion.
  *
- * <p>Reglas de negocio aplicadas:
- * <ul>
- *   <li>RF-004: sin consentimiento explicito no se crea la cuenta.</li>
- *   <li>El registro publico solo permite roles CLIENT u OFFERER, nunca ADMIN.</li>
- * </ul>
+ * <p>NO aplica restricciones de POLITICA de rol: asigna el rol recibido —cualquiera, incluido ADMIN— vía el
+ * mecanismo de bajo nivel {@code assignRole}. Que rol se permite lo decide cada llamador (register limita a
+ * CLIENT/OFFERER; createUserByAdmin admite cualquiera). Aqui solo vive la regla RF-004 (consentimiento).
  */
 @Component
 @RequiredArgsConstructor
@@ -35,6 +34,7 @@ public class UserCreationService implements UserCreationServicePort {
     private final UserRoleServicePort userRoleServicePort;
     private final ConsentServicePort consentServicePort;
     private final UserProfileServicePort userProfileServicePort;
+    private final OffererProfileServicePort offererProfileServicePort;
 
     @Override
     @Transactional
@@ -44,14 +44,18 @@ public class UserCreationService implements UserCreationServicePort {
             throw new InvalidStateException("Data usage consent is required to create an account");
         }
 
-        // Solo roles publicos validos (CLIENT u OFFERER), nunca ADMIN.
-        RoleName roleName = parsePublicRole(command.role());
+        // Rol recibido (cualquiera, sin restriccion de politica). La existencia del rol la valida assignRole.
+        RoleName roleName = parseRole(command.role());
 
         // Credenciales (valida email unico y cifra la contrasena con bcrypt).
         User user = userServicePort.createUser(command.email(), command.password());
 
-        // Rol elegido.
-        userRoleServicePort.acquireRole(user.getId(), roleName.name());
+        // Asignacion via el mecanismo interno assignRole (por nombre), sin restricciones de politica.
+        userRoleServicePort.assignRole(user.getId(), roleName);
+
+        if (roleName == RoleName.OFFERER) {
+            offererProfileServicePort.createOffererProfile(user.getId());
+        }
 
         // Perfil personal (document/phone se cifran al persistir).
         userProfileServicePort.createProfile(new CreateUserProfileCommand(
@@ -69,17 +73,12 @@ public class UserCreationService implements UserCreationServicePort {
         return user;
     }
 
-    private RoleName parsePublicRole(String role) {
-        RoleName roleName;
+    private RoleName parseRole(String role) {
         try {
-            roleName = RoleName.valueOf(role == null ? "" : role.trim().toUpperCase());
+            return RoleName.valueOf(role == null ? "" : role.trim().toUpperCase());
         } catch (IllegalArgumentException ex) {
             throw new InvalidStateException("Invalid role: " + role);
         }
-        if (roleName == RoleName.ADMIN) {
-            throw new InvalidStateException("Public registration cannot create ADMIN accounts");
-        }
-        return roleName;
     }
 
     private static String nullToEmpty(String value) {

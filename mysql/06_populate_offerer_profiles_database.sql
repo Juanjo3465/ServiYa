@@ -2,6 +2,8 @@
 -- PERFIL DE OFERENTE DEL USUARIO 1 (requiere users)
 -- =====================================================
 
+SET NAMES utf8mb4;
+
 INSERT INTO offerer_profiles (
     user_id,
     whatsapp_number,

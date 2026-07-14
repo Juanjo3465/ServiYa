@@ -7,8 +7,9 @@ import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdmin
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.RemoveFeedbackForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserAdminDetailResponse;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.UserSummaryResponse;
+import com.parosurvivors.serviya.metrics.infrastructure.mappers.MetricsWebMapper;
+import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
 import com.parosurvivors.serviya.users.domain.Role;
-import com.parosurvivors.serviya.users.domain.User;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.RoleResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -16,10 +17,10 @@ import org.mapstruct.Mapping;
 import java.util.List;
 
 /**
- * Mapper web (MapStruct) del panel admin: Form->Command y dominio/Result->Response.
- * Reutiliza RoleResponse del modulo users. TODO: completar mapeos donde difieran los nombres de campo.
+ * Mapper web (MapStruct) del panel admin: Form->Command y dominio/Item/Result->Response.
+ * Reutiliza RoleResponse del modulo users y las Response de metricas via MetricsWebMapper.
  */
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = MetricsWebMapper.class)
 public interface AdminWebMapper {
 
     @Mapping(target = "adminId", source = "adminId")
@@ -28,10 +29,10 @@ public interface AdminWebMapper {
     @Mapping(target = "adminId", source = "adminId")
     RemoveFeedbackCommand toCommand(RemoveFeedbackForm form, Long adminId);
 
-    UserSummaryResponse toResponse(User user);
+    /** Fila del listado y resultado de creacion: el read-model ya trae nombre y foto (null al crear). */
+    UserSummaryResponse toResponse(UserSummaryItem item);
 
-    List<UserSummaryResponse> toUserResponses(List<User> users);
-
+    /** Detalle admin: las metricas de oferente/cliente se mapean via MetricsWebMapper (uses). */
     UserAdminDetailResponse toResponse(UserAdminDetailResult result);
 
     RoleResponse toRoleResponse(Role role);

@@ -8,6 +8,8 @@ import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePe
 import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -45,11 +47,33 @@ public class UserProfileService implements UserProfileServicePort {
 
     @Override
     public UserProfile patchProfile(UpdateProfileCommand command) {
-        throw new UnsupportedOperationException("TODO: patchProfile — placeholder, ver estructura-servicios.docx");
+        UserProfile existing = userProfilePersistencePort.findByUserId(command.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for user: " + command.userId()));
+
+        if (command.fullName() != null) {
+            existing.setFullName(command.fullName());
+        }
+        if (command.phone() != null) {
+            existing.setPhoneNumber(command.phone());
+        }
+        if (command.photoUrl() != null) {
+            existing.setProfilePhotoUrl(command.photoUrl());
+        }
+        if (command.description() != null) {
+            existing.setBio(command.description());
+        }
+
+        return userProfilePersistencePort.save(existing);
     }
 
     @Override
     public void updateMainAddress(Long userId, Long addressId) {
-        throw new UnsupportedOperationException("TODO: updateMainAddress — placeholder, ver estructura-servicios.docx");
+        Optional<UserProfile> userProfile = userProfilePersistencePort.findByUserId(userId);
+
+        if (userProfile.isPresent()) {
+            UserProfile profile = userProfile.get();
+            profile.setPrimaryAddressId(addressId);
+            userProfilePersistencePort.save(profile);
+        }
     }
 }

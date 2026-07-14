@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.math.BigDecimal;
@@ -29,7 +30,14 @@ public interface ServiceApi {
             @ApiResponse(responseCode = "201", description = "Servicio creado exitosamente"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
-    ResponseEntity<ServiceResponse> create(CreateServiceForm form);
+    ResponseEntity<ServiceResponse> create(
+            String title,
+            String description,
+            String priceHourly,
+            String categoryId,
+            String averageDurationMinutes,
+            String operationRadiusKm,
+            List<MultipartFile> photos);
 
     @Operation(summary = "Obtener un servicio por ID")
     @ApiResponses({
@@ -59,7 +67,17 @@ public interface ServiceApi {
             @ApiResponse(responseCode = "404", description = "Servicio no encontrado"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
-    ResponseEntity<ServiceResponse> update(Long id, UpdateServiceForm form);
+    ResponseEntity<ServiceResponse> update(
+            Long id,
+            String title,
+            String description,
+            String priceHourly,
+            String categoryId,
+            String averageDurationMinutes,
+            String operationRadiusKm,
+            List<MultipartFile> photos,
+            List<String> existingPhotos,
+            List<String> removedPhotos);
 
     @Operation(summary = "Eliminar un servicio (eliminación física)")
     @ApiResponses({

@@ -22,4 +22,15 @@ public final class CurrentUser {
         }
         return userId;
     }
+
+    /**
+     * Indica si el usuario autenticado tiene el rol ADMIN. Los roles los coloca
+     * {@code JwtService} como authorities {@code ROLE_<NAME>}. Sirve para autorizaciones
+     * de grano fino "participante O admin" que no encajan en un {@code @PreAuthorize} simple.
+     */
+    public static boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    }
 }

@@ -32,14 +32,18 @@ public class ClientMetrics {
     private Integer totalPositiveTags = 0;
     @Builder.Default
     private Integer totalNegativeTags = 0;
+    /** Solicitudes que el cliente ha enviado (creación original, no reprogramaciones). */
+    @Builder.Default
+    private Integer totalRequestsSent = 0;
     @Builder.Default
     private Integer totalAcceptedRequests = 0;
     @Builder.Default
     private Integer totalCompletedRequests = 0;
     @Builder.Default
     private Integer totalCancelledRequests = 0;
+    /** Solicitudes que el cliente ha reprogramado (flujo libre o al aceptar una propuesta). */
     @Builder.Default
-    private Integer totalScheduledRequests = 0;
+    private Integer totalRescheduledRequests = 0;
     @Builder.Default
     private Integer totalNotProvidedRequests = 0;
     private LocalDateTime updatedAt;
@@ -89,6 +93,18 @@ public class ClientMetrics {
         touch();
     }
 
+    /** Reverso de {@link #addPositiveTags(int)} (al borrarse una reseña), sin bajar de 0. */
+    public void removePositiveTags(int count) {
+        totalPositiveTags = Math.max(0, totalPositiveTags - count);
+        touch();
+    }
+
+    /** Reverso de {@link #addNegativeTags(int)} (al borrarse una reseña), sin bajar de 0. */
+    public void removeNegativeTags(int count) {
+        totalNegativeTags = Math.max(0, totalNegativeTags - count);
+        touch();
+    }
+
     public void incrementAccepted() {
         totalAcceptedRequests++;
         touch();
@@ -104,8 +120,13 @@ public class ClientMetrics {
         touch();
     }
 
-    public void incrementScheduled() {
-        totalScheduledRequests++;
+    public void incrementRequestsSent() {
+        totalRequestsSent++;
+        touch();
+    }
+
+    public void incrementRescheduled() {
+        totalRescheduledRequests++;
         touch();
     }
 

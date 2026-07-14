@@ -1,6 +1,9 @@
 package com.parosurvivors.serviya.notifications.application.ports.output;
 
+import com.parosurvivors.serviya.notifications.domain.DeliveryStatus;
 import com.parosurvivors.serviya.notifications.domain.NotificationDelivery;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,4 +14,5 @@ public interface NotificationDeliveryPersistencePort {
     Optional<NotificationDelivery> findById(Long id);
     List<NotificationDelivery> findByNotificationId(Long notificationId);
     Optional<NotificationDelivery> findByNotificationIdAndChannelId(Long notificationId, Integer channelId);
+    Page<NotificationDelivery> findDeliveriesByUserId(Long userId, Boolean read, Long channelId, DeliveryStatus status, Pageable pageable);
 }

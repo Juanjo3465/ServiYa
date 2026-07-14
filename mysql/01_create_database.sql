@@ -2,6 +2,7 @@
 -- DATABASE: marketplace_services
 -- MySQL 8+
 -- =========================================================
+SET NAMES utf8mb4;
 
 CREATE DATABASE IF NOT EXISTS marketplace_services
 CHARACTER SET utf8mb4
@@ -284,6 +285,7 @@ CREATE TABLE service_requests (
     status ENUM(
         'PENDING',
         'ACCEPTED',
+        'PRESUMABLY_COMPLETED',
         'REJECTED',
         'CANCELLED',
         'COMPLETED',
@@ -337,6 +339,11 @@ CREATE TABLE reschedule_proposals (
 
     request_id BIGINT UNSIGNED NOT NULL,
 
+    -- Denormalizados desde la solicitud (inmutables por propuesta): permiten listar/filtrar
+    -- por parte y ordenar por created_at con un solo indice, sin pasar por service_requests.
+    client_id BIGINT UNSIGNED NOT NULL,
+    offerer_id BIGINT UNSIGNED NOT NULL,
+
     reason TEXT NOT NULL,
 
     proposed_date DATETIME NOT NULL,
@@ -344,7 +351,9 @@ CREATE TABLE reschedule_proposals (
     status ENUM(
         'PENDING',
         'ACCEPTED',
-        'REJECTED'
+        'REJECTED',
+        'CANCELLED',
+        'SUPERSEDED'
     ) NOT NULL DEFAULT 'PENDING',
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -352,11 +361,22 @@ CREATE TABLE reschedule_proposals (
     responded_at DATETIME NULL,
 
     INDEX idx_reschedule_request (request_id),
+    -- Sirven al filtro por parte + ORDER BY created_at DESC de los listados (recibidas/enviadas).
+    INDEX idx_reschedule_client_created (client_id, created_at),
+    INDEX idx_reschedule_offerer_created (offerer_id, created_at),
 
     CONSTRAINT fk_reschedule_request
         FOREIGN KEY (request_id)
         REFERENCES service_requests(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_reschedule_client
+        FOREIGN KEY (client_id)
+        REFERENCES users(id),
+
+    CONSTRAINT fk_reschedule_offerer
+        FOREIGN KEY (offerer_id)
+        REFERENCES users(id)
 );
 
 -- =========================================================
@@ -520,6 +540,9 @@ CREATE TABLE service_metrics (
 
     total_comments INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes lógicas dirigidas al servicio. Alimentada por RequestCreatedEvent.
+    total_requests_received INT UNSIGNED NOT NULL DEFAULT 0,
+
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
@@ -570,13 +593,17 @@ CREATE TABLE offerer_metrics (
 
     total_negative_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes que el oferente ha recibido (creación original de solicitud, no reprogramaciones).
+    total_requests_received INT UNSIGNED NOT NULL DEFAULT 0,
+
     total_accepted_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_completed_services INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_cancelled_services INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_rescheduled_services INT UNSIGNED NOT NULL DEFAULT 0,
+    -- ENVIAR propuestas de reprogramación. Se cuenta una por cada propuesta creada.
+    total_reschedule_proposals_sent INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_not_provided_services INT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -604,13 +631,17 @@ CREATE TABLE client_metrics (
 
     total_negative_tags INT UNSIGNED NOT NULL DEFAULT 0,
 
+    -- Solicitudes que el cliente ha enviado (creación original de solicitud, no reprogramaciones).
+    total_requests_sent INT UNSIGNED NOT NULL DEFAULT 0,
+
     total_accepted_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_completed_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_cancelled_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
-    total_scheduled_requests INT UNSIGNED NOT NULL DEFAULT 0,
+    -- El cliente es quien reprograma (flujo libre o al aceptar una propuesta): cuenta reprogramadas.
+    total_rescheduled_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
     total_not_provided_requests INT UNSIGNED NOT NULL DEFAULT 0,
 

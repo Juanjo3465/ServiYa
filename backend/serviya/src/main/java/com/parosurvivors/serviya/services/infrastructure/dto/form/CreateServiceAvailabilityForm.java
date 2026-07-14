@@ -4,14 +4,13 @@ import java.time.LocalTime;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 @Schema(description = "Datos para crear la disponibilidad de un servicio")
 public record CreateServiceAvailabilityForm (
-
-    @NotBlank @Size(min = 0, max = 6) byte weekDay,
-    @NotBlank LocalTime startTime,
-    @NotBlank LocalTime endTime,
-    @NotBlank boolean isActive
-
+    @NotNull Integer weekDay,
+    @NotNull LocalTime startTime,
+    @NotNull LocalTime endTime,
+    Boolean isActive
 ){}

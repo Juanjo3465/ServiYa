@@ -6,6 +6,7 @@ import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateOffererP
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererProfileSummaryResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.OffererPublicProfileResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.mappers.OffererProfileWebMapper;
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,12 @@ public class OffererProfileController implements OffererProfileApi {
 
     private final OffererProfileServicePort offererProfileService;
     private final OffererProfileWebMapper mapper;
+
+    @Override
+    @GetMapping("/me")
+    public ResponseEntity<OffererPublicProfileResponse> getOwnPublicProfile() {
+        return ResponseEntity.ok(mapper.toResponse(offererProfileService.getPublicProfile(currentUserId())));
+    }
 
     @Override
     @GetMapping("/{id}")
@@ -49,6 +56,6 @@ public class OffererProfileController implements OffererProfileApi {
 
     /** TODO: reemplazar por el id extraido del JWT autenticado. */
     private Long currentUserId() {
-        return 0L;
+        return CurrentUser.id();
     }
 }
