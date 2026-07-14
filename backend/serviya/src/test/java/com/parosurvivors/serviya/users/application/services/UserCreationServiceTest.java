@@ -38,13 +38,15 @@ class UserCreationServiceTest {
     @Mock UserRoleServicePort userRoleServicePort;
     @Mock ConsentServicePort consentServicePort;
     @Mock UserProfileServicePort userProfileServicePort;
+    @Mock com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort addressServicePort;
 
     @InjectMocks UserCreationService service;
 
     private CreateUserAccountCommand command(String role, Boolean accepted) {
         return new CreateUserAccountCommand(
                 "new.user@example.com", "password123", "New User",
-                role, "CC", "123456", "3001234567", accepted);
+                role, "CC", "123456", "3001234567", accepted,
+                null, null, null, null);
     }
 
     @Test
@@ -108,5 +110,39 @@ class UserCreationServiceTest {
 
         assertThat(result.getRoles()).containsExactly(RoleName.OFFERER);
         verify(userRoleServicePort).assignRole(7L, RoleName.OFFERER);
+    }
+
+    private CreateUserAccountCommand commandWithAddress() {
+        return new CreateUserAccountCommand(
+                "new.user@example.com", "password123", "New User",
+                "CLIENT", "CC", "123456", "3001234567", true,
+                "Calle 45 #12-34", "Bogota",
+                new java.math.BigDecimal("4.62"), new java.math.BigDecimal("-74.06"));
+    }
+
+    /** Si el registro trae direccion, se crea y queda como principal, en la misma transaccion. */
+    @Test
+    void crea_la_direccion_del_registro_y_la_deja_como_principal() {
+        when(userServicePort.createUser(anyString(), anyString()))
+                .thenReturn(User.builder().id(7L).email("new.user@example.com").build());
+        when(addressServicePort.createAddress(any()))
+                .thenReturn(com.parosurvivors.serviya.profiles.domain.Address.builder().id(99L).userId(7L).build());
+
+        service.createUserAccount(commandWithAddress());
+
+        verify(addressServicePort).createAddress(any());
+        verify(userProfileServicePort).updateMainAddress(7L, 99L);
+    }
+
+    /** La direccion es OPCIONAL: sin ella el alta funciona igual y no se toca el modulo de direcciones. */
+    @Test
+    void sin_direccion_no_crea_ninguna() {
+        when(userServicePort.createUser(anyString(), anyString()))
+                .thenReturn(User.builder().id(7L).email("new.user@example.com").build());
+
+        service.createUserAccount(command("CLIENT", true));
+
+        verify(addressServicePort, never()).createAddress(any());
+        verify(userProfileServicePort, never()).updateMainAddress(anyLong(), anyLong());
     }
 }

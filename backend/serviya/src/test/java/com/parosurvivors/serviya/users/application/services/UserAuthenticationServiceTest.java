@@ -110,9 +110,11 @@ class UserAuthenticationServiceTest {
     }
 
     private RegisterUserCommand registerCommand(String role) {
+        // La direccion del registro es opcional: estas pruebas cubren el alta sin ella.
         return new RegisterUserCommand(
                 "new.user@example.com", "password123", "New User",
-                role, "CC", "123456", "3001234567", true);
+                role, "CC", "123456", "3001234567", true,
+                null, null, null, null);
     }
 
     @Test

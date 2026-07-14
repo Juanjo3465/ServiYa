@@ -81,7 +81,11 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 command.documentType(),
                 command.documentNumber(),
                 command.phone(),
-                command.acceptedTerms());
+                command.acceptedTerms(),
+                command.addressLine(),
+                command.city(),
+                command.latitude(),
+                command.longitude());
 
         User created = userCreationServicePort.createUserAccount(accountCommand);
         return toAuthResult(created.getId(), created.getRoles());

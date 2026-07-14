@@ -13,5 +13,10 @@ public record RegisterUserCommand(
         String documentType,
         String documentNumber,
         String phone,
-        Boolean acceptedTerms) {
+        Boolean acceptedTerms,
+        // Direccion principal opcional capturada en el registro (los 4 campos van juntos).
+        String addressLine,
+        String city,
+        java.math.BigDecimal latitude,
+        java.math.BigDecimal longitude) {
 }

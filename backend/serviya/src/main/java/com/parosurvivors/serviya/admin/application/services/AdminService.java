@@ -68,7 +68,9 @@ public class AdminService implements AdminServicePort {
         // unicidad de email la valida createUserAccount. Devuelve el read-model de listado (sin foto aun).
         CreateUserAccountCommand accountCommand = new CreateUserAccountCommand(
                 command.email(), command.password(), command.fullName(), command.role(),
-                command.documentType(), command.documentNumber(), command.phone(), true);
+                command.documentType(), command.documentNumber(), command.phone(), true,
+                // El alta desde el panel admin no captura direccion; el usuario la agrega luego.
+                null, null, null, null);
         User created = userCreationServicePort.createUserAccount(accountCommand);
         return new UserSummaryItem(created.getId(), created.getEmail(), command.fullName(), null,
                 created.getBanned(), created.getDeletedAt(), created.getCreatedAt());
