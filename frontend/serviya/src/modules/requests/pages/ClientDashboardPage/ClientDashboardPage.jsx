@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { metricsApi, notificationApi, requestApi, profileApi } from '../../../../shared/api';
-import { STATUS_MAP, formatDate, timeAgo, categoryIcon } from '../../utils';
+import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
+import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon, isTerminal } from '../../utils';
 
 import './ClientDashboardPage.css';
 
@@ -34,6 +34,12 @@ export function ClientDashboardPage() {
     const [reschedOpen, setReschedOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
     const [cancelTarget, setCancelTarget] = useState(null);
+    const [confirmTarget, setConfirmTarget] = useState(null);
+    const [proposals, setProposals] = useState([]);
+    const [loadingProposals, setLoadingProposals] = useState(true);
+    const [reschedTarget, setReschedTarget] = useState(null);
+    const [reschedDate, setReschedDate] = useState('');
+    const [reschedTime, setReschedTime] = useState('09:00');
     const [clientMetrics, setClientMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState([]);
@@ -75,6 +81,13 @@ export function ClientDashboardPage() {
     const userName = profile?.fullName || profile?.name || '';
     const avatarText = initials(userName);
 
+    useEffect(() => {
+        proposalApi.getReceived({ page: 0, size: 5, statuses: 'PENDING' })
+            .then(data => setProposals(data.content || []))
+            .catch(() => {})
+            .finally(() => setLoadingProposals(false));
+    }, []);
+
     const handleCancel = () => {
         if (!cancelTarget) return;
         requestApi.cancelRequest(cancelTarget.requestId)
@@ -87,13 +100,19 @@ export function ClientDashboardPage() {
             .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
     };
 
-    async function handleConfirmCompletion() {
+    async function handleConfirmCompletion({ rating, comment } = {}) {
         if (!selectedRequest) return;
         try {
             await requestApi.confirmCompletion(selectedRequest.requestId);
+            if (rating > 0 || comment) {
+                await feedbackApi.submitServiceFeedback(selectedRequest.requestId, { rating: rating || null, comment: comment || null });
+            }
+            setRequests(prev => prev.map(r =>
+                r.requestId === selectedRequest.requestId ? { ...r, status: 'COMPLETED' } : r
+            ));
             setConfirmOpen(false);
             setSelectedRequest(null);
-            showToast('Servicio confirmado. Oferente notificado', 'success');
+            showToast('Servicio confirmado y reseña enviada', 'success');
             loadRequests();
         } catch (e) {
             showToast(e.message || 'Error al confirmar servicio', 'danger');
@@ -104,6 +123,29 @@ export function ClientDashboardPage() {
         setSelectedRequest(req);
         setConfirmOpen(true);
     }
+
+    const handleAcceptProposal = async (proposal) => {
+        try {
+            const newRequest = await proposalApi.acceptProposal(proposal.proposalId);
+            setProposals(prev => prev.filter(p => p.proposalId !== proposal.proposalId));
+            if (newRequest && newRequest.requestId) {
+                setRequests(prev => [newRequest, ...prev]);
+            }
+            showToast('Propuesta aceptada. Servicio reprogramado', 'success');
+        } catch (err) {
+            showToast(err.message || 'No se pudo aceptar la propuesta', 'danger');
+        }
+    };
+
+    const handleRejectProposal = async (proposal) => {
+        try {
+            await proposalApi.rejectProposal(proposal.proposalId);
+            setProposals(prev => prev.filter(p => p.proposalId !== proposal.proposalId));
+            showToast('Propuesta rechazada', 'success');
+        } catch (err) {
+            showToast(err.message || 'No se pudo rechazar la propuesta', 'danger');
+        }
+    };
 
     const stats = clientMetrics ? [
         { icon: 'tasks', value: String(clientMetrics.totalAcceptedRequests ?? 0), label: 'Solicitudes activas' },
@@ -127,6 +169,27 @@ export function ClientDashboardPage() {
             <div className="g4" style={{ marginBottom: '22px' }}>
                 {loading ? <div className="loading-pulse" style={{ height: 80 }} /> : stats.map((s) => <StatCard key={s.label} {...s} />)}
             </div>
+
+            {!loadingProposals && proposals.length > 0 && (
+                <div className="card resched-banner">
+                    <div className="resched-head">
+                        <Icon name="reschedule" size={18} style={{ color: 'var(--c-warn)' }} />
+                        <span style={{ fontSize: '14px', fontWeight: 700 }}>Propuesta de reprogramación</span>
+                        <span className="badge badge-warn">Requiere acción</span>
+                    </div>
+                    <div className="resched-body">
+                        <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>{proposals[0].serviceTitle} — {proposals[0].counterpartyName}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '10px' }}>
+                            Propone cambiar de <strong>{formatDate(proposals[0].originalScheduledDate)}</strong> a <strong>{formatDate(proposals[0].proposedDate)}</strong><br />
+                            {proposals[0].reason && <span style={{ fontStyle: 'italic', marginTop: '3px', display: 'block' }}>Motivo: "{proposals[0].reason}"</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+                            <button className="btn btn-success btn-sm" onClick={() => handleAcceptProposal(proposals[0])}><Icon name="check" size={13} />Aceptar propuesta</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleRejectProposal(proposals[0])}><Icon name="close" size={13} />Rechazar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="g2" style={{ gap: '20px' }}>
                 <div>
@@ -158,7 +221,7 @@ export function ClientDashboardPage() {
                                     </div>
                                     <div className="req-actions">
                                         <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
-                                        {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setReschedOpen(true)}><Icon name="reschedule" size={13} />Reprogramar</button>}
+                                        {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setReschedTarget(r); setReschedOpen(true); }}><Icon name="reschedule" size={13} />Reprogramar</button>}
                                         {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => openConfirmModal(r)}><Icon name="check" size={13} />Confirmar servicio</button>}
                                         {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}
                                     </div>
@@ -203,14 +266,33 @@ export function ClientDashboardPage() {
                 onConfirm={handleConfirmCompletion}
             />
 
-            <Modal open={reschedOpen} onClose={() => setReschedOpen(false)}>
+            <Modal open={reschedOpen} onClose={() => { setReschedOpen(false); setReschedTarget(null); }}>
                 <div className="modal-title">Reprogramar solicitud</div>
                 <div className="modal-sub">Elige una nueva fecha y hora disponible del oferente</div>
-                <div className="input-group"><label className="label">Nueva fecha</label><input className="input" type="date" /></div>
-                <div className="input-group"><label className="label">Nueva hora</label><select className="input"><option>9:00 AM</option><option>10:00 AM</option><option>2:00 PM</option><option>3:00 PM</option></select></div>
+                <div className="input-group"><label className="label">Nueva fecha</label><input className="input" type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} /></div>
+                <div className="input-group"><label className="label">Nueva hora</label><select className="input" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)}><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option></select></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-ghost btn-full" onClick={() => setReschedOpen(false)}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" onClick={() => { setReschedOpen(false); showToast('Solicitud reprogramada', 'success'); }}>Confirmar reprogramación</button>
+                    <button className="btn btn-ghost btn-full" onClick={() => { setReschedOpen(false); setReschedTarget(null); }}>Cancelar</button>
+                    <button className="btn btn-primary btn-full" disabled={!reschedDate} onClick={async () => {
+                        if (!reschedTarget || !reschedDate) return;
+                        try {
+                            const newDate = `${reschedDate}T${reschedTime}:00`;
+                            const result = await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
+                            setRequests(prev => prev.map(r =>
+                                r.requestId === reschedTarget.requestId ? { ...r, status: 'RESCHEDULED' } : r
+                            ));
+                            if (result && result.requestId) {
+                                setRequests(prev => [result, ...prev]);
+                            }
+                            setReschedOpen(false);
+                            setReschedTarget(null);
+                            setReschedDate('');
+                            setReschedTime('09:00');
+                            showToast('Solicitud reprogramada. Oferente notificado', 'success');
+                        } catch (err) {
+                            showToast(err.message || 'No se pudo reprogramar', 'danger');
+                        }
+                    }}>Confirmar reprogramación</button>
                 </div>
             </Modal>
 

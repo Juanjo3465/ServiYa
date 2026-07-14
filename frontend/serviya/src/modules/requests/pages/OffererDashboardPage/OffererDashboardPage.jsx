@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { metricsApi, notificationApi, requestApi, profileApi } from '../../../../shared/api';
+import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
 import { timeAgo } from '../../utils';
 
 import './OffererDashboardPage.css';
@@ -55,6 +55,10 @@ export function OffererDashboardPage() {
     const [proposalOpen, setProposalOpen] = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
+    const [proposalTarget, setProposalTarget] = useState(null);
+    const [proposalDate, setProposalDate] = useState('');
+    const [proposalTime, setProposalTime] = useState('09:00');
+    const [proposalReason, setProposalReason] = useState('');
     const [offererMetrics, setOffererMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState([]);
@@ -135,14 +139,21 @@ export function OffererDashboardPage() {
         }
     }
 
-    async function handleMarkCompleted() {
+    async function handleMarkCompleted({ rating, comment } = {}) {
         if (!selectedRequest) return;
         setActing(selectedRequest.requestId);
         try {
             await requestApi.markCompleted(selectedRequest.requestId);
+            if (rating > 0 || comment) {
+                await feedbackApi.submitClientFeedback(selectedRequest.requestId, {
+                    clientId: selectedRequest.clientId,
+                    rating: rating || null,
+                    comment: comment || null,
+                });
+            }
             setCompleteOpen(false);
             setSelectedRequest(null);
-            showToast('Servicio marcado como realizado. Cliente notificado', 'success');
+            showToast('Servicio marcado como realizado. Reseña enviada', 'success');
             loadRequests();
         } catch (e) {
             showToast(e.message || 'Error al marcar servicio', 'danger');
@@ -210,7 +221,7 @@ export function OffererDashboardPage() {
                                     <button className="btn btn-danger btn-sm" disabled={acting === req.requestId} onClick={() => handleReject(req)}>
                                         <Icon name="close" size={13} />Rechazar
                                     </button>
-                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setProposalOpen(true)}>
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setProposalTarget(req); setProposalOpen(true); }}>
                                         <Icon name="reschedule" size={13} />Proponer reprogramación
                                     </button>
                                 </>
@@ -223,7 +234,7 @@ export function OffererDashboardPage() {
                                     <button className="btn btn-danger btn-sm" disabled={acting === req.requestId} onClick={() => handleReject(req)}>
                                         Cancelar
                                     </button>
-                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => setProposalOpen(true)}>
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setProposalTarget(req); setProposalOpen(true); }}>
                                         Reprogramar
                                     </button>
                                 </>
@@ -259,15 +270,33 @@ export function OffererDashboardPage() {
             })}
             <Link to="/notifications" className="link-more" style={{ display: 'block', textAlign: 'center', marginTop: '10px' }}>Ver todas las notificaciones →</Link>
 
-            <Modal open={proposalOpen} onClose={() => setProposalOpen(false)}>
+            <Modal open={proposalOpen} onClose={() => { setProposalOpen(false); setProposalTarget(null); }}>
                 <div className="modal-title">Proponer reprogramación</div>
                 <div className="modal-sub">El cliente recibirá tu propuesta y podrá aceptarla o rechazarla.</div>
-                <div className="input-group"><label className="label">Nueva fecha propuesta</label><input className="input" type="date" /></div>
-                <div className="input-group"><label className="label">Nueva hora propuesta</label><select className="input"><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>2:00 PM</option><option>3:00 PM</option></select></div>
-                <div className="input-group"><label className="label">Motivo de la reprogramación</label><textarea className="input" placeholder="Explica brevemente el motivo..." /></div>
+                <div className="input-group"><label className="label">Nueva fecha propuesta</label><input className="input" type="date" value={proposalDate} onChange={(e) => setProposalDate(e.target.value)} min={new Date().toISOString().split('T')[0]} /></div>
+                <div className="input-group"><label className="label">Nueva hora propuesta</label><select className="input" value={proposalTime} onChange={(e) => setProposalTime(e.target.value)}><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="11:00">11:00 AM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option></select></div>
+                <div className="input-group"><label className="label">Motivo de la reprogramación</label><textarea className="input" rows="3" placeholder="Explica brevemente el motivo..." value={proposalReason} onChange={(e) => setProposalReason(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-ghost btn-full" onClick={() => setProposalOpen(false)}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" onClick={() => { setProposalOpen(false); showToast('Propuesta enviada al cliente', 'success'); }}><Icon name="send" size={15} />Enviar propuesta</button>
+                    <button className="btn btn-ghost btn-full" onClick={() => { setProposalOpen(false); setProposalTarget(null); }}>Cancelar</button>
+                    <button className="btn btn-primary btn-full" disabled={!proposalDate} onClick={async () => {
+                        if (!proposalTarget || !proposalDate) return;
+                        try {
+                            const proposedDate = `${proposalDate}T${proposalTime}:00`;
+                            await proposalApi.createProposal({
+                                requestId: proposalTarget.requestId,
+                                reason: proposalReason || null,
+                                proposedDate,
+                            });
+                            setProposalOpen(false);
+                            setProposalTarget(null);
+                            setProposalDate('');
+                            setProposalTime('09:00');
+                            setProposalReason('');
+                            showToast('Propuesta enviada al cliente', 'success');
+                        } catch (err) {
+                            showToast(err.message || 'No se pudo enviar la propuesta', 'danger');
+                        }
+                    }}><Icon name="send" size={15} />Enviar propuesta</button>
                 </div>
             </Modal>
 

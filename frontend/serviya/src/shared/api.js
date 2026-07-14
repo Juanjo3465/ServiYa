@@ -158,6 +158,36 @@ export const requestApi = {
     rejectRequest: (id) => request(`/api/v1/service-requests/${id}/reject`, { method: 'POST', auth: true }),
     markCompleted: (id) => request(`/api/v1/service-requests/${id}/mark-completed`, { method: 'POST', auth: true }),
     confirmCompletion: (id) => request(`/api/v1/service-requests/${id}/confirm-completion`, { method: 'POST', auth: true }),
+    rescheduleRequest: (id, payload) => request(`/api/v1/service-requests/${id}/reschedule`, { method: 'POST', body: payload, auth: true }),
+    getMyOffererRequests: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/offerer-requests${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
+};
+
+// RF-023/RF-034/RF-035/RF-036 — Propuestas de reprogramación
+export const proposalApi = {
+    createProposal: (payload) => request('/api/v1/reschedule-proposals', { method: 'POST', body: payload, auth: true }),
+    acceptProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/accept`, { method: 'POST', auth: true }),
+    rejectProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/reject`, { method: 'POST', auth: true }),
+    cancelProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/cancel`, { method: 'POST', auth: true }),
+    getReceived: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/proposals/received${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
+    getSent: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/proposals/sent${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
 };
 
 export const categoryApi = {
