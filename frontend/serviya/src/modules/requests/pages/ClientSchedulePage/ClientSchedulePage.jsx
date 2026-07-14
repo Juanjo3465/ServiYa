@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, CLIENT_NAV, ToastContainer, useToast, clientAgendaApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
 
 const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -62,10 +62,13 @@ export function ClientSchedulePage() {
     const [selectedDate, setSelectedDate] = useState(null);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/v1/users/me/client-agenda')
-            .then((response) => response.json())
+        clientAgendaApi
+            .getClientAgenda()
             .then((data) => {
                 setRequests(data.content ?? []);
+            })
+            .catch((err) => {
+                showToast(err.message || 'No se pudo cargar la agenda', 'error');
             });
     }, []);
 

@@ -19,12 +19,16 @@ export {
     categoryApi,
     reportApi,
     addressApi,
+    clientAgendaApi,
+    offererAgendaApi,
     requestApi,
     saveToken, 
     getToken, 
     clearToken, 
     isAuthenticated, 
     rolesFromToken, 
+    homePathForRoles 
+} from './api';
     homePathForRoles,
     getApiImageUrl
 } from './api';
