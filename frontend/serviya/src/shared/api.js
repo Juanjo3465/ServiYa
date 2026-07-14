@@ -159,6 +159,13 @@ export const requestApi = {
     markCompleted: (id) => request(`/api/v1/service-requests/${id}/mark-completed`, { method: 'POST', auth: true }),
     confirmCompletion: (id) => request(`/api/v1/service-requests/${id}/confirm-completion`, { method: 'POST', auth: true }),
     rescheduleRequest: (id, payload) => request(`/api/v1/service-requests/${id}/reschedule`, { method: 'POST', body: payload, auth: true }),
+    getClientAgenda: (params = {}) => {
+        const qs = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== '') qs.append(key, val);
+        });
+        return request(`/api/v1/users/me/client-agenda${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
+    },
     getMyOffererRequests: (params = {}) => {
         const qs = new URLSearchParams();
         Object.entries(params).forEach(([key, val]) => {
@@ -188,6 +195,11 @@ export const proposalApi = {
         });
         return request(`/api/v1/users/me/proposals/sent${qs.toString() ? '?' + qs.toString() : ''}`, { auth: true });
     },
+};
+
+export const availabilityApi = {
+    getMyAvailability: () => request('/api/v1/offerers/me/availability', { auth: true }),
+    saveMyAvailability: (slots) => request('/api/v1/offerers/me/availability', { method: 'PUT', body: slots, auth: true }),
 };
 
 export const categoryApi = {
