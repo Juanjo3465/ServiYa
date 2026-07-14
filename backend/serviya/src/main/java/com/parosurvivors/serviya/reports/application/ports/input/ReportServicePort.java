@@ -27,4 +27,6 @@ public interface ReportServicePort {
     int countReportsByReportedUser(Long reportedUserId);
 
     int countReportsByReporter(Long reporterId);
+
+    void closeReport(Long reportId);
 }

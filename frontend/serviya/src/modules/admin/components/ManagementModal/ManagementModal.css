@@ -89,3 +89,36 @@ textarea.input {
 .btn-full {
     width: 100%;
 }
+
+/* Action radio options */
+.action-options {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.action-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--c-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.action-option:hover {
+    border-color: var(--c-primary);
+    background: var(--c-primary-l);
+}
+
+.action-option.selected {
+    border-color: var(--c-primary);
+    background: var(--c-primary-l);
+}
+
+.action-option input[type="radio"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+}

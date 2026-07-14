@@ -232,6 +232,20 @@ export const adminFeedbackApi = {
         request('/api/v1/admin/feedback/remove', { method: 'POST', body: payload, auth: true }),
 };
 
+// RF-049 — Acciones de moderación sobre reportes
+export const moderationApi = {
+    warnUser: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/warn`, { method: 'POST', auth: true }),
+    banUser: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/ban`, { method: 'POST', auth: true }),
+    revertFeedback: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/revert-feedback`, { method: 'POST', auth: true }),
+    closeReport: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/close`, { method: 'POST', auth: true }),
+    markNotProvided: (reportId) =>
+        request(`/api/v1/reports/${reportId}/actions/mark-not-provided`, { method: 'POST', auth: true }),
+};
+
 // RF-041/RF-045 — Feedback de servicio (cliente califica servicio)
 // RF-043/RF-044 — Feedback de cliente (oferente califica cliente)
 export const feedbackApi = {
