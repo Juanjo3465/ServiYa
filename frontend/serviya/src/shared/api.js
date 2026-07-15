@@ -312,6 +312,7 @@ export const userApi = {
 export const metricsApi = {
     getMyMetrics: () => request('/api/v1/users/me/metrics', { auth: true }),
     getOffererMetrics: (id) => request(`/api/v1/offerers/${id}/metrics`),
+    getClientTagMetrics: (clientId) => request(`/api/v1/clients/${clientId}/tag-metrics`, { auth: true }),
 };
 
 export const notificationApi = {

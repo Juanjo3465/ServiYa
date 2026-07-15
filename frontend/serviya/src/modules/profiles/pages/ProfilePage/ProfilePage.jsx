@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
+import { metricsApi } from '../../../../shared/api';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
@@ -8,18 +9,6 @@ import 'leaflet/dist/leaflet.css';
 import { useForm } from "react-hook-form";
 
 const TABS = ['Información personal', 'Mis direcciones', 'Credenciales', 'Mis métricas', 'Roles'];
-
-const METRICS = [
-    { icon: 'check', cls: 'success', n: '96%', l: 'Cumplimiento' },
-    { icon: 'close', cls: 'danger', n: '3%', l: 'Cancelaciones' },
-    { icon: 'reschedule', cls: 'warn', n: '4%', l: 'Reprogramaciones' },
-    { icon: 'star', cls: '', n: '4.8★', l: 'Mi calificación' },
-];
-
-const TAGS = [
-    { label: 'Puntual (14)', pos: true }, { label: 'Respetuoso (11)', pos: true },
-    { label: 'Buen trato (9)', pos: true }, { label: 'No estaba en casa (2)', pos: false },
-];
 
 function AddressModal({
     onClose,
@@ -264,6 +253,10 @@ export function ProfilePage() {
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileInputRef = useRef(null);
 
+    const [clientMetrics, setClientMetrics] = useState(null);
+    const [clientTags, setClientTags] = useState([]);
+    const [loadingMetrics, setLoadingMetrics] = useState(true);
+
     // --- Edicion del perfil personal (RF-006) ---
     const [form, setForm] = useState({ fullName: '', phone: '', description: '' });
     const [savingProfile, setSavingProfile] = useState(false);
@@ -395,6 +388,21 @@ export function ProfilePage() {
             })
             .catch((e) => showToast(e.message || 'No se pudo cargar el perfil de oferente', 'danger'));
     }, [isOfferer]);
+
+    useEffect(() => {
+        metricsApi.getMyMetrics()
+            .then((data) => {
+                const cm = data.clientMetrics;
+                setClientMetrics(cm);
+                if (cm?.clientId) {
+                    return metricsApi.getClientTagMetrics(cm.clientId);
+                }
+                return [];
+            })
+            .then((tags) => setClientTags(tags || []))
+            .catch(() => {})
+            .finally(() => setLoadingMetrics(false));
+    }, []);
 
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
@@ -780,19 +788,40 @@ export function ProfilePage() {
             {tab === 3 && (
                 <div>
                     <div className="g4" style={{ marginBottom: '18px' }}>
-                        {METRICS.map((m) => (
-                            <div className="stat-card" key={m.l}>
-                                <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
-                                <div className="stat-n">{m.n}</div>
-                                <div className="stat-l">{m.l}</div>
-                            </div>
-                        ))}
+                        {loadingMetrics ? (
+                            <>
+                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cumplimiento</div></div>
+                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cancelaciones</div></div>
+                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Reprogramaciones</div></div>
+                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Mi calificación</div></div>
+                            </>
+                        ) : (() => {
+                            const sent = clientMetrics?.totalRequestsSent ?? 0;
+                            const pct = (num) => sent > 0 ? Math.round((num / sent) * 100) + '%' : '0%';
+                            const cards = [
+                                { icon: 'check', cls: 'success', n: pct(clientMetrics?.totalCompletedRequests), l: 'Cumplimiento' },
+                                { icon: 'close', cls: 'danger', n: pct(clientMetrics?.totalCancelledRequests), l: 'Cancelaciones' },
+                                { icon: 'reschedule', cls: 'warn', n: pct(clientMetrics?.totalRescheduledRequests), l: 'Reprogramaciones' },
+                                { icon: 'star', cls: '', n: (clientMetrics?.averageRating ?? 0).toFixed(1) + '★', l: 'Mi calificación' },
+                            ];
+                            return cards.map((m) => (
+                                <div className="stat-card" key={m.l}>
+                                    <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
+                                    <div className="stat-n">{m.n}</div>
+                                    <div className="stat-l">{m.l}</div>
+                                </div>
+                            ));
+                        })()}
                     </div>
                     <div className="card">
                         <div className="card-title">Etiquetas recibidas de oferentes</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-                            {TAGS.map((t) => (
-                                <span key={t.label} className={`profile-tag ${t.pos ? 'pos' : 'neg'}`}>{t.label}</span>
+                            {loadingMetrics ? (
+                                <span className="loading-pulse" style={{ width: 120, height: 24, display: 'inline-block' }} />
+                            ) : clientTags.length === 0 ? (
+                                <span style={{ fontSize: '13px', color: 'var(--c-mid)' }}>Aún no has recibido etiquetas</span>
+                            ) : clientTags.map((t) => (
+                                <span key={t.tagId} className={`profile-tag ${t.positive ? 'pos' : 'neg'}`}>{t.tagName} ({t.tagCount})</span>
                             ))}
                         </div>
                     </div>

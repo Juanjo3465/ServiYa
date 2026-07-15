@@ -41,6 +41,8 @@ public interface MetricsWebMapper {
 
     OffererTagMetricsResponse toResponse(OffererTagMetrics metrics);
 
+    @Mapping(target = "tagName", ignore = true)
+    @Mapping(target = "positive", ignore = true)
     ClientTagMetricsResponse toResponse(ClientTagMetrics metrics);
 
     List<ServiceTagMetricsResponse> toServiceTagResponses(List<ServiceTagMetrics> metrics);
