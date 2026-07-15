@@ -89,12 +89,13 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
 
     @Override
     @Transactional
-    public boolean revertFeedback(Long requestId) {
-        Optional<ServiceFeedback> existing = serviceFeedbackPersistencePort.findByRequestId(requestId);
+    public boolean revertFeedbackById(Long feedbackId) {
+        Optional<ServiceFeedback> existing = serviceFeedbackPersistencePort.findById(feedbackId);
         if (existing.isEmpty()) {
             return false;
         }
         ServiceFeedback feedback = existing.get();
+        Long requestId = feedback.getRequestId();
         List<Long> tagIds = serviceFeedbackTagPersistencePort.findTagIdsByFeedbackId(feedback.getId());
         serviceFeedbackTagPersistencePort.deleteByFeedbackId(feedback.getId());
         serviceFeedbackPersistencePort.deleteById(feedback.getId());

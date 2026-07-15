@@ -38,5 +38,10 @@ public interface ServiceFeedbackServicePort {
      */
     List<ServiceFeedback> getRecentServiceFeedback(Long serviceId, int limit);
 
-    boolean revertFeedback(Long requestId);
+    /**
+     * Revierte (elimina) un feedback de servicio por su id propio y publica el evento de reverso. Devuelve
+     * {@code false} si no existe (p.ej. ya revertido). Recibe el feedbackId — no el requestId — para evitar
+     * un doble lookup del mismo feedback desde la moderación (cuyo link de reporte guarda el feedbackId).
+     */
+    boolean revertFeedbackById(Long feedbackId);
 }

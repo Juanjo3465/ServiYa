@@ -71,18 +71,16 @@ public class ModerationService implements ModerationServicePort {
     @Transactional
     public void revertFeedbackFromReport(Long reportId, Long adminId) {
         ReportSummary report = reportServicePort.getReportSummary(reportId);
+        boolean reverted;
         if (report.reportType() == ReportType.CLIENT_FEEDBACK && report.clientFeedbackId() != null) {
-            Long requestId = clientFeedbackServicePort.getClientFeedbackById(report.clientFeedbackId())
-                    .map(f -> f.requestId())
-                    .orElseThrow(() -> new InvalidStateException("El feedback de cliente ya no existe (¿revertido?)"));
-            clientFeedbackServicePort.revertFeedback(requestId);
+            reverted = clientFeedbackServicePort.revertFeedbackById(report.clientFeedbackId());
         } else if (report.reportType() == ReportType.SERVICE_FEEDBACK && report.serviceFeedbackId() != null) {
-            Long requestId = serviceFeedbackServicePort.getServiceFeedbackById(report.serviceFeedbackId())
-                    .map(f -> f.requestId())
-                    .orElseThrow(() -> new InvalidStateException("El feedback de servicio ya no existe (¿revertido?)"));
-            serviceFeedbackServicePort.revertFeedback(requestId);
+            reverted = serviceFeedbackServicePort.revertFeedbackById(report.serviceFeedbackId());
         } else {
             throw new InvalidStateException("El reporte " + reportId + " no referencia un feedback vigente");
+        }
+        if (!reverted) {
+            throw new InvalidStateException("El feedback del reporte " + reportId + " ya no existe (¿revertido?)");
         }
         reportServicePort.resolveReport(reportId, adminId, ReportActionType.REVERT_FEEDBACK);
     }

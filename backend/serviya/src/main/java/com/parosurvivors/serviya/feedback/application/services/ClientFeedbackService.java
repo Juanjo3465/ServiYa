@@ -85,12 +85,13 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
 
     @Override
     @Transactional
-    public boolean revertFeedback(Long requestId) {
-        Optional<ClientFeedback> existing = clientFeedbackPersistencePort.findByRequestId(requestId);
+    public boolean revertFeedbackById(Long feedbackId) {
+        Optional<ClientFeedback> existing = clientFeedbackPersistencePort.findById(feedbackId);
         if (existing.isEmpty()) {
             return false;
         }
         ClientFeedback feedback = existing.get();
+        Long requestId = feedback.getRequestId();
         List<Long> tagIds = clientFeedbackTagPersistencePort.findTagIdsByFeedbackId(feedback.getId());
         clientFeedbackTagPersistencePort.deleteByFeedbackId(feedback.getId());
         clientFeedbackPersistencePort.deleteById(feedback.getId());

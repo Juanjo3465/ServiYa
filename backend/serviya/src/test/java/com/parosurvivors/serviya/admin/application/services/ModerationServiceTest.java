@@ -1,8 +1,6 @@
 package com.parosurvivors.serviya.admin.application.services;
 
 import com.parosurvivors.serviya.admin.application.dto.command.RemoveFeedbackCommand;
-import com.parosurvivors.serviya.feedback.application.dto.result.ClientFeedbackResult;
-import com.parosurvivors.serviya.feedback.application.dto.result.ServiceFeedbackResult;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackServicePort;
 import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
@@ -22,9 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -121,31 +116,29 @@ class ModerationServiceTest {
     @Test
     void revertServiceFeedbackResolvesWithRevert() {
         when(reportServicePort.getReportSummary(6L)).thenReturn(serviceFeedbackReport(6L, 77L));
-        when(serviceFeedbackServicePort.getServiceFeedbackById(77L)).thenReturn(Optional.of(
-                new ServiceFeedbackResult(99L, 7L, 8L, 1, "malo", List.of(), null)));
+        when(serviceFeedbackServicePort.revertFeedbackById(77L)).thenReturn(true);
 
         service.revertFeedbackFromReport(6L, ADMIN);
 
-        verify(serviceFeedbackServicePort).revertFeedback(99L);
+        verify(serviceFeedbackServicePort).revertFeedbackById(77L);
         verify(reportServicePort).resolveReport(6L, ADMIN, ReportActionType.REVERT_FEEDBACK);
     }
 
     @Test
     void revertClientFeedbackResolvesWithRevert() {
         when(reportServicePort.getReportSummary(7L)).thenReturn(clientFeedbackReport(7L, 88L));
-        when(clientFeedbackServicePort.getClientFeedbackById(88L)).thenReturn(Optional.of(
-                new ClientFeedbackResult(99L, 8L, 45L, 1, "malo", List.of(), null)));
+        when(clientFeedbackServicePort.revertFeedbackById(88L)).thenReturn(true);
 
         service.revertFeedbackFromReport(7L, ADMIN);
 
-        verify(clientFeedbackServicePort).revertFeedback(99L);
+        verify(clientFeedbackServicePort).revertFeedbackById(88L);
         verify(reportServicePort).resolveReport(7L, ADMIN, ReportActionType.REVERT_FEEDBACK);
     }
 
     @Test
     void revertFailsWhenFeedbackAlreadyReverted() {
         when(reportServicePort.getReportSummary(8L)).thenReturn(serviceFeedbackReport(8L, 77L));
-        when(serviceFeedbackServicePort.getServiceFeedbackById(77L)).thenReturn(Optional.empty());
+        when(serviceFeedbackServicePort.revertFeedbackById(77L)).thenReturn(false);
 
         assertThatThrownBy(() -> service.revertFeedbackFromReport(8L, ADMIN))
                 .isInstanceOf(InvalidStateException.class);
@@ -157,14 +150,13 @@ class ModerationServiceTest {
         RemoveFeedbackCommand command = new RemoveFeedbackCommand(ADMIN, "SERVICE", 77L, REPORTED, "SPAM", "ofensivo");
         when(serviceFeedbackReportServicePort.createReport(any())).thenReturn(
                 ServiceFeedbackReport.builder().reportId(9L).feedbackId(77L).build());
-        // revertFeedbackFromReport(9L, ...) internamente vuelve a leer el detalle.
+        // revertFeedbackFromReport(9L, ...) internamente vuelve a leer el summary.
         when(reportServicePort.getReportSummary(9L)).thenReturn(serviceFeedbackReport(9L, 77L));
-        when(serviceFeedbackServicePort.getServiceFeedbackById(77L)).thenReturn(Optional.of(
-                new ServiceFeedbackResult(99L, 7L, 8L, 1, "malo", List.of(), null)));
+        when(serviceFeedbackServicePort.revertFeedbackById(77L)).thenReturn(true);
 
         service.removeFeedbackDirectly(command);
 
-        verify(serviceFeedbackServicePort).revertFeedback(99L);
+        verify(serviceFeedbackServicePort).revertFeedbackById(77L);
         verify(reportServicePort).resolveReport(9L, ADMIN, ReportActionType.REVERT_FEEDBACK);
     }
 
