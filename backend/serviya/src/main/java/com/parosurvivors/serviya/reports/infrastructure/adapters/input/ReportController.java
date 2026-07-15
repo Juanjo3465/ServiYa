@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.parosurvivors.serviya.shared.security.CurrentUser;
+import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.util.List;
 
 /**
@@ -116,17 +117,26 @@ public class ReportController implements ReportApi {
     @Override
     @GetMapping("/api/v1/users/{id}/reports/received")
     public ResponseEntity<List<ReportResponse>> getReportsReceived(@PathVariable Long id) {
+        assertSelfOrAdmin(id);
         return ResponseEntity.ok(mapper.toReportResponses(reportService.getReportsByReportedUser(id)));
     }
 
     @Override
     @GetMapping("/api/v1/users/{id}/reports/sent")
     public ResponseEntity<List<ReportResponse>> getReportsSent(@PathVariable Long id) {
+        assertSelfOrAdmin(id);
         return ResponseEntity.ok(mapper.toReportResponses(reportService.getReportsByReporter(id)));
     }
 
     private Long currentUserId() {
         return CurrentUser.id();
+    }
+
+    /** Grano fino: solo el propio usuario o un admin pueden ver sus reportes (recibidos/enviados). */
+    private void assertSelfOrAdmin(Long targetUserId) {
+        if (!CurrentUser.isAdmin() && !targetUserId.equals(CurrentUser.id())) {
+            throw new UnauthorizedException("Solo puedes consultar tus propios reportes");
+        }
     }
 
     private String resolveCategory(String category, String customCategory) {
