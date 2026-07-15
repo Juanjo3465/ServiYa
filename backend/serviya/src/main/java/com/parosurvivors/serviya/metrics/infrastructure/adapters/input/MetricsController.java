@@ -18,7 +18,9 @@ import com.parosurvivors.serviya.metrics.infrastructure.dto.response.ServiceTagM
 import com.parosurvivors.serviya.metrics.infrastructure.dto.response.UserMetricsResponse;
 import com.parosurvivors.serviya.metrics.infrastructure.mappers.MetricsWebMapper;
 import com.parosurvivors.serviya.feedback.application.ports.input.ClientFeedbackTagCatalogServicePort;
+import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackTagCatalogServicePort;
 import com.parosurvivors.serviya.feedback.domain.ClientFeedbackTagCatalog;
+import com.parosurvivors.serviya.feedback.domain.ServiceFeedbackTagCatalog;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +47,7 @@ public class MetricsController implements MetricsApi {
     private final ClientMetricsServicePort clientMetricsService;
     private final ClientTagMetricsServicePort clientTagMetricsService;
     private final ClientFeedbackTagCatalogServicePort clientFeedbackTagCatalogServicePort;
+    private final ServiceFeedbackTagCatalogServicePort serviceFeedbackTagCatalogServicePort;
     private final MetricsWebMapper mapper;
 
     @Override
@@ -74,7 +77,17 @@ public class MetricsController implements MetricsApi {
     @Override
     @GetMapping("/api/v1/offerers/{id}/tag-metrics")
     public ResponseEntity<List<OffererTagMetricsResponse>> getOffererTagMetrics(@PathVariable Long id) {
-        return ResponseEntity.ok(mapper.toOffererTagResponses(offererTagMetricsService.getTagMetrics(id)));
+        Map<Long, ServiceFeedbackTagCatalog> catalog = serviceFeedbackTagCatalogServicePort.getCatalog()
+                .stream().collect(Collectors.toMap(ServiceFeedbackTagCatalog::getId, t -> t));
+
+        List<OffererTagMetricsResponse> enriched = offererTagMetricsService.getTagMetrics(id)
+                .stream().map(tm -> {
+                    ServiceFeedbackTagCatalog tag = catalog.get(tm.getTagId());
+                    String tagName = tag != null ? tag.getTagName() : "Tag #" + tm.getTagId();
+                    boolean positive = tag != null && tag.isPositive();
+                    return new OffererTagMetricsResponse(tm.getOffererId(), tm.getTagId(), tagName, positive, tm.getTagCount());
+                }).toList();
+        return ResponseEntity.ok(enriched);
     }
 
     @Override

@@ -255,6 +255,8 @@ export function ProfilePage() {
 
     const [clientMetrics, setClientMetrics] = useState(null);
     const [clientTags, setClientTags] = useState([]);
+    const [offererMetrics, setOffererMetrics] = useState(null);
+    const [offererTags, setOffererTags] = useState([]);
     const [loadingMetrics, setLoadingMetrics] = useState(true);
 
     // --- Edicion del perfil personal (RF-006) ---
@@ -393,16 +395,30 @@ export function ProfilePage() {
         metricsApi.getMyMetrics()
             .then((data) => {
                 const cm = data.clientMetrics;
+                const om = data.offererMetrics;
                 setClientMetrics(cm);
+                setOffererMetrics(om);
+
+                const tagPromises = [];
                 if (cm?.clientId) {
-                    return metricsApi.getClientTagMetrics(cm.clientId);
+                    tagPromises.push(
+                        metricsApi.getClientTagMetrics(cm.clientId)
+                            .then((tags) => setClientTags(tags || []))
+                            .catch(() => {})
+                    );
                 }
-                return [];
+                if (om?.offererId && isOfferer) {
+                    tagPromises.push(
+                        metricsApi.getOffererTagMetrics(om.offererId)
+                            .then((tags) => setOffererTags(tags || []))
+                            .catch(() => {})
+                    );
+                }
+                return Promise.all(tagPromises);
             })
-            .then((tags) => setClientTags(tags || []))
             .catch(() => {})
             .finally(() => setLoadingMetrics(false));
-    }, []);
+    }, [isOfferer]);
 
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
@@ -787,44 +803,99 @@ export function ProfilePage() {
 
             {tab === 3 && (
                 <div>
-                    <div className="g4" style={{ marginBottom: '18px' }}>
-                        {loadingMetrics ? (
-                            <>
-                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cumplimiento</div></div>
-                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cancelaciones</div></div>
-                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Reprogramaciones</div></div>
-                                <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Mi calificación</div></div>
-                            </>
-                        ) : (() => {
-                            const sent = clientMetrics?.totalRequestsSent ?? 0;
-                            const pct = (num) => sent > 0 ? Math.round((num / sent) * 100) + '%' : '0%';
-                            const cards = [
-                                { icon: 'check', cls: 'success', n: pct(clientMetrics?.totalCompletedRequests), l: 'Cumplimiento' },
-                                { icon: 'close', cls: 'danger', n: pct(clientMetrics?.totalCancelledRequests), l: 'Cancelaciones' },
-                                { icon: 'reschedule', cls: 'warn', n: pct(clientMetrics?.totalRescheduledRequests), l: 'Reprogramaciones' },
-                                { icon: 'star', cls: '', n: (clientMetrics?.averageRating ?? 0).toFixed(1) + '★', l: 'Mi calificación' },
-                            ];
-                            return cards.map((m) => (
-                                <div className="stat-card" key={m.l}>
-                                    <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
-                                    <div className="stat-n">{m.n}</div>
-                                    <div className="stat-l">{m.l}</div>
+                    {hasRole('CLIENT') && (
+                        <>
+                            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Métricas como cliente</div>
+                            <div className="g4" style={{ marginBottom: '18px' }}>
+                                {loadingMetrics ? (
+                                    <>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cumplimiento</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cancelaciones</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Reprogramaciones</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Mi calificación</div></div>
+                                    </>
+                                ) : (() => {
+                                    const sent = clientMetrics?.totalRequestsSent ?? 0;
+                                    const pct = (num) => sent > 0 ? Math.round((num / sent) * 100) + '%' : '0%';
+                                    const cards = [
+                                        { icon: 'check', cls: 'success', n: pct(clientMetrics?.totalCompletedRequests), l: 'Cumplimiento' },
+                                        { icon: 'close', cls: 'danger', n: pct(clientMetrics?.totalCancelledRequests), l: 'Cancelaciones' },
+                                        { icon: 'reschedule', cls: 'warn', n: pct(clientMetrics?.totalRescheduledRequests), l: 'Reprogramaciones' },
+                                        { icon: 'star', cls: '', n: (clientMetrics?.averageRating ?? 0).toFixed(1) + '★', l: 'Mi calificación' },
+                                    ];
+                                    return cards.map((m) => (
+                                        <div className="stat-card" key={m.l}>
+                                            <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
+                                            <div className="stat-n">{m.n}</div>
+                                            <div className="stat-l">{m.l}</div>
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
+                            <div className="card" style={{ marginBottom: hasRole('OFFERER') ? '22px' : 0 }}>
+                                <div className="card-title">Etiquetas recibidas de oferentes</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                                    {loadingMetrics ? (
+                                        <span className="loading-pulse" style={{ width: 120, height: 24, display: 'inline-block' }} />
+                                    ) : clientTags.length === 0 ? (
+                                        <span style={{ fontSize: '13px', color: 'var(--c-mid)' }}>Aún no has recibido etiquetas</span>
+                                    ) : clientTags.map((t) => (
+                                        <span key={t.tagId} className={`profile-tag ${t.positive ? 'pos' : 'neg'}`}>{t.tagName} ({t.tagCount})</span>
+                                    ))}
                                 </div>
-                            ));
-                        })()}
-                    </div>
-                    <div className="card">
-                        <div className="card-title">Etiquetas recibidas de oferentes</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-                            {loadingMetrics ? (
-                                <span className="loading-pulse" style={{ width: 120, height: 24, display: 'inline-block' }} />
-                            ) : clientTags.length === 0 ? (
-                                <span style={{ fontSize: '13px', color: 'var(--c-mid)' }}>Aún no has recibido etiquetas</span>
-                            ) : clientTags.map((t) => (
-                                <span key={t.tagId} className={`profile-tag ${t.positive ? 'pos' : 'neg'}`}>{t.tagName} ({t.tagCount})</span>
-                            ))}
+                            </div>
+                        </>
+                    )}
+
+                    {hasRole('OFFERER') && (
+                        <>
+                            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px', marginTop: hasRole('CLIENT') ? '8px' : 0 }}>Métricas como oferente</div>
+                            <div className="g4" style={{ marginBottom: '18px' }}>
+                                {loadingMetrics ? (
+                                    <>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cumplimiento</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cancelaciones</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Reprogramados</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Calificación</div></div>
+                                    </>
+                                ) : (() => {
+                                    const received = offererMetrics?.totalRequestsReceived ?? 0;
+                                    const pct = (num) => received > 0 ? Math.round((num / received) * 100) + '%' : '0%';
+                                    const cards = [
+                                        { icon: 'check', cls: 'success', n: pct(offererMetrics?.totalCompletedServices), l: 'Cumplimiento' },
+                                        { icon: 'close', cls: 'danger', n: pct(offererMetrics?.totalCancelledServices), l: 'Cancelaciones' },
+                                        { icon: 'reschedule', cls: 'warn', n: String(offererMetrics?.totalRescheduleProposalsSent ?? 0), l: 'Reprogramados' },
+                                        { icon: 'star', cls: '', n: (offererMetrics?.averageRating ?? 0).toFixed(1) + '★', l: 'Calificación' },
+                                    ];
+                                    return cards.map((m) => (
+                                        <div className="stat-card" key={m.l}>
+                                            <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
+                                            <div className="stat-n">{m.n}</div>
+                                            <div className="stat-l">{m.l}</div>
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
+                            <div className="card">
+                                <div className="card-title">Etiquetas recibidas de clientes</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                                    {loadingMetrics ? (
+                                        <span className="loading-pulse" style={{ width: 120, height: 24, display: 'inline-block' }} />
+                                    ) : offererTags.length === 0 ? (
+                                        <span style={{ fontSize: '13px', color: 'var(--c-mid)' }}>Aún no has recibido etiquetas</span>
+                                    ) : offererTags.map((t) => (
+                                        <span key={t.tagId} className={`profile-tag ${t.positive ? 'pos' : 'neg'}`}>{t.tagName} ({t.tagCount})</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {!hasRole('CLIENT') && !hasRole('OFFERER') && (
+                        <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--c-mid)', fontSize: '13px' }}>
+                            Adquiere un rol para ver tus métricas
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
