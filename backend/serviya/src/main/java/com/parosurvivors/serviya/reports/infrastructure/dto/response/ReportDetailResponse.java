@@ -5,11 +5,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 /**
- * Salida web (Response) del detalle de un reporte (paraguas por subtipo). Mapea desde ReportDetailResult.
- * Solo el campo de subtipo correspondiente al reportType viene no-nulo.
- * TODO: revisar campos.
+ * Salida web (Response) del detalle enriquecido de un reporte. Mapea desde ReportDetailResult.
+ * Incluye el resumen de ambas partes y el payload del subtipo (solo el correspondiente al reportType
+ * viene no-nulo: {@code request} para REQUEST, {@code feedback} para SERVICE_FEEDBACK/CLIENT_FEEDBACK).
  */
-@Schema(description = "Detalle de un reporte (con campos del subtipo)")
+@Schema(description = "Detalle enriquecido de un reporte (partes + payload del subtipo)")
 public record ReportDetailResponse(
         @Schema(accessMode = Schema.AccessMode.READ_ONLY) Long id,
         Long reporterId,
@@ -21,7 +21,8 @@ public record ReportDetailResponse(
         String priority,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        Long requestId,
-        Long serviceFeedbackId,
-        Long clientFeedbackId) {
+        PartySummaryResponse reporter,
+        PartySummaryResponse reported,
+        RequestReportDetailResponse request,
+        FeedbackReportDetailResponse feedback) {
 }

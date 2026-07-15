@@ -213,13 +213,11 @@ public class AdminService implements AdminServicePort {
     @Override
     public void banUser(Long adminId, Long userId) {
         userServicePort.banUser(userId);
-        // TODO(notif): notificar al usuario baneado por doble canal con motivos (RF-063/069).
     }
 
     @Override
     public void unbanUser(Long adminId, Long userId) {
         userServicePort.unbanUser(userId);
-        // TODO(notif): notificar al usuario desbaneado por doble canal (RF-070/075).
     }
 
     @Override

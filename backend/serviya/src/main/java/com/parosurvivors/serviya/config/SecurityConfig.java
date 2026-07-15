@@ -52,8 +52,18 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/users/me/**").authenticated()
                 // Modulo admin (modulo 9): gestion de usuarios/roles, detalle admin y feedback -> solo ADMIN.
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                // Acciones de moderacion sobre un reporte (warn/ban/revert-feedback/close/mark-not-provided) -> solo ADMIN.
+                // Acciones de moderacion sobre un reporte (warn/ban/revert-feedback/close/mark-not-provided)
+                // y el listado de acciones de un reporte -> solo ADMIN.
                 .requestMatchers("/api/v1/reports/*/actions/**").hasRole("ADMIN")
+                // Lecturas del panel de moderacion: listar todos los reportes y ver el detalle -> solo ADMIN.
+                .requestMatchers(HttpMethod.GET, "/api/v1/reports").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/reports/*").hasRole("ADMIN")
+                // Crear un reporte (requests/service-feedback/client-feedback): cualquier usuario autenticado
+                // (el reporterId sale del JWT, nunca del body).
+                .requestMatchers(HttpMethod.POST, "/api/v1/reports/**").authenticated()
+                // Reportes recibidos/enviados de un usuario: autenticado; el chequeo propio-o-admin va en el
+                // controlador (grano fino, patron role-security-split).
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/*/reports/**").authenticated()
                 // El resto se mantiene abierto por ahora (modulos aun no implementados)
                 .anyRequest().permitAll()
             )

@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.reports.infrastructure.entities;
 
+import com.parosurvivors.serviya.reports.domain.ReportActionType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,6 +21,10 @@ public class ReportActionEntity {
 
     @Column(name = "admin_id", nullable = false)
     private Long adminId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "action_type", nullable = false)
+    private ReportActionType actionType;
 
     @Column(name = "action_description", nullable = false, columnDefinition = "TEXT")
     private String actionDescription;

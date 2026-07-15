@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Puerto de entrada de ServiceFeedbackService — fachada del feedback del cliente al servicio.
@@ -19,6 +20,13 @@ public interface ServiceFeedbackServicePort {
 
     ServiceFeedbackResult getServiceFeedback(Long requestId);
 
+    /**
+     * Lee un feedback de servicio por su id propio (no por requestId). Devuelve {@link Optional#empty()}
+     * si no existe — p.ej. si el feedback fue revertido (el revert borra la fila). Lo usa el detalle de
+     * reporte de moderación, cuyo link almacena el feedbackId.
+     */
+    Optional<ServiceFeedbackResult> getServiceFeedbackById(Long feedbackId);
+
     Page<ServiceFeedbackResult> getServiceFeedbackList(Long serviceId, Pageable pageable);
 
     Page<ServiceFeedbackResult> getServiceFeedbackByClient(Long clientId, Pageable pageable);
@@ -30,5 +38,10 @@ public interface ServiceFeedbackServicePort {
      */
     List<ServiceFeedback> getRecentServiceFeedback(Long serviceId, int limit);
 
-    boolean revertFeedback(Long requestId);
+    /**
+     * Revierte (elimina) un feedback de servicio por su id propio y publica el evento de reverso. Devuelve
+     * {@code false} si no existe (p.ej. ya revertido). Recibe el feedbackId — no el requestId — para evitar
+     * un doble lookup del mismo feedback desde la moderación (cuyo link de reporte guarda el feedbackId).
+     */
+    boolean revertFeedbackById(Long feedbackId);
 }

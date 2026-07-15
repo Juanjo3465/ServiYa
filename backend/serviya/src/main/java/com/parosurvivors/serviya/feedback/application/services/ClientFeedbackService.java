@@ -86,12 +86,13 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
 
     @Override
     @Transactional
-    public boolean revertFeedback(Long requestId) {
-        Optional<ClientFeedback> existing = clientFeedbackPersistencePort.findByRequestId(requestId);
+    public boolean revertFeedbackById(Long feedbackId) {
+        Optional<ClientFeedback> existing = clientFeedbackPersistencePort.findById(feedbackId);
         if (existing.isEmpty()) {
             return false;
         }
         ClientFeedback feedback = existing.get();
+        Long requestId = feedback.getRequestId();
         List<Long> tagIds = clientFeedbackTagPersistencePort.findTagIdsByFeedbackId(feedback.getId());
         clientFeedbackTagPersistencePort.deleteByFeedbackId(feedback.getId());
         clientFeedbackPersistencePort.deleteById(feedback.getId());
@@ -112,6 +113,19 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Feedback de cliente no encontrado para la solicitud: " + requestId));
         return toResult(feedback);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ClientFeedbackResult> getClientFeedbackById(Long feedbackId) {
+        return clientFeedbackPersistencePort.findById(feedbackId).map(f -> new ClientFeedbackResult(
+                f.getRequestId(),
+                f.getClientId(),
+                f.getOffererId(),
+                f.getRating(),
+                f.getComment(),
+                resolveTagNames(clientFeedbackTagPersistencePort.findTagIdsByFeedbackId(f.getId())),
+                f.getCreatedAt()));
     }
 
     @Override
@@ -149,6 +163,19 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
         return tagIds.stream()
                 .map(nameByTag::get)
                 .filter(Objects::nonNull)
+                .toList();
+    }
+
+    /** Resuelve los nombres de las etiquetas desde el catálogo (para vistas de lectura como el detalle de reporte). */
+    private List<String> resolveTagNames(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> nameById = clientFeedbackTagCatalogPersistencePort.findAll().stream()
+                .collect(Collectors.toMap(ClientFeedbackTagCatalog::getId, ClientFeedbackTagCatalog::getTagName));
+        return tagIds.stream()
+                .map(nameById::get)
+                .filter(java.util.Objects::nonNull)
                 .toList();
     }
 

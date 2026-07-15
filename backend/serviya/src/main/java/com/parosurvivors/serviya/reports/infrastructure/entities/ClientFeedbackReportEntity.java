@@ -16,6 +16,7 @@ public class ClientFeedbackReportEntity {
     @Column(name = "report_id", nullable = false, unique = true)
     private Long reportId;
 
-    @Column(name = "feedback_id", nullable = false)
+    // Nullable: al revertir el feedback, la FK (ON DELETE SET NULL) lo pone en null; el reporte sobrevive.
+    @Column(name = "feedback_id")
     private Long feedbackId;
 }
