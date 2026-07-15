@@ -166,19 +166,6 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
                 .toList();
     }
 
-    /** Resuelve los nombres de las etiquetas desde el catálogo (para vistas de lectura como el detalle de reporte). */
-    private List<String> resolveTagNames(List<Long> tagIds) {
-        if (tagIds == null || tagIds.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, String> nameById = clientFeedbackTagCatalogPersistencePort.findAll().stream()
-                .collect(Collectors.toMap(ClientFeedbackTagCatalog::getId, ClientFeedbackTagCatalog::getTagName));
-        return tagIds.stream()
-                .map(nameById::get)
-                .filter(java.util.Objects::nonNull)
-                .toList();
-    }
-
     /** Empareja cada tagId con su sentimiento (P/N) del catálogo para armar el payload autocontenido. */
     private List<TagRef> resolveTagRefs(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {

@@ -12,7 +12,10 @@ import jakarta.validation.constraints.NotNull;
  */
 @Schema(description = "Datos para eliminar directamente una resena inapropiada")
 public record RemoveFeedbackForm(
+        @Schema(description = "Tipo de feedback objetivo. Nombre exacto del tipo: SERVICE_FEEDBACK o CLIENT_FEEDBACK.",
+                allowableValues = {"SERVICE_FEEDBACK", "CLIENT_FEEDBACK"}, example = "SERVICE_FEEDBACK")
         @NotBlank String targetType,
+        @Schema(description = "Id del feedback (service_feedback.id o client_feedback.id) a eliminar")
         @NotNull Long targetId,
         @NotNull Long reportedUserId,
         @NotBlank String category,
