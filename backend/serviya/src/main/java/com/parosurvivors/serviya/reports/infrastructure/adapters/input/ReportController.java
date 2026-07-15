@@ -57,7 +57,6 @@ public class ReportController implements ReportApi {
         RequestReportResponse response = mapper.toResponse(
                 requestReportService.createReport(new com.parosurvivors.serviya.reports.application.dto.command.CreateRequestReportCommand(
                         currentUserId(),
-                        form.reportedUserId(),
                         resolveCategory(form.category(), form.customCategory()),
                         form.reason(),
                         form.requestId())));

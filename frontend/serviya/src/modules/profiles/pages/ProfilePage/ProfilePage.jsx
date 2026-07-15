@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
+import { metricsApi } from '../../../../shared/api';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
@@ -8,18 +9,6 @@ import 'leaflet/dist/leaflet.css';
 import { useForm } from "react-hook-form";
 
 const TABS = ['Información personal', 'Mis direcciones', 'Credenciales', 'Mis métricas', 'Roles'];
-
-const METRICS = [
-    { icon: 'check', cls: 'success', n: '96%', l: 'Cumplimiento' },
-    { icon: 'close', cls: 'danger', n: '3%', l: 'Cancelaciones' },
-    { icon: 'reschedule', cls: 'warn', n: '4%', l: 'Reprogramaciones' },
-    { icon: 'star', cls: '', n: '4.8★', l: 'Mi calificación' },
-];
-
-const TAGS = [
-    { label: 'Puntual (14)', pos: true }, { label: 'Respetuoso (11)', pos: true },
-    { label: 'Buen trato (9)', pos: true }, { label: 'No estaba en casa (2)', pos: false },
-];
 
 function AddressModal({
     onClose,
@@ -255,8 +244,71 @@ export function ProfilePage() {
     const [editAddressOpen, setEditAddressOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [offererProfile, setOffererProfile] = useState(null);
     const [addresses, setAddresses] = useState([]);
     const [editedAddress, setEditedAddress] = useState(null);
+    const [isOfferer, setIsOfferer] = useState(false);
+    const [offererForm, setOffererForm] = useState({ whatsappNumber: '', publicDescription: '', specialty: '' });
+    const [savingOffererProfile, setSavingOffererProfile] = useState(false);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const [clientMetrics, setClientMetrics] = useState(null);
+    const [clientTags, setClientTags] = useState([]);
+    const [offererMetrics, setOffererMetrics] = useState(null);
+    const [offererTags, setOffererTags] = useState([]);
+    const [loadingMetrics, setLoadingMetrics] = useState(true);
+
+    // --- Edicion del perfil personal (RF-006) ---
+    const [form, setForm] = useState({ fullName: '', phone: '', description: '' });
+    const [savingProfile, setSavingProfile] = useState(false);
+
+    // --- Roles del usuario (RF-010/011) ---
+    const [roles, setRoles] = useState([]);
+    const [acquiringRole, setAcquiringRole] = useState(null);
+
+    // --- Eliminacion de cuenta (RF-008) ---
+    const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
+
+    /** RF-008: soft delete de la cuenta; el backend cancela solicitudes y desactiva servicios. */
+    const handleDeleteAccount = () => {
+        setDeletingAccount(true);
+        accountApi.deleteMyAccount()
+            .then(() => {
+                clearToken(); // la sesion deja de ser valida: no se puede volver a iniciar sesion
+                showToast('Tu cuenta ha sido eliminada', 'success');
+                setTimeout(() => navigate('/login'), 1000);
+            })
+            .catch((e) => {
+                showToast(e.message || 'No se pudo eliminar la cuenta', 'danger');
+                setDeletingAccount(false);
+            });
+    };
+
+    const hasRole = (name) => roles.includes(name);
+
+    /**
+     * RF-010/011: adquiere el rol y guarda el JWT NUEVO que devuelve el backend (ya trae el rol),
+     * de modo que el acceso es inmediato sin volver a iniciar sesion.
+     */
+    const handleAcquireRole = (roleName) => {
+        setAcquiringRole(roleName);
+        const call = roleName === 'OFFERER'
+            ? accountApi.acquireOffererRole()
+            : accountApi.acquireClientRole();
+
+        call.then((auth) => {
+            saveToken(auth.token); // acceso inmediato: el token ya incluye el rol nuevo
+            setRoles(rolesFromToken(auth.token));
+            showToast(
+                roleName === 'OFFERER' ? '¡Ya eres oferente! Completa tu perfil público.' : '¡Ya puedes solicitar servicios!',
+                'success');
+            setTimeout(() => navigate(roleName === 'OFFERER' ? '/offerer/dashboard' : '/dashboard'), 1200);
+        })
+            .catch((e) => showToast(e.message || 'No se pudo adquirir el rol', 'danger'))
+            .finally(() => setAcquiringRole(null));
+    };
 
     // --- Cambio de contraseña (RF-007) ---
     const [currentPassword, setCurrentPassword] = useState('');
@@ -271,10 +323,53 @@ export function ProfilePage() {
             return;
         }
         profileApi.getMyProfile()
-            .then(setProfile)
+            .then((data) => {
+                setProfile(data);
+                // RF-006: campos editables precargados con los valores actuales.
+                setForm({
+                    fullName: data.fullName ?? '',
+                    phone: data.phoneNumber ?? '',
+                    description: data.bio ?? '',
+                });
+                setIsOfferer(rolesFromToken().includes('OFFERER'));
+            })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
+
+        // RF-010/011/067: roles reales del usuario (fuente de verdad: el backend).
+        accountApi.getMyRoles()
+            .then((data) => setRoles(data.map((r) => r.name)))
+            .catch(() => setRoles(rolesFromToken())); // fallback: los del token
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    /**
+     * RF-006: guarda solo los campos que realmente cambiaron (PATCH parcial).
+     * El documento no se envia nunca: es inmutable por regla de negocio.
+     */
+    const handleSaveProfile = () => {
+        const changes = {};
+        if (form.fullName !== (profile?.fullName ?? '')) changes.fullName = form.fullName;
+        if (form.phone !== (profile?.phoneNumber ?? '')) changes.phone = form.phone;
+        if (form.description !== (profile?.bio ?? '')) changes.description = form.description;
+
+        if (Object.keys(changes).length === 0) {
+            showToast('No hay cambios por guardar', 'warn');
+            return;
+        }
+        if (!form.fullName.trim()) {
+            showToast('El nombre no puede quedar vacío', 'danger');
+            return;
+        }
+
+        setSavingProfile(true);
+        profileApi.updateMyProfile(changes)
+            .then((updated) => {
+                setProfile(updated);
+                showToast('Perfil actualizado correctamente', 'success');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo actualizar el perfil', 'danger'))
+            .finally(() => setSavingProfile(false));
+    };
 
     useEffect(() => {
         addressApi.getMyAddresses()
@@ -282,9 +377,53 @@ export function ProfilePage() {
             .catch((e) => showToast(e.message || 'No se pudieron cargar tus direcciones', 'danger'));
     }, [profile?.id]);
 
+    useEffect(() => {
+        if (!isOfferer) return;
+        profileApi.getOffererProfile()
+            .then((data) => {
+                setOffererProfile(data);
+                setOffererForm({
+                    whatsappNumber: data?.whatsappNumber || '',
+                    publicDescription: data?.publicDescription || '',
+                    specialty: data?.specialty || '',
+                });
+            })
+            .catch((e) => showToast(e.message || 'No se pudo cargar el perfil de oferente', 'danger'));
+    }, [isOfferer]);
+
+    useEffect(() => {
+        metricsApi.getMyMetrics()
+            .then((data) => {
+                const cm = data.clientMetrics;
+                const om = data.offererMetrics;
+                setClientMetrics(cm);
+                setOffererMetrics(om);
+
+                const tagPromises = [];
+                if (cm?.clientId) {
+                    tagPromises.push(
+                        metricsApi.getClientTagMetrics(cm.clientId)
+                            .then((tags) => setClientTags(tags || []))
+                            .catch(() => {})
+                    );
+                }
+                if (om?.offererId && isOfferer) {
+                    tagPromises.push(
+                        metricsApi.getOffererTagMetrics(om.offererId)
+                            .then((tags) => setOffererTags(tags || []))
+                            .catch(() => {})
+                    );
+                }
+                return Promise.all(tagPromises);
+            })
+            .catch(() => {})
+            .finally(() => setLoadingMetrics(false));
+    }, [isOfferer]);
+
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
         .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    const profilePhotoSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
 
     const openEditAddresss = (address) => () => {
         setEditedAddress({
@@ -436,6 +575,44 @@ export function ProfilePage() {
             );
     };
 
+    const handleOffererProfileSave = () => {
+        setSavingOffererProfile(true);
+        profileApi.updateOffererProfile(offererForm)
+            .then((data) => {
+                setOffererProfile(data);
+                setOffererForm({
+                    whatsappNumber: data?.whatsappNumber || '',
+                    publicDescription: data?.publicDescription || '',
+                    specialty: data?.specialty || '',
+                });
+                showToast('Perfil público del oferente actualizado', 'success');
+            })
+            .catch((e) => showToast(e.message || 'No se pudo actualizar el perfil de oferente', 'danger'))
+            .finally(() => setSavingOffererProfile(false));
+    };
+
+    const handleProfilePhotoPick = () => fileInputRef.current?.click();
+
+    const handleProfilePhotoUpload = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('photoUrl', file);
+
+        setUploadingPhoto(true);
+        try {
+            const updated = await profileApi.updateMyProfilePhoto(formData);
+            setProfile(prev => prev ? { ...prev, profilePhotoUrl: updated?.profilePhotoUrl || prev.profilePhotoUrl } : prev);
+            showToast('Foto de perfil actualizada', 'success');
+        } catch (e) {
+            showToast(e.message || 'No se pudo actualizar la foto de perfil', 'danger');
+        } finally {
+            setUploadingPhoto(false);
+            event.target.value = '';
+        }
+    };
+
     function handleChangePassword() {
         if (!currentPassword) {
             showToast('Ingresa tu contraseña actual', 'danger');
@@ -463,7 +640,7 @@ export function ProfilePage() {
     }
 
     return (
-        <DashboardLayout sections={CLIENT_NAV} avatar={initials}>
+        <DashboardLayout sections={CLIENT_NAV} avatar={initials} avatarSrc={profilePhotoSrc}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
 
             <div className="tabs">
@@ -476,8 +653,17 @@ export function ProfilePage() {
                 <div className="card">
                     <div className="profile-id">
                         <div style={{ position: 'relative' }}>
-                            <div className="av av-xl">{initials}</div>
-                            <button className="avatar-edit" onClick={() => showToast('Foto actualizada', 'success')}><Icon name="camera" size={12} strokeWidth={2.5} /></button>
+                            <div className="av av-xl">
+                                {profilePhotoSrc ? (
+                                    <img src={profilePhotoSrc} alt="Foto de perfil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
+                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfilePhotoUpload} />
+                            <button className="avatar-edit" onClick={handleProfilePhotoPick} disabled={uploadingPhoto}>
+                                {uploadingPhoto ? '…' : <Icon name="camera" size={12} strokeWidth={2.5} />}
+                            </button>
                         </div>
                         <div>
                             <div style={{ fontSize: '18px', fontWeight: 700 }}>{profile?.fullName ?? 'Cargando…'}</div>
@@ -486,16 +672,55 @@ export function ProfilePage() {
                         </div>
                     </div>
                     <div className="g2">
-                        <div className="input-group"><label className="label">Nombre completo</label><input className="input" value={profile?.fullName ?? ''} readOnly /></div>
-                        <div className="input-group"><label className="label">Teléfono</label><div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" value={profile?.phoneNumber ?? ''} readOnly /></div></div>
+                        <div className="input-group">
+                            <label className="label">Nombre completo</label>
+                            <input className="input" value={form.fullName}
+                                onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+                        </div>
+                        <div className="input-group">
+                            <label className="label">Teléfono</label>
+                            <div className="input-wrap">
+                                <div className="input-ico"><Icon name="phone" size={15} /></div>
+                                <input className="input" value={form.phone}
+                                    onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                            </div>
+                        </div>
                     </div>
                     <div className="g2">
-                        <div className="input-group"><label className="label">Tipo de documento</label><input className="input" value={profile?.documentType ?? ''} readOnly /></div>
-                        <div className="input-group"><label className="label">Número de documento</label><input className="input" value={profile?.documentNumber ?? ''} readOnly /></div>
+                        <div className="input-group"><label className="label">Tipo de documento</label><input className="input" value={profile?.documentType ?? ''} readOnly disabled /></div>
+                        <div className="input-group"><label className="label">Número de documento</label><input className="input" value={profile?.documentNumber ?? ''} readOnly disabled /></div>
                     </div>
-                    <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly /></div>
-                    <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos protegidos:</strong> Tu documento y teléfono se almacenan cifrados (AES-256-GCM) y solo tú puedes verlos aquí (RF-005).</div>
-                    <button className="btn btn-primary" onClick={() => showToast('Perfil actualizado', 'success')}><Icon name="save" size={15} />Guardar cambios</button>
+                    <div className="input-group"><label className="label">Tipo de perfil</label><input className="input" value={profile?.profileType === 'COMPANY' ? 'Empresa' : 'Persona natural'} readOnly disabled /></div>
+                    <div className="input-group">
+                        <label className="label">Descripción personal</label>
+                        <textarea className="input" rows="3" value={form.description}
+                            onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                    </div>
+                    <div className="note-box"><strong style={{ color: 'var(--c-text)' }}>Datos no editables:</strong> Tipo y número de documento — se establecen al registrarte y se guardan cifrados (AES-256-GCM). Tu teléfono también viaja cifrado (RF-005/RF-006).</div>
+                    <button className="btn btn-primary" onClick={handleSaveProfile} disabled={savingProfile}>
+                        <Icon name="save" size={15} />{savingProfile ? 'Guardando…' : 'Guardar cambios'}
+                    </button>
+
+                    {isOfferer && (
+                        <div className="card" style={{ marginTop: '16px' }}>
+                            <div className="card-title">Perfil público del oferente</div>
+                            <div className="input-group">
+                                <label className="label">WhatsApp</label>
+                                <input className="input" value={offererForm.whatsappNumber} onChange={(e) => setOffererForm(prev => ({ ...prev, whatsappNumber: e.target.value }))} />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Descripción pública</label>
+                                <textarea className="input" rows={4} value={offererForm.publicDescription} onChange={(e) => setOffererForm(prev => ({ ...prev, publicDescription: e.target.value }))} />
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Especialidad</label>
+                                <input className="input" value={offererForm.specialty} onChange={(e) => setOffererForm(prev => ({ ...prev, specialty: e.target.value }))} />
+                            </div>
+                            <button className="btn btn-primary" onClick={handleOffererProfileSave} disabled={savingOffererProfile}>
+                                {savingOffererProfile ? 'Guardando...' : 'Guardar perfil público'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -578,23 +803,99 @@ export function ProfilePage() {
 
             {tab === 3 && (
                 <div>
-                    <div className="g4" style={{ marginBottom: '18px' }}>
-                        {METRICS.map((m) => (
-                            <div className="stat-card" key={m.l}>
-                                <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
-                                <div className="stat-n">{m.n}</div>
-                                <div className="stat-l">{m.l}</div>
+                    {hasRole('CLIENT') && (
+                        <>
+                            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Métricas como cliente</div>
+                            <div className="g4" style={{ marginBottom: '18px' }}>
+                                {loadingMetrics ? (
+                                    <>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cumplimiento</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cancelaciones</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Reprogramaciones</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Mi calificación</div></div>
+                                    </>
+                                ) : (() => {
+                                    const sent = clientMetrics?.totalRequestsSent ?? 0;
+                                    const pct = (num) => sent > 0 ? Math.round((num / sent) * 100) + '%' : '0%';
+                                    const cards = [
+                                        { icon: 'check', cls: 'success', n: pct(clientMetrics?.totalCompletedRequests), l: 'Cumplimiento' },
+                                        { icon: 'close', cls: 'danger', n: pct(clientMetrics?.totalCancelledRequests), l: 'Cancelaciones' },
+                                        { icon: 'reschedule', cls: 'warn', n: pct(clientMetrics?.totalRescheduledRequests), l: 'Reprogramaciones' },
+                                        { icon: 'star', cls: '', n: (clientMetrics?.averageRating ?? 0).toFixed(1) + '★', l: 'Mi calificación' },
+                                    ];
+                                    return cards.map((m) => (
+                                        <div className="stat-card" key={m.l}>
+                                            <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
+                                            <div className="stat-n">{m.n}</div>
+                                            <div className="stat-l">{m.l}</div>
+                                        </div>
+                                    ));
+                                })()}
                             </div>
-                        ))}
-                    </div>
-                    <div className="card">
-                        <div className="card-title">Etiquetas recibidas de oferentes</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
-                            {TAGS.map((t) => (
-                                <span key={t.label} className={`profile-tag ${t.pos ? 'pos' : 'neg'}`}>{t.label}</span>
-                            ))}
+                            <div className="card" style={{ marginBottom: hasRole('OFFERER') ? '22px' : 0 }}>
+                                <div className="card-title">Etiquetas recibidas de oferentes</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                                    {loadingMetrics ? (
+                                        <span className="loading-pulse" style={{ width: 120, height: 24, display: 'inline-block' }} />
+                                    ) : clientTags.length === 0 ? (
+                                        <span style={{ fontSize: '13px', color: 'var(--c-mid)' }}>Aún no has recibido etiquetas</span>
+                                    ) : clientTags.map((t) => (
+                                        <span key={t.tagId} className={`profile-tag ${t.positive ? 'pos' : 'neg'}`}>{t.tagName} ({t.tagCount})</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {hasRole('OFFERER') && (
+                        <>
+                            <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px', marginTop: hasRole('CLIENT') ? '8px' : 0 }}>Métricas como oferente</div>
+                            <div className="g4" style={{ marginBottom: '18px' }}>
+                                {loadingMetrics ? (
+                                    <>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cumplimiento</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Cancelaciones</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Reprogramados</div></div>
+                                        <div className="stat-card"><div className="loading-pulse" style={{ width: 40, height: 22 }} /><div className="stat-l">Calificación</div></div>
+                                    </>
+                                ) : (() => {
+                                    const received = offererMetrics?.totalRequestsReceived ?? 0;
+                                    const pct = (num) => received > 0 ? Math.round((num / received) * 100) + '%' : '0%';
+                                    const cards = [
+                                        { icon: 'check', cls: 'success', n: pct(offererMetrics?.totalCompletedServices), l: 'Cumplimiento' },
+                                        { icon: 'close', cls: 'danger', n: pct(offererMetrics?.totalCancelledServices), l: 'Cancelaciones' },
+                                        { icon: 'reschedule', cls: 'warn', n: String(offererMetrics?.totalRescheduleProposalsSent ?? 0), l: 'Reprogramados' },
+                                        { icon: 'star', cls: '', n: (offererMetrics?.averageRating ?? 0).toFixed(1) + '★', l: 'Calificación' },
+                                    ];
+                                    return cards.map((m) => (
+                                        <div className="stat-card" key={m.l}>
+                                            <div className={`stat-ico ${m.cls}`}><Icon name={m.icon} size={18} fill={m.icon === 'star' ? 'currentColor' : 'none'} /></div>
+                                            <div className="stat-n">{m.n}</div>
+                                            <div className="stat-l">{m.l}</div>
+                                        </div>
+                                    ));
+                                })()}
+                            </div>
+                            <div className="card">
+                                <div className="card-title">Etiquetas recibidas de clientes</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                                    {loadingMetrics ? (
+                                        <span className="loading-pulse" style={{ width: 120, height: 24, display: 'inline-block' }} />
+                                    ) : offererTags.length === 0 ? (
+                                        <span style={{ fontSize: '13px', color: 'var(--c-mid)' }}>Aún no has recibido etiquetas</span>
+                                    ) : offererTags.map((t) => (
+                                        <span key={t.tagId} className={`profile-tag ${t.positive ? 'pos' : 'neg'}`}>{t.tagName} ({t.tagCount})</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {!hasRole('CLIENT') && !hasRole('OFFERER') && (
+                        <div className="card" style={{ textAlign: 'center', padding: '20px', color: 'var(--c-mid)', fontSize: '13px' }}>
+                            Adquiere un rol para ver tus métricas
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
@@ -602,16 +903,40 @@ export function ProfilePage() {
                 <div className="card">
                     <div className="card-title" style={{ marginBottom: '4px' }}>Tus roles actuales</div>
                     <div style={{ fontSize: '13px', color: 'var(--c-mid)', marginBottom: '16px' }}>Un mismo usuario puede ser cliente y oferente sin crear otra cuenta.</div>
-                    <div className="role-row role-active">
-                        <div className="stat-ico" style={{ margin: 0 }}><Icon name="user" size={18} /></div>
-                        <div style={{ flex: 1 }}><div style={{ fontWeight: 700 }}>Cliente</div><div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Puedes buscar y contratar servicios</div></div>
-                        <span className="badge badge-success">Activo</span>
-                    </div>
-                    <div className="role-row role-inactive">
-                        <div className="stat-ico" style={{ margin: 0, background: 'var(--c-bg-s)', color: 'var(--c-soft)' }}><Icon name="wrench" size={18} /></div>
-                        <div style={{ flex: 1 }}><div style={{ fontWeight: 700, color: 'var(--c-text)' }}>Oferente</div><div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Ofrece tus servicios y llega a más clientes</div></div>
-                        <button className="btn btn-primary btn-sm" onClick={() => { showToast('¡Rol de oferente adquirido! Redirigiendo...', 'success'); setTimeout(() => navigate('/offerer/dashboard'), 1200); }}>Adquirir rol</button>
-                    </div>
+                    {/* RF-067 (vista propia) + RF-010/011: estado real de cada rol segun el backend. */}
+                    {[
+                        { id: 'CLIENT', label: 'Cliente', icon: 'user', desc: 'Puedes buscar y contratar servicios', cta: 'Solicitar servicios' },
+                        { id: 'OFFERER', label: 'Oferente', icon: 'wrench', desc: 'Ofrece tus servicios y llega a más clientes', cta: 'Conviértete en oferente' },
+                    ].map((r) => (
+                        <div key={r.id} className={`role-row ${hasRole(r.id) ? 'role-active' : 'role-inactive'}`}>
+                            <div className="stat-ico" style={hasRole(r.id) ? { margin: 0 } : { margin: 0, background: 'var(--c-bg-s)', color: 'var(--c-soft)' }}>
+                                <Icon name={r.icon} size={18} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, color: 'var(--c-text)' }}>{r.label}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>{r.desc}</div>
+                            </div>
+                            {hasRole(r.id)
+                                ? <span className="badge badge-success">Activo</span>
+                                : (
+                                    <button className="btn btn-primary btn-sm"
+                                        disabled={acquiringRole === r.id}
+                                        onClick={() => handleAcquireRole(r.id)}>
+                                        {acquiringRole === r.id ? 'Adquiriendo…' : r.cta}
+                                    </button>
+                                )}
+                        </div>
+                    ))}
+                    {hasRole('ADMIN') && (
+                        <div className="role-row role-active">
+                            <div className="stat-ico" style={{ margin: 0 }}><Icon name="shield" size={18} /></div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700 }}>Administrador</div>
+                                <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>Solo otro administrador puede conceder este rol</div>
+                            </div>
+                            <span className="badge badge-success">Activo</span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -639,10 +964,27 @@ export function ProfilePage() {
             <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
                 <div className="modal-title" style={{ color: 'var(--c-danger)' }}>Eliminar cuenta</div>
                 <div className="modal-sub">Esta acción es irreversible. Tu cuenta será marcada como eliminada y no podrás volver a iniciar sesión.</div>
-                <div className="input-group"><label className="label">Confirma tu contraseña</label><input className="input" type="password" placeholder="••••••••" /></div>
+                {/* RF-008: el usuario debe conocer las consecuencias en cascada antes de confirmar. */}
+                <div className="note-box" style={{ marginBottom: '12px' }}>
+                    Al eliminar tu cuenta:
+                    <ul style={{ margin: '6px 0 0 16px' }}>
+                        <li>Tus servicios publicados quedarán desactivados.</li>
+                        <li>Tus solicitudes pendientes y aceptadas se cancelarán.</li>
+                        <li>Se notificará a la otra parte de cada solicitud cancelada.</li>
+                    </ul>
+                </div>
+                <label className="check-line">
+                    <input type="checkbox" checked={deleteConfirmed}
+                        onChange={(e) => setDeleteConfirmed(e.target.checked)} />
+                    Entiendo las consecuencias y quiero eliminar mi cuenta permanentemente
+                </label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setDeleteOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => navigate('/login')}>Eliminar definitivamente</button>
+                    <button className="btn btn-danger btn-full"
+                        disabled={!deleteConfirmed || deletingAccount}
+                        onClick={handleDeleteAccount}>
+                        {deletingAccount ? 'Eliminando…' : 'Eliminar definitivamente'}
+                    </button>
                 </div>
             </Modal>
             <ToastContainer toasts={toasts} />

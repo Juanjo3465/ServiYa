@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { getApiImageUrl } from '../../../../shared';
 
 import "./ServiceCard.css";
 
@@ -20,7 +21,7 @@ export const ServiceCard = ({
             onClick={() => navigate(`/services/${id}`)}>
             <div className="s-card-img">
                 {photos[0] ? (
-                    <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photos[0]}`} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={getApiImageUrl(photos[0])} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                     <svg
                         viewBox="0 0 24 24"

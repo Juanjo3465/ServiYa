@@ -12,18 +12,33 @@ export { WhatsAppButton } from './components/WhatsAppButton/WhatsAppButton';
 export { ToastContainer } from './components/Toast/Toast';
 export { useToast } from './hooks/useToast';
 export { CLIENT_NAV, OFFERER_NAV } from './navConfig';
-export { 
-    authApi, 
-    profileApi, 
-    serviceApi, 
+export {
+    authApi,
+    accountApi,
+    adminApi,
+    profileApi,
+    serviceApi,
     categoryApi,
+    platformApi,
     reportApi,
     addressApi,
+    clientAgendaApi,
+    offererAgendaApi,
+    availabilityApi,
     requestApi,
-    saveToken, 
-    getToken, 
-    clearToken, 
-    isAuthenticated, 
-    rolesFromToken, 
-    homePathForRoles 
+    proposalApi,
+    adminFeedbackApi,
+    moderationApi,
+    feedbackApi,
+    adminServiceApi,
+    saveToken,
+    getToken,
+    clearToken,
+    isAuthenticated,
+    rolesFromToken,
+    userApi,
+    metricsApi,
+    notificationApi,
+    homePathForRoles,
+    getApiImageUrl
 } from './api';

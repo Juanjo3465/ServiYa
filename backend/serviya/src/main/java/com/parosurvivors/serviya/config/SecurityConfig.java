@@ -41,8 +41,15 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Documentacion OpenAPI/Swagger
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                // Perfil y cuenta del usuario autenticado — RF-005 (identidad del JWT)
-                .requestMatchers("/api/v1/users/me/**").permitAll()  //Remember to change later
+                // El area propia del oferente (/offerers/me/**: perfil propio, disponibilidad) SIEMPRE exige
+                // login: la identidad sale del JWT. Va ANTES de la regla publica de abajo, que si no
+                // dejaria "me" abierto al hacer match con el comodin del id.
+                .requestMatchers("/api/v1/offerers/me/**").authenticated()
+                // Perfil publico del oferente — RF-027: accesible tambien por visitantes (sin JWT).
+                .requestMatchers(HttpMethod.GET, "/api/v1/offerers/*", "/api/v1/offerers/*/**").permitAll()
+                // Perfil y cuenta del usuario autenticado — RF-005/006/008/010/011.
+                // La identidad SIEMPRE sale del JWT (CurrentUser.id()), nunca del body/path: exige login.
+                .requestMatchers("/api/v1/users/me/**").authenticated()
                 // Modulo admin (modulo 9): gestion de usuarios/roles, detalle admin y feedback -> solo ADMIN.
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 // Acciones de moderacion sobre un reporte (warn/ban/revert-feedback/close/mark-not-provided)

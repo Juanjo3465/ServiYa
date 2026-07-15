@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.metrics.application.ports.output.OffererMetrics
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,6 +34,23 @@ public class OffererMetricsService implements OffererMetricsServicePort {
     public OffererMetrics getMainMetrics(Long offererId) {
         return offererMetricsPersistencePort.findByOffererId(offererId)
                 .orElse(OffererMetrics.builder().offererId(offererId).build());
+    }
+
+    /**
+     * RF-010/065: fila de métricas en cero al adquirir el rol OFFERER. A diferencia de los apply*
+     * (que corren AFTER_COMMIT en transacción propia), esta se une a la transacción del llamador
+     * para que "asignar rol + inicializar métricas" sea atómico.
+     */
+    @Override
+    @Transactional
+    public void initializeMetrics(Long offererId) {
+        if (offererMetricsPersistencePort.findByOffererId(offererId).isEmpty()) {
+            // updated_at es NOT NULL en el esquema y el builder no lo rellena (los apply* lo ponen via touch()).
+            offererMetricsPersistencePort.save(OffererMetrics.builder()
+                    .offererId(offererId)
+                    .updatedAt(LocalDateTime.now())
+                    .build());
+        }
     }
 
     @Override

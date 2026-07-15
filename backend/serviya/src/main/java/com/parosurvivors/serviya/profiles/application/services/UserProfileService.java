@@ -7,11 +7,13 @@ import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersis
 import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import com.parosurvivors.serviya.shared.textfilter.application.ports.output.WordFilterPort;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Servicio del perfil personal. {@code createProfile} crea la fila de user_profiles durante el
@@ -24,6 +26,8 @@ public class UserProfileService implements UserProfileServicePort {
 
     private final UserProfilePersistencePort userProfilePersistencePort;
     private final AddressPersistencePort addressPersistencePort;
+    /** Filtro de palabras (RNF-006) para los textos libres del perfil (nombre, descripcion). */
+    private final WordFilterPort wordFilterPort;
 
     @Override
     public UserProfile createProfile(CreateUserProfileCommand command) {
@@ -45,9 +49,29 @@ public class UserProfileService implements UserProfileServicePort {
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for user: " + userId));
     }
 
+    /**
+     * RF-006: actualiza parcialmente el perfil del usuario autenticado.
+     *
+     * <p>Ownership: {@code command.userId()} lo inyecta el controller desde el JWT
+     * ({@code CurrentUser.id()}), nunca del body, por lo que un usuario solo puede editar su propio
+     * perfil. Documento (tipo/numero) no es editable: ni siquiera viaja en el command.
+     * Los textos libres (nombre y descripcion) pasan por el filtro de palabras (RNF-006) antes de
+     * persistir. El telefono se cifra al persistir (AES-256-GCM, PiiAttributeConverter).</p>
+     */
     @Override
+    @Transactional
     public UserProfile patchProfile(UpdateProfileCommand command) {
-        throw new UnsupportedOperationException("TODO: patchProfile — placeholder, ver estructura-servicios.docx");
+        UserProfile profile = userProfilePersistencePort.findByUserId(command.userId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Profile not found for user: " + command.userId()));
+
+        profile.applyPartialUpdate(
+                wordFilterPort.filter(command.fullName()),
+                command.phone(),
+                command.photoUrl(),
+                wordFilterPort.filter(command.description()));
+
+        return userProfilePersistencePort.save(profile);
     }
 
     @Override

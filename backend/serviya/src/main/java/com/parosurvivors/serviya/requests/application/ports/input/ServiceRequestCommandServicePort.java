@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.requests.application.dto.command.CreateServiceR
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Puerto de entrada de ServiceRequestCommandService (comandos / transiciones de estado — CQRS).
@@ -40,7 +41,17 @@ public interface ServiceRequestCommandServicePort {
      * No se expone como endpoint: la invoca el orquestador de eliminación de cuenta (UserDeletionService)
      * para no dejar solicitudes huérfanas. El control de acceso es responsabilidad del llamador.
      */
-    void cancelActiveRequestsForUser(Long userId);
+    List<ServiceRequest> cancelActiveRequestsForUser(Long userId);
+
+    /**
+     * RF-066: cancela las solicitudes activas del usuario SOLO en el rol indicado. Al removerle el rol
+     * OFFERER se cancelan las solicitudes en las que actuaba como oferente, pero NO las que tiene como
+     * cliente (ese rol lo conserva), y viceversa.
+     *
+     * @param asOfferer true = solicitudes donde es oferente; false = donde es cliente
+     * @return las solicitudes canceladas, para notificar a cada contraparte
+     */
+    List<ServiceRequest> cancelActiveRequestsForRole(Long userId, boolean asOfferer);
 
     ServiceRequest rescheduleRequest(Long requestId, LocalDateTime newDate, Long clientId);
 }

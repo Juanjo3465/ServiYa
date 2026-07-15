@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi } from '../../../../shared';
+import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
-
 
 import './OffererProfilePage.css';
 
@@ -25,12 +24,31 @@ export function OffererProfilePage() {
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
     const [profile, setProfile] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(true);
+    const [offererPhotoSrc, setOffererPhotoSrc] = useState(null);
+    const [navbarAvatarSrc, setNavbarAvatarSrc] = useState(null);
 
     useEffect(() => {
-        profileApi.getProfile(id)
-            .then(setProfile)
+        Promise.all([
+            profileApi.getProfile(id),
+            profileApi.getMyProfile().catch(() => null),
+        ])
+            .then(async ([offererData, currentUserData]) => {
+                setProfile(offererData);
+                setUserProfile(currentUserData);
+                
+                // Obtener los datos del usuario del oferente (para la foto)
+                if (offererData?.userId) {
+                    try {
+                        const offererUserData = await profileApi.getUserById(offererData.userId);
+                        setOffererPhotoSrc(getApiImageUrl(offererUserData?.profilePhotoUrl || null));
+                    } catch (e) {
+                        console.warn('No se pudo obtener datos del usuario oferente:', e);
+                    }
+                }
+            })
             .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
         metricsApi.getOffererMetrics(id)
             .then(setMetrics)
@@ -38,27 +56,38 @@ export function OffererProfilePage() {
             .finally(() => setLoadingMetrics(false));
     }, [id, showToast]);
 
+    useEffect(() => {
+        setNavbarAvatarSrc(getApiImageUrl(userProfile?.profilePhotoUrl || null));
+    }, [userProfile]);
+
     const openWhatsApp = () => {
-        if (!profile?.phoneNumber) {
+        const whatsappNumber = profile?.whatsappNumber || profile?.phoneNumber;
+        if (!whatsappNumber) {
             showToast('Número de WhatsApp no disponible', 'warning');
             return;
         }
-        window.open(`https://wa.me/${profile.phoneNumber}`, '_blank');
+        window.open(`https://wa.me/${whatsappNumber}`, '_blank');
     }
 
     return (
         <>
-            <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+            <AppNavbar avatar={userProfile?.fullName ? userProfile.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={navbarAvatarSrc} links={[{ to: '/services', label: '← Resultados' }]} />
 
             <div className="profile-hero">
                 <div className="profile-top">
                     <div className="profile-av-wrap">
-                        <div className="av av-xl">CM</div>
+                        <div className="av av-xl">
+                            {offererPhotoSrc ? (
+                                <img src={offererPhotoSrc} alt="Foto del oferente" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                            ) : (
+                                (profile?.specialty || 'OF').slice(0, 2).toUpperCase()
+                            )}
+                        </div>
                         <div className="profile-verified"><Icon name="check" size={12} strokeWidth={2.5} /></div>
                     </div>
                     <div className="profile-info">
-                        <div className="profile-name">Carlos Martínez</div>
-                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>Plomero profesional · Persona natural</div>
+                        <div className="profile-name">{profile?.specialty ? profile.specialty : 'Perfil de oferente'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--c-mid)', margin: '3px 0' }}>{profile?.publicDescription || 'Información pública del oferente'}</div>
                         <div className="profile-meta">
                             <span className="pm-item">
                                 {loadingMetrics ? (

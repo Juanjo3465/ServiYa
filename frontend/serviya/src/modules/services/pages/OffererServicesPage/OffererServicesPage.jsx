@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, getApiImageUrl, isAuthenticated } from '../../../../shared';
 
 import './OffererServicesPage.css';
 
@@ -155,7 +155,7 @@ function ServiceModal({
                     {selectedPhotos.length > 0 && (
                         <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                             {selectedPhotos.map((photo, index) => {
-                                const src = photo instanceof File ? URL.createObjectURL(photo) : `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${photo}`;
+                                const src = photo instanceof File ? URL.createObjectURL(photo) : getApiImageUrl(photo);
                                 return (
                                     <div key={`${index}-${typeof photo === 'string' ? photo : photo.name}`} style={{ position: 'relative', cursor: 'pointer' }}>
                                         <button
@@ -250,7 +250,7 @@ export function OffererServicesPage() {
         if (!profile?.id) return;
         serviceApi.getMyServices(profile.id)
             .then(setServices)
-            .catch((e) => showToast(e.message || 'No se pudieron cargar tus servicios', 'danger'));
+            .catch(() => setServices([]));
     }, [profile?.id]);
 
     const openEdit = (service) => () => {
@@ -268,15 +268,33 @@ export function OffererServicesPage() {
         setSelectedPhotos([]);
     };
 
+    const normalizeNumericValue = (value) => {
+        if (value === null || value === undefined || value === '' || value === 'NaN') return null;
+        const numericValue = typeof value === 'number' ? value : Number(value);
+        return Number.isFinite(numericValue) ? numericValue : null;
+    };
+
     const createService = (formData) => {
-        const category = categories.find(c => c.id === formData.categoryId);
+        const categoryId = normalizeNumericValue(formData.categoryId);
+        if (categoryId === null) {
+            showToast('Selecciona una categoría antes de crear el servicio', 'danger');
+            return;
+        }
+
+        const category = categories.find(c => c.id === categoryId);
         const formDataToSend = new FormData();
         formDataToSend.append('title', formData.title || '');
         formDataToSend.append('description', formData.description || '');
-        formDataToSend.append('priceHourly', String(formData.priceHourly ?? 0));
-        formDataToSend.append('categoryId', String(formData.categoryId));
-        if (formData.averageDurationMinutes != null) formDataToSend.append('averageDurationMinutes', String(formData.averageDurationMinutes));
-        if (formData.operationRadiusKm != null) formDataToSend.append('operationRadiusKm', String(formData.operationRadiusKm));
+        const priceHourly = normalizeNumericValue(formData.priceHourly);
+        formDataToSend.append('priceHourly', String(priceHourly ?? 0));
+        formDataToSend.append('categoryId', String(categoryId));
+
+        const averageDurationMinutes = normalizeNumericValue(formData.averageDurationMinutes);
+        if (averageDurationMinutes !== null) formDataToSend.append('averageDurationMinutes', String(averageDurationMinutes));
+
+        const operationRadiusKm = normalizeNumericValue(formData.operationRadiusKm);
+        if (operationRadiusKm !== null) formDataToSend.append('operationRadiusKm', String(operationRadiusKm));
+
         selectedPhotos.forEach((photo) => formDataToSend.append('photos', photo));
 
         serviceApi
@@ -304,14 +322,22 @@ export function OffererServicesPage() {
     };
 
     const saveEditedService = (formData) => {
-        const category = categories.find(c => c.id === formData.categoryId);
+        const categoryId = normalizeNumericValue(formData.categoryId);
+        const category = categories.find(c => c.id === categoryId);
         const formDataToSend = new FormData();
         if (formData.title != null) formDataToSend.append('title', formData.title || '');
         if (formData.description != null) formDataToSend.append('description', formData.description || '');
-        if (formData.priceHourly != null) formDataToSend.append('priceHourly', String(formData.priceHourly));
-        if (formData.categoryId != null) formDataToSend.append('categoryId', String(formData.categoryId));
-        if (formData.averageDurationMinutes != null) formDataToSend.append('averageDurationMinutes', String(formData.averageDurationMinutes));
-        if (formData.operationRadiusKm != null) formDataToSend.append('operationRadiusKm', String(formData.operationRadiusKm));
+
+        const priceHourly = normalizeNumericValue(formData.priceHourly);
+        if (priceHourly !== null) formDataToSend.append('priceHourly', String(priceHourly));
+
+        if (categoryId !== null) formDataToSend.append('categoryId', String(categoryId));
+
+        const averageDurationMinutes = normalizeNumericValue(formData.averageDurationMinutes);
+        if (averageDurationMinutes !== null) formDataToSend.append('averageDurationMinutes', String(averageDurationMinutes));
+
+        const operationRadiusKm = normalizeNumericValue(formData.operationRadiusKm);
+        if (operationRadiusKm !== null) formDataToSend.append('operationRadiusKm', String(operationRadiusKm));
 
         const retainedExistingPhotos = selectedPhotos.filter((photo) => typeof photo === 'string');
         const removedPhotos = (editedService?.photos || []).filter((photo) => !retainedExistingPhotos.includes(photo));
@@ -387,7 +413,7 @@ export function OffererServicesPage() {
                             )}
                         </div>
                         {s.photos && s.photos.length > 0 ? (
-                            <img src={`${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}${s.photos[0]}`} alt={s.title} style={{ width: '100%', height: '138px', objectFit: 'cover', borderRadius: '12px', marginBottom: '10px' }} />
+                            <img src={getApiImageUrl(s.photos[0])} alt={s.title} style={{ width: '100%', height: '138px', objectFit: 'cover', borderRadius: '12px', marginBottom: '10px' }} />
                         ) : (
                             <div className={`svc-ico ${!s.active ? 'svc-ico-off' : ''}`}><Icon name="wrench" size={22} /></div>
                         )}

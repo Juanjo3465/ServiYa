@@ -18,6 +18,16 @@ public interface UserAuthenticationServicePort {
 
     AuthResult register(RegisterUserCommand command);
 
+    /**
+     * RF-010/011: el usuario autenticado adquiere un rol publico (CLIENT u OFFERER) y recibe un JWT
+     * NUEVO que ya incluye ese rol.
+     *
+     * <p>Los roles viajan como claim del token, asi que sin re-emitirlo el usuario tendria que volver
+     * a iniciar sesion para usar su rol nuevo. Devolver aqui el token actualizado es lo que hace
+     * efectivo el criterio de aceptacion "acceso inmediato a todas sus funciones".</p>
+     */
+    AuthResult acquireRole(Long userId, String roleName);
+
     void requestPasswordReset(RequestPasswordResetCommand command);
 
     void confirmPasswordReset(ConfirmPasswordResetCommand command);

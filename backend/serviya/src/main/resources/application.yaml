@@ -34,6 +34,15 @@ app:
   upload:
     dir: ${UPLOAD_DIR:uploads}
 
+# Filtro de palabras (RNF-006): se censuran en todo texto libre antes de persistir
+# (descripcion de perfil, motivo de reportes, resenas). Ampliar la lista NO requiere recompilar.
+serviya:
+  word-filter:
+    blocked-words: >-
+      idiota,imbecil,estupido,estupida,maldito,maldita,mierda,puta,puto,
+      cabron,gilipollas,pendejo,pendeja,marica,huevon,malparido,gonorrea,
+      hijueputa,verga,coño,joder,zorra,perra
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

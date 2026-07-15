@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.users.infrastructure.adapters.input.api;
 
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangeEmailForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangePasswordForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.RoleResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,13 +41,23 @@ public interface AccountApi {
     @ApiResponse(responseCode = "204", description = "Cuenta eliminada")
     ResponseEntity<Void> deleteOwnAccount();
 
-    @Operation(summary = "Adquirir el rol OFFERER (auto-servicio)", description = "RF-010.")
-    @ApiResponse(responseCode = "204", description = "Rol asignado")
-    ResponseEntity<Void> acquireOffererRole();
+    @Operation(summary = "Adquirir el rol OFFERER (auto-servicio)",
+            description = "RF-010. Crea el perfil de oferente y sus metricas en la misma transaccion, "
+                    + "y devuelve un JWT NUEVO que ya incluye el rol (acceso inmediato, sin re-login).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Rol asignado; se devuelve el token actualizado"),
+            @ApiResponse(responseCode = "409", description = "El usuario ya tiene el rol")
+    })
+    ResponseEntity<AuthResponse> acquireOffererRole();
 
-    @Operation(summary = "Adquirir el rol CLIENT (auto-servicio)", description = "RF-011.")
-    @ApiResponse(responseCode = "204", description = "Rol asignado")
-    ResponseEntity<Void> acquireClientRole();
+    @Operation(summary = "Adquirir el rol CLIENT (auto-servicio)",
+            description = "RF-011. Inicializa las metricas de cliente en la misma transaccion, y devuelve "
+                    + "un JWT NUEVO que ya incluye el rol (acceso inmediato, sin re-login).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Rol asignado; se devuelve el token actualizado"),
+            @ApiResponse(responseCode = "409", description = "El usuario ya tiene el rol")
+    })
+    ResponseEntity<AuthResponse> acquireClientRole();
 
     @Operation(summary = "Listar los roles propios")
     @ApiResponse(responseCode = "200", description = "Roles del usuario")

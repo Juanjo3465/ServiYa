@@ -22,6 +22,7 @@ import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -80,7 +81,7 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
                 saved.getOffererId(),
                 saved.getRating(),
                 saved.hasComment(),
-                resolveTags(tagIds)));
+                resolveTagRefs(tagIds)));
     }
 
     @Override
@@ -102,13 +103,16 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
                 feedback.getOffererId(),
                 feedback.getRating(),
                 feedback.hasComment(),
-                resolveTags(tagIds)));
+                resolveTagRefs(tagIds)));
         return true;
     }
 
     @Override
     public ClientFeedbackResult getClientFeedback(Long requestId) {
-        throw new UnsupportedOperationException("TODO: getClientFeedback — placeholder, ver estructura-servicios.docx");
+        ClientFeedback feedback = clientFeedbackPersistencePort.findByRequestId(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Feedback de cliente no encontrado para la solicitud: " + requestId));
+        return toResult(feedback);
     }
 
     @Override
@@ -126,12 +130,40 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
 
     @Override
     public Page<ClientFeedbackResult> getClientFeedbackList(Long clientId, Pageable pageable) {
-        throw new UnsupportedOperationException("TODO: getClientFeedbackList — placeholder, ver estructura-servicios.docx");
+        return clientFeedbackPersistencePort.findByClientId(clientId, pageable)
+                .map(this::toResult);
     }
 
     @Override
     public Page<ClientFeedbackResult> getClientFeedbackByOfferer(Long offererId, Pageable pageable) {
-        throw new UnsupportedOperationException("TODO: getClientFeedbackByOfferer — placeholder, ver estructura-servicios.docx");
+        return clientFeedbackPersistencePort.findByOffererId(offererId, pageable)
+                .map(this::toResult);
+    }
+
+    /** Arma el Result de una entrada, resolviendo sus tagIds a nombres de tag desde el catalogo. */
+    private ClientFeedbackResult toResult(ClientFeedback feedback) {
+        List<Long> tagIds = clientFeedbackTagPersistencePort.findTagIdsByFeedbackId(feedback.getId());
+        return new ClientFeedbackResult(
+                feedback.getRequestId(),
+                feedback.getClientId(),
+                feedback.getOffererId(),
+                feedback.getRating(),
+                feedback.getComment(),
+                resolveTagNames(tagIds),
+                feedback.getCreatedAt());
+    }
+
+    /** Empareja cada tagId con su nombre del catalogo, para la vista de lectura (Result). */
+    private List<String> resolveTagNames(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, String> nameByTag = clientFeedbackTagCatalogPersistencePort.findAll().stream()
+                .collect(Collectors.toMap(ClientFeedbackTagCatalog::getId, ClientFeedbackTagCatalog::getTagName));
+        return tagIds.stream()
+                .map(nameByTag::get)
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     /** Resuelve los nombres de las etiquetas desde el catálogo (para vistas de lectura como el detalle de reporte). */
@@ -148,7 +180,7 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
     }
 
     /** Empareja cada tagId con su sentimiento (P/N) del catálogo para armar el payload autocontenido. */
-    private List<TagRef> resolveTags(List<Long> tagIds) {
+    private List<TagRef> resolveTagRefs(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) {
             return List.of();
         }

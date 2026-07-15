@@ -1,7 +1,11 @@
 package com.parosurvivors.serviya.users.application.services;
 
+import com.parosurvivors.serviya.notifications.application.ports.input.NotificationChannelServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
+import com.parosurvivors.serviya.requests.domain.ServiceRequest;
+import java.util.List;
+import java.util.Map;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
@@ -27,6 +31,8 @@ public class UserDeletionService implements UserDeletionServicePort {
     private final MarketplaceServicePort marketplaceServicePort;
     private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final NotificationServicePort notificationServicePort;
+    /** RF-008: resuelve el id del canal EMAIL por nombre (no se cablea un id fijo). */
+    private final NotificationChannelServicePort notificationChannelServicePort;
 
     @Override
     @Transactional
@@ -42,7 +48,41 @@ public class UserDeletionService implements UserDeletionServicePort {
         // (2) Si es oferente, ocultar todos sus servicios del buscador (no-op si no tiene servicios).
         marketplaceServicePort.deactivateAllByOfferer(userId);
         // (3) Cancelar las solicitudes activas donde participa (como cliente u oferente) para no dejar huérfanas.
-        serviceRequestCommandServicePort.cancelActiveRequestsForUser(userId);
-        // TODO(notif): notificar por doble canal a las contrapartes de las solicitudes canceladas (RF).
+        //     cancelRequest ya publica RequestStatusChangedEvent (métricas) y avisa IN_APP a la contraparte.
+        List<ServiceRequest> cancelled = serviceRequestCommandServicePort.cancelActiveRequestsForUser(userId);
+        // (4) Notificación dual-canal: el aviso IN_APP ("Solicitud cancelada") ya lo emite cancelRequest;
+        //     aquí se completa el otro canal (EMAIL) explicando el motivo real —la cuenta fue eliminada—,
+        //     que el aviso genérico de cancelación no transmite. Así la contraparte queda informada por
+        //     ambos canales sin recibir dos veces la misma notificación interna.
+        notifyCounterpartiesByEmail(userId, cancelled);
+    }
+
+    /** Avisa por EMAIL a la contraparte de cada solicitud cancelada por la eliminación de la cuenta. */
+    private void notifyCounterpartiesByEmail(Long deletedUserId, List<ServiceRequest> cancelled) {
+        List<Long> emailChannel = emailChannelIds();
+        if (emailChannel.isEmpty()) {
+            return; // el canal EMAIL no está configurado: el aviso IN_APP ya se envió.
+        }
+        for (ServiceRequest request : cancelled) {
+            Long counterpartyId = deletedUserId.equals(request.getClientId())
+                    ? request.getOffererId()
+                    : request.getClientId();
+            notificationServicePort.notify(
+                    counterpartyId,
+                    "request_cancelled_account_deleted",
+                    "Solicitud cancelada: la otra parte eliminó su cuenta",
+                    "La solicitud #" + request.getId() + " fue cancelada porque la otra parte eliminó su cuenta en ServiYa.",
+                    "SERVICE_REQUEST",
+                    request.getId(),
+                    emailChannel,
+                    Map.of());
+        }
+    }
+
+    private List<Long> emailChannelIds() {
+        return notificationChannelServicePort.getChannels().stream()
+                .filter(channel -> "EMAIL".equals(channel.getName()))
+                .map(channel -> channel.getId().longValue())
+                .toList();
     }
 }

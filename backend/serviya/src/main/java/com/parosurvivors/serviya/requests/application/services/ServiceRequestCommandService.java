@@ -90,14 +90,17 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
     @Override
     public boolean checkServiceAvailability(Long serviceId, LocalDateTime scheduledDate) {
+        List<ServiceAvailability> availabilities = serviceAvailabilityPersistencePort
+                .findByServiceId(serviceId);
+
+        if (availabilities.isEmpty()) {
+            return true;
+        }
+
         int javaDayOfWeek = scheduledDate.getDayOfWeek().getValue();
         int dayIndex = javaDayOfWeek == 7 ? 0 : javaDayOfWeek;
         LocalTime scheduledTime = scheduledDate.toLocalTime();
         boolean isAvailable = false;
-
-        List<ServiceAvailability> availabilities = serviceAvailabilityPersistencePort
-                .findByServiceId(serviceId);
-
 
         for (ServiceAvailability availability : availabilities) {
             if (availability.isActive()
@@ -307,7 +310,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
     @Override
     @Transactional
-    public void cancelActiveRequestsForUser(Long userId) {
+    public List<ServiceRequest> cancelActiveRequestsForUser(Long userId) {
         // Cancela las solicitudes activas (PENDING/ACCEPTED) en las que el usuario participa como cliente
         // u oferente. Lo invoca UserDeletionService al eliminar la cuenta para no dejar solicitudes huérfanas.
         // Se filtra en BD por participante + estado (no se traen las ya finalizadas); el usuario es participante
@@ -317,6 +320,28 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         for (ServiceRequest request : active) {
             cancelRequest(request.getId(), userId);
         }
+        // Se devuelven las canceladas para que el llamador (RF-008) pueda avisar a cada contraparte.
+        return active;
+    }
+
+    /**
+     * RF-066: variante acotada a UN rol. Al remover el rol OFFERER solo se cancelan las solicitudes en
+     * las que el usuario es el oferente; las que tiene como cliente siguen vivas porque conserva ese rol.
+     */
+    @Override
+    @Transactional
+    public List<ServiceRequest> cancelActiveRequestsForRole(Long userId, boolean asOfferer) {
+        List<ServiceRequest> scoped = serviceRequestReadPort
+                .findByParticipantAndStatusIn(userId, List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED))
+                .stream()
+                .filter(request -> asOfferer
+                        ? userId.equals(request.getOffererId())
+                        : userId.equals(request.getClientId()))
+                .toList();
+        for (ServiceRequest request : scoped) {
+            cancelRequest(request.getId(), userId);
+        }
+        return scoped;
     }
 
     @Override

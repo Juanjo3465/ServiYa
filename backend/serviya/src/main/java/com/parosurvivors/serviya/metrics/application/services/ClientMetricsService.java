@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.metrics.application.ports.output.ClientMetricsP
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -33,6 +34,23 @@ public class ClientMetricsService implements ClientMetricsServicePort {
     public ClientMetrics getMainMetrics(Long clientId) {
         return clientMetricsPersistencePort.findByClientId(clientId)
                 .orElse(ClientMetrics.builder().clientId(clientId).build());
+    }
+
+    /**
+     * RF-011/065: fila de métricas en cero al adquirir el rol CLIENT. A diferencia de los apply*
+     * (que corren AFTER_COMMIT en transacción propia), esta se une a la transacción del llamador
+     * para que "asignar rol + inicializar métricas" sea atómico. Idempotente.
+     */
+    @Override
+    @Transactional
+    public void initializeMetrics(Long clientId) {
+        if (clientMetricsPersistencePort.findByClientId(clientId).isEmpty()) {
+            // updated_at es NOT NULL en el esquema y el builder no lo rellena (los apply* lo ponen via touch()).
+            clientMetricsPersistencePort.save(ClientMetrics.builder()
+                    .clientId(clientId)
+                    .updatedAt(LocalDateTime.now())
+                    .build());
+        }
     }
 
     @Override

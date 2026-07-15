@@ -43,7 +43,7 @@ services:
     build:
       context: ./frontend/serviya
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://192.168.1.2:8080}
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: serviya-frontend
     depends_on:
       - backend

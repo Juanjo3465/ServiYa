@@ -1,8 +1,20 @@
 package com.parosurvivors.serviya.admin.application.services;
 
 import com.parosurvivors.serviya.admin.application.dto.command.CreateUserByAdminCommand;
+import com.parosurvivors.serviya.admin.application.dto.command.UpdateUserByAdminCommand;
+import com.parosurvivors.serviya.profiles.application.dto.command.UpdateProfileCommand;
+import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
+import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
+import java.util.Map;
+import com.parosurvivors.serviya.admin.application.dto.query.AdminFeedbackSearchQuery;
+import com.parosurvivors.serviya.admin.application.dto.result.AdminFeedbackSearchResult;
 import com.parosurvivors.serviya.admin.application.dto.result.UserAdminDetailResult;
 import com.parosurvivors.serviya.admin.application.ports.input.AdminServicePort;
+import com.parosurvivors.serviya.feedback.application.ports.output.ClientFeedbackPersistencePort;
+import com.parosurvivors.serviya.feedback.application.ports.output.ServiceFeedbackPersistencePort;
+import com.parosurvivors.serviya.feedback.domain.ClientFeedback;
+import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
 import com.parosurvivors.serviya.metrics.application.ports.input.ClientMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
@@ -13,6 +25,7 @@ import com.parosurvivors.serviya.profiles.domain.UserProfile;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
 import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
+import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
 import com.parosurvivors.serviya.users.application.dto.item.UserSummaryItem;
@@ -27,9 +40,15 @@ import com.parosurvivors.serviya.users.domain.User;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Administracion de usuarios del panel admin (contexto backoffice). Orquesta hacia los puertos de entrada
@@ -51,6 +70,11 @@ public class AdminService implements AdminServicePort {
     private final ReportServicePort reportServicePort;
     private final ServiceRequestQueryServicePort serviceRequestQueryServicePort;
     private final NotificationServicePort notificationServicePort;
+    /** RF-066: la cascada conservadora al retirar un rol desactiva servicios y cancela solicitudes. */
+    private final MarketplaceServicePort marketplaceServicePort;
+    private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
+    private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
+    private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
 
     @Override
     public UserSummaryItem createUserByAdmin(CreateUserByAdminCommand command) {
@@ -59,7 +83,9 @@ public class AdminService implements AdminServicePort {
         // unicidad de email la valida createUserAccount. Devuelve el read-model de listado (sin foto aun).
         CreateUserAccountCommand accountCommand = new CreateUserAccountCommand(
                 command.email(), command.password(), command.fullName(), command.role(),
-                command.documentType(), command.documentNumber(), command.phone(), true);
+                command.documentType(), command.documentNumber(), command.phone(), true,
+                // El alta desde el panel admin no captura direccion; el usuario la agrega luego.
+                null, null, null, null);
         User created = userCreationServicePort.createUserAccount(accountCommand);
         return new UserSummaryItem(created.getId(), created.getEmail(), command.fullName(), null,
                 created.getBanned(), created.getDeletedAt(), created.getCreatedAt());
@@ -75,6 +101,70 @@ public class AdminService implements AdminServicePort {
         // Cualquier rol , por nombre. La existencia del rol y el duplicado los valida assignRole.
         userRoleServicePort.assignRole(userId, parseRole(roleName));
         // TODO(notif): opcionalmente notificar al usuario la concesion del rol.
+    }
+
+    /**
+     * RF-066: retira un rol a un usuario, con la cascada conservadora que evita dejar datos huerfanos.
+     *
+     * <p><b>Decision de diseño documentada</b>: el documento no define que ocurre con los servicios y
+     * solicitudes activas al retirar un rol. Se aplica el mismo criterio que en la eliminacion de cuenta
+     * (RF-008), acotado al rol retirado:
+     * <ul>
+     *   <li>OFFERER → se desactivan sus servicios y se cancelan las solicitudes donde actuaba como
+     *       oferente (las que tenga como cliente NO se tocan: conserva ese rol).</li>
+     *   <li>CLIENT → se cancelan las solicitudes donde actuaba como cliente.</li>
+     *   <li>ADMIN → no arrastra datos operativos: solo se retira el rol.</li>
+     * </ul>
+     * cancelRequest ya avisa a cada contraparte y publica el evento de metricas, asi que no se duplica
+     * esa logica aqui. Todo en una sola transaccion.</p>
+     */
+    @Override
+    @Transactional
+    public void revokeRoleByAdmin(Long adminId, Long userId, String roleName) {
+        RoleName role = parseRole(roleName);
+        userQueryServicePort.getUserById(userId); // 404 si no existe
+
+        switch (role) {
+            case OFFERER -> {
+                marketplaceServicePort.deactivateAllByOfferer(userId);
+                serviceRequestCommandServicePort.cancelActiveRequestsForRole(userId, true);
+            }
+            case CLIENT -> serviceRequestCommandServicePort.cancelActiveRequestsForRole(userId, false);
+            case ADMIN -> {
+                // Sin datos operativos asociados.
+            }
+        }
+
+        userRoleServicePort.revokeRole(userId, role);
+
+        notificationServicePort.notify(
+                userId,
+                "role_revoked",
+                "Se retiro un rol de tu cuenta",
+                "Un administrador retiro el rol " + role.name() + " de tu cuenta.",
+                "USER",
+                userId,
+                null,
+                Map.of());
+    }
+
+    /**
+     * RF-068: edicion de un usuario por el administrador. Solo se tocan los campos enviados (PATCH
+     * parcial). Los datos PII (telefono) se cifran al persistir igual que en el resto del sistema, y el
+     * documento sigue siendo inmutable (no viaja en el command), como en RF-006.
+     */
+    @Override
+    @Transactional
+    public void updateUserByAdmin(Long adminId, Long userId, UpdateUserByAdminCommand command) {
+        userQueryServicePort.getUserById(userId); // 404 si no existe
+
+        if (command.email() != null) {
+            userServicePort.changeEmail(new ChangeEmailCommand(userId, command.email()));
+        }
+        // Reutiliza el mismo caso de uso de RF-006: filtro de palabras, PATCH parcial y cifrado de PII
+        // viven ahi, no se duplican aqui.
+        userProfileServicePort.patchProfile(new UpdateProfileCommand(
+                userId, command.fullName(), command.phone(), command.photoUrl(), command.description()));
     }
 
     private RoleName parseRole(String roleName) {
@@ -133,5 +223,80 @@ public class AdminService implements AdminServicePort {
     @Override
     public void deleteUser(Long adminId, Long userId) {
         userDeletionServicePort.deleteUser(userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AdminFeedbackSearchResult> searchFeedback(AdminFeedbackSearchQuery query, Pageable pageable) {
+        Stream<AdminFeedbackSearchResult> serviceStream = searchServiceFeedback(query);
+        Stream<AdminFeedbackSearchResult> clientStream = searchClientFeedback(query);
+
+        List<AdminFeedbackSearchResult> combined = Stream.concat(serviceStream, clientStream)
+                .sorted(Comparator.comparing(AdminFeedbackSearchResult::createdAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), combined.size());
+        List<AdminFeedbackSearchResult> pageContent = start >= combined.size() ? List.of() : combined.subList(start, end);
+        return new PageImpl<>(pageContent, pageable, combined.size());
+    }
+
+    private Stream<AdminFeedbackSearchResult> searchServiceFeedback(AdminFeedbackSearchQuery query) {
+        if (query.serviceId() == null && query.clientId() == null) {
+            return Stream.empty();
+        }
+        List<ServiceFeedback> feedbacks;
+        if (query.serviceId() != null) {
+            feedbacks = serviceFeedbackPersistencePort.findByServiceId(query.serviceId(),
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        } else {
+            feedbacks = serviceFeedbackPersistencePort.findByClientId(query.clientId(),
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        }
+        return feedbacks.stream()
+                .filter(f -> query.clientId() == null || query.clientId().equals(f.getClientId()))
+                .filter(f -> query.serviceId() == null || query.serviceId().equals(f.getServiceId()))
+                .filter(f -> query.keyword() == null || query.keyword().isBlank()
+                        || (f.getComment() != null && f.getComment().toLowerCase().contains(query.keyword().toLowerCase())))
+                .filter(f -> query.ratingMin() == null || (f.getRating() != null && f.getRating() >= query.ratingMin()))
+                .filter(f -> query.ratingMax() == null || (f.getRating() != null && f.getRating() <= query.ratingMax()))
+                .map(f -> new AdminFeedbackSearchResult(
+                        "SERVICE", f.getId(), f.getRequestId(),
+                        f.getClientId(), f.getServiceId(),
+                        f.getRating(), f.getComment(), f.getCreatedAt()));
+    }
+
+    private Stream<AdminFeedbackSearchResult> searchClientFeedback(AdminFeedbackSearchQuery query) {
+        if (query.clientId() == null && query.offererId() == null) {
+            return Stream.empty();
+        }
+        List<ClientFeedback> feedbacks;
+        if (query.clientId() != null && query.offererId() == null) {
+            feedbacks = clientFeedbackPersistencePort.findByClientId(query.clientId(),
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        } else if (query.offererId() != null) {
+            feedbacks = clientFeedbackPersistencePort.findByOffererId(query.offererId(),
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        } else {
+            feedbacks = clientFeedbackPersistencePort.findByClientId(query.clientId(),
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        }
+        return feedbacks.stream()
+                .filter(f -> query.clientId() == null || query.clientId().equals(f.getClientId()))
+                .filter(f -> query.offererId() == null || query.offererId().equals(f.getOffererId()))
+                .filter(f -> query.keyword() == null || query.keyword().isBlank()
+                        || (f.getComment() != null && f.getComment().toLowerCase().contains(query.keyword().toLowerCase())))
+                .filter(f -> query.ratingMin() == null || (f.getRating() != null && f.getRating() >= query.ratingMin()))
+                .filter(f -> query.ratingMax() == null || (f.getRating() != null && f.getRating() <= query.ratingMax()))
+                .map(f -> new AdminFeedbackSearchResult(
+                        "CLIENT", f.getId(), f.getRequestId(),
+                        f.getOffererId(), f.getClientId(),
+                        f.getRating(), f.getComment(), f.getCreatedAt()));
+    }
+
+    @Override
+    public void deleteService(Long serviceId) {
+        marketplaceServicePort.delete(serviceId);
     }
 }

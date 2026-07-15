@@ -14,7 +14,6 @@ import org.mapstruct.Mapping;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceAvailabilityCommand;
 
 @Mapper(componentModel = "spring")
-
 public interface ServiceAvailabilityWebMapper {
 
     @Mapping(target = "activeStatus", source = "active")
@@ -22,7 +21,17 @@ public interface ServiceAvailabilityWebMapper {
 
     List<ServiceAvailabilityResponse> toResponses(List<ServiceAvailability> serviceAvailabilities);
 
+    @Mapping(target = "serviceId", source = "serviceId")
+    @Mapping(target = "weekDay", source = "form.weekDay")
+    @Mapping(target = "startTime", source = "form.startTime")
+    @Mapping(target = "endTime", source = "form.endTime")
+    @Mapping(target = "isActive", source = "form.isActive", defaultValue = "true")
     CreateServiceAvailabilityCommand toCommand(CreateServiceAvailabilityForm form, Long serviceId);
 
-    UpdateServiceAvailabilityCommand toCommand(UpdateServiceAvailabilityForm form, Long serviceId);
+    @Mapping(target = "id", source = "id")
+    @Mapping(target = "weekDay", source = "form.weekDay")
+    @Mapping(target = "startTime", source = "form.startTime")
+    @Mapping(target = "endTime", source = "form.endTime")
+    @Mapping(target = "isActive", source = "form.isActive", defaultValue = "true")
+    UpdateServiceAvailabilityCommand toCommand(UpdateServiceAvailabilityForm form, Long id);
 }

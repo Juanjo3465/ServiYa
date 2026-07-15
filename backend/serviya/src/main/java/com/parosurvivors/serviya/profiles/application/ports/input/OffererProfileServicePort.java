@@ -10,7 +10,10 @@ import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
  */
 public interface OffererProfileServicePort {
 
+    OffererProfile createOffererProfile(Long userId);
+
     OffererProfile getPublicProfile(Long userId);
+
 
     OffererProfileSummary getProfileSummary(Long userId);
 

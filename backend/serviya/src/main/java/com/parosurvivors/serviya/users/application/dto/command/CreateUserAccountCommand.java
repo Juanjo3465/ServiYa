@@ -15,5 +15,22 @@ public record CreateUserAccountCommand(
         String documentType,
         String documentNumber,
         String phone,
-        Boolean acceptedTerms) {
+        Boolean acceptedTerms,
+        /**
+         * Direccion principal opcional capturada en el registro. Si viene, se crea en la MISMA
+         * transaccion y queda como direccion principal del perfil. Los cuatro campos van juntos:
+         * la tabla addresses exige coordenadas (lat/lng NOT NULL), asi que una linea de direccion
+         * sin coordenadas no es persistible.
+         */
+        String addressLine,
+        String city,
+        java.math.BigDecimal latitude,
+        java.math.BigDecimal longitude) {
+
+    /** true solo si llego el bloque de direccion COMPLETO (linea + ciudad + coordenadas). */
+    public boolean hasAddress() {
+        return addressLine != null && !addressLine.isBlank()
+                && city != null && !city.isBlank()
+                && latitude != null && longitude != null;
+    }
 }

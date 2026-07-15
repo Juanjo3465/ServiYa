@@ -1,8 +1,28 @@
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import { Icon, ToastContainer, useToast, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
 
 import './RegisterPage.css';
+import 'leaflet/dist/leaflet.css';
+
+/** Documentos aceptados. El tipo/número quedan FIJOS al registrarse: después son inmutables (RF-006). */
+const DOCUMENT_TYPES = ['CC', 'CE', 'NIT', 'PASAPORTE'];
+
+/** Recentra el mapa cuando cambia la ubicación elegida. */
+function RecenterMap({ location }) {
+    const map = useMap();
+    if (location) map.setView([location.latitude, location.longitude], 16);
+    return null;
+}
+
+/** Coloca el marcador donde el usuario hace clic en el mapa. */
+function LocationMarker({ location, onSelect }) {
+    useMapEvents({
+        click(e) { onSelect({ latitude: e.latlng.lat, longitude: e.latlng.lng }); },
+    });
+    return location ? <Marker position={[location.latitude, location.longitude]} /> : null;
+}
 
 export function RegisterPage() {
     const navigate = useNavigate();
@@ -21,6 +41,43 @@ export function RegisterPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
+    // Documento (paso 2): se fija aquí y ya no se puede cambiar nunca más.
+    const [documentType, setDocumentType] = useState('CC');
+    const [documentNumber, setDocumentNumber] = useState('');
+
+    // Dirección principal (paso 3): queda registrada en "Mis direcciones".
+    const [addressLine, setAddressLine] = useState('');
+    const [city, setCity] = useState('');
+    const [location, setLocation] = useState(null);   // { latitude, longitude }
+    const [geoLoading, setGeoLoading] = useState(false);
+
+    /** Al elegir un punto en el mapa, se resuelve la dirección legible (igual que en "Mis direcciones"). */
+    const pickLocation = async (coords) => {
+        setLocation(coords);
+        setGeoLoading(true);
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.latitude}&lon=${coords.longitude}`);
+            const data = await res.json();
+            setAddressLine(data.display_name ?? '');
+            setCity(data.address?.city || data.address?.town || data.address?.village || '');
+        } catch {
+            showToast('No se pudo obtener la dirección; puedes escribirla a mano', 'warn');
+        } finally {
+            setGeoLoading(false);
+        }
+    };
+
+    const useMyLocation = () => {
+        if (!navigator.geolocation) {
+            showToast('Tu navegador no soporta geolocalización', 'danger');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => pickLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            () => showToast('No se pudo obtener tu ubicación', 'danger'));
+    };
+
     const handleRegister = async () => {
         // RF-004: el consentimiento de datos es obligatorio.
         if (!terms || !dataConsent) {
@@ -29,6 +86,12 @@ export function RegisterPage() {
         }
         if (!firstName || !email || !password) {
             showToast('Completa nombre, correo y contraseña (paso 2)', 'danger');
+            setStep(2);
+            return;
+        }
+        // El documento se fija al registrarse y es inmutable después: obligatorio y validado aquí.
+        if (!documentType || !documentNumber.trim()) {
+            showToast('Indica tu tipo y número de documento (paso 2)', 'danger');
             setStep(2);
             return;
         }
@@ -51,8 +114,20 @@ export function RegisterPage() {
                 password,
                 fullName: `${firstName} ${lastName}`.trim(),
                 role: type === 'o' ? 'OFFERER' : 'CLIENT',
+                documentType,
+                documentNumber,
                 phone,
                 acceptedTerms: dataConsent,
+                // Dirección opcional: los 4 campos viajan juntos (la BD exige coordenadas).
+                // El backend la crea en la MISMA transacción y la deja como dirección principal.
+                ...(location && addressLine && city
+                    ? {
+                        addressLine,
+                        city,
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                    }
+                    : {}),
             });
             saveToken(auth.token);
             showToast('¡Cuenta creada! Redirigiendo...', 'success');
@@ -85,7 +160,7 @@ export function RegisterPage() {
                     </div>
 
                     <div className="step-dots">
-                        {[1, 2, 3].map((n) => (
+                        {[1, 2, 3, 4].map((n) => (
                             <div key={n} className={`sdot-step ${step === n ? 'active' : ''}`} />
                         ))}
                     </div>
@@ -126,6 +201,23 @@ export function RegisterPage() {
                                 <label className="label">Teléfono</label>
                                 <div className="input-wrap"><div className="input-ico"><Icon name="phone" size={15} /></div><input className="input" type="tel" placeholder="+57 300 000 0000" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
                             </div>
+                            {/* Documento: se fija aquí y luego es INMUTABLE (no se puede editar en el perfil). */}
+                            <div className="g2">
+                                <div className="input-group">
+                                    <label className="label">Tipo de documento</label>
+                                    <select className="input" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
+                                        {DOCUMENT_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                                <div className="input-group">
+                                    <label className="label">Número de documento</label>
+                                    <input className="input" placeholder="1020304050" value={documentNumber}
+                                        onChange={(e) => setDocumentNumber(e.target.value)} />
+                                </div>
+                            </div>
+                            <p className="reg-note" style={{ marginTop: 0 }}>
+                                Tu documento se guarda cifrado (AES-256-GCM) y <strong>no podrá modificarse después</strong>.
+                            </p>
                             <div className="input-group">
                                 <label className="label">Contraseña</label>
                                 <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
@@ -143,6 +235,57 @@ export function RegisterPage() {
 
                     {step === 3 && (
                         <div>
+                            <p className="reg-q">¿Dónde prestas o recibes los servicios?</p>
+                            <p className="reg-note" style={{ marginTop: 0 }}>
+                                Haz clic en el mapa (o usa tu ubicación) para fijar tu dirección principal.
+                                Quedará guardada en <strong>Mis direcciones</strong> y podrás agregar más después.
+                            </p>
+
+                            <div style={{ position: 'relative', marginBottom: '12px' }}>
+                                <MapContainer
+                                    center={location ? [location.latitude, location.longitude] : [4.60971, -74.08175]}
+                                    zoom={location ? 16 : 12}
+                                    style={{ height: '240px', width: '100%', borderRadius: '10px', border: '1px solid var(--c-border)', zIndex: 0 }}
+                                >
+                                    <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                    <RecenterMap location={location} />
+                                    <LocationMarker location={location} onSelect={pickLocation} />
+                                </MapContainer>
+                                <button type="button" className="btn btn-ghost btn-sm"
+                                    style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000, background: 'var(--c-bg)', border: '1px solid var(--c-border)' }}
+                                    onClick={useMyLocation}>
+                                    <Icon name="mapPin" size={13} />Usar mi ubicación
+                                </button>
+                            </div>
+
+                            <div className="input-group">
+                                <label className="label">Dirección</label>
+                                <div className="input-wrap">
+                                    <div className="input-ico"><Icon name="mapPin" size={15} /></div>
+                                    <input className="input" placeholder={geoLoading ? 'Buscando dirección…' : 'Selecciona un punto en el mapa'}
+                                        value={addressLine} onChange={(e) => setAddressLine(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="input-group">
+                                <label className="label">Ciudad</label>
+                                <input className="input" placeholder="Bogotá" value={city} onChange={(e) => setCity(e.target.value)} />
+                            </div>
+
+                            <p className="reg-note" style={{ marginTop: 0 }}>
+                                Tu dirección se guarda cifrada (AES-256-GCM). Este paso es opcional: puedes omitirlo y agregarla luego desde tu perfil.
+                            </p>
+
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button className="btn btn-ghost btn-full" onClick={() => setStep(2)}><Icon name="chevronLeft" size={15} />Atrás</button>
+                                <button className="btn btn-primary btn-full btn-lg" onClick={() => setStep(4)}>
+                                    {location && addressLine ? 'Continuar' : 'Omitir por ahora'}<Icon name="chevronRight" size={17} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 4 && (
+                        <div>
                             <p className="reg-q">Consentimiento de uso de datos</p>
                             <div className="consent-box">
                                 <label><input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} /> Acepto los <a>Términos de uso</a> y la <a>Política de privacidad</a> de ServiYa.</label>
@@ -154,7 +297,7 @@ export function RegisterPage() {
                                 <label><input type="checkbox" /> Deseo recibir notificaciones y novedades de ServiYa por correo. <span style={{ color: 'var(--c-soft)' }}>(Opcional)</span></label>
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                                <button className="btn btn-ghost btn-full" onClick={() => setStep(2)}><Icon name="chevronLeft" size={15} />Atrás</button>
+                                <button className="btn btn-ghost btn-full" onClick={() => setStep(3)}><Icon name="chevronLeft" size={15} />Atrás</button>
                                 <button className="btn btn-primary btn-full btn-lg" onClick={handleRegister} disabled={submitting}><Icon name="check" size={17} />{submitting ? 'Creando…' : 'Crear cuenta'}</button>
                             </div>
                             <div className="or-line">o regístrate con</div>
