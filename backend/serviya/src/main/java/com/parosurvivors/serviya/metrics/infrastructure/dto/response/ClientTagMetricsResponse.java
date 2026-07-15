@@ -10,5 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ClientTagMetricsResponse(
         Long clientId,
         Long tagId,
+        String tagName,
+        boolean positive,
         Integer tagCount) {
 }
