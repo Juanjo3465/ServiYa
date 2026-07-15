@@ -147,7 +147,7 @@ class ModerationServiceTest {
 
     @Test
     void removeFeedbackDirectlyCreatesReportThenReverts() {
-        RemoveFeedbackCommand command = new RemoveFeedbackCommand(ADMIN, "SERVICE", 77L, REPORTED, "SPAM", "ofensivo");
+        RemoveFeedbackCommand command = new RemoveFeedbackCommand(ADMIN, "SERVICE_FEEDBACK", 77L, REPORTED, "SPAM", "ofensivo");
         when(serviceFeedbackReportServicePort.createReport(any())).thenReturn(
                 ServiceFeedbackReport.builder().reportId(9L).feedbackId(77L).build());
         // revertFeedbackFromReport(9L, ...) internamente vuelve a leer el summary.
@@ -166,5 +166,15 @@ class ModerationServiceTest {
 
         assertThatThrownBy(() -> service.removeFeedbackDirectly(command))
                 .isInstanceOf(InvalidStateException.class);
+    }
+
+    @Test
+    void removeFeedbackDirectlyRejectsNonExactTargetType() {
+        // Solo se acepta el nombre exacto del tipo: variantes/subcadenas se rechazan.
+        for (String bad : new String[] {"SERVICE", "CLIENT", "SERVICES", "service_feedback", "SERVICE_FEEDBACK "}) {
+            assertThatThrownBy(() -> service.removeFeedbackDirectly(
+                    new RemoveFeedbackCommand(ADMIN, bad, 77L, REPORTED, "SPAM", "x")))
+                    .isInstanceOf(InvalidStateException.class);
+        }
     }
 }

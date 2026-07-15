@@ -89,27 +89,21 @@ public class ModerationService implements ModerationServicePort {
     @Transactional
     public void removeFeedbackDirectly(RemoveFeedbackCommand command) {
         // Atajo del admin: se auto-reporta (crea el reporte + link) y lo resuelve reutilizando el revert.
+        // targetType debe ser el nombre exacto del tipo: SERVICE_FEEDBACK o CLIENT_FEEDBACK.
         Long reportId;
-        if (isClientFeedback(command.targetType())) {
+        if ("CLIENT_FEEDBACK".equals(command.targetType())) {
             reportId = clientFeedbackReportServicePort.createReport(new CreateClientFeedbackReportCommand(
                     command.adminId(), command.reportedUserId(), command.category(), command.reason(),
                     command.targetId())).getReportId();
-        } else if (isServiceFeedback(command.targetType())) {
+        } else if ("SERVICE_FEEDBACK".equals(command.targetType())) {
             reportId = serviceFeedbackReportServicePort.createReport(new CreateServiceFeedbackReportCommand(
                     command.adminId(), command.reportedUserId(), command.category(), command.reason(),
                     command.targetId())).getReportId();
         } else {
-            throw new InvalidStateException("targetType inválido (esperado SERVICE/CLIENT): " + command.targetType());
+            throw new InvalidStateException(
+                    "targetType debe ser SERVICE_FEEDBACK o CLIENT_FEEDBACK: " + command.targetType());
         }
         revertFeedbackFromReport(reportId, command.adminId());
-    }
-
-    private boolean isClientFeedback(String targetType) {
-        return targetType != null && targetType.toUpperCase().contains("CLIENT");
-    }
-
-    private boolean isServiceFeedback(String targetType) {
-        return targetType != null && targetType.toUpperCase().contains("SERVICE");
     }
 
     @Override
