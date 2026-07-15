@@ -90,14 +90,17 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
     @Override
     public boolean checkServiceAvailability(Long serviceId, LocalDateTime scheduledDate) {
+        List<ServiceAvailability> availabilities = serviceAvailabilityPersistencePort
+                .findByServiceId(serviceId);
+
+        if (availabilities.isEmpty()) {
+            return true;
+        }
+
         int javaDayOfWeek = scheduledDate.getDayOfWeek().getValue();
         int dayIndex = javaDayOfWeek == 7 ? 0 : javaDayOfWeek;
         LocalTime scheduledTime = scheduledDate.toLocalTime();
         boolean isAvailable = false;
-
-        List<ServiceAvailability> availabilities = serviceAvailabilityPersistencePort
-                .findByServiceId(serviceId);
-
 
         for (ServiceAvailability availability : availabilities) {
             if (availability.isActive()
