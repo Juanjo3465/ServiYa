@@ -24,6 +24,8 @@ public class NotificationDelivery {
     private DeliveryStatus deliveryStatus;
     private LocalDateTime readAt;
     private LocalDateTime sentAt;
+    /** Número de intentos de envío realizados (el primer envío cuenta como 1). Lo usa el reintento programado. */
+    private Integer attempts;
 
     // =====================================================
     // BUSINESS METHODS
@@ -31,6 +33,11 @@ public class NotificationDelivery {
 
     public boolean isRead() {
         return deliveryStatus == DeliveryStatus.READ || readAt != null;
+    }
+
+    /** Contabiliza un intento de envío (tolerante a null para filas antiguas sin el contador). */
+    public void registerAttempt() {
+        this.attempts = (this.attempts == null ? 0 : this.attempts) + 1;
     }
 
     public void markAsSent() {

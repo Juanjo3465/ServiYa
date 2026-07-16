@@ -891,6 +891,9 @@ CREATE TABLE notification_deliveries (
 
     sent_at DATETIME NULL,
 
+    -- Intentos de envío realizados (el primero cuenta como 1). Lo usa el reintento programado.
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
+
     INDEX idx_notification_deliveries_notification (notification_id),
 
     CONSTRAINT fk_notification_deliveries_notification

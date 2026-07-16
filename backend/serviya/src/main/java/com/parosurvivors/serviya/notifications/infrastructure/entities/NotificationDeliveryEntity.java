@@ -31,4 +31,8 @@ public class NotificationDeliveryEntity {
 
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
+
+    // columnDefinition con DEFAULT 0 para que ddl-auto:update pueda añadir la columna a tablas ya pobladas.
+    @Column(name = "attempts", nullable = false, columnDefinition = "INT UNSIGNED NOT NULL DEFAULT 0")
+    private Integer attempts;
 }

@@ -15,4 +15,7 @@ public interface NotificationDeliveryPersistencePort {
     List<NotificationDelivery> findByNotificationId(Long notificationId);
     Optional<NotificationDelivery> findByNotificationIdAndChannelId(Long notificationId, Integer channelId);
     Page<NotificationDelivery> findDeliveriesByUserId(Long userId, Boolean read, Long channelId, DeliveryStatus status, Pageable pageable);
+
+    /** Entregas en el estado dado con menos de {@code maxAttempts} intentos: candidatas a reintento programado. */
+    List<NotificationDelivery> findByStatusAndAttemptsLessThan(DeliveryStatus status, int maxAttempts);
 }

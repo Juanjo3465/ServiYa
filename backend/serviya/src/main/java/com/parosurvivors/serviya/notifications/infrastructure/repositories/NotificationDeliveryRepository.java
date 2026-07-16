@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.notifications.infrastructure.repositories;
 
+import com.parosurvivors.serviya.notifications.domain.DeliveryStatus;
 import com.parosurvivors.serviya.notifications.infrastructure.entities.NotificationDeliveryEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -13,4 +14,5 @@ public interface NotificationDeliveryRepository extends JpaRepository<Notificati
         JpaSpecificationExecutor<NotificationDeliveryEntity> {
     List<NotificationDeliveryEntity> findByNotificationId(Long notificationId);
     Optional<NotificationDeliveryEntity> findByNotificationIdAndChannelId(Long notificationId, Integer channelId);
+    List<NotificationDeliveryEntity> findByDeliveryStatusAndAttemptsLessThan(DeliveryStatus deliveryStatus, Integer attempts);
 }

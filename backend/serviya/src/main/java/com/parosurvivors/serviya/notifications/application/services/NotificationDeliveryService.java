@@ -18,9 +18,11 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -33,54 +35,85 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
     private final NotificationPersistencePort notificationPersistencePort;
     private final ObjectProvider<EmailPort> emailPortProvider;
 
+    /** Máximo de intentos de envío por entrega antes de rendirse. Configurable por entorno. */
+    @Value("${serviya.notifications.max-delivery-attempts:3}")
+    private int maxDeliveryAttempts;
+
     @Override
     public NotificationDelivery deliver(Long notificationId, Long channelId, Map<String, String> protectedData) {
         NotificationDelivery delivery = NotificationDelivery.builder()
                 .notificationId(notificationId)
                 .channelId(channelId.intValue())
                 .deliveryStatus(DeliveryStatus.PENDING)
+                .attempts(0)
                 .build();
+        attemptDelivery(delivery, protectedData);
+        return notificationDeliveryPersistencePort.save(delivery);
+    }
 
-        notificationChannelPersistencePort.findById(channelId.intValue()).ifPresentOrElse(channel -> {
+    @Override
+    @Transactional
+    public int retryFailedDeliveries() {
+        List<NotificationDelivery> retryable = notificationDeliveryPersistencePort
+                .findByStatusAndAttemptsLessThan(DeliveryStatus.FAILED, maxDeliveryAttempts);
+        int retried = 0;
+        for (NotificationDelivery delivery : retryable) {
+            try {
+                // protectedData NO se persiste: el reintento va sin datos protegidos, solo con el mensaje base.
+                attemptDelivery(delivery, Map.of());
+                notificationDeliveryPersistencePort.update(delivery);
+                retried++;
+            } catch (RuntimeException ex) {
+                log.warn("Retry of delivery {} threw an exception; leaving it for the next run", delivery.getId(), ex);
+            }
+        }
+        if (retried > 0) {
+            log.info("Retried {} failed notification deliveries (max attempts {})", retried, maxDeliveryAttempts);
+        }
+        return retried;
+    }
+
+    /**
+     * Ejecuta UN intento de envío sobre la entrega (contabilizándolo) y marca SENT/FAILED según el canal.
+     * Reutilizado por la entrega inicial ({@link #deliver}) y por el reintento programado.
+     */
+    private void attemptDelivery(NotificationDelivery delivery, Map<String, String> protectedData) {
+        delivery.registerAttempt();
+        notificationChannelPersistencePort.findById(delivery.getChannelId()).ifPresentOrElse(channel -> {
             switch (channel.getName()) {
-                case "INTERNAL" -> {
-                    delivery.markAsSent();
-                }
+                case "INTERNAL" -> delivery.markAsSent();
                 case "EMAIL" -> {
                     EmailPort emailPort = emailPortProvider.getIfUnique();
                     if (emailPort != null) {
-                        Notification notification = notificationPersistencePort.findById(notificationId).orElse(null);
-                        if (notification != null) {
-                            boolean sent = emailPort.send(
-                                    notification.getUserId(),
-                                    notification.getNotificationType(),
-                                    notification.getTitle(),
-                                    notification.getMessage(),
-                                    protectedData);
-                            if (sent) {
-                                delivery.markAsSent();
-                            } else {
-                                delivery.markAsFailed();
-                            }
+                        Notification notification = notificationPersistencePort
+                                .findById(delivery.getNotificationId()).orElse(null);
+                        if (notification != null && emailPort.send(
+                                notification.getUserId(),
+                                notification.getNotificationType(),
+                                notification.getTitle(),
+                                notification.getMessage(),
+                                protectedData)) {
+                            delivery.markAsSent();
                         } else {
                             delivery.markAsFailed();
                         }
                     } else {
-                        log.warn("No EmailPort bean available — marking EMAIL delivery {} as FAILED", notificationId);
+                        log.warn("No EmailPort bean available — marking EMAIL delivery {} as FAILED",
+                                delivery.getNotificationId());
                         delivery.markAsFailed();
                     }
                 }
                 default -> {
-                    log.warn("Unknown channel '{}' — marking delivery {} as FAILED", channel.getName(), notificationId);
+                    log.warn("Unknown channel '{}' — marking delivery {} as FAILED",
+                            channel.getName(), delivery.getNotificationId());
                     delivery.markAsFailed();
                 }
             }
         }, () -> {
-            log.warn("Channel ID {} not found — marking delivery {} as FAILED", channelId, notificationId);
+            log.warn("Channel ID {} not found — marking delivery {} as FAILED",
+                    delivery.getChannelId(), delivery.getNotificationId());
             delivery.markAsFailed();
         });
-
-        return notificationDeliveryPersistencePort.save(delivery);
     }
 
     @Override

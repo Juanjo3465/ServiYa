@@ -59,4 +59,11 @@ public class NotificationDeliveryPersistenceAdapter implements NotificationDeliv
                 pageable
         ).map(mapper::toDomain);
     }
+
+    @Override
+    public List<NotificationDelivery> findByStatusAndAttemptsLessThan(DeliveryStatus status, int maxAttempts) {
+        return repository.findByDeliveryStatusAndAttemptsLessThan(status, maxAttempts).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }
