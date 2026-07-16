@@ -1,5 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
+import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.notifications.domain.ChannelName;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
@@ -10,6 +12,8 @@ import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.domain.User;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +32,7 @@ public class UserService implements UserServicePort {
     private final UserPersistencePort userPersistencePort;
     private final UserReadPort userReadPort;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationServicePort notificationServicePort;
 
     @Override
     public User createUser(String email, String rawPassword) {
@@ -68,12 +73,15 @@ public class UserService implements UserServicePort {
     }
 
     @Override
-    public void banUser(Long userId) {
+    public void banUser(Long userId, String reason) {
         User user = userReadPort.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.ban();
         userPersistencePort.update(user);
-        // TODO(notif): notificar al usuario baneado por doble canal con motivos (RF-063).
+        // sS avisa al usuario baneado por doble canal (INTERNAL + EMAIL) con el motivo.
+        notifyDualChannel(userId, "account_banned", "Tu cuenta fue suspendida",
+                "Tu cuenta en ServiYa fue suspendida. Motivo: " + reason
+                        + ". No podrás iniciar sesión mientras dure la suspensión.");
     }
 
     @Override
@@ -82,6 +90,14 @@ public class UserService implements UserServicePort {
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.unban();
         userPersistencePort.update(user);
-        // TODO(notif): notificar al usuario desbaneado por doble canal (RF-075).
+        // RF-075: se avisa al usuario desbaneado por doble canal (INTERNAL + EMAIL).
+        notifyDualChannel(userId, "account_unbanned", "Tu cuenta fue reactivada",
+                "Tu cuenta en ServiYa fue reactivada. Ya puedes iniciar sesión de nuevo.");
+    }
+
+    /** Notifica al usuario por INTERNAL + EMAIL (la resolución nombre→id vive en NotificationService). */
+    private void notifyDualChannel(Long userId, String type, String title, String message) {
+        notificationServicePort.notify(userId, type, title, message, "USER", userId,
+                Set.of(ChannelName.INTERNAL, ChannelName.EMAIL), Map.of());
     }
 }

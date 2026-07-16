@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.notifications.domain.ChannelName;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import com.parosurvivors.serviya.users.application.dto.command.ConfirmPasswordResetCommand;
@@ -21,6 +22,8 @@ import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.domain.User;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -88,6 +91,16 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 command.longitude());
 
         User created = userCreationServicePort.createUserAccount(accountCommand);
+        // Bienvenida al registro por doble canal (interno + email).
+        notificationServicePort.notify(
+                created.getId(),
+                "welcome",
+                "¡Bienvenido a ServiYa!",
+                "Tu cuenta fue creada correctamente. Completa tu perfil y empieza a usar ServiYa.",
+                "USER",
+                created.getId(),
+                Set.of(ChannelName.INTERNAL, ChannelName.EMAIL),
+                Map.of());
         return toAuthResult(created.getId(), created.getRoles());
     }
 
@@ -107,6 +120,17 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
         List<RoleName> roles = userRoleServicePort.getUserRoles(userId).stream()
                 .map(Role::getName)
                 .toList();
+
+        // Aviso de rol recién adquirido por el propio usuario (canal interno).
+        notificationServicePort.notify(
+                userId,
+                "role_acquired",
+                "Nuevo rol activado",
+                "Ahora tienes el rol " + roleName + " activo en tu cuenta de ServiYa.",
+                "USER",
+                userId,
+                null,
+                Map.of());
 
         return toAuthResult(userId, roles);
     }

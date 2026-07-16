@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.reports.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.notifications.domain.ChannelName;
 import com.parosurvivors.serviya.reports.application.dto.command.CreateRequestReportCommand;
 import com.parosurvivors.serviya.reports.application.dto.result.ReportDetailResult;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
@@ -15,6 +16,7 @@ import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePo
 import com.parosurvivors.serviya.users.domain.RoleName;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RequestReportService implements RequestReportServicePort {
 
-    /** Canal interno (IN_APP). Los reportes se notifican a los admins por el canal del sistema. */
-    private static final long INTERNAL_CHANNEL_ID = 1L;
     private static final String NOTIFICATION_TYPE = "REQUEST_REPORT_CREATED";
 
     private final RequestReportPersistencePort requestReportPersistencePort;
@@ -94,7 +94,7 @@ public class RequestReportService implements RequestReportServicePort {
                     "Se reporto un incumplimiento en la solicitud #" + requestId + ". Requiere revision.",
                     "REPORT",
                     reportId,
-                    List.of(INTERNAL_CHANNEL_ID),
+                    Set.of(ChannelName.INTERNAL),
                     Map.of());
         }
     }

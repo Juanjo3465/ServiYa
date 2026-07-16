@@ -16,7 +16,9 @@ public interface UserServicePort {
 
     void changeEmail(ChangeEmailCommand command);
 
-    void banUser(Long userId);
+    /** Suspende la cuenta y notifica al usuario por doble canal (INTERNAL + EMAIL) con el motivo (RF-063). */
+    void banUser(Long userId, String reason);
 
+    /** Reactiva la cuenta y notifica al usuario por doble canal (INTERNAL + EMAIL) (RF-075). */
     void unbanUser(Long userId);
 }

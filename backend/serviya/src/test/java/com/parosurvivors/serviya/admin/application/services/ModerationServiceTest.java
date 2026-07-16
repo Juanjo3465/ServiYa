@@ -72,16 +72,17 @@ class ModerationServiceTest {
         verify(notificationServicePort).notify(eq(REPORTED), eq("USER_WARNED"), anyString(), anyString(),
                 eq("REPORT"), eq(1L), isNull(), isNull());
         verify(reportServicePort).resolveReport(1L, ADMIN, ReportActionType.WARN);
-        verify(userServicePort, never()).banUser(any());
+        verify(userServicePort, never()).banUser(any(), any());
     }
 
     @Test
     void banUserBansAndResolvesWithoutNotifyingItself() {
         when(reportServicePort.getReportSummary(2L)).thenReturn(requestReport(2L, 99L));
 
-        service.banUserFromReport(2L, ADMIN);
+        service.banUserFromReport(2L, ADMIN, null);
 
-        verify(userServicePort).banUser(REPORTED);
+        // Sin motivo del admin: se banea con un motivo derivado de la categoría del reporte.
+        verify(userServicePort).banUser(eq(REPORTED), anyString());
         verify(reportServicePort).resolveReport(2L, ADMIN, ReportActionType.BAN);
         // La notificación al baneado la hace UserService.banUser, no ModerationService.
         verify(notificationServicePort, never()).notify(any(), any(), any(), any(), any(), any(), any(), any());

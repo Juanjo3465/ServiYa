@@ -99,8 +99,18 @@ public class AdminService implements AdminServicePort {
             throw new InvalidStateException("No se puede asignar un rol a un usuario eliminado");
         }
         // Cualquier rol , por nombre. La existencia del rol y el duplicado los valida assignRole.
-        userRoleServicePort.assignRole(userId, parseRole(roleName));
-        // TODO(notif): opcionalmente notificar al usuario la concesion del rol.
+        RoleName role = parseRole(roleName);
+        userRoleServicePort.assignRole(userId, role);
+        // Se avisa al usuario de la concesión del rol (canal interno).
+        notificationServicePort.notify(
+                userId,
+                "role_granted",
+                "Se te concedió un rol",
+                "Un administrador te concedió el rol " + role.name() + " en tu cuenta.",
+                "USER",
+                userId,
+                null,
+                Map.of());
     }
 
     /**
@@ -211,8 +221,8 @@ public class AdminService implements AdminServicePort {
     }
 
     @Override
-    public void banUser(Long adminId, Long userId) {
-        userServicePort.banUser(userId);
+    public void banUser(Long adminId, Long userId, String reason) {
+        userServicePort.banUser(userId, reason);
     }
 
     @Override

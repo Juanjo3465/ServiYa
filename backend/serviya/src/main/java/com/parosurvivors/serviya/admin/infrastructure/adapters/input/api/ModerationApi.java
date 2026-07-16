@@ -1,5 +1,6 @@
 package com.parosurvivors.serviya.admin.infrastructure.adapters.input.api;
 
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.BanUserForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.RemoveFeedbackForm;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,9 +20,10 @@ public interface ModerationApi {
     @ApiResponse(responseCode = "204", description = "Advertencia aplicada y reporte cerrado")
     ResponseEntity<Void> warnUser(Long id);
 
-    @Operation(summary = "Banear al usuario reportado", description = "RF-069, RF-063.")
+    @Operation(summary = "Banear al usuario reportado", description = "RF-069, RF-063. El motivo es opcional: "
+            + "si el admin no lo indica, se deriva de la categoría del reporte. Se comunica al baneado por doble canal.")
     @ApiResponse(responseCode = "204", description = "Usuario baneado y reporte cerrado")
-    ResponseEntity<Void> banUserFromReport(Long id);
+    ResponseEntity<Void> banUserFromReport(Long id, BanUserForm form);
 
     @Operation(summary = "Revertir el feedback reportado", description = "RF-049.")
     @ApiResponse(responseCode = "204", description = "Feedback revertido y reporte cerrado")

@@ -41,7 +41,8 @@ public interface AdminServicePort {
     /** Detalle administrativo de una solicitud (ambas partes). Delega en el módulo requests. */
     AdminRequestDetailResult getRequestDetailForAdmin(Long requestId);
 
-    void banUser(Long adminId, Long userId);
+    /** Banea a un usuario con el motivo indicado por el admin (RF-063). El usuario es notificado por doble canal. */
+    void banUser(Long adminId, Long userId, String reason);
 
     void unbanUser(Long adminId, Long userId);
 

@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
 import com.parosurvivors.serviya.admin.application.dto.query.AdminFeedbackSearchQuery;
 import com.parosurvivors.serviya.admin.application.ports.input.AdminServicePort;
 import com.parosurvivors.serviya.admin.infrastructure.adapters.input.api.AdminApi;
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.BanUserForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.UpdateUserByAdminForm;
@@ -78,8 +79,8 @@ public class AdminController implements AdminApi {
 
     @Override
     @PostMapping("/users/{id}/ban")
-    public ResponseEntity<Void> banUser(@PathVariable Long id) {
-        adminService.banUser(CurrentUser.id(), id);
+    public ResponseEntity<Void> banUser(@PathVariable Long id, @Valid @RequestBody BanUserForm form) {
+        adminService.banUser(CurrentUser.id(), id, form.reason());
         return ResponseEntity.noContent().build();
     }
 

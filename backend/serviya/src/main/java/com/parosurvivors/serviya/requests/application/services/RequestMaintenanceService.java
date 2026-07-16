@@ -84,7 +84,6 @@ public class RequestMaintenanceService implements RequestMaintenanceServicePort 
         List<ServiceRequest> stale = serviceRequestReadPort
                 .findByStatusAndScheduledDateBefore(RequestStatus.ACCEPTED, cutoff);
         for (ServiceRequest request : stale) {
-            // La notificación a ambas partes la marca la propia markAsNotProvided (TODO(notif) allí).
             serviceRequestCommandService.markAsNotProvided(request.getId(), SYSTEM_ACTOR);
         }
     }

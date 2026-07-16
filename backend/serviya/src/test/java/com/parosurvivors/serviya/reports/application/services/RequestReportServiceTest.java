@@ -3,7 +3,7 @@ package com.parosurvivors.serviya.reports.application.services;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -139,6 +139,6 @@ class RequestReportServiceTest {
 
         verify(notificationServicePort).notify(
                 eq(ADMIN_ID), anyString(), anyString(), anyString(), eq("REPORT"), eq(10L),
-                anyList(), any());
+                anySet(), any());
     }
 }

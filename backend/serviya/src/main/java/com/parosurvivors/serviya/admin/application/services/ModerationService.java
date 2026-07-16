@@ -61,9 +61,14 @@ public class ModerationService implements ModerationServicePort {
 
     @Override
     @Transactional
-    public void banUserFromReport(Long reportId, Long adminId) {
+    public void banUserFromReport(Long reportId, Long adminId, String reason) {
         ReportSummary report = reportServicePort.getReportSummary(reportId);
-        userServicePort.banUser(report.reportedUserId());
+        // Motivo del admin si lo escribió; si no, se deriva de la categoría del reporte (nunca el texto
+        // libre del reportante, que es la acusación y podría venir manipulada u ofensiva).
+        String finalReason = (reason != null && !reason.isBlank())
+                ? reason
+                : "reporte en tu contra (categoría \"" + report.category() + "\")";
+        userServicePort.banUser(report.reportedUserId(), finalReason);
         reportServicePort.resolveReport(reportId, adminId, ReportActionType.BAN);
     }
 

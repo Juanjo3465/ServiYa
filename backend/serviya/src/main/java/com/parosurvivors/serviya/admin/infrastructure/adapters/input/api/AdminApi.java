@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.admin.infrastructure.adapters.input.api;
 
 import com.parosurvivors.serviya.users.application.dto.query.SearchUsersQuery;
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.BanUserForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.GrantRoleForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.CreateUserByAdminForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.response.AdminFeedbackSearchResponse;
@@ -45,9 +46,10 @@ public interface AdminApi {
     @ApiResponse(responseCode = "201", description = "Usuario creado")
     ResponseEntity<UserSummaryResponse> createUserByAdmin(CreateUserByAdminForm form);
 
-    @Operation(summary = "Banear a un usuario", description = "RF-069, RF-063.")
+    @Operation(summary = "Banear a un usuario", description = "RF-069, RF-063. El motivo (obligatorio) se "
+            + "comunica al usuario baneado por doble canal (interno + email).")
     @ApiResponse(responseCode = "204", description = "Usuario baneado")
-    ResponseEntity<Void> banUser(Long id);
+    ResponseEntity<Void> banUser(Long id, BanUserForm form);
 
     @Operation(summary = "Desbanear a un usuario", description = "RF-070, RF-075.")
     @ApiResponse(responseCode = "204", description = "Usuario desbaneado")

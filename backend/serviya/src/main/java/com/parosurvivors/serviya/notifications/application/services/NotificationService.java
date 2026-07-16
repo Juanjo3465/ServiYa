@@ -4,11 +4,13 @@ import com.parosurvivors.serviya.notifications.application.ports.input.Notificat
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationDeliveryServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationPersistencePort;
+import com.parosurvivors.serviya.notifications.domain.ChannelName;
 import com.parosurvivors.serviya.notifications.domain.Notification;
 import jakarta.transaction.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -24,19 +26,26 @@ public class NotificationService implements NotificationServicePort {
     @Override
     @Transactional
     public void notify(Long userId, String type, String title, String message, String entityType, Long entityId,
-                       List<Long> channelIds, Map<String, String> protectedData) {
+                       Set<ChannelName> channels, Map<String, String> protectedData) {
         Notification notification = createNotification(userId, type, title, message, entityType, entityId);
 
-        if (channelIds == null || channelIds.isEmpty()) {
-            channelIds = notificationChannelServicePort.getChannels().stream()
-                    .filter(c -> "INTERNAL".equals(c.getName()))
-                    .map(c -> c.getId().longValue())
-                    .collect(Collectors.toList());
-        }
+        // Canal por defecto INTERNAL cuando el llamador no especifica nada.
+        Set<ChannelName> requested = (channels == null || channels.isEmpty())
+                ? Set.of(ChannelName.INTERNAL)
+                : channels;
 
-        for (Long channelId : channelIds) {
+        for (Long channelId : resolveChannelIds(requested)) {
             notificationDeliveryServicePort.deliver(notification.getId(), channelId, protectedData);
         }
+    }
+
+    /** Traduce los nombres de canal a sus ids reales leyendo el catálogo (única fuente de resolución). */
+    private List<Long> resolveChannelIds(Set<ChannelName> channels) {
+        Set<String> names = channels.stream().map(Enum::name).collect(Collectors.toSet());
+        return notificationChannelServicePort.getChannels().stream()
+                .filter(channel -> names.contains(channel.getName()))
+                .map(channel -> channel.getId().longValue())
+                .collect(Collectors.toList());
     }
 
     @Override

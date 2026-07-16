@@ -12,7 +12,12 @@ public interface ModerationServicePort {
 
     void warnUser(Long reportId, Long adminId);
 
-    void banUserFromReport(Long reportId, Long adminId);
+    /**
+     * Banea al usuario reportado y resuelve el reporte (RF-063/RF-069). El {@code reason} lo escribe el admin
+     * y es opcional: si es {@code null}/vacío se deriva un motivo de la categoría del reporte. Nunca se usa el
+     * texto libre del reportante (es la acusación) en la notificación al baneado.
+     */
+    void banUserFromReport(Long reportId, Long adminId, String reason);
 
     void revertFeedbackFromReport(Long reportId, Long adminId);
 

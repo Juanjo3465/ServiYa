@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.admin.infrastructure.adapters.input;
 
 import com.parosurvivors.serviya.admin.application.ports.input.ModerationServicePort;
 import com.parosurvivors.serviya.admin.infrastructure.adapters.input.api.ModerationApi;
+import com.parosurvivors.serviya.admin.infrastructure.dto.form.BanUserForm;
 import com.parosurvivors.serviya.admin.infrastructure.dto.form.RemoveFeedbackForm;
 import com.parosurvivors.serviya.admin.infrastructure.mappers.AdminWebMapper;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
@@ -33,8 +34,10 @@ public class ModerationController implements ModerationApi {
 
     @Override
     @PostMapping("/api/v1/reports/{id}/actions/ban")
-    public ResponseEntity<Void> banUserFromReport(@PathVariable Long id) {
-        moderationService.banUserFromReport(id, CurrentUser.id());
+    public ResponseEntity<Void> banUserFromReport(@PathVariable Long id,
+                                                  @Valid @RequestBody(required = false) BanUserForm form) {
+        // El cuerpo es opcional: sin motivo del admin, el servicio cae a la categoría del reporte.
+        moderationService.banUserFromReport(id, CurrentUser.id(), form == null ? null : form.reason());
         return ResponseEntity.noContent().build();
     }
 
