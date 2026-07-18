@@ -52,6 +52,9 @@ serviya:
     from-name: ${EMAIL_FROM_NAME:ServiYa}
     connect-timeout-ms: ${EMAIL_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${EMAIL_READ_TIMEOUT_MS:5000}
+  # Por entorno: dev http://localhost:5173/reset-password | docker http://localhost:8081/reset-password
+  frontend:
+    reset-url: ${FRONTEND_RESET_URL:http://localhost:5173/reset-password}
 
 springdoc:
   swagger-ui:

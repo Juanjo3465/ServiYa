@@ -67,6 +67,7 @@ CREATE TABLE password_reset_tokens (
     used_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    UNIQUE KEY uq_prt_token_hash (token_hash),
     INDEX idx_prt_user (user_id),
     INDEX idx_prt_expires (expires_at),
 

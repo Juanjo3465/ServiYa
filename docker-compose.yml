@@ -22,6 +22,9 @@ services:
       EMAIL_API_KEY: ${EMAIL_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-no-reply@serviya.com}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-ServiYa}
+      # Base del enlace de recuperacion de contrasena (RF-003). Con el frontend dockerizado
+      # el origen es :8081, no el :5173 de Vite.
+      FRONTEND_RESET_URL: ${FRONTEND_RESET_URL:-http://localhost:8081/reset-password}
     depends_on:
       mysql:
         condition: service_healthy
