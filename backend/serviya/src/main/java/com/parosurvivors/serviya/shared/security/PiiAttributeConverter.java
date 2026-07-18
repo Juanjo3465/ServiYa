@@ -17,7 +17,7 @@ import java.util.Arrays;
  * columna VARBINARY). Cumple RNF-005.
  *
  * <p>Formato persistido: {@code IV(12 bytes) || ciphertext+tag}. La clave de 256 bits se deriva
- * por SHA-256 de la passphrase {@code ENCRYPTION_KEY} (cargada desde .env por DotEnvConfig); se
+ * por SHA-256 de la passphrase {@code ENCRYPTION_KEY} (cargada desde .env.example por DotEnvConfig); se
  * resuelve de forma perezosa porque Hibernate instancia el converter, no Spring.
  */
 @Converter
@@ -79,8 +79,8 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
             synchronized (this) {
                 local = cachedKey;
                 if (local == null) {
-                    // DotEnvConfig publica las claves del .env como system properties (run local),
-                    // pero en Docker no hay .env en la imagen: ENCRYPTION_KEY llega como variable de
+                    // DotEnvConfig publica las claves del .env.example como system properties (run local),
+                    // pero en Docker no hay .env.example en la imagen: ENCRYPTION_KEY llega como variable de
                     // entorno (env_file/environment del compose). Por eso se consulta ambas fuentes.
                     String passphrase = System.getProperty("ENCRYPTION_KEY");
                     if (passphrase == null) {

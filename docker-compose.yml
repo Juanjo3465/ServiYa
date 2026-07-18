@@ -8,7 +8,7 @@ services:
     restart: on-failure
     ports:
       - "8080:8080"
-    env_file: .env
+    env_file: .env.example
     environment:
       DB_URL: ${DB_URL}
       DB_USER: ${DB_USER}
@@ -29,7 +29,7 @@ services:
   mysql:
     image: mysql
     container_name: serviya-mysql
-    env_file: .env
+    env_file: .env.example
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
