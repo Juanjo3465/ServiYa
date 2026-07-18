@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.parosurvivors.serviya.notifications.application.events.EmailDeliveryRequestedEvent;
 import com.parosurvivors.serviya.notifications.application.ports.output.EmailPort;
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationChannelPersistencePort;
 import com.parosurvivors.serviya.notifications.application.ports.output.NotificationDeliveryPersistencePort;
@@ -14,6 +15,7 @@ import com.parosurvivors.serviya.notifications.application.ports.output.Notifica
 import com.parosurvivors.serviya.notifications.domain.DeliveryStatus;
 import com.parosurvivors.serviya.notifications.domain.NotificationChannel;
 import com.parosurvivors.serviya.notifications.domain.NotificationDelivery;
+import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +40,7 @@ class NotificationDeliveryServiceTest {
     @Mock private NotificationChannelPersistencePort channelPort;
     @Mock private NotificationPersistencePort notificationPort;
     @Mock private ObjectProvider<EmailPort> emailPortProvider;
+    @Mock private DomainEventPublisherPort eventPublisher;
 
     @InjectMocks private NotificationDeliveryService service;
 
@@ -61,6 +64,42 @@ class NotificationDeliveryServiceTest {
 
         assertThat(result.getDeliveryStatus()).isEqualTo(DeliveryStatus.SENT);
         assertThat(result.getAttempts()).isEqualTo(1);
+    }
+
+    @Test
+    void deliver_email_isDeferred_savesPendingAndPublishesEvent() {
+        when(channelPort.findById(2)).thenReturn(Optional.of(channel(2, "EMAIL")));
+        when(deliveryPort.save(any())).thenAnswer(inv -> {
+            NotificationDelivery d = inv.getArgument(0);
+            d.setId(99L);
+            return d;
+        });
+
+        NotificationDelivery result = service.deliver(10L, 2L, Map.of("actionUrl", "https://x"));
+
+        // No se envía en línea: queda PENDING sin intentos, y el envío se delega vía evento AFTER_COMMIT.
+        assertThat(result.getDeliveryStatus()).isEqualTo(DeliveryStatus.PENDING);
+        assertThat(result.getAttempts()).isZero();
+        verify(emailPortProvider, never()).getIfUnique();
+        ArgumentCaptor<EmailDeliveryRequestedEvent> captor = ArgumentCaptor.forClass(EmailDeliveryRequestedEvent.class);
+        verify(eventPublisher).publish(captor.capture());
+        assertThat(captor.getValue().deliveryId()).isEqualTo(99L);
+    }
+
+    @Test
+    void sendPendingEmail_emailWithoutPort_marksFailedAndCountsAttempt() {
+        NotificationDelivery pending = NotificationDelivery.builder()
+                .id(7L).notificationId(10L).channelId(2)
+                .deliveryStatus(DeliveryStatus.PENDING).attempts(0).build();
+        when(deliveryPort.findById(7L)).thenReturn(Optional.of(pending));
+        when(channelPort.findById(2)).thenReturn(Optional.of(channel(2, "EMAIL")));
+        when(emailPortProvider.getIfUnique()).thenReturn(null);
+
+        service.sendPendingEmail(7L, Map.of());
+
+        assertThat(pending.getDeliveryStatus()).isEqualTo(DeliveryStatus.FAILED);
+        assertThat(pending.getAttempts()).isEqualTo(1);
+        verify(deliveryPort).update(pending);
     }
 
     @Test

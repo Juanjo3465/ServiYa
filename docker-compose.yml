@@ -16,6 +16,12 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Envío de correo (opcional). Con EMAIL_ENABLED distinto de true, el canal EMAIL degrada a FAILED.
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_API_URL: ${EMAIL_API_URL:-https://api.brevo.com/v3/smtp/email}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@serviya.com}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-ServiYa}
     depends_on:
       mysql:
         condition: service_healthy

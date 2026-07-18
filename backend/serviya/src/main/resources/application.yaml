@@ -42,6 +42,16 @@ serviya:
       idiota,imbecil,estupido,estupida,maldito,maldita,mierda,puta,puto,
       cabron,gilipollas,pendejo,pendeja,marica,huevon,malparido,gonorrea,
       hijueputa,verga,coño,joder,zorra,perra
+  # Envío de correo (canal EMAIL). enabled=false por defecto: sin bean de EmailPort, la entrega EMAIL
+  # degrada a FAILED sin romper nada. El api-key es SECRETO -> solo por variable de entorno EMAIL_API_KEY.
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    provider-url: ${EMAIL_API_URL:https://api.brevo.com/v3/smtp/email}
+    api-key: ${EMAIL_API_KEY:}
+    from-email: ${EMAIL_FROM:no-reply@serviya.com}
+    from-name: ${EMAIL_FROM_NAME:ServiYa}
+    connect-timeout-ms: ${EMAIL_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${EMAIL_READ_TIMEOUT_MS:5000}
 
 springdoc:
   swagger-ui:
