@@ -17,6 +17,7 @@ import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationDeliveryService implements NotificationDeliveryServicePort {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationDeliveryService.class);
+
+    /**
+     * Tipos de notificación cuyo mensaje no tiene sentido sin {@code protectedData} y que por tanto NO
+     * se reintentan (ver {@link #isWorthlessWithoutProtectedData}). Hoy solo el enlace de recuperación
+     * de contraseña, cuyo único contenido útil es la URL con el token.
+     */
+    private static final Set<String> TYPES_REQUIRING_PROTECTED_DATA = Set.of("password_reset");
 
     private final NotificationDeliveryPersistencePort notificationDeliveryPersistencePort;
     private final NotificationChannelPersistencePort notificationChannelPersistencePort;
@@ -93,6 +101,9 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
                 .findByStatusAndAttemptsLessThan(DeliveryStatus.FAILED, maxDeliveryAttempts);
         int retried = 0;
         for (NotificationDelivery delivery : retryable) {
+            if (isWorthlessWithoutProtectedData(delivery)) {
+                continue;
+            }
             try {
                 // protectedData NO se persiste: el reintento va sin datos protegidos, solo con el mensaje base.
                 attemptDelivery(delivery, Map.of());
@@ -106,6 +117,20 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
             log.info("Retried {} failed notification deliveries (max attempts {})", retried, maxDeliveryAttempts);
         }
         return retried;
+    }
+
+    /**
+     * ¿Reintentar esta entrega produciría un mensaje inservible? {@code protectedData} viaja SOLO en el
+     * evento del primer envío (no se persiste, a propósito), así que un reintento va sin él. Para la
+     * mayoría de notificaciones eso solo significa perder el enlace de detalle. Pero hay tipos cuyo
+     * contenido ES el dato protegido: reenviar "Restablece tu contraseña" sin el enlace le daría al
+     * usuario un correo desconcertante y sin salida. Para esos, no reintentar es la conducta correcta —
+     * el usuario simplemente vuelve a pedir el reset y se emite un token nuevo.
+     */
+    private boolean isWorthlessWithoutProtectedData(NotificationDelivery delivery) {
+        return notificationPersistencePort.findById(delivery.getNotificationId())
+                .map(notification -> TYPES_REQUIRING_PROTECTED_DATA.contains(notification.getNotificationType()))
+                .orElse(false);
     }
 
     /**

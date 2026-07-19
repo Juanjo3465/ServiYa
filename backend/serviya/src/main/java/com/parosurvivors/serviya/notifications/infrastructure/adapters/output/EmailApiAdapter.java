@@ -66,8 +66,12 @@ public class EmailApiAdapter implements EmailPort {
     /** Envuelve título + mensaje (texto plano, posible contenido de usuario) en un HTML mínimo y escapado. */
     private String buildHtml(String title, String message, Map<String, String> data) {
         String actionUrl = data == null ? null : data.get("actionUrl");
+        // El texto del enlace es configurable por el emisor: "Ver detalle" no sirve para todo (el correo
+        // de recuperación de contraseña necesita una llamada a la acción explícita).
+        String actionLabel = data == null ? null : data.get("actionLabel");
         String cta = actionUrl == null ? "" : "<p><a href=\"" + escape(actionUrl)
-                + "\" style=\"color:#2b6cb0\">Ver detalle</a></p>";
+                + "\" style=\"color:#2b6cb0\">"
+                + escape(actionLabel == null ? "Ver detalle" : actionLabel) + "</a></p>";
         return """
                 <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:16px">
                   <h2 style="color:#2b6cb0;margin:0 0 12px">%s</h2>
