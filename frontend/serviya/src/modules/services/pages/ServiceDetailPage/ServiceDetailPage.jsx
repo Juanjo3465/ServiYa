@@ -28,6 +28,7 @@ export function ServiceDetailPage() {
     const [activeSlot, setActiveSlot] = useState(0);
     const [reportOpen, setReportOpen] = useState(false);
     const [reportCategory, setReportCategory] = useState('Comportamiento inapropiado');
+    const [reportTargetRequestId, setReportTargetRequestId] = useState(null);
     const [customCategory, setCustomCategory] = useState('');
     const [reportReason, setReportReason] = useState('');
     const [feedbackReportOpen, setFeedbackReportOpen] = useState(false);
@@ -116,11 +117,12 @@ export function ServiceDetailPage() {
 
         setSubmitting(true);
         try {
-            await requestApi.createRequest({
+            const createdRequest = await requestApi.createRequest({
                 serviceId: parseInt(id),
                 addressId: parseInt(selectedAddressId),
                 scheduledDate: `${date}T${selectedTime}`,
             });
+            setReportTargetRequestId(createdRequest?.requestId ?? createdRequest?.id ?? null);
             setSuccessOpen(true);
         } catch (err) {
             showToast('Error al enviar solicitud: ' + err.message, 'error');
@@ -458,7 +460,10 @@ export function ServiceDetailPage() {
                         <div className="verified-note">
                             <Icon name="shield" size={13} style={{ color: 'var(--c-success)' }} />Perfil verificado por ServiYa
                         </div>
-                        <button className="btn btn-ghost btn-sm" style={{ marginTop: '10px', color: 'var(--c-danger)' }} onClick={() => setReportOpen(true)}>
+                        <button className="btn btn-ghost btn-sm" style={{ marginTop: '10px', color: 'var(--c-danger)' }} onClick={() => {
+                            setReportTargetRequestId(null);
+                            setReportOpen(true);
+                        }}>
                             <Icon name="alertTriangle" size={13} />Reportar oferente
                         </button>
                     </div>
@@ -475,17 +480,22 @@ export function ServiceDetailPage() {
                     <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
                     <button className="btn btn-danger btn-full" onClick={async () => {
                         try {
+                            const targetRequestId = reportTargetRequestId ?? service?.requestId ?? null;
+                            if (!targetRequestId) {
+                                showToast('No hay una solicitud asociada para reportar', 'danger');
+                                return;
+                            }
                             await reportApi.createRequestReport({
-                                reportedUserId: 2,
                                 category: reportCategory,
                                 customCategory,
                                 reason: reportReason,
-                                requestId: 1,
+                                requestId: targetRequestId,
                             });
                             setReportOpen(false);
                             setReportCategory('Comportamiento inapropiado');
                             setCustomCategory('');
                             setReportReason('');
+                            setReportTargetRequestId(null);
                             showToast('Reporte enviado al administrador', 'success');
                         } catch (error) {
                             showToast(error.message || 'No se pudo enviar el reporte', 'danger');

@@ -1,6 +1,7 @@
 package com.parosurvivors.serviya.config;
 
 import com.parosurvivors.serviya.shared.exception.handlers.RestAccessErrorHandler;
+import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtAuthenticationFilter;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtService jwtService;
+    private final UserReadPort userReadPort;
     private final RestAccessErrorHandler restAccessErrorHandler;
 
     @Bean
@@ -72,7 +74,7 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(restAccessErrorHandler)
                 .accessDeniedHandler(restAccessErrorHandler))
-            .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(new JwtAuthenticationFilter(jwtService, userReadPort), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

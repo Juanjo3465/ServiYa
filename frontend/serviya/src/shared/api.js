@@ -137,6 +137,8 @@ export const adminApi = {
     updateUser: (id, payload) =>
         request(`/api/v1/admin/users/${id}`, { method: 'PATCH', body: payload, auth: true }),
     deleteUser: (id) => request(`/api/v1/admin/users/${id}`, { method: 'DELETE', auth: true }),
+    banUser: (id, payload) => request(`/api/v1/admin/users/${id}/ban`, { method: 'POST', body: payload, auth: true }),
+    unbanUser: (id) => request(`/api/v1/admin/users/${id}/unban`, { method: 'POST', auth: true }),
 
     // RF-067 — roles del usuario CON su fecha de concesion.
     getUserRoles: (id) => request(`/api/v1/admin/users/${id}/roles`, { auth: true }),

@@ -38,6 +38,8 @@ export function AdminUsersPage() {
     const [saving, setSaving] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [banOpen, setBanOpen] = useState(false);
+    const [banReason, setBanReason] = useState('');
+    const [banLoading, setBanLoading] = useState(false);
 
     const loadUsers = useCallback(() => {
         setLoading(true);
@@ -135,6 +137,36 @@ export function AdminUsersPage() {
             .catch((e) => showToast(e.message || 'No se pudo eliminar', 'danger'));
     };
 
+    const banUser = () => {
+        if (!selected) return;
+        setBanLoading(true);
+        adminApi.banUser(selected.id, { reason: banReason || 'Cuenta suspendida por el administrador' })
+            .then(() => {
+                showToast('Usuario baneado', 'success');
+                setBanOpen(false);
+                setBanReason('');
+                setMgmtOpen(false);
+                loadUsers();
+            })
+            .catch((e) => showToast(e.message || 'No se pudo banear al usuario', 'danger'))
+            .finally(() => setBanLoading(false));
+    };
+
+    const unbanUser = () => {
+        if (!selected) return;
+        setBanLoading(true);
+        adminApi.unbanUser(selected.id)
+            .then(() => {
+                showToast('Usuario desbaneado', 'success');
+                setBanOpen(false);
+                setBanReason('');
+                setMgmtOpen(false);
+                loadUsers();
+            })
+            .catch((e) => showToast(e.message || 'No se pudo desbanear al usuario', 'danger'))
+            .finally(() => setBanLoading(false));
+    };
+
     const statusOf = (u) => {
         if (u.deletedAt) return { label: 'Eliminado', badge: 'badge-gray' };
         if (u.banned) return { label: 'Baneado', badge: 'badge-danger' };
@@ -203,10 +235,15 @@ export function AdminUsersPage() {
                                                         onClick={() => openUser(u)} title="Gestionar usuario y roles">
                                                         <Icon name="search" size={13} />
                                                     </button>
-                                                    {!u.banned && (
+                                                    {!u.banned ? (
                                                         <button className="btn btn-danger btn-sm"
-                                                            onClick={() => { setSelected(u); setBanOpen(true); }} title="Banear">
+                                                            onClick={() => { setSelected(u); setBanReason(''); setBanOpen(true); }} title="Banear">
                                                             <Icon name="ban" size={13} />
+                                                        </button>
+                                                    ) : (
+                                                        <button className="btn btn-ghost btn-sm"
+                                                            onClick={() => { setSelected(u); setBanReason(''); setBanOpen(true); }} title="Desbanear">
+                                                            <Icon name="check" size={13} />
                                                         </button>
                                                     )}
                                                 </div>
@@ -302,12 +339,18 @@ export function AdminUsersPage() {
             </Modal>
 
             <Modal open={banOpen} onClose={() => setBanOpen(false)}>
-                <div className="modal-title">Banear usuario (RF-069)</div>
-                <div className="modal-sub">El usuario quedará bloqueado y no podrá usar la plataforma.</div>
+                <div className="modal-title">{selected?.banned ? 'Desbanear usuario (RF-070)' : 'Banear usuario (RF-069)'}</div>
+                <div className="modal-sub">{selected?.banned ? 'La cuenta volverá a poder acceder a la plataforma.' : 'El usuario quedará bloqueado y no podrá usar la plataforma.'}</div>
+                {!selected?.banned && (
+                    <div className="input-group">
+                        <label className="label">Motivo del baneo</label>
+                        <textarea className="input" rows="3" value={banReason} onChange={(e) => setBanReason(e.target.value)} placeholder="Explica la razón de la suspensión" />
+                    </div>
+                )}
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => setBanOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={() => { setBanOpen(false); showToast('El baneo (RF-069) no forma parte de este sprint', 'warn'); }}>
-                        <Icon name="ban" size={15} />Confirmar baneo
+                    <button className="btn btn-danger btn-full" disabled={banLoading} onClick={selected?.banned ? unbanUser : banUser}>
+                        {selected?.banned ? <><Icon name="check" size={15} />Confirmar desbaneo</> : <><Icon name="ban" size={15} />Confirmar baneo</>}
                     </button>
                 </div>
             </Modal>
