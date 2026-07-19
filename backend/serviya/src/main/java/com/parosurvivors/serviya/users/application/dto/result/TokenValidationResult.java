@@ -1,4 +1,4 @@
-package com.parosurvivors.serviya.users.application.dto;
+package com.parosurvivors.serviya.users.application.dto.result;
 
 /**
  * Resultado de validar un token de recuperación de contraseña.
