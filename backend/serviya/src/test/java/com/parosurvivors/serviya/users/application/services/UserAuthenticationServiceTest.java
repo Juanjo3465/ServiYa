@@ -29,6 +29,7 @@ import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
 import com.parosurvivors.serviya.users.application.dto.command.ConfirmPasswordResetCommand;
 import com.parosurvivors.serviya.users.application.dto.command.RequestPasswordResetCommand;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
+import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.domain.PasswordResetToken;
 import com.parosurvivors.serviya.users.domain.User;
 import com.parosurvivors.serviya.notifications.domain.ChannelName;
@@ -209,6 +210,34 @@ class UserAuthenticationServiceTest {
 
         verify(passwordResetTokenServicePort, never()).createToken(any());
         verify(notificationServicePort, never()).notify(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    // =====================================================
+    // RF-003 — validar el enlace al abrirlo
+    // =====================================================
+
+    @Test
+    void validatePasswordResetToken_passesWhenTheLinkStillWorks() {
+        when(passwordResetTokenServicePort.validateToken("raw-token"))
+                .thenReturn(TokenValidationResult.VALID);
+
+        service.validatePasswordResetToken("raw-token");
+
+        // Solo lectura: abrir el enlace no debe quemar el token (hay clientes de correo que lo previsualizan).
+        verify(passwordResetTokenServicePort, never()).consumeToken(any());
+    }
+
+    @Test
+    void validatePasswordResetToken_hidesWhyTheLinkFailed() {
+        // Los tres motivos deben producir el MISMO mensaje: distinguirlos revelaria si el token existio.
+        for (TokenValidationResult motivo : List.of(
+                TokenValidationResult.NOT_FOUND, TokenValidationResult.EXPIRED, TokenValidationResult.USED)) {
+            when(passwordResetTokenServicePort.validateToken("raw-token")).thenReturn(motivo);
+
+            assertThatThrownBy(() -> service.validatePasswordResetToken("raw-token"))
+                    .isInstanceOf(InvalidStateException.class)
+                    .hasMessage(PasswordResetTokenServicePort.GENERIC_INVALID_TOKEN_MESSAGE);
+        }
     }
 
     // =====================================================

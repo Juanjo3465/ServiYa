@@ -58,6 +58,10 @@ serviya:
   password-reset:
     # Ventana de validez del enlace. Corta a proposito: es una credencial que viaja por correo.
     token-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:30}
+    cron:
+      # Limpieza de tokens caducados. Mantenimiento sin urgencia (la validacion ya los rechaza
+      # aunque sigan en la tabla), por eso a diario de madrugada.
+      cleanup-expired: ${PASSWORD_RESET_CLEANUP_CRON:0 30 3 * * *}
 
 springdoc:
   swagger-ui:

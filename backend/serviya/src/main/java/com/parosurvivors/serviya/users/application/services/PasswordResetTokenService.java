@@ -41,9 +41,6 @@ public class PasswordResetTokenService implements PasswordResetTokenServicePort 
     /** Url-safe y sin padding: el token viaja como query param del enlace del correo. */
     private static final Base64.Encoder TOKEN_ENCODER = Base64.getUrlEncoder().withoutPadding();
 
-    /** Mensaje default para token invalido, no encontrado, expirado o usado*/
-    private static final String GENERIC_INVALID_TOKEN = "Invalid or expired password reset token";
-
     private final PasswordResetTokenPersistencePort passwordResetTokenPersistencePort;
 
     /** Ventana de validez del enlace. Corta a propósito: es una credencial que viaja por correo. */
@@ -95,12 +92,12 @@ public class PasswordResetTokenService implements PasswordResetTokenServicePort 
     @Transactional
     public PasswordResetToken consumeToken(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
-            throw new InvalidStateException(GENERIC_INVALID_TOKEN);
+            throw new InvalidStateException(GENERIC_INVALID_TOKEN_MESSAGE);
         }
 
         PasswordResetToken token = passwordResetTokenPersistencePort.findByTokenHash(sha256Hex(rawToken))
                 .filter(PasswordResetToken::isValid)
-                .orElseThrow(() -> new InvalidStateException(GENERIC_INVALID_TOKEN));
+                .orElseThrow(() -> new InvalidStateException(GENERIC_INVALID_TOKEN_MESSAGE));
 
         LocalDateTime now = LocalDateTime.now();
         token.markAsUsed();

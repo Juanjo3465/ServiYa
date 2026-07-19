@@ -16,6 +16,16 @@ import java.time.LocalDateTime;
 public interface PasswordResetTokenServicePort {
 
     /**
+     * Mensaje ÚNICO de rechazo de un token, compartido por todos los motivos posibles (no existe,
+     * expiró, ya se usó) y por todos los puntos que lo rechazan.
+     *
+     * <p>Vive en el contrato, y no en cada implementación, precisamente para que no puedan divergir:
+     * en cuanto un motivo tuviera un texto distinto, el mensaje pasaría a revelar el estado interno
+     * de los tokens (si existió, si caducó, si alguien ya lo usó).</p>
+     */
+    String GENERIC_INVALID_TOKEN_MESSAGE = "Invalid or expired password reset token";
+
+    /**
      * Emite un token nuevo para el usuario e invalida los que tuviera vivos (uno utilizable a la vez).
      * Devuelve el valor en claro: es la única oportunidad de leerlo.
      */

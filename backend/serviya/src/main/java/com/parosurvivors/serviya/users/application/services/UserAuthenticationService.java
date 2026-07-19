@@ -12,6 +12,7 @@ import com.parosurvivors.serviya.users.application.dto.command.RequestPasswordRe
 import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
+import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
@@ -165,6 +166,21 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     }
 
     /**
+     * RF-003, paso intermedio: ¿el enlace sigue sirviendo? Solo lectura — NO consume el token, porque
+     * algunos clientes de correo previsualizan los enlaces y lo quemarían antes de que el usuario llegue
+     * al formulario.
+     *
+     * <p>El resultado detallado se colapsa aquí a "sirve / no sirve": hacia fuera nunca se distingue
+     * entre inexistente, expirado y ya usado.</p>
+     */
+    @Override
+    public void validatePasswordResetToken(String rawToken) {
+        if (passwordResetTokenServicePort.validateToken(rawToken) != TokenValidationResult.VALID) {
+            throw new InvalidStateException(PasswordResetTokenServicePort.GENERIC_INVALID_TOKEN_MESSAGE);
+        }
+    }
+
+    /**
      * RF-003, paso 2: valida el token, establece la contraseña nueva y contiene el daño.
      *
      * <p>Todo en una transacción: si algo falla después de consumir el token, el consumo se revierte y el
@@ -180,7 +196,8 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
 
         User user = userReadPort.findById(token.getUserId())
                 .filter(candidate -> !candidate.isBanned() && !candidate.isDeleted())
-                .orElseThrow(() -> new InvalidStateException("Invalid or expired password reset token"));
+                .orElseThrow(() -> new InvalidStateException(
+                        PasswordResetTokenServicePort.GENERIC_INVALID_TOKEN_MESSAGE));
 
         user.changePassword(passwordEncoder.encode(command.newPassword()));
         userPersistencePort.update(user);

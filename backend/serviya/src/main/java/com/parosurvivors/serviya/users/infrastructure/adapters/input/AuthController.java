@@ -6,8 +6,10 @@ import com.parosurvivors.serviya.users.infrastructure.dto.form.ConfirmPasswordRe
 import com.parosurvivors.serviya.users.infrastructure.dto.form.LoginForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.RegisterUserForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.RequestPasswordResetForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.ValidatePasswordResetTokenForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
 import com.parosurvivors.serviya.users.infrastructure.mappers.UserWebMapper;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -48,6 +50,15 @@ public class AuthController implements AuthApi {
     public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody RequestPasswordResetForm form) {
         authService.requestPasswordReset(mapper.toCommand(form));
         return ResponseEntity.accepted().build();
+    }
+
+    @Override
+    @PostMapping("/password-reset/validate")
+    public ResponseEntity<Void> validatePasswordResetToken(
+            @Parameter(description = "Token recibido en el enlace del correo", required = true)
+            @Valid @RequestBody ValidatePasswordResetTokenForm form) {
+        authService.validatePasswordResetToken(form.token());
+        return ResponseEntity.noContent().build();
     }
 
     @Override
