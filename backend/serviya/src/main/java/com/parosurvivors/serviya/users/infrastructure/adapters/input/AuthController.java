@@ -9,6 +9,8 @@ import com.parosurvivors.serviya.users.infrastructure.dto.form.RequestPasswordRe
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ValidatePasswordResetTokenForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
 import com.parosurvivors.serviya.users.infrastructure.mappers.UserWebMapper;
+import com.parosurvivors.serviya.users.infrastructure.security.RateLimitPolicy;
+import com.parosurvivors.serviya.users.infrastructure.security.RateLimiterService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,16 @@ public class AuthController implements AuthApi {
 
     private final UserAuthenticationServicePort authService;
     private final UserWebMapper mapper;
+    private final RateLimiterService rateLimiterService;
+
+    /**
+     * Normaliza el correo antes de usarlo como clave de cuota. Sin esto, {@code Ana@X.com} y
+     * {@code ana@x.com} tendrian baldes distintos y bastaria alternar mayusculas para multiplicar
+     * el limite de la misma cuenta.
+     */
+    private static String normalized(String email) {
+        return email == null ? null : email.trim().toLowerCase();
+    }
 
     @Override
     @PostMapping("/register")
@@ -42,12 +54,14 @@ public class AuthController implements AuthApi {
     @Override
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginForm form) {
+        rateLimiterService.consumeOrThrow(RateLimitPolicy.LOGIN_BY_EMAIL, normalized(form.email()));
         return ResponseEntity.ok(mapper.toResponse(authService.login(mapper.toCommand(form))));
     }
 
     @Override
     @PostMapping("/password-reset")
     public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody RequestPasswordResetForm form) {
+        rateLimiterService.consumeOrThrow(RateLimitPolicy.PASSWORD_RESET_BY_EMAIL, normalized(form.email()));
         authService.requestPasswordReset(mapper.toCommand(form));
         return ResponseEntity.accepted().build();
     }

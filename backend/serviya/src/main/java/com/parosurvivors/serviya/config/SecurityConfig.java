@@ -1,8 +1,11 @@
 package com.parosurvivors.serviya.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parosurvivors.serviya.shared.exception.handlers.RestAccessErrorHandler;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtAuthenticationFilter;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtService;
+import com.parosurvivors.serviya.users.infrastructure.security.RateLimitingFilter;
+import com.parosurvivors.serviya.users.infrastructure.security.RateLimiterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +27,8 @@ public class SecurityConfig {
 
     private final JwtService jwtService;
     private final RestAccessErrorHandler restAccessErrorHandler;
+    private final RateLimiterService rateLimiterService;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -72,7 +77,11 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(restAccessErrorHandler)
                 .accessDeniedHandler(restAccessErrorHandler))
-            .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+            // Rate limiting por IP de /api/v1/auth/**, ANTES del filtro JWT: corta el abuso en la puerta
+            // sin gastar ciclos validando tokens ni tocar la BD en peticiones que se van a rechazar igual.
+            .addFilterBefore(new RateLimitingFilter(rateLimiterService, objectMapper),
+                    JwtAuthenticationFilter.class);
 
         return http.build();
     }

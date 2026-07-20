@@ -55,6 +55,10 @@ serviya:
   # Por entorno: dev http://localhost:5173/reset-password | docker http://localhost:8081/reset-password
   frontend:
     reset-url: ${FRONTEND_RESET_URL:http://localhost:5173/reset-password}
+  # Rate limiting de /api/v1/auth/** (cuotas en RateLimitPolicy). Se puede apagar para pruebas
+  # manuales o de carga sin chocar con las cuotas; en produccion siempre encendido.
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
   password-reset:
     # Ventana de validez del enlace. Corta a proposito: es una credencial que viaja por correo.
     token-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:30}

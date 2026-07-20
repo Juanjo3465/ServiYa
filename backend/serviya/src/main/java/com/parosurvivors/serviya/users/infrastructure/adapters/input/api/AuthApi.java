@@ -17,7 +17,11 @@ import org.springframework.http.ResponseEntity;
  * Rutas publicas bajo /api/v1/auth/**. Ver documents/project-structure/estructura-endpoints.md (seccion 1).
  * Convencion: docs de metodo aqui; las anotaciones de binding y @Parameter van en el controller.
  */
-@Tag(name = "Autenticacion", description = "Registro, login y recuperacion de contrasena (endpoints publicos)")
+@Tag(name = "Autenticacion",
+        description = "Registro, login y recuperacion de contrasena (endpoints publicos). "
+                + "Todos llevan rate limiting: al agotar la cuota responden 429 con cabecera Retry-After. "
+                + "Los que reciben un correo (login y solicitud de recuperacion) llevan ademas una cuota "
+                + "por direccion, para que repartir el ataque entre varias IPs no lo sortee.")
 public interface AuthApi {
 
     @Operation(summary = "Registrar un nuevo usuario (CLIENT u OFFERER)",
