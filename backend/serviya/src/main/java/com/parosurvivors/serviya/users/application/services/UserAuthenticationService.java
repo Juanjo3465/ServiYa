@@ -10,17 +10,24 @@ import com.parosurvivors.serviya.users.application.dto.command.LoginCommand;
 import com.parosurvivors.serviya.users.application.dto.command.RegisterUserCommand;
 import com.parosurvivors.serviya.users.application.dto.command.RequestPasswordResetCommand;
 import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
+import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
+import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
+import com.parosurvivors.serviya.users.application.ports.output.ResetLinkPort;
 import com.parosurvivors.serviya.users.application.ports.output.TokenProviderPort;
+import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
 import com.parosurvivors.serviya.users.application.ports.output.UserReadPort;
+import com.parosurvivors.serviya.users.domain.PasswordResetToken;
 import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.domain.User;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,10 +49,12 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     private final UserCreationServicePort userCreationServicePort;
     private final PasswordResetTokenServicePort passwordResetTokenServicePort;
     private final UserReadPort userReadPort;
+    private final UserPersistencePort userPersistencePort;
     private final NotificationServicePort notificationServicePort;
     private final UserRoleServicePort userRoleServicePort;
     private final PasswordEncoder passwordEncoder;
     private final TokenProviderPort tokenProvider;
+    private final ResetLinkPort resetLinkPort;
 
     @Override
     public AuthResult login(LoginCommand command) {
@@ -135,14 +144,96 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
         return toAuthResult(userId, roles);
     }
 
+    /**
+     * RF-003, paso 1: emite el enlace de recuperación y lo envía por correo.
+     *
+     * <p><b>Nunca revela si el correo está registrado.</b> El llamador recibe la misma respuesta exista
+     * o no la cuenta; distinguirlas convertiría este formulario público en un oráculo para averiguar qué
+     * correos tienen cuenta (materia prima de phishing y credential stuffing). El texto idéntico no basta
+     * por sí solo: el <i>tiempo</i> también delata, y por eso importa que el envío del correo no ocurra
+     * en línea — el módulo de notificaciones lo dispara AFTER_COMMIT, así que la respuesta al navegador
+     * no espera a la llamada a Brevo en ninguno de los dos casos.</p>
+     *
+     * <p>Las cuentas baneadas o eliminadas se ignoran en silencio, por el mismo motivo: no pueden iniciar
+     * sesión, y responder distinto delataría su estado.</p>
+     */
     @Override
+    @Transactional
     public void requestPasswordReset(RequestPasswordResetCommand command) {
-        throw new UnsupportedOperationException("TODO: requestPasswordReset — placeholder, ver estructura-servicios.docx");
+        userReadPort.findByEmail(command.email())
+                .filter(user -> !user.isBanned() && !user.isDeleted())
+                .ifPresent(this::sendPasswordResetLink);
     }
 
+    /**
+     * RF-003, paso intermedio: ¿el enlace sigue sirviendo? Solo lectura — NO consume el token, porque
+     * algunos clientes de correo previsualizan los enlaces y lo quemarían antes de que el usuario llegue
+     * al formulario.
+     *
+     * <p>El resultado detallado se colapsa aquí a "sirve / no sirve": hacia fuera nunca se distingue
+     * entre inexistente, expirado y ya usado.</p>
+     */
     @Override
+    public void validatePasswordResetToken(String rawToken) {
+        if (passwordResetTokenServicePort.validateToken(rawToken) != TokenValidationResult.VALID) {
+            throw new InvalidStateException(PasswordResetTokenServicePort.GENERIC_INVALID_TOKEN_MESSAGE);
+        }
+    }
+
+    /**
+     * RF-003, paso 2: valida el token, establece la contraseña nueva y contiene el daño.
+     *
+     * <p>Todo en una transacción: si algo falla después de consumir el token, el consumo se revierte y el
+     * enlace sigue sirviendo. El {@code userId} sale del token encontrado en la tabla, JAMÁS de la
+     * petición — es lo que impide cambiar la contraseña de otra cuenta.</p>
+     */
+    @Override
+    @Transactional
     public void confirmPasswordReset(ConfirmPasswordResetCommand command) {
-        throw new UnsupportedOperationException("TODO: confirmPasswordReset — placeholder, ver estructura-servicios.docx");
+        // Valida, quema este token y el resto de los del usuario. Lanza InvalidStateException (409)
+        // con un mensaje genérico si no existe, expiró o ya se usó.
+        PasswordResetToken token = passwordResetTokenServicePort.consumeToken(command.token());
+
+        User user = userReadPort.findById(token.getUserId())
+                .filter(candidate -> !candidate.isBanned() && !candidate.isDeleted())
+                .orElseThrow(() -> new InvalidStateException(
+                        PasswordResetTokenServicePort.GENERIC_INVALID_TOKEN_MESSAGE));
+
+        user.changePassword(passwordEncoder.encode(command.newPassword()));
+        userPersistencePort.update(user);
+
+        // Aviso de contención: si el cambio no lo hizo el titular, este correo es su señal de alarma.
+        notificationServicePort.notify(
+                user.getId(),
+                "password_changed",
+                "Tu contraseña fue actualizada",
+                "La contraseña de tu cuenta de ServiYa acaba de cambiarse. Si no fuiste tú, "
+                        + "restablecela de inmediato y contacta con soporte.",
+                "USER",
+                user.getId(),
+                Set.of(ChannelName.INTERNAL, ChannelName.EMAIL),
+                Map.of());
+    }
+
+    /** Emite el token, arma el enlace (URL de configuración del backend) y encola el correo. */
+    private void sendPasswordResetLink(User user) {
+        IssuedResetToken issued = passwordResetTokenServicePort.createToken(user.getId());
+        String resetLink = resetLinkPort.buildResetLink(issued.rawToken());
+        long minutesValid = Math.max(1, Duration.between(LocalDateTime.now(), issued.expiresAt()).toMinutes());
+
+        // Solo EMAIL: el usuario no puede iniciar sesión, así que una notificación interna no le llegaría.
+        // El enlace viaja en protectedData, que NO se persiste — el token nunca toca la tabla notifications.
+        notificationServicePort.notify(
+                user.getId(),
+                "password_reset",
+                "Restablece tu contraseña",
+                "Recibimos una solicitud para restablecer la contraseña de tu cuenta de ServiYa. "
+                        + "El enlace vence en " + minutesValid + " minutos y sirve una sola vez. "
+                        + "Si no lo solicitaste, ignora este correo: tu contraseña no cambiará.",
+                "USER",
+                user.getId(),
+                Set.of(ChannelName.EMAIL),
+                Map.of("actionUrl", resetLink, "actionLabel", "Restablecer mi contraseña"));
     }
 
     /** El registro público solo permite roles CLIENT u OFFERER; ADMIN nunca por esta vía. */

@@ -42,6 +42,30 @@ serviya:
       idiota,imbecil,estupido,estupida,maldito,maldita,mierda,puta,puto,
       cabron,gilipollas,pendejo,pendeja,marica,huevon,malparido,gonorrea,
       hijueputa,verga,coño,joder,zorra,perra
+  # Envío de correo (canal EMAIL). enabled=false por defecto: sin bean de EmailPort, la entrega EMAIL
+  # degrada a FAILED sin romper nada. El api-key es SECRETO -> solo por variable de entorno EMAIL_API_KEY.
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    provider-url: ${EMAIL_API_URL:https://api.brevo.com/v3/smtp/email}
+    api-key: ${EMAIL_API_KEY:}
+    from-email: ${EMAIL_FROM:no-reply@serviya.com}
+    from-name: ${EMAIL_FROM_NAME:ServiYa}
+    connect-timeout-ms: ${EMAIL_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${EMAIL_READ_TIMEOUT_MS:5000}
+  # Por entorno: dev http://localhost:5173/reset-password | docker http://localhost:8081/reset-password
+  frontend:
+    reset-url: ${FRONTEND_RESET_URL:http://localhost:5173/reset-password}
+  # Rate limiting de /api/v1/auth/** (cuotas en RateLimitPolicy). Se puede apagar para pruebas
+  # manuales o de carga sin chocar con las cuotas; en produccion siempre encendido.
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+  password-reset:
+    # Ventana de validez del enlace. Corta a proposito: es una credencial que viaja por correo.
+    token-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:30}
+    cron:
+      # Limpieza de tokens caducados. Mantenimiento sin urgencia (la validacion ya los rechaza
+      # aunque sigan en la tabla), por eso a diario de madrugada.
+      cleanup-expired: ${PASSWORD_RESET_CLEANUP_CRON:0 30 3 * * *}
 
 springdoc:
   swagger-ui:

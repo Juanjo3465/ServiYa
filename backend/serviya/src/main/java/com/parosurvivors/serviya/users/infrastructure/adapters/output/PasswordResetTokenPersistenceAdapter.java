@@ -8,6 +8,7 @@ import com.parosurvivors.serviya.users.infrastructure.repositories.PasswordReset
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,5 +42,20 @@ public class PasswordResetTokenPersistenceAdapter implements PasswordResetTokenP
         return repository.findByUserId(userId).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<PasswordResetToken> findByTokenHash(String tokenHash) {
+        return repository.findByTokenHash(tokenHash).map(mapper::toDomain);
+    }
+
+    @Override
+    public int invalidateAllForUser(Long userId, LocalDateTime usedAt) {
+        return repository.markAllAsUsedByUserId(userId, usedAt);
+    }
+
+    @Override
+    public int deleteExpiredBefore(LocalDateTime cutoff) {
+        return repository.deleteByExpiresAtBefore(cutoff);
     }
 }

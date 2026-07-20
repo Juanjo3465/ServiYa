@@ -18,7 +18,8 @@ public class PasswordResetTokenEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "token_hash", nullable = false, length = 64, columnDefinition = "CHAR(64)")
+    /** SHA-256 en hex del token; el valor en claro nunca se persiste. UNIQUE: ver uq_prt_token_hash. */
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64, columnDefinition = "CHAR(64)")
     private String tokenHash;
 
     @Column(name = "expires_at", nullable = false)

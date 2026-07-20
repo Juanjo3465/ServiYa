@@ -4,6 +4,25 @@ Guía de referencia con los comandos para levantar, manejar y mantener el proyec
 
 ---
 
+## Requisito previo: archivo `.env`
+
+**Antes del primer `docker compose up` debes crear tu `.env`.** El repo versiona
+`.env.example` (una plantilla con valores de ejemplo/dev), pero **no** el `.env` real
+(está en `.gitignore` porque contiene secretos). Docker Compose lee automáticamente el
+archivo llamado `.env` del directorio del `docker-compose.yml` para resolver las
+variables `${...}`; sin él, variables como `DB_PASSWORD`, `JWT_SECRET` o `ENCRYPTION_KEY`
+(que no tienen valor por defecto) quedan vacías y el arranque falla.
+
+```bash
+cp .env.example .env      # crea tu copia local (no se sube al repo)
+```
+
+Luego edita `.env` y rellena los secretos reales. En particular, para activar el envío de
+correo pon tu clave de Brevo en `EMAIL_API_KEY` (la de `.env.example` es un placeholder).
+**Nunca** pongas secretos reales en `.env.example` — ese archivo sí se sube.
+
+---
+
 ## Comandos principales
 
 Estos son los dos comandos que usarás el 90% del tiempo. Ambos levantan **todos los servicios en segundo plano** (`-d`).

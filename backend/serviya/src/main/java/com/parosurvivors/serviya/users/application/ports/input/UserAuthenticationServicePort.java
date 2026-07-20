@@ -30,5 +30,17 @@ public interface UserAuthenticationServicePort {
 
     void requestPasswordReset(RequestPasswordResetCommand command);
 
+    /**
+     * RF-003: comprueba si el enlace todavía sirve, para decidir si se pinta el formulario de nueva
+     * contraseña o un mensaje de enlace caducado. NO consume el token.
+     *
+     * <p>Colapsa a propósito el detalle: el {@code TokenValidationResult} (inexistente / expirado /
+     * usado) se queda dentro de la aplicación y hacia fuera solo hay "sirve" o "no sirve". Distinguir
+     * los tres casos le diría a un atacante si un token existió alguna vez.</p>
+     *
+     * @throws com.parosurvivors.serviya.shared.exceptions.InvalidStateException si el enlace ya no sirve
+     */
+    void validatePasswordResetToken(String rawToken);
+
     void confirmPasswordReset(ConfirmPasswordResetCommand command);
 }

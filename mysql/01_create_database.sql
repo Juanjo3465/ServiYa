@@ -67,6 +67,7 @@ CREATE TABLE password_reset_tokens (
     used_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    UNIQUE KEY uq_prt_token_hash (token_hash),
     INDEX idx_prt_user (user_id),
     INDEX idx_prt_expires (expires_at),
 
@@ -890,6 +891,9 @@ CREATE TABLE notification_deliveries (
     read_at DATETIME NULL,
 
     sent_at DATETIME NULL,
+
+    -- Intentos de envío realizados (el primero cuenta como 1). Lo usa el reintento programado.
+    attempts INT UNSIGNED NOT NULL DEFAULT 0,
 
     INDEX idx_notification_deliveries_notification (notification_id),
 

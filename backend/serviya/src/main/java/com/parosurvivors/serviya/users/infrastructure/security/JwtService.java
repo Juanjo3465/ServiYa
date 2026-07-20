@@ -27,7 +27,7 @@ import java.util.Optional;
  * Tambien expone {@link #resolve(String)} para el {@link JwtAuthenticationFilter} (uso interno
  * de infraestructura). El subject del token es el userId y lleva un claim {@code roles}.
  *
- * <p>El secreto se lee de la propiedad {@code JWT_SECRET} (cargada desde .env por DotEnvConfig);
+ * <p>El secreto se lee de la propiedad {@code JWT_SECRET} (cargada desde .env.example por DotEnvConfig);
  * se deriva con SHA-256 para garantizar 256 bits independientemente de su longitud.
  */
 @Component

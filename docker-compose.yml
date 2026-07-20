@@ -8,7 +8,7 @@ services:
     restart: on-failure
     ports:
       - "8080:8080"
-    env_file: .env
+    env_file: .env.example
     environment:
       DB_URL: ${DB_URL}
       DB_USER: ${DB_USER}
@@ -16,6 +16,15 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # Envío de correo (opcional). Con EMAIL_ENABLED distinto de true, el canal EMAIL degrada a FAILED.
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_API_URL: ${EMAIL_API_URL:-https://api.brevo.com/v3/smtp/email}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@serviya.com}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-ServiYa}
+      # Base del enlace de recuperacion de contrasena (RF-003). Con el frontend dockerizado
+      # el origen es :8081, no el :5173 de Vite.
+      FRONTEND_RESET_URL: ${FRONTEND_RESET_URL:-http://localhost:8081/reset-password}
     depends_on:
       mysql:
         condition: service_healthy
@@ -23,7 +32,7 @@ services:
   mysql:
     image: mysql
     container_name: serviya-mysql
-    env_file: .env
+    env_file: .env.example
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}

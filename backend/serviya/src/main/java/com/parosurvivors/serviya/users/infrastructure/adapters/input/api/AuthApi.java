@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.users.infrastructure.dto.form.ConfirmPasswordRe
 import com.parosurvivors.serviya.users.infrastructure.dto.form.LoginForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.RegisterUserForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.RequestPasswordResetForm;
+import com.parosurvivors.serviya.users.infrastructure.dto.form.ValidatePasswordResetTokenForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,7 +17,11 @@ import org.springframework.http.ResponseEntity;
  * Rutas publicas bajo /api/v1/auth/**. Ver documents/project-structure/estructura-endpoints.md (seccion 1).
  * Convencion: docs de metodo aqui; las anotaciones de binding y @Parameter van en el controller.
  */
-@Tag(name = "Autenticacion", description = "Registro, login y recuperacion de contrasena (endpoints publicos)")
+@Tag(name = "Autenticacion",
+        description = "Registro, login y recuperacion de contrasena (endpoints publicos). "
+                + "Todos llevan rate limiting: al agotar la cuota responden 429 con cabecera Retry-After. "
+                + "Los que reciben un correo (login y solicitud de recuperacion) llevan ademas una cuota "
+                + "por direccion, para que repartir el ataque entre varias IPs no lo sortee.")
 public interface AuthApi {
 
     @Operation(summary = "Registrar un nuevo usuario (CLIENT u OFFERER)",
@@ -39,6 +44,20 @@ public interface AuthApi {
             description = "Genera y envia el token de recuperacion por correo. RF-003.")
     @ApiResponse(responseCode = "202", description = "Solicitud aceptada (respuesta generica por seguridad)")
     ResponseEntity<Void> requestPasswordReset(RequestPasswordResetForm form);
+
+    @Operation(summary = "Comprobar si un enlace de recuperacion sigue siendo valido",
+            description = "Lo llama la vista de nueva contrasena al montarse, para decidir si pinta el "
+                    + "formulario o un aviso de enlace caducado. NO consume el token: hay clientes de "
+                    + "correo que previsualizan los enlaces y lo quemarian antes de que el usuario llegue. "
+                    + "El motivo del rechazo (inexistente / expirado / ya usado) nunca se distingue. "
+                    + "Es un POST pese a ser de solo lectura para que el token viaje en el cuerpo y no "
+                    + "quede escrito en los access logs. RF-003.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "El enlace sigue sirviendo"),
+            @ApiResponse(responseCode = "400", description = "Falta el token"),
+            @ApiResponse(responseCode = "409", description = "Enlace invalido, caducado o ya utilizado")
+    })
+    ResponseEntity<Void> validatePasswordResetToken(ValidatePasswordResetTokenForm form);
 
     @Operation(summary = "Confirmar recuperacion de contrasena",
             description = "Valida el token (enviado en el body, no en query) y cambia la contrasena. RF-003.")
