@@ -5,13 +5,13 @@ import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, profileAp
 import './AvailabilityPage.css';
 
 const WEEKDAYS = [
-    { weekDay: 0, label: 'Lunes' },
-    { weekDay: 1, label: 'Martes' },
-    { weekDay: 2, label: 'Miércoles' },
-    { weekDay: 3, label: 'Jueves' },
-    { weekDay: 4, label: 'Viernes' },
-    { weekDay: 5, label: 'Sábado' },
-    { weekDay: 6, label: 'Domingo' },
+    { weekDay: 0, label: 'Domingo' },
+    { weekDay: 1, label: 'Lunes' },
+    { weekDay: 2, label: 'Martes' },
+    { weekDay: 3, label: 'Miércoles' },
+    { weekDay: 4, label: 'Jueves' },
+    { weekDay: 5, label: 'Viernes' },
+    { weekDay: 6, label: 'Sábado' },
 ];
 
 const EMPTY_SCHEDULE = Object.fromEntries(WEEKDAYS.map((d) => [d.weekDay, []]));

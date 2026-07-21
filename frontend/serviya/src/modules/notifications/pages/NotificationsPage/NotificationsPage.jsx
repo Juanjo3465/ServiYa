@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DashboardLayout, Icon, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
+import { DashboardLayout, Icon, ToastContainer, useToast, CLIENT_NAV, OFFERER_NAV, rolesFromToken } from '../../../../shared';
 import { notificationApi } from '../../../../shared/api';
 
 const TABS = ['Todas', 'Sin leer', 'Leídas'];
@@ -84,7 +84,7 @@ export function NotificationsPage() {
     const notifications = page?.content || [];
 
     return (
-        <DashboardLayout sections={CLIENT_NAV} avatar="JP">
+        <DashboardLayout sections={rolesFromToken().includes('OFFERER') ? OFFERER_NAV : CLIENT_NAV} avatar="JP">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
                 <div className="ph" style={{ margin: 0 }}>
                     <h1>Notificaciones</h1>

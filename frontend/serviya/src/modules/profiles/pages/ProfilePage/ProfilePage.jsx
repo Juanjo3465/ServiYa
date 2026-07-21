@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, profileApi, addressApi, isAuthenticated, rolesFromToken, getApiImageUrl } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, OFFERER_NAV, profileApi, addressApi, isAuthenticated, rolesFromToken, getApiImageUrl } from '../../../../shared';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
@@ -151,7 +151,7 @@ function AddressModal({
 
                 {!location && (
                     <div className="note-box" style={{ marginBottom: '12px' }}>
-                        Selecciona un punto en el mapa para continuar.
+                        Puedes seleccionar un punto en el mapa para obtener las coordenadas automáticamente, o escribir la dirección manualmente.
                     </div>
                 )}
 
@@ -161,7 +161,7 @@ function AddressModal({
                         <div className="input-ico"><Icon name="mapPin" size={15} /></div>
                         <input
                             className="input"
-                            readOnly={!location || geoLoading}
+                            readOnly={geoLoading}
                             {...register("addressLine", {
                                 required: true
                             })}
@@ -173,7 +173,7 @@ function AddressModal({
                     <label className="label">Ciudad</label>
                     <input
                         className="input"
-                        readOnly={!location || geoLoading}
+                        readOnly={geoLoading}
                         {...register("city", {
                             required: true
                         })}
@@ -196,7 +196,7 @@ function AddressModal({
                     <button
                         type="submit"
                         className="btn btn-primary btn-full"
-                        disabled={!location || geoLoading}
+                        disabled={geoLoading}
                     >
                         Guardar
                     </button>
@@ -525,7 +525,7 @@ export function ProfilePage() {
     }
 
     return (
-        <DashboardLayout sections={CLIENT_NAV} avatar={initials} avatarSrc={profilePhotoSrc}>
+        <DashboardLayout sections={isOfferer ? OFFERER_NAV : CLIENT_NAV} avatar={initials} avatarSrc={profilePhotoSrc}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
 
             <div className="tabs">
