@@ -6,6 +6,10 @@ services:
     volumes:
       - ./backend/serviya:/app
       - maven_repo:/root/.m2
+    environment:
+      # En dev el frontend corre en :5173 (Vite), no en :8081 (Nginx de prod). El enlace de
+      # recuperación de contraseña debe apuntar a ese puerto. Sobreescribe el default de prod.
+      FRONTEND_RESET_URL: ${FRONTEND_RESET_URL:-http://localhost:5173/reset-password}
 
   frontend:
     build:

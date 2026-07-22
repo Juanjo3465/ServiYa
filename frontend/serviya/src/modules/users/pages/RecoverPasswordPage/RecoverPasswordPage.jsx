@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from 'react-router-dom';
-import { Icon, ToastContainer, useToast } from '../../../../shared';
+import { Icon, ToastContainer, useToast, authApi } from '../../../../shared';
 
 import './RecoverPasswordPage.css';
 
@@ -8,13 +8,23 @@ export function RecoverPasswordPage() {
     const { toasts, showToast } = useToast();
     const [email, setEmail] = useState('');
     const [sent, setSent] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const handleSend = () => {
+    const handleSend = async () => {
         if (!email) {
             showToast('Ingresa tu correo electrónico', 'danger');
             return;
         }
-        setSent(true);
+        setLoading(true);
+        try {
+            // RF-003: el backend responde 204 exista o no el correo (no filtra cuentas).
+            await authApi.requestPasswordReset(email);
+            setSent(true);
+        } catch (e) {
+            showToast(e.message || 'No se pudo enviar el enlace de recuperación', 'danger');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -37,7 +47,7 @@ export function RecoverPasswordPage() {
                             <label className="label">Correo electrónico</label>
                             <div className="input-wrap"><div className="input-ico"><Icon name="mail" size={15} /></div><input className="input" type="email" placeholder="tucorreo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                         </div>
-                        <button className="btn btn-primary btn-full btn-lg" onClick={handleSend}><Icon name="send" size={17} />Enviar enlace de recuperación</button>
+                        <button className="btn btn-primary btn-full btn-lg" onClick={handleSend} disabled={loading}><Icon name="send" size={17} />{loading ? 'Enviando…' : 'Enviar enlace de recuperación'}</button>
                         <p className="rec-foot">¿Recordaste tu contraseña? <Link to="/login">Inicia sesión</Link></p>
                     </div>
                 ) : (

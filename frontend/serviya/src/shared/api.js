@@ -77,6 +77,17 @@ export const authApi = {
     // RF-002 / RF-004
     register: (payload) =>
         request('/api/v1/auth/register', { method: 'POST', body: payload }),
+
+    // RF-003 — recuperación de contraseña por enlace de un solo uso.
+    // 1) Pide el enlace (el backend responde 204 exista o no el correo, para no filtrar cuentas).
+    requestPasswordReset: (email) =>
+        request('/api/v1/auth/password-reset', { method: 'POST', body: { email } }),
+    // 2) Valida el token del enlace (lanza si es inválido/expirado).
+    validateResetToken: (token) =>
+        request('/api/v1/auth/password-reset/validate', { method: 'POST', body: { token } }),
+    // 3) Confirma la nueva contraseña (mínimo 8 caracteres).
+    confirmPasswordReset: (token, newPassword) =>
+        request('/api/v1/auth/password-reset/confirm', { method: 'POST', body: { token, newPassword } }),
 };
 
 export const profileApi = {

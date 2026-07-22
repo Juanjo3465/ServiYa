@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
 
 import { HomePage, SearchPage, ServiceDetailPage, OffererServicesPage, AvailabilityPage } from "../modules/services";
-import { LoginPage, RegisterPage, RecoverPasswordPage } from "../modules/users";
+import { LoginPage, RegisterPage, RecoverPasswordPage, ResetPasswordPage } from "../modules/users";
 import { ProfilePage, OffererProfilePage } from "../modules/profiles";
 import {
     ClientDashboardPage,
@@ -27,6 +27,7 @@ export const router = createBrowserRouter([
     { path: "/login", ...page(<LoginPage />) },
     { path: "/register", ...page(<RegisterPage />) },
     { path: "/recover", ...page(<RecoverPasswordPage />) },
+    { path: "/reset-password", ...page(<ResetPasswordPage />) },
     { path: "/services", ...page(<SearchPage />) },
     { path: "/services/:id", ...page(<ServiceDetailPage />) },
     { path: "/offerers/:id", ...page(<OffererProfilePage />) },
