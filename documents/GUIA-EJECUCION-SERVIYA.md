@@ -127,6 +127,44 @@ En **desarrollo** normalmente no necesitas reconstruir: el hot-reload refleja lo
 
 ---
 
+## Frontend en local (comandos `npm`, sin Docker)
+
+Todo lo anterior levanta el frontend **dentro de Docker** (junto al backend y la BD). Pero
+mientras trabajas en la UI suele ser más cómodo correr **solo el frontend en tu máquina**
+con Node/npm: arranca en segundos, el hot-reload de Vite es instantáneo y no dependes de
+reconstruir contenedores. El frontend sigue hablando con el backend por HTTP, así que basta
+con tener el **backend corriendo en `:8080`** (por Docker o como quieras) y el frontend puede
+vivir fuera.
+
+> **Requisito:** tener **Node.js 22+** instalado en tu máquina (comprueba con `node -v` y
+> `npm -v`). Todos estos comandos se ejecutan **dentro de `frontend/serviya/`**:
+>
+> ```bash
+> cd frontend/serviya
+> ```
+
+| Acción | Comando | Para qué sirve |
+|---|---|---|
+| Instalar dependencias | `npm install` | Baja todo a `node_modules/`. Ejecútalo la **primera vez** y cada vez que cambie `package.json`. |
+| Servidor de desarrollo | `npm run dev` | Levanta Vite en **http://localhost:5173** con hot-reload (HMR): al guardar un archivo, el navegador se actualiza solo. Es el comando que usarás el 90 % del tiempo. |
+| Compilar para producción | `npm run build` | Genera la carpeta `dist/` con los archivos optimizados y minificados (lo que se despliega en un servidor real). |
+| Previsualizar el build | `npm run preview` | Sirve localmente lo que hay en `dist/` para probar el resultado de `npm run build` antes de desplegar. |
+| Revisar el código (linter) | `npm run lint` | Corre ESLint sobre todo el proyecto y reporta errores de estilo o malas prácticas (variables sin usar, hooks mal usados, etc.). |
+
+> **`npm run dev` vs. Docker en desarrollo.** Ambos sirven el frontend en `:5173` con
+> hot-reload. La diferencia es dónde corre: `npm run dev` usa el Node **de tu máquina** (más
+> rápido de arrancar, ideal para iterar en la UI); el modo Docker lo corre **dentro de un
+> contenedor** (más fiel a producción y sin necesidad de instalar Node localmente). Elige el
+> que prefieras; para tocar solo frontend, `npm run dev` es lo más ágil.
+
+> **¿A qué backend apunta?** El frontend lee la URL del backend de la variable
+> `VITE_API_URL`; si no está definida, usa `http://localhost:8080` por defecto (ver
+> `frontend/serviya/src/shared/api.js`). Para apuntar a otro backend, crea un archivo
+> `.env.local` dentro de `frontend/serviya/` con `VITE_API_URL=http://otra-url:puerto` (las
+> variables del frontend deben empezar con `VITE_` para que Vite las exponga).
+
+---
+
 ## Añadir o actualizar dependencias (backend y frontend)
 
 Cuando cambias las dependencias hay que **relanzar el contenedor afectado** para que se
@@ -357,4 +395,15 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build -V
 
 # En PRODUCCIÓN, una dependencia nueva (backend o frontend) se aplica reconstruyendo
 docker compose up -d --build backend   # o: ... --build frontend
+```
+
+### Frontend en local (solo la UI, con el backend ya corriendo en :8080)
+
+```bash
+cd frontend/serviya
+npm install       # solo la 1ª vez o si cambió package.json
+npm run dev       # Vite con hot-reload en http://localhost:5173
+npm run build     # compila a dist/ (producción)
+npm run preview   # sirve el dist/ para probarlo
+npm run lint      # ESLint sobre todo el proyecto
 ```
