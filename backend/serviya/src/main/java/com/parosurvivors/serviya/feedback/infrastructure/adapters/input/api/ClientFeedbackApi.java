@@ -30,6 +30,11 @@ public interface ClientFeedbackApi {
     @ApiResponse(responseCode = "200", description = "Feedback de la solicitud")
     ResponseEntity<ClientFeedbackResponse> getClientFeedback(Long id);
 
+    @Operation(summary = "Existe feedback de cliente para la solicitud",
+            description = "Devuelve un booleano; evita depender de un 404 para saber si ya se califico al cliente.")
+    @ApiResponse(responseCode = "200", description = "true si la solicitud ya tiene feedback de cliente")
+    ResponseEntity<Boolean> clientFeedbackExists(Long id);
+
     @Operation(summary = "Listar el feedback recibido por un cliente", description = "RF-047.")
     @ApiResponse(responseCode = "200", description = "Pagina de feedback del cliente")
     ResponseEntity<Page<ClientFeedbackResponse>> getClientFeedbackList(Long id, Pageable pageable);

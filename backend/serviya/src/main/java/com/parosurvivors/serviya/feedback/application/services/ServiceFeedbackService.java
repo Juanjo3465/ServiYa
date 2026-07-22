@@ -127,6 +127,12 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean existsForRequest(Long requestId) {
+        return serviceFeedbackPersistencePort.existsByRequestId(requestId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<ServiceFeedbackResult> getServiceFeedbackById(Long feedbackId) {
         return serviceFeedbackPersistencePort.findById(feedbackId).map(f -> new ServiceFeedbackResult(
                 f.getRequestId(),

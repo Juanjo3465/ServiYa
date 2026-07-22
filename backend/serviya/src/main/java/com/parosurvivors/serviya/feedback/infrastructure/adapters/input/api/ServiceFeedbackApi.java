@@ -28,6 +28,11 @@ public interface ServiceFeedbackApi {
     @ApiResponse(responseCode = "200", description = "Feedback de la solicitud")
     ResponseEntity<ServiceFeedbackResponse> getServiceFeedback(Long id);
 
+    @Operation(summary = "Existe feedback de servicio para la solicitud",
+            description = "Devuelve un booleano; evita depender de un 404 para saber si ya se califico.")
+    @ApiResponse(responseCode = "200", description = "true si la solicitud ya tiene feedback de servicio")
+    ResponseEntity<Boolean> serviceFeedbackExists(Long id);
+
     @Operation(summary = "Listar el feedback recibido por un servicio", description = "RF-040, RF-046.")
     @ApiResponse(responseCode = "200", description = "Pagina de feedback")
     ResponseEntity<Page<ServiceFeedbackResponse>> getServiceFeedbackList(Long id, Pageable pageable);

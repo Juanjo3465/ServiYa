@@ -11,6 +11,9 @@ public interface ServiceFeedbackPersistencePort {
     ServiceFeedback save(ServiceFeedback feedback);
     Optional<ServiceFeedback> findById(Long id);
     Optional<ServiceFeedback> findByRequestId(Long requestId);
+
+    /** True si ya existe feedback de servicio para la solicitud (sin cargar la entidad). */
+    boolean existsByRequestId(Long requestId);
     List<ServiceFeedback> findByClientId(Long clientId);
 
     /** Reseñas (feedback con comentario) más recientes de un servicio, hasta {@code limit}. */

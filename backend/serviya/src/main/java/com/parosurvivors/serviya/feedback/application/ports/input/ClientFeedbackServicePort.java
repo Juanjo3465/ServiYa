@@ -18,6 +18,9 @@ public interface ClientFeedbackServicePort {
 
     ClientFeedbackResult getClientFeedback(Long requestId);
 
+    /** True si la solicitud ya tiene feedback de cliente (para habilitar/ocultar "calificar cliente"). */
+    boolean existsForRequest(Long requestId);
+
     /**
      * Lee un feedback de cliente por su id propio (no por requestId). Devuelve {@link Optional#empty()}
      * si no existe — p.ej. si el feedback fue revertido (el revert borra la fila). Lo usa el detalle de

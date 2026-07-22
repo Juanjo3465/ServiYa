@@ -300,11 +300,6 @@ export function RegisterPage() {
                                 <button className="btn btn-ghost btn-full" onClick={() => setStep(3)}><Icon name="chevronLeft" size={15} />Atrás</button>
                                 <button className="btn btn-primary btn-full btn-lg" onClick={handleRegister} disabled={submitting}><Icon name="check" size={17} />{submitting ? 'Creando…' : 'Crear cuenta'}</button>
                             </div>
-                            <div className="or-line">o regístrate con</div>
-                            <button className="google-reg-btn" onClick={() => showToast('Google OAuth no disponible en mockup', 'warn')}>
-                                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#EA4335" d="M21.35 11.1H12v2.8h5.35c-.5 2.4-2.6 4.1-5.35 4.1-3.3 0-6-2.7-6-6s2.7-6 6-6c1.55 0 2.95.6 4 1.55l2.1-2.1C16.95 4 14.6 3 12 3 6.48 3 2 7.48 2 13s4.48 10 10 10c5.52 0 9.72-3.88 9.72-9.9 0-.66-.06-1.3-.17-1.9l-.2-1z" /></svg>
-                                Continuar con Google
-                            </button>
                             <p className="reg-foot">¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link></p>
                         </div>
                     )}

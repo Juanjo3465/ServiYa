@@ -11,6 +11,9 @@ public interface ClientFeedbackPersistencePort {
     ClientFeedback save(ClientFeedback feedback);
     Optional<ClientFeedback> findById(Long id);
     Optional<ClientFeedback> findByRequestId(Long requestId);
+
+    /** True si ya existe feedback de cliente para la solicitud (sin cargar la entidad). */
+    boolean existsByRequestId(Long requestId);
     List<ClientFeedback> findByClientId(Long clientId);
     List<ClientFeedback> findByOffererId(Long offererId);
 

@@ -47,6 +47,11 @@ public class ServiceFeedbackController implements ServiceFeedbackApi {
         return ResponseEntity.ok(mapper.toResponse(serviceFeedbackService.getServiceFeedback(id)));
     }
 
+    @GetMapping("/api/v1/service-requests/{id}/feedback/exists")
+    public ResponseEntity<Boolean> serviceFeedbackExists(@PathVariable Long id) {
+        return ResponseEntity.ok(serviceFeedbackService.existsForRequest(id));
+    }
+
     @Override
     @GetMapping("/api/v1/services/{id}/feedback")
     public ResponseEntity<Page<ServiceFeedbackResponse>> getServiceFeedbackList(@PathVariable Long id,

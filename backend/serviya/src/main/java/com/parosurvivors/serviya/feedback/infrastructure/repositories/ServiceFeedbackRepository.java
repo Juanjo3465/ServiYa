@@ -13,6 +13,8 @@ import java.util.Optional;
 @Repository
 public interface ServiceFeedbackRepository extends JpaRepository<ServiceFeedbackEntity, Long> {
     Optional<ServiceFeedbackEntity> findByRequestId(Long requestId);
+
+    boolean existsByRequestId(Long requestId);
     List<ServiceFeedbackEntity> findByClientId(Long clientId);
 
     /**

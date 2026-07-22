@@ -38,6 +38,11 @@ public class ClientFeedbackPersistenceAdapter implements ClientFeedbackPersisten
     }
 
     @Override
+    public boolean existsByRequestId(Long requestId) {
+        return repository.existsByRequestId(requestId);
+    }
+
+    @Override
     public List<ClientFeedback> findByClientId(Long clientId) {
         return repository.findByClientId(clientId).stream()
                 .map(mapper::toDomain)

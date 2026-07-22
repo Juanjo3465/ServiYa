@@ -21,6 +21,9 @@ public interface ServiceRequestQueryServicePort {
 
     Page<ServiceRequestSummaryItem> getClientRequests(SearchServiceRequestsQuery query, Pageable pageable);
 
+    /** Cuenta las solicitudes "activas" (estados no terminales) de un cliente. Para la métrica de solicitudes activas. */
+    long countActiveClientRequests(Long clientId);
+
     Page<ServiceRequestSummaryItem> getOffererRequests(SearchServiceRequestsQuery query, Pageable pageable);
 
     //Next two methods area meant for the Agenda feature. Will return future requests, and not completed.

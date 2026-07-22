@@ -14,10 +14,10 @@ export const CLIENT_NAV = [
     {
         title: 'Mis solicitudes',
         items: [
-            { label: 'Solicitudes activas', to: '/requests', icon: 'tasks', badge: 3 },
+            { label: 'Solicitudes activas', to: '/requests', icon: 'tasks' },
             { label: 'Agenda', to: '/schedule', icon: 'calendar' },
             { label: 'Historial', to: '/history', icon: 'history' },
-            { label: 'Reprogramaciones', to: '/reschedules', icon: 'reschedule', badge: 1 },
+            { label: 'Reprogramaciones', to: '/reschedules', icon: 'reschedule' },
         ],
     },
     {

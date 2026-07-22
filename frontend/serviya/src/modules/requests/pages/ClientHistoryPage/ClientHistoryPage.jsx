@@ -81,7 +81,7 @@ export function ClientHistoryPage() {
                                             <td><span className={`badge ${st.badge}`}>{st.label}</span></td>
                                             <td style={r.requestedPrice != null ? { fontWeight: 600, color: 'var(--c-primary-d)' } : { color: 'var(--c-soft)' }}>{r.requestedPrice != null ? formatPrice(r.requestedPrice) : '—'}</td>
                                             <td>
-                                                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>
+                                                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/requests/${r.requestId}`, { state: { as: 'client' } })}>
                                                     Ver
                                                 </button>
                                             </td>

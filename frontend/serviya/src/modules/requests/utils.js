@@ -53,28 +53,38 @@ export function formatPrice(price) {
     return '$' + Number(price).toLocaleString('es-CO');
 }
 
+// Mapa categoría -> nombre de icono. Todos deben existir en el set de <Icon> (Icon.jsx),
+// de lo contrario el icono se renderiza vacío. Se busca por `includes`, así que las claves
+// más específicas van primero (p. ej. 'vehículo' antes que 'reparacion').
+// Las primeras entradas cubren las categorías realmente sembradas en la BD.
 const ICON_MAP = {
-    'plomería': 'wrench',
-    'fontanería': 'wrench',
-    'limpieza': 'home',
+    'vehículo': 'truck',
+    'electrodoméstico': 'box',
+    'tecnología': 'code',
+    'electrónica': 'bolt',
+    'carpintería': 'box',
     'electricidad': 'bolt',
+    'fontanería': 'wrench',
     'jardinería': 'leaf',
-    'pintura': 'paintbrush',
-    'carpintería': 'hammer',
-    'mecánica': 'tool',
-    'reparación': 'wrench',
+    'limpieza': 'home',
+    'pintura': 'paint',
+    'reparacion': 'wrench',
+    // Categorías adicionales (aún no sembradas, pero mapeadas por si se agregan)
+    'plomería': 'wrench',
+    'mecánica': 'wrench',
     'clases': 'bookOpen',
     'fotografía': 'camera',
     'chef': 'coffee',
     'entrenamiento': 'heart',
-    'diseño': 'palette',
+    'diseño interior': 'layout',
+    'diseño': 'edit',
     'traducción': 'globe',
     'maquillaje': 'eye',
     'programación': 'code',
     'eventos': 'calendar',
     'asistencia': 'headphones',
-    'diseño interior': 'layout',
     'yoga': 'heart',
+    'otros': 'grid',
 };
 
 export function isTerminal(status) {

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
-import { STATUS_MAP, formatDate, timeAgo, formatPrice, categoryIcon, isTerminal } from '../../utils';
+import { STATUS_MAP, formatDate, timeAgo, categoryIcon } from '../../utils';
 
 import './ClientDashboardPage.css';
 
@@ -34,7 +34,6 @@ export function ClientDashboardPage() {
     const [reschedOpen, setReschedOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
     const [cancelTarget, setCancelTarget] = useState(null);
-    const [confirmTarget, setConfirmTarget] = useState(null);
     const [proposals, setProposals] = useState([]);
     const [loadingProposals, setLoadingProposals] = useState(true);
     const [reschedTarget, setReschedTarget] = useState(null);
@@ -148,7 +147,7 @@ export function ClientDashboardPage() {
     };
 
     const stats = clientMetrics ? [
-        { icon: 'tasks', value: String(clientMetrics.totalAcceptedRequests ?? 0), label: 'Solicitudes activas' },
+        { icon: 'tasks', value: String(clientMetrics.activeRequests ?? 0), label: 'Solicitudes activas' },
         { icon: 'checkCircle', value: String(clientMetrics.totalCompletedRequests ?? 0), label: 'Servicios completados', variant: 'success' },
         { icon: 'star', value: (clientMetrics.averageRating ?? 0).toFixed(1) + '★', label: 'Mi calificación', variant: 'warn', fill: 'currentColor' },
         {
@@ -220,7 +219,7 @@ export function ClientDashboardPage() {
                                         </div>
                                     </div>
                                     <div className="req-actions">
-                                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
+                                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/requests/${r.requestId}`, { state: { as: 'client' } })}>Ver detalle</button>
                                         {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setReschedTarget(r); setReschedOpen(true); }}><Icon name="reschedule" size={13} />Reprogramar</button>}
                                         {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => openConfirmModal(r)}><Icon name="check" size={13} />Confirmar servicio</button>}
                                         {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}

@@ -118,19 +118,13 @@ export function LoginPage() {
                         </div>
                     </div>
 
-                    <div className="remember-row">
-                        <label className="ck-label"><input type="checkbox" /> Recordarme</label>
+                    <div className="remember-row" style={{ justifyContent: 'flex-end' }}>
                         <Link className="forgot" to="/recover">¿Olvidaste tu contraseña?</Link>
                     </div>
 
                     <button className="btn btn-primary btn-full btn-lg" onClick={handleLogin} disabled={loading} style={{ marginBottom: '14px' }}>
                         <Icon name="login" size={17} />
                         {loading ? 'Ingresando…' : 'Iniciar sesión'}
-                    </button>
-                    <div className="or-line">o continúa con</div>
-                    <button className="google-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#EA4335" d="M21.35 11.1H12v2.8h5.35c-.5 2.4-2.6 4.1-5.35 4.1-3.3 0-6-2.7-6-6s2.7-6 6-6c1.55 0 2.95.6 4 1.55l2.1-2.1C16.95 4 14.6 3 12 3 6.48 3 2 7.48 2 13s4.48 10 10 10c5.52 0 9.72-3.88 9.72-9.9 0-.66-.06-1.3-.17-1.9l-.2-1z" /></svg>
-                        Continuar con Google
                     </button>
                     <p className="auth-foot">¿No tienes cuenta? <Link to="/register">Regístrate gratis</Link></p>
                 </div>

@@ -47,6 +47,11 @@ public class ClientFeedbackController implements ClientFeedbackApi {
         return ResponseEntity.ok(mapper.toResponse(clientFeedbackService.getClientFeedback(id)));
     }
 
+    @GetMapping("/api/v1/service-requests/{id}/client-feedback/exists")
+    public ResponseEntity<Boolean> clientFeedbackExists(@PathVariable Long id) {
+        return ResponseEntity.ok(clientFeedbackService.existsForRequest(id));
+    }
+
     @Override
     @GetMapping("/api/v1/users/{id}/client-feedback")
     public ResponseEntity<Page<ClientFeedbackResponse>> getClientFeedbackList(@PathVariable Long id,

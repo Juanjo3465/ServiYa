@@ -1,35 +1,42 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../Icon/Icon';
+import { Avatar } from '../Avatar/Avatar';
 import { profileApi, getApiImageUrl } from '../../api';
 
+/** Iniciales (máx. 2) a partir del nombre completo, para el avatar de texto. */
+function initialsOf(name) {
+    if (!name) return null;
+    return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}
+
 export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null, links = [], showBell = true, unreadCount = 0 }) {
-    const [resolvedAvatarSrc, setResolvedAvatarSrc] = useState(() => getApiImageUrl(controlledAvatarSrc));
+    // Foto e iniciales del perfil autenticado. Se piden una vez al montar; el setState solo
+    // ocurre en el callback async (no de forma síncrona dentro del effect).
+    const [fetchedAvatarSrc, setFetchedAvatarSrc] = useState(null);
+    // Iniciales reales del usuario (fallback del avatar cuando no hay foto), así el "JP"/"CM"
+    // hardcodeado de las páginas deja de verse.
+    const [resolvedInitials, setResolvedInitials] = useState(avatar);
 
     useEffect(() => {
-        const nextSrc = getApiImageUrl(controlledAvatarSrc);
-        setResolvedAvatarSrc(nextSrc);
-
-        if (controlledAvatarSrc) {
-            return;
-        }
-
         let cancelled = false;
         profileApi.getMyProfile()
             .then((profile) => {
-                if (!cancelled) {
-                    const profileSrc = getApiImageUrl(profile?.profilePhotoUrl || null);
-                    setResolvedAvatarSrc(profileSrc || nextSrc);
-                }
+                if (cancelled) return;
+                const initials = initialsOf(profile?.fullName || profile?.name);
+                if (initials) setResolvedInitials(initials);
+                setFetchedAvatarSrc(getApiImageUrl(profile?.profilePhotoUrl || null));
             })
-            .catch(() => {
-                if (!cancelled) setResolvedAvatarSrc(nextSrc);
-            });
+            .catch(() => {});
 
         return () => {
             cancelled = true;
         };
-    }, [controlledAvatarSrc]);
+    }, []);
+
+    // El src controlado (p. ej. tras subir una foto en el perfil) tiene prioridad; si no,
+    // se usa la foto del perfil recién cargada.
+    const resolvedAvatarSrc = getApiImageUrl(controlledAvatarSrc) || fetchedAvatarSrc;
 
     return (
         <nav className="nav">
@@ -52,7 +59,7 @@ export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null
                     </Link>
                 )}
                 <Link to="/profile" className="nav-av">
-                    {resolvedAvatarSrc ? <img src={resolvedAvatarSrc} alt="Foto de perfil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : avatar}
+                    <Avatar src={resolvedAvatarSrc} initials={resolvedInitials} />
                 </Link>
             </div>
         </nav>

@@ -43,6 +43,7 @@ function groupByDay(requests) {
         buckets.get(key).events.push({
             id: r.id,
             requestId: r.id,
+            serviceId: r.serviceId,
             hour: date.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true }),
             name: `Servicio #${r.serviceId}`,
             sub: `Oferente #${r.offererId}`,
@@ -57,6 +58,7 @@ function groupByDay(requests) {
 
 export function ClientSchedulePage() {
     const navigate = useNavigate();
+    const { toasts, showToast } = useToast();
 
     const [requests, setRequests] = useState([]);
     const [selectedDate, setSelectedDate] = useState(null);
@@ -121,7 +123,7 @@ export function ClientSchedulePage() {
                                             {e.showDetail && (
                                                 <a
                                                     style={{ fontSize: '11px', color: 'var(--c-primary)', cursor: 'pointer', fontWeight: 600 }}
-                                                    onClick={() => navigate(`/services/${e.requestId}`)}
+                                                    onClick={() => navigate(`/requests/${e.requestId}`, { state: { as: 'client' } })}
                                                 >
                                                     Ver detalle →
                                                 </a>
@@ -134,6 +136,7 @@ export function ClientSchedulePage() {
                     ))}
                 </div>
             </div>
+            <ToastContainer toasts={toasts} />
         </DashboardLayout>
     );
 }

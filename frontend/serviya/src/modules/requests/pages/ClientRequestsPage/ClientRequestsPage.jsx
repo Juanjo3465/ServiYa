@@ -123,7 +123,7 @@ export function ClientRequestsPage() {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>Ver detalle</button>
+                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/requests/${r.requestId}`, { state: { as: 'client' } })}>Ver detalle</button>
                                     {canReschedule && <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setReschedTarget(r); setReschedOpen(true); }}><Icon name="reschedule" size={13} />Reprogramar</button>}
                                     {canConfirm && <button className="btn btn-primary btn-sm" onClick={() => { setConfirmTarget(r); setConfirmOpen(true); }}><Icon name="check" size={13} />Confirmar servicio</button>}
                                     {(r.status === 'PENDING' || r.status === 'ACCEPTED') && <button className="btn btn-danger btn-sm" onClick={() => { setCancelTarget(r); setCancelOpen(true); }}><Icon name="close" size={13} />Cancelar</button>}

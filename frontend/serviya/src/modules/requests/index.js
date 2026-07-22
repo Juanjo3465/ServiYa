@@ -7,3 +7,4 @@ export { OffererSchedulePage } from './pages/OffererSchedulePage/OffererSchedule
 export { ClientHistoryPage } from './pages/ClientHistoryPage/ClientHistoryPage';
 export { OffererHistoryPage } from './pages/OffererHistoryPage/OffererHistoryPage';
 export { RequestServicePage } from './pages/RequestServicePage/RequestServicePage';
+export { RequestDetailPage } from './pages/RequestDetailPage/RequestDetailPage';

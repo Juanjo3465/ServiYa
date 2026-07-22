@@ -20,6 +20,9 @@ public interface ServiceFeedbackServicePort {
 
     ServiceFeedbackResult getServiceFeedback(Long requestId);
 
+    /** True si la solicitud ya tiene feedback de servicio (para habilitar/ocultar "calificar"). */
+    boolean existsForRequest(Long requestId);
+
     /**
      * Lee un feedback de servicio por su id propio (no por requestId). Devuelve {@link Optional#empty()}
      * si no existe — p.ej. si el feedback fue revertido (el revert borra la fila). Lo usa el detalle de

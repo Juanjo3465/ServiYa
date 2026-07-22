@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi, serviceApi, addressApi, requestApi, getApiImageUrl } from '../../../../shared';
+import { AppNavbar, Avatar, ServiceImage, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi, serviceApi, addressApi, requestApi, getApiImageUrl } from '../../../../shared';
 
 import './ServiceDetailPage.css';
 
@@ -26,11 +26,6 @@ export function ServiceDetailPage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
     const [activeSlot, setActiveSlot] = useState(0);
-    const [reportOpen, setReportOpen] = useState(false);
-    const [reportCategory, setReportCategory] = useState('Comportamiento inapropiado');
-    const [reportTargetRequestId, setReportTargetRequestId] = useState(null);
-    const [customCategory, setCustomCategory] = useState('');
-    const [reportReason, setReportReason] = useState('');
     const [feedbackReportOpen, setFeedbackReportOpen] = useState(false);
     const [feedbackTarget, setFeedbackTarget] = useState(null);
     const [feedbackReportCategory, setFeedbackReportCategory] = useState('Contenido inapropiado');
@@ -117,12 +112,11 @@ export function ServiceDetailPage() {
 
         setSubmitting(true);
         try {
-            const createdRequest = await requestApi.createRequest({
+            await requestApi.createRequest({
                 serviceId: parseInt(id),
                 addressId: parseInt(selectedAddressId),
                 scheduledDate: `${date}T${selectedTime}`,
             });
-            setReportTargetRequestId(createdRequest?.requestId ?? createdRequest?.id ?? null);
             setSuccessOpen(true);
         } catch (err) {
             showToast('Error al enviar solicitud: ' + err.message, 'error');
@@ -134,7 +128,7 @@ export function ServiceDetailPage() {
     if (loading) {
         return (
             <>
-                <AppNavbar avatar={service?.fullName ? service.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={getApiImageUrl(service?.profilePhotoUrl || null)} links={[{ to: '/services', label: '← Resultados' }]} />
+                <AppNavbar links={[{ to: '/services', label: '← Resultados' }]} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--c-soft)' }}>
                     <div className="loading-spinner" style={{ width: '40px', height: '40px', border: '4px solid var(--c-border)', borderTop: '4px solid var(--c-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '15px' }} />
                     <span>Cargando detalles del servicio...</span>
@@ -153,7 +147,7 @@ export function ServiceDetailPage() {
     if (error || !service) {
         return (
             <>
-                <AppNavbar avatar="JP" links={[{ to: '/services', label: '← Resultados' }]} />
+                <AppNavbar links={[{ to: '/services', label: '← Resultados' }]} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--c-soft)', padding: '20px', textAlign: 'center' }}>
                     <Icon name="alertTriangle" size={48} style={{ color: 'var(--c-danger)', marginBottom: '15px' }} />
                     <h3>Error al cargar servicio</h3>
@@ -176,7 +170,7 @@ export function ServiceDetailPage() {
 
     return (
         <>
-            <AppNavbar avatar={service?.fullName ? service.fullName.split(' ').slice(0,2).map((w)=>w[0].toUpperCase()).join('') : 'JP'} avatarSrc={service?.profilePhotoUrl || null} links={[{ to: '/services', label: '← Resultados' }]} />
+            <AppNavbar links={[{ to: '/services', label: '← Resultados' }]} />
 
             <div className="breadcrumb">
                 <Link to="/">Inicio</Link> / <Link to="/services">{service.category?.name || "Categoría"}</Link> / {service.title}
@@ -188,7 +182,7 @@ export function ServiceDetailPage() {
                         {photos.length > 0 ? (
                             <div className="service-gallery">
                                 <div className="service-gallery-main" onClick={() => setPreviewPhoto(getPhotoSrc(activePhoto))}>
-                                    <img src={getPhotoSrc(activePhoto)} alt={`${service.title}-${activePhotoIndex + 1}`} />
+                                    <ServiceImage src={getPhotoSrc(activePhoto)} alt={`${service.title}-${activePhotoIndex + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     {photos.length > 1 && (
                                         <>
                                             <button
@@ -223,7 +217,7 @@ export function ServiceDetailPage() {
                                                 className={`gallery-thumb ${index === activePhotoIndex ? 'active' : ''}`}
                                                 onClick={() => setActivePhotoIndex(index)}
                                             >
-                                                <img src={getPhotoSrc(photo)} alt={`${service.title}-${index + 1}`} />
+                                                <ServiceImage src={getPhotoSrc(photo)} alt={`${service.title}-${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             </button>
                                         ))}
                                     </div>
@@ -263,11 +257,7 @@ export function ServiceDetailPage() {
                     <div className="sec-card">
                         <div className="oferer-row" onClick={() => navigate(`/offerers/${service.userId}`)}>
                             <div className="av av-lg">
-                                {service.profilePhotoUrl ? (
-                                    <img src={getApiImageUrl(service.profilePhotoUrl)} alt="Foto del oferente" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                                ) : (
-                                    initials
-                                )}
+                                <Avatar src={getApiImageUrl(service.profilePhotoUrl)} initials={initials} alt="Foto del oferente" />
                             </div>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--c-text)' }}>{service.fullName || "Oferente"}</div>
@@ -460,49 +450,9 @@ export function ServiceDetailPage() {
                         <div className="verified-note">
                             <Icon name="shield" size={13} style={{ color: 'var(--c-success)' }} />Perfil verificado por ServiYa
                         </div>
-                        <button className="btn btn-ghost btn-sm" style={{ marginTop: '10px', color: 'var(--c-danger)' }} onClick={() => {
-                            setReportTargetRequestId(null);
-                            setReportOpen(true);
-                        }}>
-                            <Icon name="alertTriangle" size={13} />Reportar oferente
-                        </button>
                     </div>
                 </div>
             </div>
-
-            <Modal open={reportOpen} onClose={() => setReportOpen(false)}>
-                <div className="modal-title">Reportar oferente</div>
-                <div className="modal-sub">Indica el motivo del reporte. El administrador revisará el caso.</div>
-                <div className="input-group"><label className="label">Categoría</label><select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}><option>Comportamiento inapropiado</option><option>No se presentó</option><option>Fraude</option><option>Otra</option></select></div>
-                {reportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
-                <div className="input-group"><label className="label">Descripción</label><textarea className="input" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-ghost btn-full" onClick={() => setReportOpen(false)}>Cancelar</button>
-                    <button className="btn btn-danger btn-full" onClick={async () => {
-                        try {
-                            const targetRequestId = reportTargetRequestId ?? service?.requestId ?? null;
-                            if (!targetRequestId) {
-                                showToast('No hay una solicitud asociada para reportar', 'danger');
-                                return;
-                            }
-                            await reportApi.createRequestReport({
-                                category: reportCategory,
-                                customCategory,
-                                reason: reportReason,
-                                requestId: targetRequestId,
-                            });
-                            setReportOpen(false);
-                            setReportCategory('Comportamiento inapropiado');
-                            setCustomCategory('');
-                            setReportReason('');
-                            setReportTargetRequestId(null);
-                            showToast('Reporte enviado al administrador', 'success');
-                        } catch (error) {
-                            showToast(error.message || 'No se pudo enviar el reporte', 'danger');
-                        }
-                    }}>Enviar reporte</button>
-                </div>
-            </Modal>
 
             <Modal open={feedbackReportOpen} onClose={() => setFeedbackReportOpen(false)}>
                 <div className="modal-title">Reportar reseña</div>
@@ -533,7 +483,7 @@ export function ServiceDetailPage() {
             {previewPhoto && (
                 <Modal open={true} onClose={() => setPreviewPhoto(null)} maxWidth={860}>
                     <div className="gallery-preview">
-                        <img src={previewPhoto} alt="Vista previa de la imagen" />
+                        <ServiceImage src={previewPhoto} alt="Vista previa de la imagen" style={{ maxWidth: '100%' }} />
                     </div>
                 </Modal>
             )}

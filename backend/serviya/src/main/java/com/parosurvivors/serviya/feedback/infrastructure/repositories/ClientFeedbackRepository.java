@@ -12,6 +12,8 @@ import java.util.Optional;
 @Repository
 public interface ClientFeedbackRepository extends JpaRepository<ClientFeedbackEntity, Long> {
     Optional<ClientFeedbackEntity> findByRequestId(Long requestId);
+
+    boolean existsByRequestId(Long requestId);
     List<ClientFeedbackEntity> findByClientId(Long clientId);
     List<ClientFeedbackEntity> findByOffererId(Long offererId);
 

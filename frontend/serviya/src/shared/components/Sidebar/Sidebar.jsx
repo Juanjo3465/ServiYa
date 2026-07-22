@@ -1,6 +1,7 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon/Icon';
+import { clearToken } from '../../api';
 
 /**
  * Config-driven dashboard sidebar.
@@ -10,6 +11,13 @@ import { Icon } from '../Icon/Icon';
  * /login is always pinned to the bottom.
  */
 export function Sidebar({ sections = [] }) {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        clearToken();          // invalida la sesión: elimina el JWT de localStorage
+        navigate('/login');
+    };
+
     return (
         <aside className="sidebar">
             {sections.map((section, i) => (
@@ -34,10 +42,15 @@ export function Sidebar({ sections = [] }) {
                 </React.Fragment>
             ))}
             <div className="sb-spacer" />
-            <NavLink to="/login" className="sb-item sb-danger">
+            <button
+                type="button"
+                className="sb-item sb-danger"
+                onClick={handleLogout}
+                style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', font: 'inherit', cursor: 'pointer' }}
+            >
                 <Icon name="logout" size={16} />
                 Cerrar sesión
-            </NavLink>
+            </button>
         </aside>
     );
 }

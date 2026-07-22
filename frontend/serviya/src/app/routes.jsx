@@ -14,6 +14,7 @@ import {
     ClientHistoryPage,
     OffererHistoryPage,
     RequestServicePage,
+    RequestDetailPage,
 } from "../modules/requests";
 import { NotificationsPage } from "../modules/notifications";
 import { AdminDashboardPage, AdminUsersPage, AdminReportsPage, AdminFeedbackPage, AdminServicesPage } from "../modules/admin";
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
     // Client
     { path: "/dashboard", ...page(<ClientDashboardPage />) },
     { path: "/requests", ...page(<ClientRequestsPage />) },
+    { path: "/requests/:id", ...page(<RequestDetailPage />) },   // detalle de solicitud (cliente u oferente)
     { path: "/reschedules", ...page(<ReschedulesPage />) },
     { path: "/schedule", ...page(<ClientSchedulePage />) },
     { path: "/history", ...page(<ClientHistoryPage />) },

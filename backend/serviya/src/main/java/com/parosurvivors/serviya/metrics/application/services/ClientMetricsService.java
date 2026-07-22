@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.metrics.application.services;
 import com.parosurvivors.serviya.metrics.application.ports.input.ClientMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.output.ClientMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
+import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
@@ -22,18 +23,30 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClientMetricsService implements ClientMetricsServicePort {
 
     private final ClientMetricsPersistencePort clientMetricsPersistencePort;
+    private final ServiceRequestQueryServicePort serviceRequestQueryServicePort;
 
     @Override
     public ClientMetrics getAllMetrics(Long clientId) {
-        return clientMetricsPersistencePort.findByClientId(clientId)
+        ClientMetrics metrics = clientMetricsPersistencePort.findByClientId(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Client metrics not found for clientId: " + clientId));
+        return withActiveRequests(metrics);
     }
 
     @Override
     public ClientMetrics getMainMetrics(Long clientId) {
-        return clientMetricsPersistencePort.findByClientId(clientId)
+        ClientMetrics metrics = clientMetricsPersistencePort.findByClientId(clientId)
                 .orElse(ClientMetrics.builder().clientId(clientId).build());
+        return withActiveRequests(metrics);
+    }
+
+    /**
+     * Rellena {@code activeRequests} con el conteo real de solicitudes no terminales del cliente
+     * (consulta a service_requests vía el módulo de requests). Valor de solo lectura, no persistido.
+     */
+    private ClientMetrics withActiveRequests(ClientMetrics metrics) {
+        metrics.setActiveRequests((int) serviceRequestQueryServicePort.countActiveClientRequests(metrics.getClientId()));
+        return metrics;
     }
 
     /**

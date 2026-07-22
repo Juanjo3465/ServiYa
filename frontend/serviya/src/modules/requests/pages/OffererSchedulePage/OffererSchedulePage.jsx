@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, offererAgendaApi, reportApi } from '../../../../shared';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, offererAgendaApi, reportApi, requestApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
-import { requestApi } from '../../../../shared/api';
 
 const WEEKDAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MONTH_NAMES = [
@@ -58,6 +58,7 @@ function groupByDay(requests) {
 const TERMINAL_LABELS = ['Completada', 'Cancelada', 'Rechazada', 'No prestada'];
 
 export function OffererSchedulePage() {
+    const navigate = useNavigate();
     const { toasts, showToast } = useToast();
 
     const [requests, setRequests] = useState([]);
@@ -101,16 +102,24 @@ export function OffererSchedulePage() {
         }
     };
 
-    useEffect(() => {
+    const loadAgenda = useCallback(() => {
         offererAgendaApi
             .getOffererAgenda()
-            .then((data) => {
-                setRequests(data.content ?? []);
-            })
-            .catch((err) => {
-                showToast(err.message || 'No se pudo cargar la agenda', 'error');
-            });
-    }, []);
+            .then((data) => setRequests(data.content ?? []))
+            .catch((err) => showToast(err.message || 'No se pudo cargar la agenda', 'error'));
+    }, [showToast]);
+
+    useEffect(() => { loadAgenda(); }, [loadAgenda]);
+
+    const handleAccept = async (event) => {
+        try {
+            await requestApi.acceptRequest(event.id);
+            showToast('Solicitud aceptada. Cliente notificado', 'success');
+            loadAgenda();
+        } catch (err) {
+            showToast(err.message || 'No se pudo aceptar la solicitud', 'danger');
+        }
+    };
 
     const allDays = groupByDay(requests);
     const visibleDays = selectedDate
@@ -158,10 +167,17 @@ export function OffererSchedulePage() {
                                         <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '2px' }}>{e.sub}</div>
                                         <div style={{ marginTop: '7px', display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                                             <span className={`badge ${e.badgeClassName}`}>{e.label}</span>
+                                            <button
+                                                className="btn btn-ghost btn-sm"
+                                                style={{ border: '1px solid var(--c-border)' }}
+                                                onClick={() => navigate(`/requests/${e.id}`, { state: { as: 'offerer' } })}
+                                            >
+                                                Ver detalle
+                                            </button>
                                             {e.label === 'Pendiente aceptar' && (
                                                 <button
                                                     className="btn btn-success btn-sm"
-                                                    onClick={() => showToast('Aceptada. Cliente notificado', 'success')}
+                                                    onClick={() => handleAccept(e)}
                                                 >
                                                     <Icon name="check" size={13} />
                                                     Aceptar

@@ -45,4 +45,10 @@ public interface ServiceRequestRepository extends JpaRepository<ServiceRequestEn
      * Contar solicitudes por estado.
      */
     long countByStatus(RequestStatus status);
+
+    /**
+     * Contar las solicitudes de un cliente cuyo estado está en la lista dada (p. ej. estados
+     * activos/no terminales, para la métrica "solicitudes activas").
+     */
+    long countByClientIdAndStatusIn(Long clientId, List<RequestStatus> statuses);
 }

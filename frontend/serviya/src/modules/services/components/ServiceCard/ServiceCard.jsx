@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { getApiImageUrl } from '../../../../shared';
+import { getApiImageUrl, ServiceImage } from '../../../../shared';
 
 import "./ServiceCard.css";
 
@@ -20,17 +20,20 @@ export const ServiceCard = ({
             className="s-card"
             onClick={() => navigate(`/services/${id}`)}>
             <div className="s-card-img">
-                {photos[0] ? (
-                    <img src={getApiImageUrl(photos[0])} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5">
-                        {icon}
-                    </svg>
-                )}
+                <ServiceImage
+                    src={getApiImageUrl(photos[0])}
+                    alt={name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    fallback={
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5">
+                            {icon}
+                        </svg>
+                    }
+                />
                 <div className="s-card-avail">
                     <span
                         className={`badge ${availability === 'Hoy'

@@ -39,6 +39,11 @@ public class ServiceFeedbackPersistenceAdapter implements ServiceFeedbackPersist
     }
 
     @Override
+    public boolean existsByRequestId(Long requestId) {
+        return repository.existsByRequestId(requestId);
+    }
+
+    @Override
     public List<ServiceFeedback> findByClientId(Long clientId) {
         return repository.findByClientId(clientId).stream()
                 .map(mapper::toDomain)

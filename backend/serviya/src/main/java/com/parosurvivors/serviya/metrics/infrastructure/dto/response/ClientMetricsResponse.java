@@ -23,5 +23,6 @@ public record ClientMetricsResponse(
         Integer totalCancelledRequests,
         Integer totalRescheduledRequests,
         Integer totalNotProvidedRequests,
+        Integer activeRequests,
         LocalDateTime updatedAt) {
 }

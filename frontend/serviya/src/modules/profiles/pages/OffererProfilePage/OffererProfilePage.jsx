@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
+import { AppNavbar, Avatar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
 
 import './OffererProfilePage.css';
@@ -77,11 +77,7 @@ export function OffererProfilePage() {
                 <div className="profile-top">
                     <div className="profile-av-wrap">
                         <div className="av av-xl">
-                            {offererPhotoSrc ? (
-                                <img src={offererPhotoSrc} alt="Foto del oferente" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                            ) : (
-                                (profile?.specialty || 'OF').slice(0, 2).toUpperCase()
-                            )}
+                            <Avatar src={offererPhotoSrc} initials={(profile?.specialty || 'OF').slice(0, 2).toUpperCase()} alt="Foto del oferente" />
                         </div>
                         <div className="profile-verified"><Icon name="check" size={12} strokeWidth={2.5} /></div>
                     </div>

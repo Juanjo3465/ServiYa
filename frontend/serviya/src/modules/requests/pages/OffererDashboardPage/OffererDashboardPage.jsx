@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, Stars, StatCard, ToastContainer, useToast, OFFERER_NAV, requestApi, feedbackApi } from '../../../../shared';
+import { Link, useNavigate } from 'react-router-dom';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
 import { timeAgo } from '../../utils';
@@ -51,6 +51,7 @@ function initials(name) {
 }
 
 export function OffererDashboardPage() {
+    const navigate = useNavigate();
     const { toasts, showToast } = useToast();
     const [proposalOpen, setProposalOpen] = useState(false);
     const [completeOpen, setCompleteOpen] = useState(false);
@@ -213,6 +214,9 @@ export function OffererDashboardPage() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
+                            <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/requests/${req.requestId}`, { state: { as: 'offerer' } })}>
+                                Ver detalle
+                            </button>
                             {isPending && (
                                 <>
                                     <button className="btn btn-success btn-sm" disabled={acting === req.requestId} onClick={() => handleAccept(req)}>

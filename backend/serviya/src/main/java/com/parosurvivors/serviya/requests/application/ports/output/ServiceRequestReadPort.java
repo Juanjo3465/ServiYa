@@ -42,6 +42,9 @@ public interface ServiceRequestReadPort {
     /** Solicitudes en las que el usuario participa (cliente u oferente) con estado en {@code statuses}. */
     List<ServiceRequest> findByParticipantAndStatusIn(Long userId, List<RequestStatus> statuses);
 
+    /** Cuenta las solicitudes de un cliente cuyo estado está en {@code statuses} (sin cargar entidades). */
+    long countByClientIdAndStatusIn(Long clientId, List<RequestStatus> statuses);
+
     // --- Agenda: solicitudes futuras (no completadas) ---
     Page<ServiceRequest> findClientFutureRequests(Long clientId, List<String> statuses, Pageable pageable);
 

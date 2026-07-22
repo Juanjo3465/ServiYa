@@ -14,4 +14,5 @@ insert into categories (name) values
 ('Pintura'),
 ('Reparaciones de electrodomésticos'),
 ('Reparaciones de vehículos'),
-('Tecnología y electrónica');
+('Tecnología y electrónica'),
+('Otros');

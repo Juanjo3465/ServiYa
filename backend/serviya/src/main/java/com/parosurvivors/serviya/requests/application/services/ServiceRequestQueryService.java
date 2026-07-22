@@ -11,6 +11,7 @@ import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDet
 import com.parosurvivors.serviya.requests.application.dto.result.ServiceRequestDetailResult;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
+import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
@@ -43,10 +44,20 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
     private final UserProfilePersistencePort userProfilePersistencePort;
     private final AddressPersistencePort addressPersistencePort;
 
+    /** Estados "activos" (no terminales) de una solicitud: aún en curso desde la óptica del cliente. */
+    private static final List<RequestStatus> ACTIVE_STATUSES =
+            List.of(RequestStatus.PENDING, RequestStatus.ACCEPTED, RequestStatus.PRESUMABLY_COMPLETED);
+
     @Override
     @Transactional(readOnly = true)
     public Page<ServiceRequestSummaryItem> getClientRequests(SearchServiceRequestsQuery query, Pageable pageable) {
         return serviceRequestReadPort.searchByClient(query, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countActiveClientRequests(Long clientId) {
+        return serviceRequestReadPort.countByClientIdAndStatusIn(clientId, ACTIVE_STATUSES);
     }
 
     @Override

@@ -1,4 +1,6 @@
 export { Icon, WhatsAppIcon } from './components/Icon/Icon';
+export { Avatar } from './components/Avatar/Avatar';
+export { ServiceImage } from './components/ServiceImage/ServiceImage';
 export { Navbar } from './components/Navbar/Navbar';
 export { Footer } from './components/Footer/Footer';
 export { AppNavbar } from './components/AppNavbar/AppNavbar';

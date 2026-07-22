@@ -43,7 +43,7 @@ export function OffererHistoryPage() {
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
-            <div className="ph"><h1>Historial de servicios prestados</h1><p>Registro completo de tu actividad como oferente</p></div>
+            <div className="ph"><h1>Historial de solicitudes recibidas</h1><p>Registro completo de tu actividad como oferente</p></div>
 
             <div className="filter-chips">
                 {TABS.map((t, i) => (
@@ -81,7 +81,7 @@ export function OffererHistoryPage() {
                                             <td><span className={`badge ${st.badge}`}>{st.label}</span></td>
                                             <td style={r.requestedPrice != null ? { fontWeight: 600, color: 'var(--c-primary-d)' } : { color: 'var(--c-soft)' }}>{r.requestedPrice != null ? formatPrice(r.requestedPrice) : '—'}</td>
                                             <td>
-                                                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/services/${r.serviceId}`)}>
+                                                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => navigate(`/requests/${r.requestId}`, { state: { as: 'offerer' } })}>
                                                     Ver
                                                 </button>
                                             </td>

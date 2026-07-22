@@ -189,6 +189,11 @@ export const addressApi = {
 
 export const requestApi = {
     createRequest: (payload) => request('/api/v1/service-requests', { method: 'POST', body: payload, auth: true }),
+
+    // Detalle de una solicitud (solo participante o admin; el backend valida con el JWT).
+    getRequestDetail: (id) => request(`/api/v1/service-requests/${id}`, { auth: true }),
+    // Historial/línea de tiempo de la solicitud (cadena de reprogramaciones + transiciones de estado).
+    getRequestHistory: (id) => request(`/api/v1/service-requests/${id}/history`, { auth: true }),
     getMyClientRequests: (params = {}) => {
         const queryParams = new URLSearchParams();
         Object.entries(params).forEach(([key, val]) => {
@@ -369,6 +374,16 @@ export const feedbackApi = {
         request(`/api/v1/service-requests/${requestId}/feedback`, { method: 'POST', body: payload, auth: true }),
     submitClientFeedback: (requestId, payload) =>
         request(`/api/v1/service-requests/${requestId}/client-feedback`, { method: 'POST', body: payload, auth: true }),
+    getServiceFeedback: (requestId) =>
+        request(`/api/v1/service-requests/${requestId}/feedback`, { auth: true }),
+    getClientFeedback: (requestId) =>
+        request(`/api/v1/service-requests/${requestId}/client-feedback`, { auth: true }),
+    // Booleano explícito de existencia (evita depender de un 404) para mostrar/ocultar
+    // los botones "Calificar servicio"/"Calificar cliente".
+    serviceFeedbackExists: (requestId) =>
+        request(`/api/v1/service-requests/${requestId}/feedback/exists`, { auth: true }),
+    clientFeedbackExists: (requestId) =>
+        request(`/api/v1/service-requests/${requestId}/client-feedback/exists`, { auth: true }),
 };
 
 // RF-064 — Eliminar servicio desde el panel de administración

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi, getApiImageUrl } from '../../../../shared';
+import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi, getApiImageUrl, ServiceImage } from '../../../../shared';
 
 import './SearchPage.css';
 
@@ -429,11 +429,12 @@ export function SearchPage() {
                                 return (
                                     <div className="r-card" key={s.id} onClick={() => navigate(`/services/${s.id}`)}>
                                         <div className="r-card-img">
-                                            {s.photos?.[0] ? (
-                                                <img src={getApiImageUrl(s.photos[0])} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            ) : (
-                                                <Icon name="wrench" size={38} strokeWidth={1.5} />
-                                            )}
+                                            <ServiceImage
+                                                src={getApiImageUrl(s.photos?.[0])}
+                                                alt={s.title}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                fallback={<Icon name="wrench" size={38} strokeWidth={1.5} />}
+                                            />
                                             <div className="r-card-av">
                                                 <span className={`badge ${availBadge(s.active)}`}>
                                                     {s.active ? 'Disponible' : 'Inactivo'}

@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, getApiImageUrl, isAuthenticated } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, getApiImageUrl, isAuthenticated, ServiceImage } from '../../../../shared';
 
 import './OffererServicesPage.css';
 
@@ -183,7 +183,7 @@ function ServiceModal({
                                         >
                                             ×
                                         </button>
-                                        <img src={src} alt={`Foto ${index + 1}`} onClick={() => setPreviewPhoto(src)} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--c-border)' }} />
+                                        <ServiceImage src={src} alt={`Foto ${index + 1}`} onClick={() => setPreviewPhoto(src)} style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--c-border)' }} />
                                     </div>
                                 );
                             })}
@@ -214,7 +214,7 @@ function ServiceModal({
             {previewPhoto && (
                 <Modal open={true} onClose={() => setPreviewPhoto(null)} maxWidth={760}>
                     <div style={{ textAlign: 'center' }}>
-                        <img src={previewPhoto} alt="Vista previa" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '12px' }} />
+                        <ServiceImage src={previewPhoto} alt="Vista previa" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '12px' }} />
                     </div>
                 </Modal>
             )}
@@ -412,11 +412,12 @@ export function OffererServicesPage() {
                                 </>
                             )}
                         </div>
-                        {s.photos && s.photos.length > 0 ? (
-                            <img src={getApiImageUrl(s.photos[0])} alt={s.title} style={{ width: '100%', height: '138px', objectFit: 'cover', borderRadius: '12px', marginBottom: '10px' }} />
-                        ) : (
-                            <div className={`svc-ico ${!s.active ? 'svc-ico-off' : ''}`}><Icon name="wrench" size={22} /></div>
-                        )}
+                        <ServiceImage
+                            src={s.photos && s.photos.length > 0 ? getApiImageUrl(s.photos[0]) : null}
+                            alt={s.title}
+                            style={{ width: '100%', height: '138px', objectFit: 'cover', borderRadius: '12px', marginBottom: '10px' }}
+                            fallback={<div className={`svc-ico ${!s.active ? 'svc-ico-off' : ''}`}><Icon name="wrench" size={22} /></div>}
+                        />
                         <div className="svc-name">{s.title}</div>
                         <span className={`badge ${s.active ? 'badge-primary' : 'badge-gray'}`} style={{ marginBottom: '10px' }}>{s.category?.name}</span>
                         <div className="svc-desc">{s.description}</div>

@@ -7,7 +7,7 @@ import { CategoryCard } from '../../components/CategoryCard/CategoryCard';
 import { ServiceCard } from '../../components/ServiceCard/ServiceCard';
 import { Hero } from '../../components/Hero/Hero';
 import { Link } from 'react-router-dom';
-import { categoryApi, serviceApi, platformApi } from '../../../../shared';
+import { categoryApi, serviceApi, platformApi, AppNavbar, isAuthenticated } from '../../../../shared';
 
 import "./HomePage.css";
 
@@ -95,7 +95,10 @@ function HomePage() {
 
     return (
         <>
-            <Navbar />
+            {/* Barra según sesión: autenticada (avatar/notificaciones) o pública (login/registro). */}
+            {isAuthenticated()
+                ? <AppNavbar links={[{ to: '/services', label: 'Servicios' }]} />
+                : <Navbar />}
             <Hero categories={categories} />
             {/* Stats Bar */}
             <div className="stats-bar">

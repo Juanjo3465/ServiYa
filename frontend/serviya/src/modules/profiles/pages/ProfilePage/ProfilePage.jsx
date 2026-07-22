@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, OFFERER_NAV, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
+import { DashboardLayout, Avatar, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, OFFERER_NAV, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
@@ -654,11 +654,7 @@ export function ProfilePage() {
                     <div className="profile-id">
                         <div style={{ position: 'relative' }}>
                             <div className="av av-xl">
-                                {profilePhotoSrc ? (
-                                    <img src={profilePhotoSrc} alt="Foto de perfil" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                                ) : (
-                                    initials
-                                )}
+                                <Avatar src={profilePhotoSrc} initials={initials} alt="Foto de perfil" />
                             </div>
                             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfilePhotoUpload} />
                             <button className="avatar-edit" onClick={handleProfilePhotoPick} disabled={uploadingPhoto}>

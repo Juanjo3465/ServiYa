@@ -60,6 +60,11 @@ public class ServiceRequestReadAdapter implements ServiceRequestReadPort {
     }
 
     @Override
+    public long countByClientIdAndStatusIn(Long clientId, List<RequestStatus> statuses) {
+        return repository.countByClientIdAndStatusIn(clientId, statuses);
+    }
+
+    @Override
     public List<ServiceRequest> findByOffererId(Long offererId) {
         return repository.findByOffererId(offererId).stream().map(mapper::toDomain).collect(Collectors.toList());
     }
