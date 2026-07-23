@@ -310,7 +310,11 @@ export const reportApi = {
     createRequestReport: (payload) => request('/api/v1/reports/requests', { method: 'POST', body: payload, auth: true }),
     createServiceFeedbackReport: (payload) => request('/api/v1/reports/service-feedback', { method: 'POST', body: payload, auth: true }),
     createClientFeedbackReport: (payload) => request('/api/v1/reports/client-feedback', { method: 'POST', body: payload, auth: true }),
-    getAll: (page = 0, size = 20) => request(`/api/v1/reports?page=${page}&size=${size}`, { auth: true }),
+    getAll: (page = 0, size = 20, status) => {
+        const qs = new URLSearchParams({ page, size });
+        if (status) qs.set('status', status);
+        return request(`/api/v1/reports?${qs.toString()}`, { auth: true });
+    },
     // Detalle enriquecido (partes + payload del subtipo request/feedback) e historial de acciones.
     getById: (id) => request(`/api/v1/reports/${id}`, { auth: true }),
     getActions: (id) => request(`/api/v1/reports/${id}/actions`, { auth: true }),

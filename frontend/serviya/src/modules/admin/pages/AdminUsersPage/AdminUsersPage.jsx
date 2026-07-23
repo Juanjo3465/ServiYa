@@ -52,7 +52,16 @@ export function AdminUsersPage() {
 
     const loadUsers = useCallback(() => {
         setLoading(true);
-        adminApi.searchUsers({ search, role: roleFilter, status: statusFilter, page, size: 20 })
+        // El backend filtra por email/fullName/role/banned (no por "search"/"status").
+        const params = { page, size: 20 };
+        if (roleFilter) params.role = roleFilter;
+        if (statusFilter === 'BANNED') params.banned = true;
+        else if (statusFilter === 'ACTIVE') params.banned = false;
+        if (search.trim()) {
+            if (search.includes('@')) params.email = search.trim();
+            else params.fullName = search.trim();
+        }
+        adminApi.searchUsers(params)
             .then((data) => {
                 // El backend pagina: Page<UserSummaryResponse>
                 setUsers(data.content ?? data ?? []);
