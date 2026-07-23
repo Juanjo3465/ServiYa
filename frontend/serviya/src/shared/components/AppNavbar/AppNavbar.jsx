@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../Icon/Icon';
 import { Avatar } from '../Avatar/Avatar';
-import { profileApi, getApiImageUrl } from '../../api';
+import { profileApi, getApiImageUrl, isAuthenticated } from '../../api';
 
 /** Iniciales (máx. 2) a partir del nombre completo, para el avatar de texto. */
 function initialsOf(name) {
@@ -11,14 +11,15 @@ function initialsOf(name) {
 }
 
 export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null, links = [], showBell = true, unreadCount = 0 }) {
-    // Foto e iniciales del perfil autenticado. Se piden una vez al montar; el setState solo
-    // ocurre en el callback async (no de forma síncrona dentro del effect).
+    // Barra según sesión: si no hay usuario logueado se muestran login/registro (esta barra se usa
+    // también en páginas públicas como el detalle de servicio o el perfil del oferente).
+    const authed = isAuthenticated();
+
     const [fetchedAvatarSrc, setFetchedAvatarSrc] = useState(null);
-    // Iniciales reales del usuario (fallback del avatar cuando no hay foto), así el "JP"/"CM"
-    // hardcodeado de las páginas deja de verse.
     const [resolvedInitials, setResolvedInitials] = useState(avatar);
 
     useEffect(() => {
+        if (!isAuthenticated()) return;   // sin sesión no se pide el perfil (evita 401)
         let cancelled = false;
         profileApi.getMyProfile()
             .then((profile) => {
@@ -52,15 +53,24 @@ export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null
                 </div>
             )}
             <div className="nav-actions">
-                {showBell && (
-                    <Link to="/notifications" className="nav-icon" aria-label="Notificaciones">
-                        <Icon name="bell" size={16} />
-                        {unreadCount > 0 && <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
-                    </Link>
+                {authed ? (
+                    <>
+                        {showBell && (
+                            <Link to="/notifications" className="nav-icon" aria-label="Notificaciones">
+                                <Icon name="bell" size={16} />
+                                {unreadCount > 0 && <span className="nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+                            </Link>
+                        )}
+                        <Link to="/profile" className="nav-av">
+                            <Avatar src={resolvedAvatarSrc} initials={resolvedInitials} />
+                        </Link>
+                    </>
+                ) : (
+                    <>
+                        <Link to="/login" className="btn btn-outline btn-sm">Iniciar sesión</Link>
+                        <Link to="/register" className="btn btn-primary btn-sm">Registrarse</Link>
+                    </>
                 )}
-                <Link to="/profile" className="nav-av">
-                    <Avatar src={resolvedAvatarSrc} initials={resolvedInitials} />
-                </Link>
             </div>
         </nav>
     );

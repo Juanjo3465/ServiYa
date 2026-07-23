@@ -331,8 +331,8 @@ export function AvailabilityPage() {
             <div className="ph"><h1>Gestión de disponibilidad</h1><p>Configura tu horario general y por servicio</p></div>
 
             <div className="tabs">
-                <div className={`tab ${tab === 0 ? 'active' : ''}`} onClick={() => setTab(0)}>Horario general (RF-072)</div>
-                <div className={`tab ${tab === 1 ? 'active' : ''}`} onClick={() => setTab(1)}>Por servicio (RF-021)</div>
+                <div className={`tab ${tab === 0 ? 'active' : ''}`} onClick={() => setTab(0)}>Horario general</div>
+                <div className={`tab ${tab === 1 ? 'active' : ''}`} onClick={() => setTab(1)}>Por servicio</div>
             </div>
 
             {tab === 0 && (

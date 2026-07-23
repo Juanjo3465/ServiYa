@@ -36,6 +36,7 @@ export function AdminUsersPage() {
     // Detalle / gestion del usuario seleccionado
     const [selected, setSelected] = useState(null);
     const [selectedRoles, setSelectedRoles] = useState([]);  // [{ roleId, name, assignedAt }]
+    const [detail, setDetail] = useState(null);              // GET /admin/users/{id}: perfil + métricas + reportes
     const [mgmtOpen, setMgmtOpen] = useState(false);
     const [editForm, setEditForm] = useState({ email: '', fullName: '', phone: '', description: '' });
     const [saving, setSaving] = useState(false);
@@ -66,6 +67,7 @@ export function AdminUsersPage() {
     /** RF-067: al abrir el detalle se cargan los roles CON su fecha de concesión. */
     const openUser = (user) => {
         setSelected(user);
+        setDetail(null);
         setEditForm({
             email: user.email ?? '',
             fullName: user.fullName ?? '',
@@ -76,6 +78,19 @@ export function AdminUsersPage() {
         adminApi.getUserRoles(user.id)
             .then(setSelectedRoles)
             .catch(() => showToast('No se pudieron cargar los roles', 'danger'));
+        // Detalle enriquecido (perfil + métricas + reportes). Precarga el editForm con los valores reales.
+        adminApi.getUser(user.id)
+            .then((d) => {
+                setDetail(d);
+                setEditForm((f) => ({
+                    ...f,
+                    email: d.email ?? f.email,
+                    fullName: d.fullName ?? f.fullName,
+                    phone: d.phoneNumber ?? '',
+                    description: d.bio ?? '',
+                }));
+            })
+            .catch(() => { /* el detalle es complementario; la gestión funciona sin él */ });
     };
 
     const hasRole = (name) => selectedRoles.some((r) => r.name === name);
@@ -113,10 +128,12 @@ export function AdminUsersPage() {
     const saveUser = () => {
         setSaving(true);
         const changes = {};
-        if (editForm.email && editForm.email !== selected.email) changes.email = editForm.email;
-        if (editForm.fullName && editForm.fullName !== selected.fullName) changes.fullName = editForm.fullName;
-        if (editForm.phone) changes.phone = editForm.phone;
-        if (editForm.description) changes.description = editForm.description;
+        const baseEmail = detail?.email ?? selected.email;
+        const baseName = detail?.fullName ?? selected.fullName;
+        if (editForm.email && editForm.email !== baseEmail) changes.email = editForm.email;
+        if (editForm.fullName && editForm.fullName !== baseName) changes.fullName = editForm.fullName;
+        if (editForm.phone !== (detail?.phoneNumber ?? '')) changes.phone = editForm.phone;
+        if (editForm.description !== (detail?.bio ?? '')) changes.description = editForm.description;
 
         if (Object.keys(changes).length === 0) {
             showToast('No hay cambios por guardar', 'warn');
@@ -311,6 +328,34 @@ export function AdminUsersPage() {
                         <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>{selected?.email}</div>
                     </div>
                 </div>
+
+                {detail && (
+                    <div style={{ background: 'var(--c-bg-s)', borderRadius: 'var(--r-lg)', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: 'var(--c-mid)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                            <div><strong>Registrado:</strong> {formatDate(detail.createdAt)}</div>
+                            <div><strong>Estado:</strong> {detail.deletedAt ? 'Eliminado' : detail.banned ? 'Baneado' : 'Activo'}</div>
+                            <div><strong>Documento:</strong> {detail.documentType || '—'} {detail.documentNumber || ''}</div>
+                            <div><strong>Reportes:</strong> {detail.reportsReceived ?? 0} recib. / {detail.reportsSent ?? 0} env.</div>
+                        </div>
+                        {detail.bio && <div style={{ marginTop: '6px' }}><strong>Bio:</strong> {detail.bio}</div>}
+                        {detail.clientMetrics && (
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--c-border)' }}>
+                                <strong>Como cliente:</strong> ⭐ {Number(detail.clientMetrics.averageRating ?? 0).toFixed(1)}
+                                {' · '}{detail.clientMetrics.totalCompletedRequests ?? 0} completadas
+                                {' · '}{detail.clientMetrics.totalCancelledRequests ?? 0} canceladas
+                                {' · '}{detail.clientMetrics.activeRequests ?? 0} activas
+                            </div>
+                        )}
+                        {detail.offererMetrics && (
+                            <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px solid var(--c-border)' }}>
+                                <strong>Como oferente:</strong> ⭐ {Number(detail.offererMetrics.averageRating ?? 0).toFixed(1)}
+                                {' · '}{detail.offererMetrics.totalCompletedServices ?? 0} servicios
+                                {' · '}{detail.offererMetrics.totalCancelledServices ?? 0} cancelados
+                                {' · '}{detail.offererMetrics.totalRequestsReceived ?? 0} recibidas
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div className="input-group">
                     <label className="label">Roles asignados (RF-065/066/067)</label>

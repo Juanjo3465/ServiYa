@@ -146,10 +146,11 @@ export function RequestDetailPage() {
                 showToast('Reseña del servicio enviada', 'success');
             } else if (reviewAction === 'complete') {
                 await requestApi.markCompleted(id);
-                if (hasReview) await feedbackApi.submitClientFeedback(id, payload);
+                // El feedback de cliente exige clientId; para el oferente la contraparte ES el cliente.
+                if (hasReview) await feedbackApi.submitClientFeedback(id, { ...payload, clientId: detail.counterpartyId });
                 showToast('Servicio marcado como completado', 'success');
             } else if (reviewAction === 'rateClient') {
-                if (hasReview) await feedbackApi.submitClientFeedback(id, payload);
+                if (hasReview) await feedbackApi.submitClientFeedback(id, { ...payload, clientId: detail.counterpartyId });
                 showToast('Cliente calificado', 'success');
             }
             setReviewAction(null);
