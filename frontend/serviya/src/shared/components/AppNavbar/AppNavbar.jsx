@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../Icon/Icon';
 import { Avatar } from '../Avatar/Avatar';
+import { sidebarStore } from '../../hooks/useSidebar';
 import { profileApi, getApiImageUrl, isAuthenticated } from '../../api';
 
 /** Iniciales (máx. 2) a partir del nombre completo, para el avatar de texto. */
@@ -10,7 +11,7 @@ function initialsOf(name) {
     return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 }
 
-export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null, links = [], showBell = true, unreadCount = 0 }) {
+export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null, links = [], showBell = true, unreadCount = 0, showBurger = false }) {
     // Barra según sesión: si no hay usuario logueado se muestran login/registro (esta barra se usa
     // también en páginas públicas como el detalle de servicio o el perfil del oferente).
     const authed = isAuthenticated();
@@ -41,6 +42,11 @@ export function AppNavbar({ avatar = 'JP', avatarSrc: controlledAvatarSrc = null
 
     return (
         <nav className="nav">
+            {showBurger && (
+                <button className="nav-burger" onClick={() => sidebarStore.toggle()} aria-label="Abrir menú">
+                    <Icon name="menu" size={20} />
+                </button>
+            )}
             <Link to="/" className="nav-logo">
                 <img src="/logo.svg" alt="ServiYa" style={{ height: '24px' }} />
             </Link>

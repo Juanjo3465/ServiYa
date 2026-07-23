@@ -21,7 +21,6 @@ export function ClientRequestsPage() {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState(null);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
     // RF-073: solicitud concreta que se esta reportando (antes iba fija a la #1).
@@ -234,7 +233,7 @@ export function ClientRequestsPage() {
                                 category: reportCategory,
                                 customCategory,
                                 reason: reportReason,
-                                requestId: reportTarget?.id,
+                                requestId: reportTarget?.requestId,
                             });
                             setReportOpen(false);
                             setReportCategory('No se presentó');

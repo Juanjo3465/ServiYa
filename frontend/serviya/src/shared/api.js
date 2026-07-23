@@ -42,6 +42,16 @@ export function rolesFromToken(token = getToken()) {
     }
 }
 
+// Id del usuario autenticado: el backend usa el userId como "sub" del JWT.
+export function userIdFromToken(token = getToken()) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.sub ? Number(payload.sub) : null;
+    } catch {
+        return null;
+    }
+}
+
 // Llama a la API y devuelve el JSON; si la respuesta es de error, lanza con el mensaje del backend.
 async function request(path, { method = 'GET', body, auth = false, formData = false } = {}) {
     const headers = {};
@@ -257,6 +267,8 @@ export const proposalApi = {
     acceptProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/accept`, { method: 'POST', auth: true }),
     rejectProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/reject`, { method: 'POST', auth: true }),
     cancelProposal: (id) => request(`/api/v1/reschedule-proposals/${id}/cancel`, { method: 'POST', auth: true }),
+    // Detalle enriquecido de una propuesta (incluye requestId, dirección, precio, etc.).
+    getProposalById: (id) => request(`/api/v1/reschedule-proposals/${id}`, { auth: true }),
     getReceived: (params = {}) => {
         const qs = new URLSearchParams();
         Object.entries(params).forEach(([key, val]) => {
@@ -299,6 +311,11 @@ export const reportApi = {
     createServiceFeedbackReport: (payload) => request('/api/v1/reports/service-feedback', { method: 'POST', body: payload, auth: true }),
     createClientFeedbackReport: (payload) => request('/api/v1/reports/client-feedback', { method: 'POST', body: payload, auth: true }),
     getAll: (page = 0, size = 20) => request(`/api/v1/reports?page=${page}&size=${size}`, { auth: true }),
+    // Detalle enriquecido (partes + payload del subtipo request/feedback) e historial de acciones.
+    getById: (id) => request(`/api/v1/reports/${id}`, { auth: true }),
+    getActions: (id) => request(`/api/v1/reports/${id}/actions`, { auth: true }),
+    // RF: reportes enviados por un usuario (para "Mis reportes"). Los recibidos NO se exponen.
+    getSentByUser: (userId) => request(`/api/v1/users/${userId}/reports/sent`, { auth: true }),
 };
 
 export const userApi = {

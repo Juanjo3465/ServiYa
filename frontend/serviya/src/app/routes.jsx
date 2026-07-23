@@ -14,10 +14,12 @@ import {
     ClientHistoryPage,
     OffererHistoryPage,
     OffererRequestsPage,
+    OffererReschedulesPage,
     RequestServicePage,
     RequestDetailPage,
 } from "../modules/requests";
 import { NotificationsPage } from "../modules/notifications";
+import { MyReportsPage } from "../modules/reports";
 import { AdminDashboardPage, AdminUsersPage, AdminReportsPage, AdminFeedbackPage, AdminServicesPage } from "../modules/admin";
 
 const page = (element) => ({ element: <App>{element}</App> });
@@ -37,6 +39,7 @@ export const router = createBrowserRouter([
     // Account (shared by roles)
     { path: "/profile", ...page(<ProfilePage />) },
     { path: "/notifications", ...page(<NotificationsPage />) },
+    { path: "/my-reports", ...page(<MyReportsPage />) },
 
     // Client
     { path: "/dashboard", ...page(<ClientDashboardPage />) },
@@ -53,6 +56,7 @@ export const router = createBrowserRouter([
     { path: "/offerer/services/:id", ...page(<OffererServiceDetailPage />) },
     { path: "/offerer/availability", ...page(<AvailabilityPage />) },
     { path: "/offerer/schedule", ...page(<OffererSchedulePage />) },
+    { path: "/offerer/reschedules", ...page(<OffererReschedulesPage />) },
     { path: "/offerer/history", ...page(<OffererHistoryPage />) },
 
     // Admin

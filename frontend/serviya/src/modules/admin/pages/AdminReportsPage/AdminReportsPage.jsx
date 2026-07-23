@@ -6,6 +6,7 @@ import { ManagementModal } from '../../components/ManagementModal/ManagementModa
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
 import { useToast } from '../../../../shared/hooks/useToast';
 import { reportApi, moderationApi, userApi } from '../../../../shared/api';
+import { Modal, Avatar, Icon, getApiImageUrl } from '../../../../shared';
 
 import './AdminReportsPage.css';
 
@@ -22,6 +23,24 @@ const PRIORITY_LABELS = {
     CRITICAL: 'Crítica'
 };
 
+const STATUS_LABELS = { PENDING: 'Pendiente', RESOLVED: 'Resuelto', CLOSED: 'Cerrado' };
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+
+function PartyBlock({ label, party }) {
+    if (!party) return null;
+    return (
+        <div>
+            <div style={{ fontSize: '11px', color: 'var(--c-soft)', textTransform: 'uppercase', marginBottom: '4px' }}>{label}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="av av-sm">
+                    <Avatar src={getApiImageUrl(party.photoUrl)} initials={getInitials(party.fullName)} />
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>{party.fullName || `Usuario #${party.userId}`}</span>
+            </div>
+        </div>
+    );
+}
+
 const getInitials = (name = '') => {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return 'U';
@@ -35,6 +54,10 @@ export function AdminReportsPage() {
     const [selectedReport, setSelectedReport] = useState(null);
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
+    // Detalle enriquecido (GET /reports/{id}) + historial de acciones (GET /reports/{id}/actions).
+    const [detailOpen, setDetailOpen] = useState(false);
+    const [detail, setDetail] = useState(null);
+    const [detailActions, setDetailActions] = useState([]);
 
     useEffect(() => {
         const loadReports = async () => {
@@ -78,6 +101,18 @@ export function AdminReportsPage() {
 
     const handleOpenManagement = (report) => {
         setSelectedReport(report);
+    };
+
+    const openDetail = (report) => {
+        setDetail(null);
+        setDetailActions([]);
+        setDetailOpen(true);
+        reportApi.getById(report.rawId)
+            .then(setDetail)
+            .catch(() => showToast('No se pudo cargar el detalle del reporte', 'danger'));
+        reportApi.getActions(report.rawId)
+            .then((a) => setDetailActions(Array.isArray(a) ? a : []))
+            .catch(() => { /* el historial es complementario */ });
     };
 
     const handleExecuteManagement = useCallback(async (action) => {
@@ -152,11 +187,11 @@ export function AdminReportsPage() {
 
                     <div>
                         {loading ? <div className="card">Cargando reportes...</div> : reports.filter((report) => activeTab === 'Todos' || (activeTab === 'Pendientes' ? report.rawStatus === 'PENDING' : report.rawStatus === 'RESOLVED')).map((report) => (
-                            <ReportCard 
-                                key={report.rawId} 
-                                report={report} 
+                            <ReportCard
+                                key={report.rawId}
+                                report={report}
                                 onManage={handleOpenManagement}
-                                onNotify={() => showToast('Notificación enviada por correo', 'success')}
+                                onDetail={() => openDetail(report)}
                                 onDelete={() => handleDeleteFeedback(report)}
                             />
                         ))}
@@ -172,6 +207,68 @@ export function AdminReportsPage() {
                     onExecute={handleExecuteManagement}
                 />
             )}
+
+            {/* Detalle enriquecido del reporte (partes reales + payload del subtipo + historial) */}
+            <Modal open={detailOpen} onClose={() => setDetailOpen(false)} maxWidth={560}>
+                {!detail ? (
+                    <div style={{ textAlign: 'center', padding: '24px', color: 'var(--c-soft)' }}>Cargando detalle...</div>
+                ) : (
+                    <>
+                        <div className="modal-title">Detalle del reporte</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                            <span className="badge badge-primary">{REPORT_TYPE_LABELS[detail.reportType] ?? detail.reportType}</span>
+                            <span className="badge badge-gray">{PRIORITY_LABELS[detail.priority] ?? detail.priority}</span>
+                            <span className="badge badge-warn">{STATUS_LABELS[detail.status] ?? detail.status}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--c-soft)', marginLeft: 'auto' }}>{fmtDate(detail.createdAt)}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                            <PartyBlock label="Reportante" party={detail.reporter} />
+                            <PartyBlock label="Reportado" party={detail.reported} />
+                        </div>
+
+                        <div style={{ background: 'var(--c-bg-s)', borderRadius: 'var(--r-lg)', padding: '10px 12px', fontSize: '12px', color: 'var(--c-mid)', marginBottom: '12px' }}>
+                            <strong>Motivo:</strong> {detail.category}<br />
+                            <strong>Descripción:</strong> {detail.reason}
+                        </div>
+
+                        {detail.request && (
+                            <div style={{ border: '1px solid var(--c-border)', borderRadius: 'var(--r-lg)', padding: '10px 12px', fontSize: '12px', marginBottom: '12px' }}>
+                                <div style={{ fontWeight: 700, marginBottom: '4px' }}>Solicitud reportada</div>
+                                <div>{detail.request.serviceTitle} · {fmtDate(detail.request.scheduledDate)}</div>
+                                <div style={{ color: 'var(--c-mid)' }}>
+                                    Estado: {detail.request.status}
+                                    {detail.request.city ? ` · ${detail.request.city}` : ''}
+                                    {detail.request.requestedPrice != null ? ` · $${Number(detail.request.requestedPrice).toLocaleString('es-CO')}` : ''}
+                                </div>
+                            </div>
+                        )}
+
+                        {detail.feedback && (
+                            <div style={{ border: '1px solid var(--c-border)', borderRadius: 'var(--r-lg)', padding: '10px 12px', fontSize: '12px', marginBottom: '12px' }}>
+                                <div style={{ fontWeight: 700, marginBottom: '4px' }}>Reseña reportada</div>
+                                <div>
+                                    {detail.feedback.rating != null && <>{'★'.repeat(detail.feedback.rating)}{'☆'.repeat(5 - detail.feedback.rating)} · </>}
+                                    {fmtDate(detail.feedback.createdAt)}
+                                </div>
+                                {detail.feedback.comment && <div style={{ marginTop: '4px', color: 'var(--c-mid)', fontStyle: 'italic' }}>"{detail.feedback.comment}"</div>}
+                            </div>
+                        )}
+
+                        <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>Historial de acciones ({detailActions.length})</div>
+                        {detailActions.length > 0 ? detailActions.map((a, i) => (
+                            <div key={i} style={{ fontSize: '12px', color: 'var(--c-mid)', paddingBottom: '8px', marginBottom: '8px', borderBottom: i < detailActions.length - 1 ? '1px solid var(--c-border-s)' : 'none' }}>
+                                <div><Icon name="shield" size={12} /> {a.actionDescription}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--c-soft)' }}>Admin #{a.adminId} · {fmtDate(a.createdAt)}</div>
+                            </div>
+                        )) : (
+                            <div style={{ fontSize: '12px', color: 'var(--c-soft)' }}>Sin acciones registradas todavía.</div>
+                        )}
+
+                        <button className="btn btn-ghost btn-full" style={{ marginTop: '14px' }} onClick={() => setDetailOpen(false)}>Cerrar</button>
+                    </>
+                )}
+            </Modal>
 
             <ToastContainer toasts={toasts} />
         </>

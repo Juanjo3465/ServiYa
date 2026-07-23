@@ -25,6 +25,7 @@ export const CLIENT_NAV = [
         items: [
             { label: 'Mi perfil', to: '/profile', icon: 'user' },
             { label: 'Notificaciones', to: '/notifications', icon: 'bell' },
+            { label: 'Mis reportes', to: '/my-reports', icon: 'alertTriangle' },
         ],
     },
 ];
@@ -43,6 +44,7 @@ export const OFFERER_NAV = [
         items: [
             { label: 'Recibidas', to: '/offerer/requests', icon: 'tasks' },
             { label: 'Agenda', to: '/offerer/schedule', icon: 'calendar' },
+            { label: 'Reprogramaciones', to: '/offerer/reschedules', icon: 'reschedule' },
             { label: 'Historial', to: '/offerer/history', icon: 'history' },
         ],
     },
@@ -51,6 +53,7 @@ export const OFFERER_NAV = [
         items: [
             { label: 'Mi perfil', to: '/profile', icon: 'user' },
             { label: 'Notificaciones', to: '/notifications', icon: 'bell' },
+            { label: 'Mis reportes', to: '/my-reports', icon: 'alertTriangle' },
         ],
     },
 ];

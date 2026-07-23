@@ -49,6 +49,7 @@ public interface ServiceWebMapper {
 
     @Mapping(target = "id", source = "feedback.id")
     @Mapping(target = "requestId", source = "feedback.requestId")
+    @Mapping(target = "userId", source = "feedback.clientId")
     @Mapping(target = "comment", source = "feedback.comment")
     @Mapping(target = "rating", source = "feedback.rating")
     @Mapping(target = "createdAt", source = "feedback.createdAt")

@@ -456,7 +456,7 @@ export function ServiceDetailPage() {
 
             <Modal open={feedbackReportOpen} onClose={() => setFeedbackReportOpen(false)}>
                 <div className="modal-title">Reportar reseña</div>
-                <div className="modal-sub">{feedbackTarget ? `Estás reportando la reseña de ${feedbackTarget.name}.` : 'Indica el motivo del reporte.'}</div>
+                <div className="modal-sub">{feedbackTarget ? `Estás reportando la reseña de ${feedbackTarget.userName || 'este usuario'}.` : 'Indica el motivo del reporte.'}</div>
                 <div className="input-group"><label className="label">Categoría</label><select className="input" value={feedbackReportCategory} onChange={(e) => setFeedbackReportCategory(e.target.value)}><option>Contenido inapropiado</option><option>Spam</option><option>Amenaza o acoso</option><option>Otra</option></select></div>
                 {feedbackReportCategory === 'Otra' && <div className="input-group"><label className="label">Categoría personalizada</label><input className="input" value={feedbackCustomCategory} onChange={(e) => setFeedbackCustomCategory(e.target.value)} placeholder="Escribe la categoría" /></div>}
                 <div className="input-group"><label className="label">Descripción</label><textarea className="input" value={feedbackReportReason} onChange={(e) => setFeedbackReportReason(e.target.value)} placeholder="Describe lo que ocurrió..." /></div>

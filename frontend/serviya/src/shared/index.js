@@ -38,6 +38,7 @@ export {
     clearToken,
     isAuthenticated,
     rolesFromToken,
+    userIdFromToken,
     userApi,
     metricsApi,
     notificationApi,

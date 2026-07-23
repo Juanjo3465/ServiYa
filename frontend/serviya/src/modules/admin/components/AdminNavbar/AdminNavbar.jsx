@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { profileApi } from '../../../../shared/api';
+import { Icon } from '../../../../shared';
+import { sidebarStore } from '../../../../shared/hooks/useSidebar';
 import './AdminNavbar.css';
 
 /** Iniciales (máx. 2) a partir del nombre completo. */
@@ -26,6 +28,9 @@ export function AdminNavbar() {
 
     return (
         <nav className="admin-nav">
+            <button className="nav-burger" onClick={() => sidebarStore.toggle()} aria-label="Abrir menú">
+                <Icon name="menu" size={20} />
+            </button>
             <Link
                 to="/"
                 className="nav-logo">

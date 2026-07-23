@@ -34,7 +34,7 @@ export function DashboardLayout({ sections, avatar, avatarSrc, navLinks = [], ch
 
     return (
         <>
-            <AppNavbar avatar={avatar} avatarSrc={avatarSrc} links={navLinks} unreadCount={unreadCount} />
+            <AppNavbar avatar={avatar} avatarSrc={avatarSrc} links={navLinks} unreadCount={unreadCount} showBurger />
             <div className="layout">
                 <Sidebar sections={sections} />
                 <main className="main">{children}</main>

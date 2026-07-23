@@ -1,19 +1,30 @@
 import './ReportCard.css';
 
-export function ReportCard({ report, onManage, onNotify, onDelete }) {
+export function ReportCard({ report, onManage, onDetail, onDelete }) {
     if (report.status === 'Resuelto') {
         return (
-            <div className="card" style={{ opacity: .65 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="card" style={{ opacity: .8, marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span className="badge badge-primary">{report.type}</span>
                         <span className="badge badge-gray">{report.priority}</span>
                         <span style={{ fontSize: '12px', color: 'var(--c-soft)' }}>{report.id} · {report.date}</span>
                     </div>
-                    <span className="badge badge-success">Resuelto</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="badge badge-success">Resuelto</span>
+                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={onDetail}>Ver detalle</button>
+                    </div>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--c-mid)' }}>
-                    {report.resolutionText}
+                {/* Mantiene reportante → reportado y categoría para poder ubicarlo sin buscador. */}
+                <div style={{ marginTop: '10px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px', color: 'var(--c-mid)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div className="av av-xs">{report.reporterInitials}</div>
+                        <span style={{ fontWeight: 600 }}>{report.reporterName}</span>
+                        <span style={{ color: 'var(--c-soft)' }}>→</span>
+                        <div className="av av-xs">{report.reportedInitials}</div>
+                        <span style={{ fontWeight: 600 }}>{report.reportedName}</span>
+                    </div>
+                    <span className="badge badge-gray">{report.category}</span>
                 </div>
             </div>
         );
@@ -51,12 +62,6 @@ export function ReportCard({ report, onManage, onNotify, onDelete }) {
                         <span style={{ fontSize: '13px', fontWeight: 600 }}>{report.reportedName}</span>
                     </div>
                 </div>
-                {report.contextInfo && (
-                    <div>
-                        <div style={{ fontSize: '11px', color: 'var(--c-soft)', textTransform: 'uppercase', marginBottom: '4px' }}>Solicitud</div>
-                        <div style={{ fontSize: '13px' }}>{report.contextInfo}</div>
-                    </div>
-                )}
             </div>
 
             <div style={{ background: 'var(--c-bg-s)', borderRadius: 'var(--r-lg)', padding: '10px 12px', fontSize: '12px', color: 'var(--c-mid)', marginBottom: '12px' }}>
@@ -66,19 +71,16 @@ export function ReportCard({ report, onManage, onNotify, onDelete }) {
 
             <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
                 <button className="btn btn-primary btn-sm" onClick={() => onManage(report)}>
-                    {report.type === 'Solicitud' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', marginRight: '2px' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', marginRight: '2px' }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                     {report.type === 'Solicitud' ? 'Gestionar y cerrar' : 'Gestionar'}
                 </button>
-                
-                {report.type === 'Solicitud' ? (
-                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={onNotify}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', marginRight: '2px' }}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-                        Notificar usuario (RF-060)
-                    </button>
-                ) : (
+                <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={onDetail}>
+                    Ver detalle
+                </button>
+                {report.type !== 'Solicitud' && (
                     <button className="btn btn-danger btn-sm" onClick={onDelete}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', marginRight: '2px' }}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /></svg>
-                        Eliminar reseña (RF-049)
+                        Eliminar reseña
                     </button>
                 )}
             </div>

@@ -452,6 +452,29 @@ textarea.input {
 }
 
 /* LAYOUT */
+/* Botón hamburguesa: oculto en escritorio, visible en móvil (ver media query ≤768px). */
+.nav-burger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--c-text);
+    cursor: pointer;
+    padding: 6px;
+    margin-right: 2px;
+    border-radius: 8px;
+}
+
+.nav-burger:hover {
+    background: var(--c-bg-s);
+}
+
+/* Fondo oscuro del drawer: solo aparece en móvil cuando el sidebar está abierto. */
+.sidebar-backdrop {
+    display: none;
+}
+
 .layout {
     display: flex;
     min-height: calc(100vh - 60px);
@@ -1181,8 +1204,32 @@ tr:hover td {
         display: none;
     }
 
+    .nav-burger {
+        display: inline-flex;
+    }
+
+    /* Sidebar como drawer deslizable desde la izquierda. */
     .sidebar {
-        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--sh-lg);
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 999;
     }
 
     .main {
