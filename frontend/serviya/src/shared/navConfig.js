@@ -41,6 +41,7 @@ export const OFFERER_NAV = [
     {
         title: 'Solicitudes',
         items: [
+            { label: 'Recibidas', to: '/offerer/requests', icon: 'tasks' },
             { label: 'Agenda', to: '/offerer/schedule', icon: 'calendar' },
             { label: 'Historial', to: '/offerer/history', icon: 'history' },
         ],

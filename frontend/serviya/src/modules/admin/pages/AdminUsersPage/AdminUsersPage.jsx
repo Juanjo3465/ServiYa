@@ -12,6 +12,9 @@ const ROLES = [
     { id: 'ADMIN', label: 'Administrador', desc: 'gestiona usuarios, roles y moderación' },
 ];
 
+const DOCUMENT_TYPES = ['CC', 'CE', 'NIT', 'PASAPORTE'];
+const EMPTY_CREATE_USER = { email: '', password: '', fullName: '', role: 'CLIENT', documentType: 'CC', documentNumber: '', phone: '' };
+
 const initialsOf = (name) => (name || '?')
     .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
@@ -40,6 +43,11 @@ export function AdminUsersPage() {
     const [banOpen, setBanOpen] = useState(false);
     const [banReason, setBanReason] = useState('');
     const [banLoading, setBanLoading] = useState(false);
+
+    // Crear usuario (RF-063)
+    const [createOpen, setCreateOpen] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [createForm, setCreateForm] = useState(EMPTY_CREATE_USER);
 
     const loadUsers = useCallback(() => {
         setLoading(true);
@@ -167,6 +175,33 @@ export function AdminUsersPage() {
             .finally(() => setBanLoading(false));
     };
 
+    /** RF-063: alta de usuario por el admin. role obligatorio; documento/telefono opcionales. */
+    const createUser = () => {
+        if (!createForm.email || !createForm.password || !createForm.fullName) {
+            showToast('Correo, contraseña y nombre son obligatorios', 'danger');
+            return;
+        }
+        if (createForm.password.length < 8) {
+            showToast('La contraseña debe tener al menos 8 caracteres', 'danger');
+            return;
+        }
+        const payload = { ...createForm };
+        // Documento va completo o no va; teléfono opcional.
+        if (!payload.documentNumber?.trim()) { delete payload.documentType; delete payload.documentNumber; }
+        if (!payload.phone?.trim()) delete payload.phone;
+
+        setCreating(true);
+        adminApi.createUser(payload)
+            .then(() => {
+                showToast('Usuario creado', 'success');
+                setCreateOpen(false);
+                setCreateForm(EMPTY_CREATE_USER);
+                loadUsers();
+            })
+            .catch((e) => showToast(e.message || 'No se pudo crear el usuario', 'danger'))
+            .finally(() => setCreating(false));
+    };
+
     const statusOf = (u) => {
         if (u.deletedAt) return { label: 'Eliminado', badge: 'badge-gray' };
         if (u.banned) return { label: 'Baneado', badge: 'badge-danger' };
@@ -184,6 +219,9 @@ export function AdminUsersPage() {
                             <h1>Gestión de usuarios</h1>
                             <p>{loading ? 'Cargando…' : `${total} usuario(s) encontrados`}</p>
                         </div>
+                        <button className="btn btn-primary" onClick={() => { setCreateForm(EMPTY_CREATE_USER); setCreateOpen(true); }}>
+                            <Icon name="plus" size={15} />Crear usuario
+                        </button>
                     </div>
 
                     <div className="users-filters">
@@ -351,6 +389,55 @@ export function AdminUsersPage() {
                     <button className="btn btn-ghost btn-full" onClick={() => setBanOpen(false)}>Cancelar</button>
                     <button className="btn btn-danger btn-full" disabled={banLoading} onClick={selected?.banned ? unbanUser : banUser}>
                         {selected?.banned ? <><Icon name="check" size={15} />Confirmar desbaneo</> : <><Icon name="ban" size={15} />Confirmar baneo</>}
+                    </button>
+                </div>
+            </Modal>
+
+            {/* Crear usuario (RF-063) */}
+            <Modal open={createOpen} onClose={() => setCreateOpen(false)}>
+                <div className="modal-title">Crear usuario</div>
+                <div className="modal-sub">El usuario podrá iniciar sesión con el correo y la contraseña que definas.</div>
+
+                <div className="input-group">
+                    <label className="label">Nombre completo *</label>
+                    <input className="input" value={createForm.fullName} onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })} placeholder="Nombre y apellido" />
+                </div>
+                <div className="input-group">
+                    <label className="label">Correo *</label>
+                    <input className="input" type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="correo@ejemplo.com" />
+                </div>
+                <div className="input-group">
+                    <label className="label">Contraseña * (mín. 8)</label>
+                    <input className="input" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="••••••••" />
+                </div>
+                <div className="input-group">
+                    <label className="label">Rol inicial *</label>
+                    <select className="input" value={createForm.role} onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}>
+                        {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                    </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <div className="input-group" style={{ flex: '0 0 40%' }}>
+                        <label className="label">Tipo doc.</label>
+                        <select className="input" value={createForm.documentType} onChange={(e) => setCreateForm({ ...createForm, documentType: e.target.value })}>
+                            {DOCUMENT_TYPES.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </div>
+                    <div className="input-group" style={{ flex: 1 }}>
+                        <label className="label">Número de documento</label>
+                        <input className="input" value={createForm.documentNumber} onChange={(e) => setCreateForm({ ...createForm, documentNumber: e.target.value })} placeholder="Opcional" />
+                    </div>
+                </div>
+                <div className="input-group">
+                    <label className="label">Teléfono</label>
+                    <input className="input" value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} placeholder="Opcional (se cifra AES-256-GCM)" />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <button className="btn btn-ghost btn-full" onClick={() => setCreateOpen(false)}>Cancelar</button>
+                    <button className="btn btn-primary btn-full" onClick={createUser} disabled={creating}>
+                        {creating ? 'Creando…' : 'Crear usuario'}
                     </button>
                 </div>
             </Modal>

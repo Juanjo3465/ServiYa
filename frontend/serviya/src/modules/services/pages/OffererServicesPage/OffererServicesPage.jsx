@@ -431,12 +431,9 @@ export function OffererServicesPage() {
                             </div>
                         )}
                         <div className="divider" />
-                        {/* <div className="svc-foot">
-                            {s.active
-                                ? <span><Stars rating={s.rating} size={12} /> {s.rating} · {s.requests} sol.</span>
-                                : <span style={{ color: 'var(--c-soft)' }}>Sin solicitudes aún</span>}
-                            <label className="svc-visible"><input type="checkbox" defaultChecked={s.active} /> Visible</label>
-                        </div> */}
+                        <button className="btn btn-outline btn-sm btn-full" onClick={() => navigate(`/offerer/services/${s.id}`)}>
+                            <Icon name="search" size={13} />Ver detalle
+                        </button>
                     </div>
                 ))}
             </div>

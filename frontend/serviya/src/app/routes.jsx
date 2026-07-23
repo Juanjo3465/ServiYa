@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
 
-import { HomePage, SearchPage, ServiceDetailPage, OffererServicesPage, AvailabilityPage } from "../modules/services";
+import { HomePage, SearchPage, ServiceDetailPage, OffererServicesPage, OffererServiceDetailPage, AvailabilityPage } from "../modules/services";
 import { LoginPage, RegisterPage, RecoverPasswordPage, ResetPasswordPage } from "../modules/users";
 import { ProfilePage, OffererProfilePage } from "../modules/profiles";
 import {
@@ -13,6 +13,7 @@ import {
     OffererSchedulePage,
     ClientHistoryPage,
     OffererHistoryPage,
+    OffererRequestsPage,
     RequestServicePage,
     RequestDetailPage,
 } from "../modules/requests";
@@ -47,7 +48,9 @@ export const router = createBrowserRouter([
 
     // Offerer
     { path: "/offerer/dashboard", ...page(<OffererDashboardPage />) },
+    { path: "/offerer/requests", ...page(<OffererRequestsPage />) },
     { path: "/offerer/services", ...page(<OffererServicesPage />) },
+    { path: "/offerer/services/:id", ...page(<OffererServiceDetailPage />) },
     { path: "/offerer/availability", ...page(<AvailabilityPage />) },
     { path: "/offerer/schedule", ...page(<OffererSchedulePage />) },
     { path: "/offerer/history", ...page(<OffererHistoryPage />) },
