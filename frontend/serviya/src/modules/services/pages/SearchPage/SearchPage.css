@@ -108,10 +108,12 @@ body {
     align-items: center;
     gap: 8px;
     margin-top: 8px;
+    overflow: hidden;
 }
 
 .price-in {
     flex: 1;
+    min-width: 0;
     padding: 7px 10px;
     border: 1.5px solid var(--c-border);
     border-radius: var(--r);
