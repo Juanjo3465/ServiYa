@@ -453,6 +453,12 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
   en vez de disco local. Prerrequisito para réplicas/contenedores efímeros.
 - **M6 — Gestión de secretos sin defaults**: fail-fast si falta `JWT_SECRET`/`ENCRYPTION_KEY` en
   prod; perfiles Spring (`dev`/`prod`) que separen config de desarrollo (stacktraces, DEBUG, CORS).
+- **M25 — ⚙️ Herramienta de migraciones (Flyway).** Reemplazar `create_database.sql` (solo volumen
+  limpio) + `ddl-auto: update` por **Flyway** con `ddl-auto: validate`: `V1__baseline.sql` derivado del
+  SQL actual y cambios futuros como migraciones versionadas (`V2__`, …). Recomendado **Flyway** sobre
+  Liquibase (el equipo ya escribe SQL, MySQL, modelo simple). En microservicios, **cada servicio** versiona
+  su propio esquema con sus migraciones. Da esquema reproducible entre entornos y migraciones de datos
+  seguras; prerrequisito de la BD-por-servicio.
 - **M24 — ⚙️ Estrategia de pruebas (red de seguridad de la migración).** Prerrequisito real del
   estrangulamiento: sin tests que fijen el comportamiento, refactorizar fronteras y partir servicios es
   a ciegas. Incluye: **(a)** tests de **integración con Testcontainers** (MySQL real) por módulo/flujo;
@@ -509,6 +515,50 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 - **M23 — Enriquecer el detalle de servicio** (`ServiceDetailPage` pública y/o la del oferente) con
   feedback de ambas partes, más métricas del servicio/oferente y tags de reseña (hoy muestra un set
   limitado; requiere exponer/usar más lecturas de feedback — ver §5).
+
+### 6.5 Propuestas a futuro — mejoras adicionales y roadmap de features (sesión 2026-10-03)
+
+> Ideas propuestas por el asistente, **no compromisos**. Priorizar con el equipo. Separadas del backlog
+> de correcciones (M1–M25) porque añaden capacidades nuevas, no arreglan lo existente.
+
+**6.5.a — Seguridad y validación (endurecimiento adicional)**
+- **M26 — Access tokens cortos + refresh tokens (rotación).** Resuelve la revocación de rol / ban
+  diferido (§3.1/B15) y es el modelo de auth natural para el API gateway.
+- **M27 — Verificación de email en el registro** (hoy cualquier correo registra) + **política de
+  fortaleza de contraseña** (hoy solo ≥8).
+- **M28 — Audit log transversal** de acciones sensibles/admin (hoy solo existe `report_actions`).
+- **M29 — MFA para admins** + bloqueo progresivo en login (complementa el rate limiting).
+- **M30 — Validación consistente**: activar `@Valid` donde falta (slots), validar formatos
+  (teléfono/documento/precio/coordenadas), y reglas de negocio como **422** (no `IllegalArgumentException`
+  →500).
+- **M31 — Idempotency keys** en POST de estado (aceptar/crear): elimina la clase "doble submit",
+  incluida la carrera de propuestas (B8) a nivel de API.
+- **M32 — Export de datos / derecho al olvido** (completa consent + soft-delete existentes).
+
+**6.5.b — Comportamiento y diseño**
+- **M33 — Problem Details (RFC 9457)** como cuerpo de error estándar (ya citado en el doc de diseño).
+- **M34 — Caché** de datos casi-estáticos (categorías, catálogos de tags, lecturas de métricas);
+  `@Cacheable` y Redis en microservicios.
+- **M35 — Prevención de doble reserva / motor de agenda**: verificar y, si falta, implementar detección
+  de conflicto de horario del oferente (anti-doble-booking, buffers, zona horaria). **Posible gap de
+  corrección — verificar en código.**
+- **M36 — Paginación configurable** (el tope duro de 20 limita).
+
+**6.5.c — Nuevas características / módulos (roadmap, por impacto)**
+1. **Pagos + escrow** (prioridad alta): pasarela (Stripe / Mercado Pago), retención hasta completar,
+   pagos al oferente, reembolsos. Hoy el precio se registra pero **no hay flujo de dinero** → es el mayor
+   salto a producto real. (Nuevo módulo `payments`.)
+2. **Chat cliente↔oferente** (WebSocket) — coordinar el servicio. (Nuevo módulo `messaging`.)
+3. **Notificaciones en tiempo real** (WebSocket/SSE) en vez del polling de 30 s del frontend.
+4. **Verificación/KYC del oferente + insignias de confianza** (documento verificado, badge).
+5. **Resolución de disputas estructurada** (evidencias, mediación) más allá de `mark-not-provided`.
+6. **Descubrimiento**: favoritos, búsquedas guardadas, recomendaciones, "oferentes cerca de ti".
+7. **Promociones / paquetes / cupones** y precios dinámicos.
+8. **Dashboard de ganancias/analítica para el oferente** (sobre el módulo de métricas).
+9. **i18n + PWA/móvil.**
+
+> Roadmap inmediato sugerido tras la Fase 0: **pagos** (define el modelo de negocio) y **tiempo real**
+> (chat + notificaciones). El resto, incremental.
 
 ---
 
