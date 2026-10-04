@@ -781,6 +781,10 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   `documents/Workshop-2/`** (era duplicado byte-a-byte de `diagrams/`; su índice + el enlace de
   mockups preservados en `diagrams/README.md`). Pares ES/EN **conservados** por decisión del equipo.
 - **2026-10-03** — Redactado el **plan de migración a microservicios** (§7).
+- **2026-10-03** — Cierre: verificado el chain de contexto (CLAUDE.md→doc, MEMORY.md→puntero, sin refs
+  colgantes). Anotados en CLAUDE.md + NOTAS.txt tres known-unknowns operativos: build/tests no
+  verificados esta sesión (primer paso: `./mvnw clean test`), 3 archivos de frontend sin commitear
+  ajenos al diagnóstico, y el flujo de trabajo en `main`. M35 (doble reserva) marcado "verificar en código".
 - **2026-10-03** — Dos insumos del equipo incorporados: **(1)** el split a microservicios con **API
   gateway** es **requisito de entrega** (no opcional) → §7.0 y §7.7 reencuadrados a "split completo, el
   cómo es lo que importa"; **(2)** diagnóstico de **testing** (§3.7): cobertura casi nula de integración,
