@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
 import { proposalApi, requestApi } from '../../../../shared/api';
 import { formatDate, getInitials } from '../../utils';
@@ -19,6 +20,7 @@ const PROPOSAL_STATUS_MAP = {
 };
 
 export function ReschedulesPage() {
+    const navigate = useNavigate();
     const { toasts, showToast } = useToast();
     const [pending, setPending] = useState([]);
     const [history, setHistory] = useState([]);
@@ -196,11 +198,19 @@ export function ReschedulesPage() {
                                 {detail.reason && <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginTop: '10px', fontStyle: 'italic' }}>"{detail.reason}"</div>}
                             </div>
 
-                            <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '14px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--c-mid)', marginBottom: '12px' }}>
                                 {detail.addressLabel && <div><strong>Dirección:</strong> {detail.addressLabel}</div>}
                                 {detail.requestedPrice != null && <div><strong>Precio:</strong> ${Number(detail.requestedPrice).toLocaleString('es-CO')}</div>}
                                 <div><strong>Enviada:</strong> {formatDate(detail.createdAt)}</div>
                             </div>
+
+                            <button
+                                className="btn btn-outline btn-sm btn-full"
+                                style={{ marginBottom: '14px' }}
+                                onClick={() => navigate(`/requests/${detail.requestId}`, { state: { as: 'client' } })}
+                            >
+                                <Icon name="tasks" size={14} />Ver solicitud
+                            </button>
 
                             {isPending && !freeMode && (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

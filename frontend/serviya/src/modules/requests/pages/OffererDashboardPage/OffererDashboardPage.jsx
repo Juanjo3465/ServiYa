@@ -60,6 +60,7 @@ export function OffererDashboardPage() {
     const [proposalDate, setProposalDate] = useState('');
     const [proposalTime, setProposalTime] = useState('09:00');
     const [proposalReason, setProposalReason] = useState('');
+    const [proposalSubmitting, setProposalSubmitting] = useState(false);
     const [offererMetrics, setOffererMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [requests, setRequests] = useState([]);
@@ -147,7 +148,7 @@ export function OffererDashboardPage() {
             await requestApi.markCompleted(selectedRequest.requestId);
             if (rating > 0 || comment) {
                 await feedbackApi.submitClientFeedback(selectedRequest.requestId, {
-                    clientId: selectedRequest.clientId,
+                    clientId: selectedRequest.counterpartyId,
                     rating: rating || null,
                     comment: comment || null,
                 });
@@ -225,9 +226,6 @@ export function OffererDashboardPage() {
                                     <button className="btn btn-danger btn-sm" disabled={acting === req.requestId} onClick={() => handleReject(req)}>
                                         <Icon name="close" size={13} />Rechazar
                                     </button>
-                                    <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--c-border)' }} onClick={() => { setProposalTarget(req); setProposalOpen(true); }}>
-                                        <Icon name="reschedule" size={13} />Proponer reprogramación
-                                    </button>
                                 </>
                             )}
                             {isAccepted && (
@@ -282,8 +280,12 @@ export function OffererDashboardPage() {
                 <div className="input-group"><label className="label">Motivo de la reprogramación</label><textarea className="input" rows="3" placeholder="Explica brevemente el motivo..." value={proposalReason} onChange={(e) => setProposalReason(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => { setProposalOpen(false); setProposalTarget(null); }}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" disabled={!proposalDate} onClick={async () => {
-                        if (!proposalTarget || !proposalDate) return;
+                    <button className="btn btn-primary btn-full" disabled={!proposalDate || proposalSubmitting} onClick={async () => {
+                        if (!proposalTarget || !proposalDate || proposalSubmitting) return;
+                        // Guard contra doble/triple envío: sin esto, clics rápidos o un freeze disparan
+                        // varios createProposal concurrentes y el backend crea varias PENDING (condición
+                        // de carrera; ver estado-frontend-pendientes.md / NOTAS.txt).
+                        setProposalSubmitting(true);
                         try {
                             const proposedDate = `${proposalDate}T${proposalTime}:00`;
                             await proposalApi.createProposal({
@@ -299,8 +301,10 @@ export function OffererDashboardPage() {
                             showToast('Propuesta enviada al cliente', 'success');
                         } catch (err) {
                             showToast(err.message || 'No se pudo enviar la propuesta', 'danger');
+                        } finally {
+                            setProposalSubmitting(false);
                         }
-                    }}><Icon name="send" size={15} />Enviar propuesta</button>
+                    }}><Icon name="send" size={15} />{proposalSubmitting ? 'Enviando…' : 'Enviar propuesta'}</button>
                 </div>
             </Modal>
 
