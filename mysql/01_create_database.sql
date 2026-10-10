@@ -924,6 +924,18 @@ CREATE TABLE notification_deliveries (
 );
 
 -- =========================================================
+-- SHEDLOCK (distributed scheduler lock)
+-- =========================================================
+
+CREATE TABLE shedlock (
+    name VARCHAR(64) NOT NULL,
+    lock_until DATETIME(3) NOT NULL,
+    locked_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    locked_by VARCHAR(255) NOT NULL,
+    PRIMARY KEY (name)
+);
+
+-- =========================================================
 -- INITIAL DATA
 -- =========================================================
 
