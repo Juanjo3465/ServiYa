@@ -16,6 +16,9 @@ public class NotificationDeliveryEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "notification_id", nullable = false)
     private Long notificationId;
 

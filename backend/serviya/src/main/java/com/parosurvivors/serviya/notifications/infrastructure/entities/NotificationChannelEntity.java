@@ -14,6 +14,9 @@ public class NotificationChannelEntity {
     @Column(columnDefinition = "INT UNSIGNED")
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(nullable = false, unique = true, length = 50)
     private String name;
 }
