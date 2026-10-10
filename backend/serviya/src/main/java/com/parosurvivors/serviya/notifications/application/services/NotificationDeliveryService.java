@@ -235,8 +235,8 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
     }
 
     @Override
-    public void markAsRead(Long deliveryId) {
-        NotificationDelivery delivery = notificationDeliveryPersistencePort.findById(deliveryId)
+    public void markAsRead(Long deliveryId, Long userId) {
+        NotificationDelivery delivery = notificationDeliveryPersistencePort.findByIdAndUserId(deliveryId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery not found: " + deliveryId));
         delivery.markAsRead();
         notificationDeliveryPersistencePort.update(delivery);
