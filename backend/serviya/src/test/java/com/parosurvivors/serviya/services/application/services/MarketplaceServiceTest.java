@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.services.application.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -31,6 +32,7 @@ import com.parosurvivors.serviya.services.domain.Category;
 import com.parosurvivors.serviya.services.domain.ServiceDetail;
 import com.parosurvivors.serviya.services.domain.ServiceAvailability;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -297,7 +299,7 @@ class MarketplaceServiceTest {
 
         when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(existing));
 
-        service.update(command);
+        service.update(command, OFFERER_ID, false);
 
         ArgumentCaptor<com.parosurvivors.serviya.services.domain.Service> captor =
                 ArgumentCaptor.forClass(com.parosurvivors.serviya.services.domain.Service.class);
@@ -313,7 +315,7 @@ class MarketplaceServiceTest {
 
         when(persistencePort.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.update(command))
+        assertThatThrownBy(() -> service.update(command, OFFERER_ID, false))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Servicio no encontrado");
 
@@ -326,7 +328,7 @@ class MarketplaceServiceTest {
     void deleteRemovesExistingService() {
         when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
 
-        service.delete(SERVICE_ID);
+        service.delete(SERVICE_ID, OFFERER_ID, false);
 
         verify(persistencePort).deleteById(SERVICE_ID);
     }
@@ -335,7 +337,7 @@ class MarketplaceServiceTest {
     void deleteThrowsWhenServiceNotFound() {
         when(persistencePort.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.delete(99L))
+        assertThatThrownBy(() -> service.delete(99L, OFFERER_ID, false))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(persistencePort, never()).deleteById(anyLong());
@@ -350,7 +352,7 @@ class MarketplaceServiceTest {
         svc.setDeletedAt(null);
         when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
 
-        service.softDelete(SERVICE_ID);
+        service.softDelete(SERVICE_ID, OFFERER_ID, false);
 
         ArgumentCaptor<com.parosurvivors.serviya.services.domain.Service> captor =
                 ArgumentCaptor.forClass(com.parosurvivors.serviya.services.domain.Service.class);
@@ -363,7 +365,7 @@ class MarketplaceServiceTest {
     void softDeleteThrowsWhenNotFound() {
         when(persistencePort.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.softDelete(99L))
+        assertThatThrownBy(() -> service.softDelete(99L, OFFERER_ID, false))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(persistencePort, never()).update(any());
@@ -377,7 +379,7 @@ class MarketplaceServiceTest {
         svc.setActive(false);
         when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
 
-        service.activate(SERVICE_ID);
+        service.activate(SERVICE_ID, OFFERER_ID, false);
 
         ArgumentCaptor<com.parosurvivors.serviya.services.domain.Service> captor =
                 ArgumentCaptor.forClass(com.parosurvivors.serviya.services.domain.Service.class);
@@ -389,7 +391,7 @@ class MarketplaceServiceTest {
     void activateThrowsWhenNotFound() {
         when(persistencePort.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.activate(99L))
+        assertThatThrownBy(() -> service.activate(99L, OFFERER_ID, false))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(persistencePort, never()).update(any());
@@ -403,7 +405,7 @@ class MarketplaceServiceTest {
         svc.setActive(true);
         when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
 
-        service.deactivate(SERVICE_ID);
+        service.deactivate(SERVICE_ID, OFFERER_ID, false);
 
         ArgumentCaptor<com.parosurvivors.serviya.services.domain.Service> captor =
                 ArgumentCaptor.forClass(com.parosurvivors.serviya.services.domain.Service.class);
@@ -415,8 +417,74 @@ class MarketplaceServiceTest {
     void deactivateThrowsWhenNotFound() {
         when(persistencePort.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.deactivate(99L))
+        assertThatThrownBy(() -> service.deactivate(99L, OFFERER_ID, false))
                 .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(persistencePort, never()).update(any());
+    }
+
+    // ==================== IDOR: ownership (B1) ====================
+
+    private void assertNotOwner(ThrowingCallable assertThrown) {
+        assertThatThrownBy(assertThrown)
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("propietario");
+    }
+
+    private static final Long OTHER_USER_ID = 999L;
+
+    @Test
+    void updateThrowsWhenNotOwner() {
+        UpdateServiceCommand command = new UpdateServiceCommand(
+                SERVICE_ID, "Nuevo titulo", null, null, null, null, null, null);
+        when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
+
+        assertNotOwner(() -> service.update(command, OTHER_USER_ID, false));
+
+        verify(persistencePort, never()).update(any());
+    }
+
+    @Test
+    void deleteThrowsWhenNotOwner() {
+        when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
+
+        assertNotOwner(() -> service.delete(SERVICE_ID, OTHER_USER_ID, false));
+
+        verify(persistencePort, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteAllowsAdmin() {
+        when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
+
+        service.delete(SERVICE_ID, OTHER_USER_ID, true);
+
+        verify(persistencePort).deleteById(SERVICE_ID);
+    }
+
+    @Test
+    void softDeleteThrowsWhenNotOwner() {
+        when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
+
+        assertNotOwner(() -> service.softDelete(SERVICE_ID, OTHER_USER_ID, false));
+
+        verify(persistencePort, never()).update(any());
+    }
+
+    @Test
+    void activateThrowsWhenNotOwner() {
+        when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
+
+        assertNotOwner(() -> service.activate(SERVICE_ID, OTHER_USER_ID, false));
+
+        verify(persistencePort, never()).update(any());
+    }
+
+    @Test
+    void deactivateThrowsWhenNotOwner() {
+        when(persistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(sampleService()));
+
+        assertNotOwner(() -> service.deactivate(SERVICE_ID, OTHER_USER_ID, false));
 
         verify(persistencePort, never()).update(any());
     }

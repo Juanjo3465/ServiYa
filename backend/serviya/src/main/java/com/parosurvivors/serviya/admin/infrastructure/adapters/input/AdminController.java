@@ -151,7 +151,7 @@ public class AdminController implements AdminApi {
     @Override
     @DeleteMapping("/services/{id}")
     public ResponseEntity<Void> deleteService(@PathVariable Long id) {
-        adminService.deleteService(id);
+        adminService.deleteService(id, CurrentUser.id(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 }

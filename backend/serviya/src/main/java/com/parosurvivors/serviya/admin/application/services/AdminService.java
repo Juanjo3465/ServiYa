@@ -306,7 +306,7 @@ public class AdminService implements AdminServicePort {
     }
 
     @Override
-    public void deleteService(Long serviceId) {
-        marketplaceServicePort.delete(serviceId);
+    public void deleteService(Long serviceId, Long adminId, boolean isAdmin) {
+        marketplaceServicePort.delete(serviceId, adminId, isAdmin);
     }
 }

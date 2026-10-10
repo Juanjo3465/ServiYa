@@ -71,6 +71,15 @@ public class SecurityConfig {
                 // Reportes recibidos/enviados de un usuario: autenticado; el chequeo propio-o-admin va en el
                 // controlador (grano fino, patron role-security-split).
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*/reports/**").authenticated()
+                // Escrituras del catalogo de servicios (modulo 3): exigen login. La identidad sale del JWT
+                // (CurrentUser.id()); el chequeo de dueño (grano fino) va en MarketplaceService.
+                // (Las lecturas y el perfil publico del oferente ya estan cubiertos por reglas anteriores.)
+                .requestMatchers(HttpMethod.POST, "/api/v1/services").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/services/*/soft-delete").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/services/*").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/services/*").authenticated()
+                .requestMatchers(HttpMethod.POST,
+                        "/api/v1/services/*/activate", "/api/v1/services/*/deactivate").authenticated()
                 // El resto se mantiene abierto por ahora (modulos aun no implementados)
                 .anyRequest().permitAll()
             )

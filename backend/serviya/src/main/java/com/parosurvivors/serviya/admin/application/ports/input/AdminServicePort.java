@@ -51,5 +51,5 @@ public interface AdminServicePort {
     Page<AdminFeedbackSearchResult> searchFeedback(AdminFeedbackSearchQuery query, Pageable pageable);
 
     /** Elimina un servicio del marketplace (RF-064). */
-    void deleteService(Long serviceId);
+    void deleteService(Long serviceId, Long adminId, boolean isAdmin);
 }
