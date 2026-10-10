@@ -35,6 +35,9 @@ public class UserEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 

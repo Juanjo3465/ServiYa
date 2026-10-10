@@ -15,6 +15,9 @@ public class PasswordResetTokenEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
 

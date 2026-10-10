@@ -19,6 +19,9 @@ public class ClientFeedbackTagEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "feedback_id", nullable = false)
     private Long feedbackId;
 
