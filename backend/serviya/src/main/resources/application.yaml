@@ -28,6 +28,14 @@ server:
 app:
   upload:
     dir: ${UPLOAD_DIR:uploads}
+  # Geocodificación de direcciones (RF-009, RNF-019). Usa Nominatim (OpenStreetMap) por defecto.
+  # enabled=false para deshabilitar en tests o entornos sin internet.
+  geocoding:
+    enabled: ${GEOCODING_ENABLED:true}
+    nominatim:
+      base-url: ${GEOCODING_NOMINATIM_BASE_URL:https://nominatim.openstreetmap.org}
+      user-agent: ${GEOCODING_NOMINATIM_USER_AGENT:ServiYa/1.0}
+      timeout-seconds: ${GEOCODING_NOMINATIM_TIMEOUT_SECONDS:5}
 
 # Filtro de palabras (RNF-006): se censuran en todo texto libre antes de persistir
 # (descripcion de perfil, motivo de reportes, resenas). Ampliar la lista NO requiere recompilar.
