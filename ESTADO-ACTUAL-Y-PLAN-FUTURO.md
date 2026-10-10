@@ -560,6 +560,30 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > Roadmap inmediato sugerido tras la Fase 0: **pagos** (define el modelo de negocio) y **tiempo real**
 > (chat + notificaciones). El resto, incremental.
 
+### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
+
+> **Fuente de verdad detallada:** `documents/redis/guia-redis-implementacion.md` (guía dedicada, 9 fases,
+> registro de decisiones tipo ADR). Esta sección es el **resumen + tracker de aplazamientos**, para no
+> perder de vista lo postergado. Resuelve la **deuda #1 (M4)** y, por fases, **#6/M13** y **M34**.
+
+**Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
+`redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción
+B**) para envolver los **6 `@Scheduled`** (requests ×4, reintento de notificaciones, limpieza de
+reset-tokens) → habilita el despliegue en **≥2 instancias** sin doble ejecución.
+
+- **ShedLock descartado** a favor de un único sistema de locking coherente (ver guía §2.1).
+- **Fencing token** no se usa en los schedulers (idempotentes); la API lo expone para secciones críticas
+  por-entidad futuras (p. ej. **B8** — propuestas PENDING duplicadas).
+- **Versiones:** Spring Boot 3.5.5 gestiona `spring-boot-starter-data-redis` (Lettuce 6.5.x, Java 21 OK);
+  Redis server **`redis:8.2-alpine`** (patch exacto a fijar al implementar; **D-02 PENDIENTE**).
+- **Secretos:** `.env` local (**D-14** local DECIDIDO); gestor de prod PENDIENTE.
+
+**Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); rate limiting
+distribuido **#6/M13** (Fase 3); resiliencia/circuit breaker (Fase 4); observabilidad (Fase 5); TLS +
+secretos de prod + backups + runbooks (Fase 7); alta disponibilidad Sentinel/Cluster/gestionado
+(Fase 8); interop multilenguaje (Fase 9); fencing token / columna `version` en tablas (al proteger una
+sección crítica por-entidad). **Detalle y mapeo por fase en la guía §2.1.**
+
 ---
 
 ## 7. Plan de migración a microservicios
@@ -785,6 +809,12 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   colgantes). Anotados en CLAUDE.md + NOTAS.txt tres known-unknowns operativos: build/tests no
   verificados esta sesión (primer paso: `./mvnw clean test`), 3 archivos de frontend sin commitear
   ajenos al diagnóstico, y el flujo de trabajo en `main`. M35 (doble reserva) marcado "verificar en código".
+- **2026-10-10** — Elegido el **sustrato Redis** para la deuda #1 (lock distribuido de los `@Scheduled`).
+  Leída y adoptada `documents/redis/guia-redis-implementacion.md` en modalidad **Vía B (slice mínimo)**.
+  Decisiones cerradas: **D-04** = protocolo propio (ShedLock descartado), **D-02** = Redis 8.2-alpine
+  (patch pendiente), **D-14** = `.env` local (gestor de prod pendiente); fencing no usado en schedulers.
+  Aplazamientos registrados en §6.6 (resumen) y en la guía §2.1 (detalle por fase). Siguiente:
+  implementar Fase 0 + Fase 1 reducida (`redis-coord`) + Fase 2 (`DistributedLock`) sobre los 6 schedulers.
 - **2026-10-03** — Dos insumos del equipo incorporados: **(1)** el split a microservicios con **API
   gateway** es **requisito de entrega** (no opcional) → §7.0 y §7.7 reencuadrados a "split completo, el
   cómo es lo que importa"; **(2)** diagnóstico de **testing** (§3.7): cobertura casi nula de integración,
