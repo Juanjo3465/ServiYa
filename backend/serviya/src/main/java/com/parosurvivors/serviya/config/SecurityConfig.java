@@ -80,6 +80,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/services/*").authenticated()
                 .requestMatchers(HttpMethod.POST,
                         "/api/v1/services/*/activate", "/api/v1/services/*/deactivate").authenticated()
+                // Direcciones por id (modulo 2): las escrituras exigen login. La identidad sale del JWT
+                // (CurrentUser.id()); el chequeo de dueño (grano fino) va en AddressService.
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/addresses/*").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/addresses/*").authenticated()
+                // Crear una categoria (modulo 3): solo ADMIN. Las lecturas (GET) siguen publicas.
+                .requestMatchers(HttpMethod.POST, "/api/v1/categories").hasRole("ADMIN")
                 // El resto se mantiene abierto por ahora (modulos aun no implementados)
                 .anyRequest().permitAll()
             )

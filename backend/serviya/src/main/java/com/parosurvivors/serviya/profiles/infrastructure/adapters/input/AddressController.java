@@ -53,13 +53,13 @@ public class AddressController implements AddressApi {
     public ResponseEntity<AddressResponse> updateAddress(@PathVariable Long id,
                                                          @Valid @RequestBody UpdateAddressForm form) {
         return ResponseEntity.ok(mapper.toResponse(
-                addressService.updateAddress(mapper.toCommand(form, id))));
+                addressService.updateAddress(mapper.toCommand(form, id), currentUserId(), CurrentUser.isAdmin())));
     }
 
     @Override
     @DeleteMapping("/api/v1/addresses/{id}")
     public ResponseEntity<Void> deleteAddress(@PathVariable Long id) {
-        addressService.deleteAddress(id);
+        addressService.deleteAddress(id, currentUserId(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 
