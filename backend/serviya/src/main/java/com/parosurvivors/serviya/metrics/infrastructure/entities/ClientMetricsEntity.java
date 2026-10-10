@@ -16,6 +16,9 @@ public class ClientMetricsEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @Column(name = "client_id", nullable = false, unique = true)
     private Long clientId;
 
