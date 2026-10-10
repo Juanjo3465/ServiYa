@@ -50,21 +50,21 @@ public class OffererAvailabilityController implements OffererAvailabilityApi {
     @Override
     @DeleteMapping("/slots/{id}")
     public ResponseEntity<Void> deleteSlot(@PathVariable Long id) {
-        offererAvailabilityService.deleteSlot(id);
+        offererAvailabilityService.deleteSlot(id, currentUserId(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/slots/{id}/activate")
     public ResponseEntity<Void> activateSlot(@PathVariable Long id) {
-        offererAvailabilityService.activateSlot(id);
+        offererAvailabilityService.activateSlot(id, currentUserId(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 
     @Override
     @PostMapping("/slots/{id}/deactivate")
     public ResponseEntity<Void> deactivateSlot(@PathVariable Long id) {
-        offererAvailabilityService.deactivateSlot(id);
+        offererAvailabilityService.deactivateSlot(id, currentUserId(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 

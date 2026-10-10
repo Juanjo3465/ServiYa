@@ -5,6 +5,8 @@ import com.parosurvivors.serviya.profiles.application.mappers.OffererAvailabilit
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererAvailabilityServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.OffererAvailabilityPersistencePort;
 import com.parosurvivors.serviya.profiles.domain.OffererAvailability;
+import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -52,15 +54,17 @@ public class OffererAvailabilityService implements OffererAvailabilityServicePor
     }
 
     @Override
-    public void deleteSlot(Long slotId) {
+    public void deleteSlot(Long slotId, Long requesterId, boolean isAdmin) {
+        OffererAvailability slot = requireSlot(slotId);
+        requireOwnership(slot, requesterId, isAdmin);
         offererAvailabilityPersistencePort.deleteById(slotId);
     }
 
     @Override
-    public void activateSlot(Long slotId) {
+    public void activateSlot(Long slotId, Long requesterId, boolean isAdmin) {
 
-        OffererAvailability slot = offererAvailabilityPersistencePort.findById(slotId)
-                .orElseThrow(() -> new IllegalArgumentException("Availability slot not found"));
+        OffererAvailability slot = requireSlot(slotId);
+        requireOwnership(slot, requesterId, isAdmin);
 
         slot.activate();
 
@@ -68,14 +72,33 @@ public class OffererAvailabilityService implements OffererAvailabilityServicePor
     }
 
     @Override
-    public void deactivateSlot(Long slotId) {
+    public void deactivateSlot(Long slotId, Long requesterId, boolean isAdmin) {
 
-        OffererAvailability slot = offererAvailabilityPersistencePort.findById(slotId)
-                .orElseThrow(() -> new IllegalArgumentException("Availability slot not found"));
+        OffererAvailability slot = requireSlot(slotId);
+        requireOwnership(slot, requesterId, isAdmin);
 
         slot.deactivate();
 
         offererAvailabilityPersistencePort.update(slot);
+    }
+
+    private OffererAvailability requireSlot(Long slotId) {
+        return offererAvailabilityPersistencePort.findById(slotId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Franja de disponibilidad no encontrada con id: " + slotId));
+    }
+
+    /**
+     * El actor debe ser el dueño de la franja, o un admin (IDOR: B4).
+     * Mismo patron "propietario O admin" que {@code AddressService.requireOwnership}.
+     */
+    private void requireOwnership(OffererAvailability slot, Long requesterId, boolean isAdmin) {
+        if (isAdmin) {
+            return;
+        }
+        if (requesterId == null || !requesterId.equals(slot.getOffererId())) {
+            throw new UnauthorizedException("El usuario no es el propietario de la franja horaria");
+        }
     }
 
     private void validateAvailabilities(List<OffererAvailability> availabilities) {

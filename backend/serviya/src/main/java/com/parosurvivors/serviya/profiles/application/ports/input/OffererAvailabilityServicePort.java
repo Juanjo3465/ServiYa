@@ -16,9 +16,9 @@ public interface OffererAvailabilityServicePort {
 
     void setSchedule(Long offererId, List<SetAvailabilitySlotCommand> slots);
 
-    void deleteSlot(Long slotId);
+    void deleteSlot(Long slotId, Long requesterId, boolean isAdmin);
 
-    void activateSlot(Long slotId);
+    void activateSlot(Long slotId, Long requesterId, boolean isAdmin);
 
-    void deactivateSlot(Long slotId);
+    void deactivateSlot(Long slotId, Long requesterId, boolean isAdmin);
 }
