@@ -17,8 +17,10 @@ import java.util.Arrays;
  * columna VARBINARY). Cumple RNF-005.
  *
  * <p>Formato persistido: {@code IV(12 bytes) || ciphertext+tag}. La clave de 256 bits se deriva
- * por SHA-256 de la passphrase {@code ENCRYPTION_KEY} (cargada desde .env.example por DotEnvConfig); se
- * resuelve de forma perezosa porque Hibernate instancia el converter, no Spring.
+ * por SHA-256 de la passphrase {@code ENCRYPTION_KEY} (cargada desde .env.example por DotEnvConfig o
+ * desde la variable de entorno en Docker); se resuelve de forma perezosa porque Hibernate instancia el
+ * converter, no Spring. No hay passphrase por defecto: si la clave falta o viene vacia, se lanza
+ * una excepcion (fail-fast) para no cifrar PII con una clave conocida por el publico.
  */
 @Converter
 public class PiiAttributeConverter implements AttributeConverter<String, byte[]> {
@@ -26,7 +28,6 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int IV_LENGTH = 12;
     private static final int GCM_TAG_BITS = 128;
-    private static final String DEFAULT_PASSPHRASE = "serviya-dev-pii-key-change-me";
 
     private final SecureRandom secureRandom = new SecureRandom();
     private volatile SecretKeySpec cachedKey;
@@ -36,12 +37,13 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
         if (attribute == null) {
             return null;
         }
+        SecretKeySpec secretKey = key();
         try {
             byte[] iv = new byte[IV_LENGTH];
             secureRandom.nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.ENCRYPT_MODE, key(), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
             byte[] ciphertext = cipher.doFinal(attribute.getBytes(StandardCharsets.UTF_8));
 
             byte[] result = new byte[iv.length + ciphertext.length];
@@ -58,12 +60,13 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
         if (dbData == null) {
             return null;
         }
+        SecretKeySpec secretKey = key();
         try {
             byte[] iv = Arrays.copyOfRange(dbData, 0, IV_LENGTH);
             byte[] ciphertext = Arrays.copyOfRange(dbData, IV_LENGTH, dbData.length);
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(GCM_TAG_BITS, iv));
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, new GCMParameterSpec(GCM_TAG_BITS, iv));
             return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception ex) {
             // Fallback: the stored value is plain text (e.g. seed/legacy data not yet encrypted).
@@ -86,8 +89,17 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
                     if (passphrase == null) {
                         passphrase = System.getenv("ENCRYPTION_KEY");
                     }
-                    if (passphrase == null) {
-                        passphrase = DEFAULT_PASSPHRASE;
+                    if (passphrase == null || passphrase.isBlank()) {
+                        throw new IllegalStateException(
+                                "ENCRYPTION_KEY no esta definida. El arranque se aborta para no cifrar "
+                                        + "PII con una clave por defecto/insegura. Configurala en .env "
+                                        + "(o en el entorno).");
+                    }
+                    // Rechazar valores débiles/conocidos que podrían venir de .env.example copiado sin modificar
+                    if (isWeakEncryptionKey(passphrase)) {
+                        throw new IllegalStateException(
+                                "ENCRYPTION_KEY usa un valor inseguro (por defecto/de ejemplo). "
+                                        + "Genera una passphrase segura y configurala en .env o variables de entorno.");
                     }
                     try {
                         byte[] keyBytes = MessageDigest.getInstance("SHA-256")
@@ -101,5 +113,14 @@ public class PiiAttributeConverter implements AttributeConverter<String, byte[]>
             }
         }
         return local;
+    }
+
+    private static boolean isWeakEncryptionKey(String passphrase) {
+        String lower = passphrase.toLowerCase();
+        return lower.contains("dev-")
+                || lower.contains("change-me")
+                || lower.contains("example")
+                || lower.contains("default")
+                || passphrase.length() < 32;
     }
 }
