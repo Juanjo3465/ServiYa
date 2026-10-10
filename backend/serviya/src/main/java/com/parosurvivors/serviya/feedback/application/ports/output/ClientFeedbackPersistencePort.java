@@ -23,5 +23,11 @@ public interface ClientFeedbackPersistencePort {
     /** Feedback de cliente dejado por un oferente, paginado. */
     Page<ClientFeedback> findByOffererId(Long offererId, Pageable pageable);
 
+    /** Feedback de cliente con filtros de búsqueda y paginación. */
+    Page<ClientFeedback> findByClientIdAndFilters(Long clientId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
+    /** Feedback de cliente por oferente con filtros de búsqueda y paginación. */
+    Page<ClientFeedback> findByOffererIdAndFilters(Long offererId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
     void deleteById(Long id);
 }

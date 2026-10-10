@@ -4,6 +4,7 @@ import com.parosurvivors.serviya.feedback.infrastructure.entities.ClientFeedback
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -22,4 +23,20 @@ public interface ClientFeedbackRepository extends JpaRepository<ClientFeedbackEn
 
     /** Feedback de cliente dejado por un oferente, mas reciente primero via Pageable.sort. */
     Page<ClientFeedbackEntity> findByOffererId(Long offererId, Pageable pageable);
+
+    /** Feedback de cliente con filtros de búsqueda y paginación. */
+    @Query("SELECT f FROM ClientFeedbackEntity f WHERE f.clientId = :clientId "
+            + "AND (:keyword IS NULL OR :keyword = '' OR LOWER(f.comment) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+            + "AND (:ratingMin IS NULL OR f.rating >= :ratingMin) "
+            + "AND (:ratingMax IS NULL OR f.rating <= :ratingMax) "
+            + "ORDER BY f.createdAt DESC")
+    Page<ClientFeedbackEntity> findByClientIdAndFilters(Long clientId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
+    /** Feedback de cliente por oferente con filtros de búsqueda y paginación. */
+    @Query("SELECT f FROM ClientFeedbackEntity f WHERE f.offererId = :offererId "
+            + "AND (:keyword IS NULL OR :keyword = '' OR LOWER(f.comment) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+            + "AND (:ratingMin IS NULL OR f.rating >= :ratingMin) "
+            + "AND (:ratingMax IS NULL OR f.rating <= :ratingMax) "
+            + "ORDER BY f.createdAt DESC")
+    Page<ClientFeedbackEntity> findByOffererIdAndFilters(Long offererId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
 }
