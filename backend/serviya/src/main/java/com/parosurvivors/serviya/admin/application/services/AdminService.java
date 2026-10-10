@@ -75,6 +75,8 @@ public class AdminService implements AdminServicePort {
     private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
+    /** B5: anti auto-accion y guard de ultimo admin activo. */
+    private final AdminActionGuard adminActionGuard;
 
     @Override
     public UserSummaryItem createUserByAdmin(CreateUserByAdminCommand command) {
@@ -133,6 +135,12 @@ public class AdminService implements AdminServicePort {
     public void revokeRoleByAdmin(Long adminId, Long userId, String roleName) {
         RoleName role = parseRole(roleName);
         userQueryServicePort.getUserById(userId); // 404 si no existe
+
+        // B5: retirar el rol ADMIN a uno mismo o al ultimo admin activo provocaria lockout.
+        if (role == RoleName.ADMIN) {
+            adminActionGuard.requireNotSelf(adminId, userId);
+            adminActionGuard.requireAnotherActiveAdmin(userId);
+        }
 
         switch (role) {
             case OFFERER -> {
@@ -222,6 +230,8 @@ public class AdminService implements AdminServicePort {
 
     @Override
     public void banUser(Long adminId, Long userId, String reason) {
+        adminActionGuard.requireNotSelf(adminId, userId);
+        adminActionGuard.requireAnotherActiveAdmin(userId);
         userServicePort.banUser(userId, reason);
     }
 
@@ -232,6 +242,8 @@ public class AdminService implements AdminServicePort {
 
     @Override
     public void deleteUser(Long adminId, Long userId) {
+        adminActionGuard.requireNotSelf(adminId, userId);
+        adminActionGuard.requireAnotherActiveAdmin(userId);
         userDeletionServicePort.deleteUser(userId);
     }
 
