@@ -375,9 +375,13 @@ CREATE TABLE reschedule_proposals (
         FOREIGN KEY (client_id)
         REFERENCES users(id),
 
-    CONSTRAINT fk_reschedule_offerer
+CONSTRAINT fk_reschedule_offerer
         FOREIGN KEY (offerer_id)
         REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    pending_request_id BIGINT UNSIGNED AS (CASE WHEN status = 'PENDING' THEN request_id END) STORED,
+    CONSTRAINT uq_reschedule_pending_per_request UNIQUE (pending_request_id)
 );
 
 -- =========================================================

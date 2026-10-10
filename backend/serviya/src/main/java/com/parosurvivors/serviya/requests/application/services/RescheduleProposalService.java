@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -81,6 +82,22 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         // Denormalizados desde la solicitud (inmutables): habilitan los listados por parte sin join.
         proposal.setClientId(request.getClientId());
         proposal.setOffererId(request.getOffererId());
+
+        // Handle race condition: if another concurrent request created a PENDING proposal
+        // after we cancelled, the unique constraint will fail. Retry once with fresh read.
+        try {
+            return saveProposalAndNotify(proposal, request, command);
+        } catch (DataIntegrityViolationException e) {
+            if (isUniqueConstraintViolation(e)) {
+                cancelPendingProposals(command.requestId());
+                return saveProposalAndNotify(proposal, request, command);
+            }
+            throw e;
+        }
+    }
+
+    private RescheduleProposal saveProposalAndNotify(RescheduleProposal proposal, ServiceRequest request,
+                                                     CreateRescheduleProposalCommand command) {
         RescheduleProposal saved = rescheduleProposalPersistencePort.save(proposal);
         // La participación del oferente en el flujo de reprogramación es proponer: cuenta la propuesta.
         eventPublisher.publish(new RescheduleProposalCreatedEvent(
@@ -97,6 +114,18 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
                         null,
                         Map.of()));
         return saved;
+    }
+
+    private boolean isUniqueConstraintViolation(DataIntegrityViolationException e) {
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            String message = cause.getMessage();
+            if (message != null && message.contains("uq_reschedule_pending_per_request")) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     @Override
