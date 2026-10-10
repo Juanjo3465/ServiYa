@@ -25,11 +25,9 @@ import com.parosurvivors.serviya.requests.application.dto.result.AdminRequestDet
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -190,17 +188,7 @@ public class ReportService implements ReportServicePort {
 
     @Override
     public Page<Report> getReports(String type, String category, String status, Pageable pageable) {
-        List<Report> reports = reportPersistencePort.findAll().stream()
-                .filter(report -> type == null || type.isBlank() || report.getReportType().name().equalsIgnoreCase(type))
-                .filter(report -> category == null || category.isBlank() || report.getCategory().equalsIgnoreCase(category))
-                .filter(report -> status == null || status.isBlank() || report.getStatus().name().equalsIgnoreCase(status))
-                .sorted(Comparator.comparing(Report::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
-
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), reports.size());
-        List<Report> pageContent = start >= reports.size() ? List.of() : reports.subList(start, end);
-        return new PageImpl<>(pageContent, pageable, reports.size());
+        return reportPersistencePort.findReports(type, category, status, pageable);
     }
 
     @Override
