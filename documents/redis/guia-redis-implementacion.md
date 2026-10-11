@@ -76,10 +76,10 @@ Cada decisión debe quedar documentada como un ADR (*Architecture Decision Recor
 | D-03 | Cliente Java | Lettuce (por defecto en Spring Data Redis), sin pool salvo comandos bloqueantes o `MULTI` | RECOMENDADO | 1 |
 | D-04 | Mecanismo de lock | **Opción A:** Redisson (solo Java, watchdog incluido). **Opción B:** protocolo propio (`SET NX PX` + Lua) implementado en cada lenguaje. Recomendado **B** si algún recurso puede bloquearse desde varios lenguajes; A si todo lock será solo Java | **DECIDIDO: Opción B (protocolo propio)** — 2026-10-10. ShedLock descartado (ver §2.1) | 2 |
 | D-05 | Garantía de corrección en recursos críticos | Fencing token (`INCR`) y/o bloqueo optimista (`version`) en la base de datos principal | RECOMENDADO | 2 |
-| D-06 | Algoritmo de rate limit | Token bucket con script Lua compartido (interoperable). Bucket4j solo si el rate limit será exclusivamente Java | RECOMENDADO | 3 |
-| D-07 | Comportamiento si Redis falla (rate limit) | Configurable **por política**: `OPEN` por defecto, `CLOSED` para endpoints sensibles (login, pagos, proveedores pagos) | PENDIENTE (definir qué políticas son CLOSED) | 3 |
+| D-06 | Algoritmo de rate limit | Token bucket con script Lua compartido (interoperable). Bucket4j solo si el rate limit será exclusivamente Java | **DECIDIDO: dos algoritmos Lua** — 2026-10-11. Token bucket para el techo global; **ventana deslizante** (ZSET) para auth/costosos (el goteo del token bucket no sirve para "N por ventana"). Bucket4j eliminado | 3 ✅ |
+| D-07 | Comportamiento si Redis falla (rate limit) | Configurable **por política**: `OPEN` por defecto, `CLOSED` para endpoints sensibles (login, pagos, proveedores pagos) | **DECIDIDO: mixto** — 2026-10-11. login `OPEN` (disponibilidad del acceso); registro/reset/costosos `CLOSED`. Compensación 1a: si Redis cae, las notificaciones externas se difieren (ver protocolo-rate-limit.md) | 3 ✅ |
 | D-08 | Comportamiento si Redis falla (lock) | No ejecutar la sección crítica; devolver error/reintentar. Nunca continuar sin lock salvo decisión explícita por caso | RECOMENDADO | 2 |
-| D-09 | Identificación del sujeto en rate limit | API key / usuario autenticado; IP solo para endpoints anónimos, confiando en `X-Forwarded-For` únicamente desde proxies conocidos | PENDIENTE | 3 |
+| D-09 | Identificación del sujeto en rate limit | API key / usuario autenticado; IP solo para endpoints anónimos, confiando en `X-Forwarded-For` únicamente desde proxies conocidos | **DECIDIDO** — 2026-10-11. `user` si autenticado, `ip` si anónimo, `email` solo en password-reset (login sin correo → evita DoS de bloqueo). IP vía `forward-headers-strategy=native` (proxy de confianza), no parseo manual de XFF | 3 ✅ |
 | D-10 | Formato de serialización | JSON (Jackson) con DTOs explícitos, sin metadatos de tipo `@class` en datos compartidos entre lenguajes | DECIDIDO | 6 |
 | D-11 | Persistencia `redis-coord` | AOF `everysec` + RDB periódico | RECOMENDADO | 1 / 7 |
 | D-12 | Persistencia `redis-cache` | Ninguna | DECIDIDO | 6 |
@@ -133,7 +133,7 @@ respetando las convenciones de la §3 pero sin desplegar aún lo que no se usa:
 | Aplazado | A qué fase | Nota |
 |---|---|---|
 | Instancia `redis-cache` (contenedor) | Fase 6 | Hoy ociosa; el contrato de config §3.3 sí se crea ya |
-| Rate limiting distribuido (deuda #6 / M13) | Fase 3 | Reutiliza `redis-coord` y el mismo patrón Lua; hoy Bucket4j es local |
+| ~~Rate limiting distribuido (deuda #6 / M13)~~ | ✅ Fase 3 (2026-10-11) | **HECHO.** `RateLimiter` sobre `redis-coord` (2 algoritmos Lua); Bucket4j eliminado. Pendiente menor: anotar `@RateLimit` en search/report-create/account-security (políticas ya definidas) |
 | Resiliencia (timeouts, circuit breaker, modos de fallo) | Fase 4 | D-07 / D-08 |
 | Observabilidad (Micrometer/Prometheus/Grafana/`redis_exporter`) | Fase 5 | D-18 |
 | Caché (M34) + serialización JSON | Fase 6 | D-10 / D-12 / D-13 |
@@ -315,14 +315,17 @@ backend/serviya/src/main/resources/redis-scripts/   # ubicación REAL (contexto 
   lock_acquire_fenced.lua        # ✅ Fase 2 (con fencing, para B8)
   lock_release.lua               # ✅ Fase 2
   lock_renew.lua                 # ✅ Fase 2
-  ratelimit_token_bucket.lua     # Fase 3
+  ratelimit_token_bucket.lua     # ✅ Fase 3 (techo global)
+  ratelimit_sliding_window.lua   # ✅ Fase 3 (auth/costosos, ZSET)
 backend/serviya/src/main/java/.../shared/lock/       # ✅ Fase 2: DistributedLock, LockHandle, RedisDistributedLock
+backend/serviya/src/main/java/.../shared/ratelimit/  # ✅ Fase 3: RateLimiter, RedisRateLimiter, @RateLimit, filtros/interceptor, RateLimitProperties
+backend/serviya/src/main/java/.../shared/coordination/ # ✅ Fase 3: CoordinationAvailability (modo degradado de notificaciones)
 documents/redis/
   guia-redis-implementacion.md   # este documento
   catalogo-claves.md             # ✅ Fase 0
   servicios-y-usuarios.md        # ✅ Fase 0 (servicios + usuarios ACL)
   protocolo-lock.md              # ✅ Fase 2
-  protocolo-rate-limit.md        # Fase 3
+  protocolo-rate-limit.md        # ✅ Fase 3
   decisiones/                    # ✅ Fase 0 (ADR-001..004)
     ADR-001-instancias-separadas.md
     ADR-002-motor-y-version.md
@@ -585,12 +588,14 @@ return { allowed, math.floor(tokens), retry_after }
 - Políticas en configuración, no en código, para ajustarlas sin redeploy si se externaliza la configuración.
 
 **Criterios de aceptación:**
-- [ ] Con `capacity=5`, la sexta petición inmediata se rechaza con 429 y `Retry-After` correcto.
-- [ ] Los tokens se reponen según la tasa configurada.
-- [ ] Prueba concurrente: con N peticiones simultáneas nunca se permiten más que la capacidad.
-- [ ] Con Redis caído: políticas `OPEN` dejan pasar y `CLOSED` rechazan (con métrica `error_open`/`error_closed`).
-- [ ] La clave expira sola tras inactividad.
-- [ ] Claves en el catálogo; `protocolo-rate-limit.md` escrito.
+- [x] Con `capacity=N`, la petición N+1 inmediata se rechaza con 429 y `Retry-After` correcto. *(e2e: login 429 al 11º; stats 429 al 31º)*
+- [x] Los tokens se reponen según la tasa configurada. *(test token bucket)*
+- [x] Prueba concurrente: con N peticiones simultáneas nunca se permiten más que la capacidad. *(test 40 hilos → cap)*
+- [x] Con Redis caído: políticas `OPEN` dejan pasar y `CLOSED` rechazan (con métrica `error_open`/`error_closed`).
+- [x] La clave expira sola tras inactividad.
+- [x] Claves en el catálogo; `protocolo-rate-limit.md` escrito.
+- [x] **Mixto por política (D-07)** + compensación 1a: notificaciones externas diferidas si Redis cae.
+- [ ] *Aplazado:* anotar `@RateLimit` en `search`/`report-create`/`account-security` (políticas ya definidas); análisis de abuso al vaciar backlog (opción b); caché de stats (Fase 6); batería de carga (Fase 5).
 
 ---
 

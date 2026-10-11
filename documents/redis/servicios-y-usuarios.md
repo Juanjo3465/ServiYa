@@ -12,7 +12,7 @@ Al migrar a microservicios, cada servicio tendrá su propio par de usuarios con 
 
 ## Usuarios ACL
 
-### Instancia `redis-coord` (locks; rate limit en Fase 3)
+### Instancia `redis-coord` (locks + rate limit)
 
 | Usuario | Para qué | Patrón de claves | Permisos (resumen) |
 |---|---|---|---|
@@ -20,7 +20,13 @@ Al migrar a microservicios, cada servicio tendrá su propio par de usuarios con 
 | `admin` | Operación humana de emergencia | `~*` | `+@all`; solo desde bastión; auditado |
 | `healthcheck` | Healthcheck del contenedor | — | Solo `+ping` |
 | `monitor` | `redis_exporter` (Fase 5) | `~*` | Solo lectura + `INFO`/`SLOWLOG`/`LATENCY`/... |
-| `svc-serviya-coord` | El backend: locks (y rate limit en Fase 3) | `~lock:*` `~fence:*` `~rl:*` | R/W + scripting; `-@dangerous` |
+| `svc-serviya-coord` | El backend: locks (Fase 2) + rate limit (Fase 3) | `~lock:*` `~fence:*` `~rl:*` | R/W + scripting; `-@dangerous` |
+
+> Comandos exactos de `svc-serviya-coord` (allowlist, deny-by-default) en `users.coord.acl.tpl`:
+> `+@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +time +zadd +zcard +zrange`
+> `+zremrangebyscore +eval +evalsha +script|load +script|exists`. Los de rate limit (`+time` y los
+> `z*` de la ventana deslizante) se añadieron en Fase 3: el ACL del slice los exige. **Al desplegar hay
+> que re-renderizar** `users.coord.acl` desde el `.tpl` y recargar (`ACL LOAD` o reiniciar el contenedor).
 
 ### Instancia `redis-cache` (caché; se activa en Fase 6)
 

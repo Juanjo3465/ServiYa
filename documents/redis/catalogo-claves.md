@@ -28,6 +28,34 @@ máx. ~200 caracteres. La versión `v<N>` sube cuando cambia el **formato** del 
 > Nota: el "recurso" de estos locks es la **tarea** (singleton), no una entidad con id; por eso el hash
 > tag envuelve `sched:<nombre-tarea>`. Sin fencing token asociado.
 
+## Claves en uso — rate limiting (deuda #6 / M13, **Fase 3** — implementado)
+
+> Cuota distribuida por `rl:v1:{<tipo-sujeto>:<id>}:<politica>` (ver `protocolo-rate-limit.md`). Hash tag
+> `{<tipo>:<id>}` para Cluster; versión `v1` para migrar algoritmo. Tipo según algoritmo: **hash**
+> (token bucket: campos `tokens`, `ts`) o **zset** (ventana deslizante: timestamps de cada intento). TTL
+> por script; la clave se autolimpia tras inactividad. Escritas/leídas por `RedisRateLimiter`
+> (`ratelimit_token_bucket` / `ratelimit_sliding_window`). Sujeto IP/correo = dato potencialmente PII: va
+> en claro en la clave dentro de `redis-coord` (red interna, sin exposición); evaluar hash si se endurece.
+
+| Patrón de clave | Instancia | Tipo | TTL | Política (algoritmo) | Versión |
+|---|---|---|---|---|---|
+| `rl:v1:{user:<id>}:api-default` / `rl:v1:{ip:<addr>}:api-default` | coord | hash | ~80 s | techo global (token bucket 200, 5/s) | v1 |
+| `rl:v1:{ip:<addr>}:login-ip` | coord | zset | 15 min | login (sliding 10/15min) | v1 |
+| `rl:v1:{ip:<addr>}:register-ip` | coord | zset | 60 min | registro (sliding 5/60min) | v1 |
+| `rl:v1:{ip:<addr>}:reset-ip` | coord | zset | 15 min | password-reset por IP | v1 |
+| `rl:v1:{email:<correo>}:reset-email` | coord | zset | 60 min | password-reset por correo | v1 |
+| `rl:v1:{ip:<addr>}:reset-validate-ip` | coord | zset | 15 min | validar token reset | v1 |
+| `rl:v1:{ip:<addr>}:reset-confirm-ip` | coord | zset | 15 min | confirmar reset | v1 |
+| `rl:v1:{user:<id>}:request-write` | coord | zset | 10 min | solicitudes (notifican) | v1 |
+| `rl:v1:{user:<id>}:proposal-write` | coord | zset | 15 min | propuestas (notifican) | v1 |
+| `rl:v1:{user:<id>}:service-write` | coord | zset | 60 min | crear/editar servicio (multipart) | v1 |
+| `rl:v1:{user:<id>}:profile-photo` | coord | zset | 60 min | subir foto de perfil | v1 |
+| `rl:v1:{user:<id>}:address-verify` | coord | zset | 60 min | verificar/crear/editar dirección (geocoding) | v1 |
+| `rl:v1:{ip:<addr>}:stats` / `rl:v1:{user:<id>}:stats` | coord | zset | 1 min | stats públicas | v1 |
+
+> Políticas definidas pero aún **sin anotar** (no crean claves todavía): `report-create`,
+> `account-security`, `search` (prioridad media, fuera del alcance 🔴 de Fase 3).
+
 ## Previsto — `fence:{<entidad>}` (fencing, deuda B8)
 
 > El fencing (`lock:{...}` + `fence:{...}` vía `lock_acquire_fenced.lua`) está disponible en la API pero

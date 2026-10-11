@@ -304,7 +304,7 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
   `admin.searchFeedback` (`Integer.MAX_VALUE`).
 - **[MEDIO] Catálogo de tags escaneado completo por ítem** en lecturas de feedback.
 - **[MEDIO] Query a BD por request autenticado** (revalidación `isActive()` en el filtro JWT).
-- **[BAJO] Rate limiting en memoria** (Bucket4j local) → no compartido entre instancias.
+- ~~**[BAJO] Rate limiting en memoria** (Bucket4j local) → no compartido entre instancias.~~ **RESUELTO (rama `redis`, Fase 3, 2026-10-11):** `RateLimiter` distribuido sobre `redis-coord` (Lua); Bucket4j eliminado. Ver §6.6.
 
 ### 3.5 Calidad / deuda / doc-rot / código muerto
 
@@ -572,7 +572,21 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > `lock_acquire`/`_fenced`/`release`/`renew`), los **6 `@Scheduled` envueltos**, prueba de exclusión mutua
 > con Testcontainers, `protocolo-lock.md` escrito y las 6 claves `lock:{sched:...}` en el catálogo. Con esto
 > la **deuda #1 queda resuelta**: el monolito puede correr en ≥2 instancias sin doble ejecución de los
-> schedulers. Siguiente: Fase 3 (rate limiting distribuido, #6/M13) — aún Bucket4j local.
+> schedulers.
+>
+> **Fase 3 (rate limiting distribuido, #6/M13) ✅ (2026-10-11):** interfaz `RateLimiter` +
+> `RedisRateLimiter` sobre `redis-coord` con **dos algoritmos Lua** — token bucket (techo global
+> `api-default`) y **ventana deslizante** (auth/costosos). **Bucket4j eliminado** (contador local → clave
+> `rl:v1:{...}` compartida). Dos niveles: (1) `GlobalRateLimitFilter` tras el JWT, por user/IP; (2)
+> `@RateLimit` + interceptor en endpoints 🔴 (requests/propuestas que notifican, subidas multipart,
+> geocoding) + stats. Auth migrado (login/registro/reset) con el sujeto estandarizado **D-09** (correo solo
+> en reset; login sin correo → evita DoS de bloqueo) y endurecido el XFF (`forward-headers-strategy=native`).
+> **D-07 mixto** (login OPEN; registro/reset/costosos CLOSED) + **compensación 1a**: si Redis cae, las
+> notificaciones externas se difieren (`CoordinationAvailability` → FAILED → las reenvía el retry scheduler
+> al recuperarse). Con esto la **deuda #6 queda resuelta** (superficie de auth + techo global + 🔴).
+> Verificado e2e (login 429 al 11º, stats 429 al 31º, claves `rl:*` en `redis-coord`). ACL ampliado
+> (`+time` + comandos ZSET). Siguiente: Fase 4 (resiliencia) o pendientes menores (anotar search/
+> report-create/account-security — políticas ya definidas). **La rama `redis` sigue sin pushear.**
 
 **Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
 `redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción
@@ -819,6 +833,18 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   colgantes). Anotados en CLAUDE.md + NOTAS.txt tres known-unknowns operativos: build/tests no
   verificados esta sesión (primer paso: `./mvnw clean test`), 3 archivos de frontend sin commitear
   ajenos al diagnóstico, y el flujo de trabajo en `main`. M35 (doble reserva) marcado "verificar en código".
+- **2026-10-11** — Implementada en la rama `redis` la **Fase 3 (rate limiting distribuido, #6/M13)** en
+  5 sub-commits (`1ad4436` núcleo, `682db9e` auth, `1e0d52d` techo global, `89f5909` @RateLimit, `067dca5`
+  modo degradado notif): interfaz `RateLimiter` + `RedisRateLimiter` sobre `redis-coord` con dos algoritmos
+  Lua (token bucket + ventana deslizante), **Bucket4j eliminado**; dos niveles (filtro global `api-default`
+  + `@RateLimit`/interceptor en endpoints 🔴 + stats); auth/reset migrados con sujeto estandarizado **D-09**;
+  **D-06/D-07/D-09 cerradas**; compensación 1a (notificaciones externas diferidas si Redis cae). **Deuda #6
+  resuelta.** Verificado e2e (login/stats → 429, claves `rl:*`). Hallazgos (en NOTAS.txt): ACL necesitaba
+  `+time`+comandos ZSET; YAML flow-map exige espacio tras `:`; regresión de slice `@WebMvcTest` por
+  componentes no cargados (interceptor y `RateLimiter`) → resuelta con construcción desde config/ObjectProvider;
+  el `up` parcial de Docker vuelve a soltar una red (usar `down`+`up`). Suite: 328 tests, 0 fallos, 1 error
+  ambiental preexistente (contextLoads/BD). Rama `redis` aún sin pushear. Antes: refactor de constantes de
+  recurso de los locks (`b31a280`). Siguiente: Fase 4 (resiliencia) o pendientes menores de Fase 3.
 - **2026-10-10** — Elegido el **sustrato Redis** para la deuda #1 (lock distribuido de los `@Scheduled`).
   Leída y adoptada `documents/redis/guia-redis-implementacion.md` en modalidad **Vía B (slice mínimo)**.
   Decisiones cerradas: **D-04** = protocolo propio (ShedLock descartado), **D-02** = Redis 8.2-alpine
