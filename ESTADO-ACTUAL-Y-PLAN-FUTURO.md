@@ -566,6 +566,14 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > registro de decisiones tipo ADR). Esta sección es el **resumen + tracker de aplazamientos**, para no
 > perder de vista lo postergado. Resuelve la **deuda #1 (M4)** y, por fases, **#6/M13** y **M34**.
 
+> **Estado de implementación (rama `redis`):** Fase 0 (fundamentos) ✅ · Fase 1 (entorno local seguro:
+> `redis-coord` + ACL + health por PING) ✅ verificada en runtime · **Fase 2 (lock distribuido) ✅**:
+> interfaz `DistributedLock`/`LockHandle` + `RedisDistributedLock` (protocolo propio, scripts Lua
+> `lock_acquire`/`_fenced`/`release`/`renew`), los **6 `@Scheduled` envueltos**, prueba de exclusión mutua
+> con Testcontainers, `protocolo-lock.md` escrito y las 6 claves `lock:{sched:...}` en el catálogo. Con esto
+> la **deuda #1 queda resuelta**: el monolito puede correr en ≥2 instancias sin doble ejecución de los
+> schedulers. Siguiente: Fase 3 (rate limiting distribuido, #6/M13) — aún Bucket4j local.
+
 **Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
 `redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción
 B**) para envolver los **6 `@Scheduled`** (requests ×4, reintento de notificaciones, limpieza de
@@ -817,6 +825,14 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   (patch pendiente), **D-14** = `.env` local (gestor de prod pendiente); fencing no usado en schedulers.
   Aplazamientos registrados en §6.6 (resumen) y en la guía §2.1 (detalle por fase). Siguiente:
   implementar Fase 0 + Fase 1 reducida (`redis-coord`) + Fase 2 (`DistributedLock`) sobre los 6 schedulers.
+- **2026-10-10** — Implementadas en la rama `redis`: **Fase 0** (fundamentos, commit `68f130c`), **Fase 1**
+  (entorno local seguro: `redis-coord` + ACL mínimo privilegio + health por PING; verificada en runtime con
+  Docker — contenedor healthy, ACL denegando mantenimiento, `/actuator/health`=UP) y **Fase 2** (lock
+  distribuido: `DistributedLock`/`LockHandle` + `RedisDistributedLock`, scripts Lua, los 6 `@Scheduled`
+  envueltos, prueba de exclusión mutua con Testcontainers, `protocolo-lock.md`). **Deuda #1 resuelta.**
+  Hallazgos corregidos (en NOTAS.txt): comentarios no admitidos en `redis.conf`/`aclfile`, health por `INFO`
+  vs usuario de mínimo privilegio, y la fuga de detalles del Actuator por el 8080 (grupo `redis` →
+  `when_authorized`). Siguiente: Fase 3 (rate limiting distribuido, #6/M13).
 - **2026-10-03** — Dos insumos del equipo incorporados: **(1)** el split a microservicios con **API
   gateway** es **requisito de entrega** (no opcional) → §7.0 y §7.7 reencuadrados a "split completo, el
   cómo es lo que importa"; **(2)** diagnóstico de **testing** (§3.7): cobertura casi nula de integración,

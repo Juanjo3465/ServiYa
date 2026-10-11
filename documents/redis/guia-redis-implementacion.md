@@ -141,8 +141,8 @@ respetando las convenciones de la §3 pero sin desplegar aún lo que no se usa:
 | Actuator en puerto de management separado (no publicado al host) | Fase 7 | Hoy el health va sobre el 8080 público; en Fase 1 ya se puso `show-details: when_authorized` en el grupo `redis` para no filtrar detalles. Prod: `management.server.port` propio + sin `ports:` en compose |
 | Alta disponibilidad (Sentinel/Cluster/gestionado) | Fase 8 | D-16 / D-17 |
 | Interoperabilidad multilenguaje (clientes + pruebas de contrato) | Fase 9 | — |
-| Fencing token / columna `version` en tablas protegidas | Al proteger una sección crítica por-entidad | D-05; p. ej. deuda **B8** |
-| Testcontainers + pruebas de concurrencia de lock | Fase 5 | En el slice, mínimo una prueba básica de exclusión mutua (§3.7 del ESTADO) |
+| Usar fencing (`fence:` + columna `version`/`last_fencing_token`) en una tabla protegida | Al proteger una sección crítica por-entidad | D-05; p. ej. deuda **B8**. La API ya existe desde Fase 2 (`tryAcquireFenced` + `lock_acquire_fenced.lua`); falta el primer uso real |
+| Batería ampliada de concurrencia multi-instancia + observabilidad del lock | Fase 5 | El slice (Fase 2) ya trae la prueba básica de exclusión mutua con Testcontainers (§3.7 del ESTADO) |
 
 ---
 
@@ -308,17 +308,20 @@ infra/redis/
     render-acl.sh                # genera users.acl a partir de secretos (no versionar el resultado)
   .env.example                   # nombres de variables, sin valores reales  ✅ Fase 0
   README.md                      # ✅ Fase 0
-redis-scripts/
-  README.md                      # ✅ Fase 0
-  lock_acquire.lua               # Fase 2
-  lock_release.lua               # Fase 2
-  lock_renew.lua                 # Fase 2
+redis-scripts/                   # spec/README; los .lua canónicos viven en el classpath del backend (ver abajo)
+  README.md                      # ✅ Fase 0 (actualizado en Fase 2: ubicación real de los scripts)
+backend/serviya/src/main/resources/redis-scripts/   # ubicación REAL (contexto de build Docker + classpath)
+  lock_acquire.lua               # ✅ Fase 2 (sin fencing)
+  lock_acquire_fenced.lua        # ✅ Fase 2 (con fencing, para B8)
+  lock_release.lua               # ✅ Fase 2
+  lock_renew.lua                 # ✅ Fase 2
   ratelimit_token_bucket.lua     # Fase 3
+backend/serviya/src/main/java/.../shared/lock/       # ✅ Fase 2: DistributedLock, LockHandle, RedisDistributedLock
 documents/redis/
   guia-redis-implementacion.md   # este documento
   catalogo-claves.md             # ✅ Fase 0
   servicios-y-usuarios.md        # ✅ Fase 0 (servicios + usuarios ACL)
-  protocolo-lock.md              # Fase 2
+  protocolo-lock.md              # ✅ Fase 2
   protocolo-rate-limit.md        # Fase 3
   decisiones/                    # ✅ Fase 0 (ADR-001..004)
     ADR-001-instancias-separadas.md

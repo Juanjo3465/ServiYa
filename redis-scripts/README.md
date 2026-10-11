@@ -8,7 +8,16 @@
 - Un cambio incompatible crea un script nuevo (`version` + 1), nunca se modifica en caliente.
 - Ejecución con `EVALSHA` (en Spring: `DefaultRedisScript`, que maneja `SCRIPT LOAD`/`NOSCRIPT`).
 
-## Scripts previstos
+## Ubicación real de los scripts
 
-- `lock_acquire.lua`, `lock_release.lua`, `lock_renew.lua` — **Fase 2** (deuda #1, lock de `@Scheduled`).
+Mientras el backend sea el único consumidor (monolito Java), los `.lua` **canónicos** viven en el
+**classpath del backend**: `backend/serviya/src/main/resources/redis-scripts/`. Motivo: el contexto de
+build de la imagen Docker es `./backend/serviya`, así que nada fuera de ahí entra en la imagen, y se cargan
+con `ClassPathResource`. Este directorio raíz queda como **spec** (este README) y como **origen compartido**
+cuando aparezcan servicios en otros lenguajes (Fase 9), momento en que se definirá cómo distribuirlos.
+
+## Scripts
+
+- `lock_acquire.lua` (sin fencing), `lock_acquire_fenced.lua` (con fencing), `lock_release.lua`,
+  `lock_renew.lua` — **Fase 2 ✅** (deuda #1, lock de `@Scheduled`). Ver `documents/redis/protocolo-lock.md`.
 - `ratelimit_token_bucket.lua` — **Fase 3** (rate limiting distribuido, #6 / M13).

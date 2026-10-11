@@ -10,24 +10,26 @@ máx. ~200 caracteres. La versión `v<N>` sube cuando cambia el **formato** del 
 
 ## Claves en uso
 
-| Patrón de clave | Instancia | Tipo Redis | TTL | Dueño | Escrita por | Leída por | Propósito | Versión |
-|---|---|---|---|---|---|---|---|---|
-| _(ninguna todavía)_ | | | | | | | | |
+> Locks de los 6 `@Scheduled` (deuda #1, **Fase 2** — implementados). Exclusión mutua para correr en ≥2
+> instancias sin doble ejecución. Valor = token UUID de la adquisición (string). **Sin `fence:`**: tareas
+> idempotentes de mantenimiento (ADR-003). El TTL es la red de seguridad si la instancia muere a mitad;
+> holgado frente a la duración real (revisar al medir p99 en Fase 5). Escritas/leídas por
+> `RedisDistributedLock` (`lock_acquire` / `lock_release` / `lock_renew`).
 
-## Previsto — Fase 2 (locks de los `@Scheduled`, deuda #1)
-
-> Exclusión mutua de las 6 tareas programadas para correr en ≥2 instancias sin doble ejecución.
-> **Sin `fence:`** (tareas idempotentes de mantenimiento — ver ADR-003). El TTL es la red de seguridad
-> si la instancia muere a mitad de tarea; confirmar los valores al medir la duración real en Fase 2.
-
-| Patrón de clave | Instancia | Tipo | TTL previsto | Tarea (clase) |
-|---|---|---|---|---|
-| `lock:{sched:reject-expired-pending}` | coord | string | ~10 min | `RequestMaintenanceScheduler` — rechazar PENDING vencidas |
-| `lock:{sched:mark-stale-accepted}` | coord | string | ~10 min | `RequestMaintenanceScheduler` — marcar ACCEPTED estancadas |
-| `lock:{sched:reject-expired-proposals}` | coord | string | ~10 min | `RequestMaintenanceScheduler` — rechazar propuestas vencidas |
-| `lock:{sched:finalize-unconfirmed}` | coord | string | ~10 min | `RequestMaintenanceScheduler` — finalizar sin confirmar |
-| `lock:{sched:notif-retry-failed}` | coord | string | ~10 min | `NotificationRetryScheduler` — reintento de entregas fallidas |
-| `lock:{sched:reset-token-cleanup}` | coord | string | ~5 min | `PasswordResetCleanupScheduler` — borrar tokens caducados |
+| Patrón de clave | Instancia | Tipo | TTL | Tarea (clase) | Versión |
+|---|---|---|---|---|---|
+| `lock:{sched:reject-expired-pending}` | coord | string | 10 min | `RequestMaintenanceScheduler` — rechazar PENDING vencidas | v1 |
+| `lock:{sched:mark-stale-accepted}` | coord | string | 10 min | `RequestMaintenanceScheduler` — marcar ACCEPTED estancadas | v1 |
+| `lock:{sched:reject-expired-proposals}` | coord | string | 10 min | `RequestMaintenanceScheduler` — rechazar propuestas vencidas | v1 |
+| `lock:{sched:finalize-unconfirmed}` | coord | string | 10 min | `RequestMaintenanceScheduler` — finalizar sin confirmar | v1 |
+| `lock:{sched:notif-retry-failed}` | coord | string | 10 min | `NotificationRetryScheduler` — reintento de entregas fallidas | v1 |
+| `lock:{sched:reset-token-cleanup}` | coord | string | 5 min | `PasswordResetCleanupScheduler` — borrar tokens caducados | v1 |
 
 > Nota: el "recurso" de estos locks es la **tarea** (singleton), no una entidad con id; por eso el hash
 > tag envuelve `sched:<nombre-tarea>`. Sin fencing token asociado.
+
+## Previsto — `fence:{<entidad>}` (fencing, deuda B8)
+
+> El fencing (`lock:{...}` + `fence:{...}` vía `lock_acquire_fenced.lua`) está disponible en la API pero
+> **aún sin uso**. Primer caso previsto: carrera de propuestas PENDING duplicadas (deuda **B8**), que
+> además requerirá columna `version`/`last_fencing_token` en la tabla protegida.
