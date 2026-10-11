@@ -53,6 +53,11 @@ public class NotificationDeliveryPersistenceAdapter implements NotificationDeliv
     }
 
     @Override
+    public Optional<NotificationDelivery> findByIdAndUserId(Long id, Long userId) {
+        return repository.findByIdAndUserId(id, userId).map(mapper::toDomain);
+    }
+
+    @Override
     public Page<NotificationDelivery> findDeliveriesByUserId(Long userId, Boolean read, Long channelId, DeliveryStatus status, Pageable pageable) {
         return repository.findAll(
                 NotificationDeliverySpecification.fromQuery(userId, read, channelId, status),

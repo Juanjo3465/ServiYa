@@ -36,5 +36,5 @@ public interface NotificationDeliveryServicePort {
 
     boolean isRead(Long notificationId, Long channelId);
 
-    void markAsRead(Long deliveryId);
+    void markAsRead(Long deliveryId, Long userId);
 }
