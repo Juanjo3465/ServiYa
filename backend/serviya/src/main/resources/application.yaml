@@ -1,6 +1,14 @@
 spring:
   application:
     name: serviya
+  # Redis: usamos RedisTemplate directo (no repos Redis) y un health por PING (RedisCoordConfig), porque
+  # el usuario de servicio tiene mínimo privilegio (sin INFO). Se excluyen los autoconfigs que asumen lo
+  # contrario: el escaneo de repos Redis (trata repos JPA como Redis) y los health indicators por INFO.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisHealthContributorAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisReactiveHealthContributorAutoConfiguration
   servlet:
     multipart:
       max-file-size: 20MB
@@ -33,6 +41,48 @@ server:
 app:
   upload:
     dir: ${UPLOAD_DIR:uploads}
+  # Redis (contrato §3.3 de documents/redis/). Dos nodos por propósito (ADR-001). Vía B: solo 'coord'
+  # se cablea como bean (RedisCoordConfig); 'cache' queda como contrato para la Fase 6.
+  redis:
+    coord:
+      mode: ${REDIS_COORD_MODE:standalone}        # standalone | sentinel | cluster (solo standalone, Fase 1)
+      host: ${REDIS_COORD_HOST:localhost}
+      port: ${REDIS_COORD_PORT:6379}
+      nodes: ${REDIS_COORD_NODES:}
+      sentinel-master: ${REDIS_COORD_SENTINEL_MASTER:}
+      username: ${REDIS_COORD_USER:}
+      password: ${REDIS_COORD_PASSWORD:}
+      ssl: ${REDIS_COORD_SSL:false}
+      timeout: ${REDIS_COORD_TIMEOUT:2s}
+      connect-timeout: ${REDIS_COORD_CONNECT_TIMEOUT:2s}
+    cache:
+      mode: ${REDIS_CACHE_MODE:standalone}
+      host: ${REDIS_CACHE_HOST:localhost}
+      port: ${REDIS_CACHE_PORT:6379}
+      nodes: ${REDIS_CACHE_NODES:}
+      sentinel-master: ${REDIS_CACHE_SENTINEL_MASTER:}
+      username: ${REDIS_CACHE_USER:}
+      password: ${REDIS_CACHE_PASSWORD:}
+      ssl: ${REDIS_CACHE_SSL:false}
+      timeout: ${REDIS_CACHE_TIMEOUT:1s}
+      connect-timeout: ${REDIS_CACHE_CONNECT_TIMEOUT:2s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: when_authorized
+      # Grupo dedicado para verificar el estado de Redis sin exponer el resto de componentes.
+      # show-details: when_authorized (NO 'always'): un llamante no autenticado solo ve {"status":"UP"}
+      # —suficiente para verificar la conexión—, sin filtrar detalles (p. ej. versión de Redis) por el
+      # 8080 público. El Actuator no está tras Spring Security, así que 'authorized' = nadie → sin fuga.
+      group:
+        redis:
+          include: redis
+          show-details: when_authorized
 
 # Filtro de palabras (RNF-006): se censuran en todo texto libre antes de persistir
 # (descripcion de perfil, motivo de reportes, resenas). Ampliar la lista NO requiere recompilar.

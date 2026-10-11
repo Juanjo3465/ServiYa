@@ -580,7 +580,9 @@ reset-tokens) → habilita el despliegue en **≥2 instancias** sin doble ejecuc
 
 **Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); rate limiting
 distribuido **#6/M13** (Fase 3); resiliencia/circuit breaker (Fase 4); observabilidad (Fase 5); TLS +
-secretos de prod + backups + runbooks (Fase 7); alta disponibilidad Sentinel/Cluster/gestionado
+secretos de prod + backups + runbooks + **Actuator en puerto de management separado y no publicado**
+(Fase 7; en Fase 1 el grupo de health `redis` quedó en `show-details: when_authorized` para no filtrar
+detalles por el 8080 público); alta disponibilidad Sentinel/Cluster/gestionado
 (Fase 8); interop multilenguaje (Fase 9); fencing token / columna `version` en tablas (al proteger una
 sección crítica por-entidad). **Detalle y mapeo por fase en la guía §2.1.**
 

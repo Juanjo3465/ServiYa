@@ -47,6 +47,18 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
+		<!-- Redis: sustrato de coordinación (locks distribuidos, Fase 2; rate limit Fase 3; caché Fase 6).
+		     Trae Lettuce (gestionado por el BOM 3.5.5). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<!-- Actuator: /actuator/health con el estado de la(s) conexión(es) Redis. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>

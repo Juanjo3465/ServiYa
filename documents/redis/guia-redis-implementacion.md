@@ -138,6 +138,7 @@ respetando las convenciones de la §3 pero sin desplegar aún lo que no se usa:
 | Observabilidad (Micrometer/Prometheus/Grafana/`redis_exporter`) | Fase 5 | D-18 |
 | Caché (M34) + serialización JSON | Fase 6 | D-10 / D-12 / D-13 |
 | TLS, gestor de secretos de prod, backups, tuning de host, runbooks | Fase 7 | D-14 / D-15 |
+| Actuator en puerto de management separado (no publicado al host) | Fase 7 | Hoy el health va sobre el 8080 público; en Fase 1 ya se puso `show-details: when_authorized` en el grupo `redis` para no filtrar detalles. Prod: `management.server.port` propio + sin `ports:` en compose |
 | Alta disponibilidad (Sentinel/Cluster/gestionado) | Fase 8 | D-16 / D-17 |
 | Interoperabilidad multilenguaje (clientes + pruebas de contrato) | Fase 9 | — |
 | Fencing token / columna `version` en tablas protegidas | Al proteger una sección crítica por-entidad | D-05; p. ej. deuda **B8** |
@@ -687,6 +688,7 @@ return { allowed, math.floor(tokens), retry_after }
 - [ ] Imagen con versión fija y **parcheada**; procedimiento de actualización periódica (incluye revisar avisos de seguridad, especialmente del motor Lua).
 - [ ] Escaneo de vulnerabilidades de la imagen en CI.
 - [ ] Rotación de credenciales probada (runbook).
+- [ ] **Actuator (endpoints de management) fuera del puerto público**: `management.server.port` dedicado y **no** publicado en el compose (solo alcanzable dentro de la red del backend), o protegido tras Spring Security. En Fase 1 el grupo `redis` ya quedó en `show-details: when_authorized` para no filtrar detalles por el 8080.
 
 #### Confiabilidad
 - [ ] `redis-coord`: AOF `everysec` + RDB; volumen en disco persistente.

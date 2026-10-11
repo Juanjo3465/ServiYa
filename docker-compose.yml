@@ -25,9 +25,19 @@ services:
       # Base del enlace de recuperacion de contrasena (RF-003). Con el frontend dockerizado
       # el origen es :8081, no el :5173 de Vite.
       FRONTEND_RESET_URL: ${FRONTEND_RESET_URL:-http://localhost:8081/reset-password}
+      # Redis coord (locks). El contenedor vive en infra/redis/docker-compose.redis.yml (red compartida
+      # serviya-redis-net). La app tolera Redis caído al arrancar; el lock de @Scheduled llega en Fase 2.
+      REDIS_COORD_HOST: ${REDIS_COORD_HOST:-redis-coord}
+      REDIS_COORD_PORT: ${REDIS_COORD_PORT:-6379}
+      REDIS_COORD_USER: ${REDIS_COORD_USER:-svc-serviya-coord}
+      REDIS_COORD_PASSWORD: ${REDIS_COORD_PASSWORD:-}
+      REDIS_COORD_SSL: ${REDIS_COORD_SSL:-false}
     depends_on:
       mysql:
         condition: service_healthy
+    networks:
+      - default
+      - redis-net
 
   mysql:
     image: mysql
@@ -61,3 +71,10 @@ services:
 
 volumes:
   mysql_data:
+
+networks:
+  # Red compartida con infra/redis/docker-compose.redis.yml. Declarada aquí también para que el compose
+  # raíz siga siendo ejecutable en solitario (sin el archivo de Redis). internal: sin salida a Internet.
+  redis-net:
+    name: serviya-redis-net
+    internal: true
