@@ -1,20 +1,16 @@
 package com.parosurvivors.serviya.users.infrastructure.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.parosurvivors.serviya.shared.dto.ErrorResponse;
 import com.parosurvivors.serviya.shared.ratelimit.RateLimitDecision;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimitHttp;
 import com.parosurvivors.serviya.shared.ratelimit.RateLimiter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -67,7 +63,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (!decision.allowed()) {
             // Estamos ANTES del DispatcherServlet: el @RestControllerAdvice no ve esto, asi que la
             // respuesta se escribe aqui con el mismo formato (igual que RestAccessErrorHandler).
-            writeTooManyRequests(request, response, decision.retryAfterSeconds());
+            RateLimitHttp.writeTooManyRequests(request, response, decision.retryAfterSeconds(), objectMapper);
             return;
         }
 
@@ -84,24 +80,5 @@ public class RateLimitingFilter extends OncePerRequestFilter {
      */
     private String clientIp(HttpServletRequest request) {
         return request.getRemoteAddr();
-    }
-
-    private void writeTooManyRequests(HttpServletRequest request, HttpServletResponse response,
-                                      long retryAfterSeconds) throws IOException {
-        ErrorResponse body = ErrorResponse.builder()
-                .status(HttpStatus.TOO_MANY_REQUESTS.value())
-                .error(HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase())
-                .message("Demasiadas peticiones. Intentalo de nuevo mas tarde.")
-                .path(request.getRequestURI())
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        if (retryAfterSeconds > 0) {
-            response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
-        }
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), body);
     }
 }
