@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
+import { ProtectedRoute } from "../shared/components/ProtectedRoute";
 
 import { HomePage, SearchPage, ServiceDetailPage, OffererServicesPage, OffererServiceDetailPage, AvailabilityPage } from "../modules/services";
 import { LoginPage, RegisterPage, RecoverPasswordPage, ResetPasswordPage } from "../modules/users";
@@ -23,6 +24,7 @@ import { MyReportsPage } from "../modules/reports";
 import { AdminDashboardPage, AdminUsersPage, AdminReportsPage, AdminFeedbackPage, AdminServicesPage } from "../modules/admin";
 
 const page = (element) => ({ element: <App>{element}</App> });
+const protectedPage = (element, allowedRoles) => ({ element: <App><ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute></App> });
 
 export const router = createBrowserRouter([
     // Public
@@ -36,33 +38,33 @@ export const router = createBrowserRouter([
     { path: "/offerers/:id", ...page(<OffererProfilePage />) },
     { path: "/request-service", ...page(<RequestServicePage />) },
 
-    // Account (shared by roles)
-    { path: "/profile", ...page(<ProfilePage />) },
-    { path: "/notifications", ...page(<NotificationsPage />) },
-    { path: "/my-reports", ...page(<MyReportsPage />) },
+    // Account (shared by roles - requires authentication)
+    { path: "/profile", ...protectedPage(<ProfilePage />) },
+    { path: "/notifications", ...protectedPage(<NotificationsPage />) },
+    { path: "/my-reports", ...protectedPage(<MyReportsPage />) },
 
-    // Client
-    { path: "/dashboard", ...page(<ClientDashboardPage />) },
-    { path: "/requests", ...page(<ClientRequestsPage />) },
-    { path: "/requests/:id", ...page(<RequestDetailPage />) },   // detalle de solicitud (cliente u oferente)
-    { path: "/reschedules", ...page(<ReschedulesPage />) },
-    { path: "/schedule", ...page(<ClientSchedulePage />) },
-    { path: "/history", ...page(<ClientHistoryPage />) },
+    // Client (requires CLIENT role)
+    { path: "/dashboard", ...protectedPage(<ClientDashboardPage />, ['CLIENT']) },
+    { path: "/requests", ...protectedPage(<ClientRequestsPage />, ['CLIENT']) },
+    { path: "/requests/:id", ...protectedPage(<RequestDetailPage />, ['CLIENT']) },
+    { path: "/reschedules", ...protectedPage(<ReschedulesPage />, ['CLIENT']) },
+    { path: "/schedule", ...protectedPage(<ClientSchedulePage />, ['CLIENT']) },
+    { path: "/history", ...protectedPage(<ClientHistoryPage />, ['CLIENT']) },
 
-    // Offerer
-    { path: "/offerer/dashboard", ...page(<OffererDashboardPage />) },
-    { path: "/offerer/requests", ...page(<OffererRequestsPage />) },
-    { path: "/offerer/services", ...page(<OffererServicesPage />) },
-    { path: "/offerer/services/:id", ...page(<OffererServiceDetailPage />) },
-    { path: "/offerer/availability", ...page(<AvailabilityPage />) },
-    { path: "/offerer/schedule", ...page(<OffererSchedulePage />) },
-    { path: "/offerer/reschedules", ...page(<OffererReschedulesPage />) },
-    { path: "/offerer/history", ...page(<OffererHistoryPage />) },
+    // Offerer (requires OFFERER role)
+    { path: "/offerer/dashboard", ...protectedPage(<OffererDashboardPage />, ['OFFERER']) },
+    { path: "/offerer/requests", ...protectedPage(<OffererRequestsPage />, ['OFFERER']) },
+    { path: "/offerer/services", ...protectedPage(<OffererServicesPage />, ['OFFERER']) },
+    { path: "/offerer/services/:id", ...protectedPage(<OffererServiceDetailPage />, ['OFFERER']) },
+    { path: "/offerer/availability", ...protectedPage(<AvailabilityPage />, ['OFFERER']) },
+    { path: "/offerer/schedule", ...protectedPage(<OffererSchedulePage />, ['OFFERER']) },
+    { path: "/offerer/reschedules", ...protectedPage(<OffererReschedulesPage />, ['OFFERER']) },
+    { path: "/offerer/history", ...protectedPage(<OffererHistoryPage />, ['OFFERER']) },
 
-    // Admin
-    { path: "/admin/dashboard", ...page(<AdminDashboardPage />) },
-    { path: "/admin/users", ...page(<AdminUsersPage />) },
-    { path: "/admin/reports", ...page(<AdminReportsPage />) },
-    { path: "/admin/feedback", ...page(<AdminFeedbackPage />) },
-    { path: "/admin/services", ...page(<AdminServicesPage />) },
+    // Admin (requires ADMIN role)
+    { path: "/admin/dashboard", ...protectedPage(<AdminDashboardPage />, ['ADMIN']) },
+    { path: "/admin/users", ...protectedPage(<AdminUsersPage />, ['ADMIN']) },
+    { path: "/admin/reports", ...protectedPage(<AdminReportsPage />, ['ADMIN']) },
+    { path: "/admin/feedback", ...protectedPage(<AdminFeedbackPage />, ['ADMIN']) },
+    { path: "/admin/services", ...protectedPage(<AdminServicesPage />, ['ADMIN']) },
 ]);
