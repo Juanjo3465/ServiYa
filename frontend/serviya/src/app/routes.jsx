@@ -36,7 +36,9 @@ export const router = createBrowserRouter([
     { path: "/services", ...page(<SearchPage />) },
     { path: "/services/:id", ...page(<ServiceDetailPage />) },
     { path: "/offerers/:id", ...page(<OffererProfilePage />) },
-    { path: "/request-service", ...page(<RequestServicePage />) },
+
+    // Client (requires CLIENT role) - Request service wizard
+    { path: "/request-service/:serviceId", ...protectedPage(<RequestServicePage />, ['CLIENT']) },
 
     // Account (shared by roles - requires authentication)
     { path: "/profile", ...protectedPage(<ProfilePage />) },
