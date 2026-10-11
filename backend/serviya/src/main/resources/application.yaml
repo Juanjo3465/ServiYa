@@ -66,6 +66,34 @@ app:
       ssl: ${REDIS_CACHE_SSL:false}
       timeout: ${REDIS_CACHE_TIMEOUT:1s}
       connect-timeout: ${REDIS_CACHE_CONNECT_TIMEOUT:2s}
+  # Rate limiting distribuido (deuda #6 / M13). Políticas en config (no en código) para ajustarlas sin
+  # recompilar. algorithm: TOKEN_BUCKET (techo global, admite ráfaga) | SLIDING_WINDOW (exacto, sin
+  # ráfaga de borde, para auth/costosos). failure-mode: OPEN (deja pasar si Redis cae) | CLOSED (rechaza).
+  # Sujeto estandarizado (D-09): ip (anónimo), user (autenticado), email (solo ataque dirigido a cuenta).
+  ratelimit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    policies:
+      # --- Nivel 1: techo global de la API (api-default), por user/ip. OPEN: no tumbar la API si Redis cae.
+      api-default:      { algorithm: TOKEN_BUCKET,   capacity: 200, refill-per-second: 5,  failure-mode: OPEN }
+      # --- Nivel 2 (auth públicos): login OPEN (disponibilidad del acceso); registro/reset CLOSED (abuso/Brevo).
+      login-ip:         { algorithm: SLIDING_WINDOW, capacity: 10,  window: 15m, failure-mode: OPEN }
+      register-ip:      { algorithm: SLIDING_WINDOW, capacity: 5,   window: 60m, failure-mode: CLOSED }
+      reset-ip:         { algorithm: SLIDING_WINDOW, capacity: 5,   window: 15m, failure-mode: CLOSED }
+      reset-email:      { algorithm: SLIDING_WINDOW, capacity: 3,   window: 60m, failure-mode: CLOSED }
+      reset-validate-ip:{ algorithm: SLIDING_WINDOW, capacity: 20,  window: 15m, failure-mode: CLOSED }
+      reset-confirm-ip: { algorithm: SLIDING_WINDOW, capacity: 10,  window: 15m, failure-mode: CLOSED }
+      # --- Nivel 2 (autenticados que NOTIFICAN por correo): OPEN + modo degradado de notificaciones (D-07/1a).
+      request-write:    { algorithm: SLIDING_WINDOW, capacity: 30,  window: 10m, failure-mode: OPEN }
+      proposal-write:   { algorithm: SLIDING_WINDOW, capacity: 20,  window: 15m, failure-mode: OPEN }
+      report-create:    { algorithm: SLIDING_WINDOW, capacity: 10,  window: 60m, failure-mode: OPEN }
+      # --- Nivel 2 (autenticados costosos: subida de ficheros / geocoding externo). CLOSED.
+      service-write:    { algorithm: SLIDING_WINDOW, capacity: 20,  window: 60m, failure-mode: CLOSED }
+      profile-photo:    { algorithm: SLIDING_WINDOW, capacity: 10,  window: 60m, failure-mode: CLOSED }
+      address-verify:   { algorithm: SLIDING_WINDOW, capacity: 20,  window: 60m, failure-mode: CLOSED }
+      account-security: { algorithm: SLIDING_WINDOW, capacity: 5,   window: 15m, failure-mode: CLOSED }
+      # --- Nivel 2 (lecturas públicas pesadas), por ip. OPEN.
+      search:           { algorithm: SLIDING_WINDOW, capacity: 60,  window: 1m,  failure-mode: OPEN }
+      stats:            { algorithm: SLIDING_WINDOW, capacity: 30,  window: 1m,  failure-mode: OPEN }
 
 management:
   endpoints:
