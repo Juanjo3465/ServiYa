@@ -2,6 +2,8 @@ package com.parosurvivors.serviya.shared.lock;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -39,13 +41,25 @@ public class RedisDistributedLock implements DistributedLock {
 
     private final StringRedisTemplate redis;
     private final CircuitBreaker breaker;
+    private final MeterRegistry meterRegistry;
 
     public RedisDistributedLock(@Qualifier("coordRedisTemplate") StringRedisTemplate coordRedisTemplate,
-                                CircuitBreakerRegistry circuitBreakerRegistry) {
+                                CircuitBreakerRegistry circuitBreakerRegistry,
+                                MeterRegistry meterRegistry) {
         this.redis = coordRedisTemplate;
         // Misma instancia de breaker que el rate limiter ("redis-coord", config en resilience4j.* del YAML):
         // si redis-coord falla, lock y limiter abren juntos. El nombre se mantiene en sync con RedisRateLimiter.BREAKER.
         this.breaker = circuitBreakerRegistry.circuitBreaker("redis-coord");
+        this.meterRegistry = meterRegistry;
+    }
+
+    /** Métrica de locks (Fase 5): p. ej. redis.lock.renew{result=lost} alimenta la alerta de locks perdidos. */
+    private void metric(String name, String resource, String result) {
+        Counter.builder(name)
+                .tag("resource", resource)
+                .tag("result", result)
+                .register(meterRegistry)
+                .increment();
     }
 
     /** Clave del lock para un recurso: {@code lock:{<recurso>}} (el hash tag lo mantiene cluster-safe). */
@@ -66,12 +80,15 @@ public class RedisDistributedLock implements DistributedLock {
             Long result = breaker.executeSupplier(
                     () -> redis.execute(ACQUIRE, List.of(lockKey(resource)), token, ttlMillis));
             if (result != null && result == 1L) {
+                metric("redis.lock.acquire", resource, "acquired");
                 return Optional.of(new RedisLockHandle(resource, token, OptionalLong.empty()));
             }
+            metric("redis.lock.acquire", resource, "busy");
             log.trace("Lock '{}' ocupado; otra instancia lo tiene", resource);
             return Optional.empty();
         } catch (RuntimeException ex) {
             // Fallo cerrado (D-08): sin coordinación no ejecutamos la sección crítica.
+            metric("redis.lock.acquire", resource, "error");
             log.error("No se pudo adquirir el lock '{}' (Redis no respondió); se omite la operación", resource, ex);
             return Optional.empty();
         }
@@ -85,11 +102,14 @@ public class RedisDistributedLock implements DistributedLock {
             Long fencing = breaker.executeSupplier(
                     () -> redis.execute(ACQUIRE_FENCED, List.of(lockKey(resource), fenceKey(resource)), token, ttlMillis));
             if (fencing != null && fencing > 0L) {
+                metric("redis.lock.acquire", resource, "acquired");
                 return Optional.of(new RedisLockHandle(resource, token, OptionalLong.of(fencing)));
             }
+            metric("redis.lock.acquire", resource, "busy");
             log.trace("Lock '{}' ocupado; otra instancia lo tiene", resource);
             return Optional.empty();
         } catch (RuntimeException ex) {
+            metric("redis.lock.acquire", resource, "error");
             log.error("No se pudo adquirir el lock '{}' (Redis no respondió); se omite la operación", resource, ex);
             return Optional.empty();
         }
@@ -99,8 +119,11 @@ public class RedisDistributedLock implements DistributedLock {
         try {
             Long result = breaker.executeSupplier(
                     () -> redis.execute(RENEW, List.of(lockKey(resource)), token, Long.toString(ttl.toMillis())));
-            return result != null && result == 1L;
+            boolean renewed = result != null && result == 1L;
+            metric("redis.lock.renew", resource, renewed ? "ok" : "lost");
+            return renewed;
         } catch (RuntimeException ex) {
+            metric("redis.lock.renew", resource, "error");
             log.warn("Error renovando el lock '{}'; se considera perdido", resource, ex);
             return false;
         }

@@ -653,9 +653,25 @@ al recuperar, 429 vuelve a aplicar. Bucket4j eliminado del `pom`.
 | Locks perdidos | `redis.lock.renew{result=lost}` > 0 |
 
 **Criterios de aceptación:**
-- [ ] Pruebas corren en CI.
+- [ ] Pruebas corren en CI. *(no hay pipeline de CI en el repo todavía; las pruebas corren en local con Testcontainers.)*
 - [ ] Dashboard con memoria, ops/s, latencia, clientes, expulsiones, decisiones de rate limit y locks.
 - [ ] Alertas configuradas y probadas al menos una vez.
+
+**HECHO — parcial, slice A (2026-10-11): observabilidad del lado de la aplicación + pruebas.**
+- **Métricas expuestas** en `/actuator/prometheus` (dep `micrometer-registry-prometheus`), servido en un
+  **puerto de management separado (9090) NO publicado al host** (solo alcanzable en la red interna; adelanta
+  parte de Fase 7). Métricas disponibles: `ratelimit.decision{policy,result}`,
+  `resilience4j.circuitbreaker.*` (estado/llamadas/slow) y **nuevas** `redis.lock.acquire{resource,result}`
+  y `redis.lock.renew{resource,result}` (`result=lost` → alerta de locks perdidos).
+- **Pruebas**: contrato Lua + concurrencia ya cubiertos (lock 7 tests: exclusión, concurrencia, ownership
+  de release/renew, fencing monotónico, fail-closed, **métricas**; limiter 7). Imagen `redis:8.2-alpine`
+  = la de prod.
+
+**DIFERIDO a Fase 7 (observabilidad externa / infra de monitoreo):** `redis_exporter` (usuario Redis
+`monitor`, **D-18**), contenedor **Prometheus** (scraper del endpoint ya existente), **Grafana** +
+dashboards, y las **alertas** de la tabla. Es infra de ops que rinde con un host/despliegue real; **no
+genera retrabajo** (Prometheus solo apunta al `/actuator/prometheus` ya expuesto). También pendiente: CI
+que corra las pruebas, y Toxiproxy (opcional) para inyección de latencia.
 
 ---
 

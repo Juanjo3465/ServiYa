@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.shared.lock;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import java.time.Duration;
@@ -52,7 +53,7 @@ class RedisDistributedLockTest {
         factory.start();
         redis = new StringRedisTemplate(factory);
         redis.afterPropertiesSet();
-        lock = new RedisDistributedLock(redis, CircuitBreakerRegistry.ofDefaults());
+        lock = new RedisDistributedLock(redis, CircuitBreakerRegistry.ofDefaults(), new SimpleMeterRegistry());
     }
 
     @AfterAll
@@ -176,11 +177,34 @@ class RedisDistributedLockTest {
         try {
             StringRedisTemplate deadTpl = new StringRedisTemplate(dead);
             deadTpl.afterPropertiesSet();
-            RedisDistributedLock deadLock = new RedisDistributedLock(deadTpl, CircuitBreakerRegistry.ofDefaults());
+            RedisDistributedLock deadLock = new RedisDistributedLock(deadTpl, CircuitBreakerRegistry.ofDefaults(), new SimpleMeterRegistry());
 
             assertThat(deadLock.tryAcquire("x", Duration.ofSeconds(10))).isEmpty();
         } finally {
             dead.destroy();
         }
+    }
+
+    @Test
+    void emiteMetricasDeAcquireYRenew() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        RedisDistributedLock instrumented =
+                new RedisDistributedLock(redis, CircuitBreakerRegistry.ofDefaults(), registry);
+        String resource = "test:metrics";
+
+        LockHandle h = instrumented.tryAcquire(resource, Duration.ofSeconds(60)).orElseThrow(); // acquired
+        assertThat(instrumented.tryAcquire(resource, Duration.ofSeconds(60))).isEmpty();          // busy
+        assertThat(h.renew(Duration.ofSeconds(60))).isTrue();                                     // renew ok
+        h.close();                                                                                // libera
+        assertThat(h.renew(Duration.ofSeconds(60))).isFalse();                                    // renew lost
+
+        assertThat(counter(registry, "redis.lock.acquire", "acquired")).isEqualTo(1.0);
+        assertThat(counter(registry, "redis.lock.acquire", "busy")).isEqualTo(1.0);
+        assertThat(counter(registry, "redis.lock.renew", "ok")).isEqualTo(1.0);
+        assertThat(counter(registry, "redis.lock.renew", "lost")).isEqualTo(1.0);
+    }
+
+    private static double counter(SimpleMeterRegistry reg, String name, String result) {
+        return reg.get(name).tag("result", result).counter().count();
     }
 }

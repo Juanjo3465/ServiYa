@@ -608,7 +608,17 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > caído** (conexión lazy), degradada. **Bucket4j eliminado** del `pom`. Verificado e2e con `docker pause`
 > (Redis colgado): primeras req ~650ms (2×300ms), breaker abre, resto fast-fail ~20ms, todas 401 (OPEN
 > sigue sirviendo); al recuperar, 429 vuelve a aplicar; arranque con Redis detenido OK.
-> **Siguiente: Fase 5** (pruebas de concurrencia + observabilidad: exponer métricas/Prometheus/Grafana).
+>
+> **Fase 5 (observabilidad + pruebas) — slice A ✅ (2026-10-11):** observabilidad **del lado de la
+> aplicación**. Métricas en `/actuator/prometheus` (`micrometer-registry-prometheus`), servido en un
+> **puerto de management separado (9090) NO publicado al host** (solo red interna; adelanta parte de Fase 7;
+> evita filtrar métricas internas por el 8080 público). Métricas: `ratelimit.decision`,
+> `resilience4j.circuitbreaker.*` y **nuevas** `redis.lock.acquire`/`redis.lock.renew` (`result=lost` para
+> alerta de locks perdidos). Pruebas: contrato Lua + concurrencia ya cubiertos (lock 7 / limiter 7, +test de
+> métricas). **DIFERIDO a Fase 7** (observabilidad externa, elegido en slice A): `redis_exporter` (usuario
+> `monitor`, D-18) + **Prometheus** + **Grafana** + dashboards + alertas, y CI. Sin retrabajo: Prometheus
+> solo scrapea el endpoint ya expuesto.
+> **Siguiente: Fase 6** (caché sobre `redis-cache` — incluye el candidato M34 de cachear `isActive`).
 > **La rama `redis` sigue sin pushear.**
 
 **Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
@@ -624,10 +634,12 @@ reset-tokens) → habilita el despliegue en **≥2 instancias** sin doble ejecuc
 - **Secretos:** `.env` local (**D-14** local DECIDIDO); gestor de prod PENDIENTE.
 
 **Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); ~~rate limiting
-distribuido **#6/M13** (Fase 3)~~ ✅; ~~resiliencia/circuit breaker (Fase 4)~~ ✅; observabilidad (Fase 5); TLS +
+distribuido **#6/M13** (Fase 3)~~ ✅; ~~resiliencia/circuit breaker (Fase 4)~~ ✅; observabilidad del lado
+de la app (Fase 5, slice A) ✅ — **observabilidad externa diferida** (`redis_exporter`/Prometheus/Grafana/
+dashboards/alertas + CI → Fase 7); TLS +
 secretos de prod + backups + runbooks + **Actuator en puerto de management separado y no publicado**
-(Fase 7; en Fase 1 el grupo de health `redis` quedó en `show-details: when_authorized` para no filtrar
-detalles por el 8080 público); alta disponibilidad Sentinel/Cluster/gestionado
+(Fase 7 — el puerto separado **ya se adelantó en Fase 5** (9090 no publicado); en Fase 1 el grupo de health
+`redis` quedó en `show-details: when_authorized` para no filtrar detalles por el 8080 público); alta disponibilidad Sentinel/Cluster/gestionado
 (Fase 8); interop multilenguaje (Fase 9); fencing token / columna `version` en tablas (al proteger una
 sección crítica por-entidad). **Detalle y mapeo por fase en la guía §2.1.**
 
