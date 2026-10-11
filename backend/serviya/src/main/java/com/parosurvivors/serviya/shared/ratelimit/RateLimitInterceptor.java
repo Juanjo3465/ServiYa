@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -12,8 +11,10 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * Nivel 2: aplica la cuota estricta de los endpoints anotados con {@link RateLimit}. Corre DESPUÉS de la
  * cadena de seguridad (es un interceptor de Spring MVC), así que el sujeto puede ser el usuario autenticado.
  * Si la cuota está agotada responde 429 y corta la petición antes de llegar al controlador.
+ *
+ * <p>No es {@code @Component} a propósito: lo construye {@code StaticResourceConfig} a partir del
+ * {@link RateLimiter}, para no forzar su carga (ni la del RateLimiter) en los slices {@code @WebMvcTest}.</p>
  */
-@Component
 @RequiredArgsConstructor
 public class RateLimitInterceptor implements HandlerInterceptor {
 
