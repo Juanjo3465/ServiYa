@@ -111,14 +111,19 @@ export function AdminServicesPage() {
                                 />
                             </div>
                             <div className="input-group">
-                                <label className="label">ID Categoría</label>
-                                <input
+                                <label className="label">Categoría</label>
+                                <select
                                     className="input"
-                                    type="number"
-                                    placeholder="Ej: 1"
                                     value={filters.categoryId}
                                     onChange={(e) => handleChange('categoryId', e.target.value)}
-                                />
+                                >
+                                    <option value="">Todas las categorías</option>
+                                    {categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>
+                                            {cat.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="input-group">
                                 <label className="label">ID Oferente</label>
