@@ -1,5 +1,7 @@
 package com.parosurvivors.serviya.shared.lock;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -36,9 +38,14 @@ public class RedisDistributedLock implements DistributedLock {
             RedisScript.of(new ClassPathResource("redis-scripts/lock_renew.lua"), Long.class);
 
     private final StringRedisTemplate redis;
+    private final CircuitBreaker breaker;
 
-    public RedisDistributedLock(@Qualifier("coordRedisTemplate") StringRedisTemplate coordRedisTemplate) {
+    public RedisDistributedLock(@Qualifier("coordRedisTemplate") StringRedisTemplate coordRedisTemplate,
+                                CircuitBreakerRegistry circuitBreakerRegistry) {
         this.redis = coordRedisTemplate;
+        // Misma instancia de breaker que el rate limiter ("redis-coord", config en resilience4j.* del YAML):
+        // si redis-coord falla, lock y limiter abren juntos. El nombre se mantiene en sync con RedisRateLimiter.BREAKER.
+        this.breaker = circuitBreakerRegistry.circuitBreaker("redis-coord");
     }
 
     /** Clave del lock para un recurso: {@code lock:{<recurso>}} (el hash tag lo mantiene cluster-safe). */
@@ -56,7 +63,8 @@ public class RedisDistributedLock implements DistributedLock {
         String token = UUID.randomUUID().toString();
         String ttlMillis = Long.toString(ttl.toMillis());
         try {
-            Long result = redis.execute(ACQUIRE, List.of(lockKey(resource)), token, ttlMillis);
+            Long result = breaker.executeSupplier(
+                    () -> redis.execute(ACQUIRE, List.of(lockKey(resource)), token, ttlMillis));
             if (result != null && result == 1L) {
                 return Optional.of(new RedisLockHandle(resource, token, OptionalLong.empty()));
             }
@@ -74,7 +82,8 @@ public class RedisDistributedLock implements DistributedLock {
         String token = UUID.randomUUID().toString();
         String ttlMillis = Long.toString(ttl.toMillis());
         try {
-            Long fencing = redis.execute(ACQUIRE_FENCED, List.of(lockKey(resource), fenceKey(resource)), token, ttlMillis);
+            Long fencing = breaker.executeSupplier(
+                    () -> redis.execute(ACQUIRE_FENCED, List.of(lockKey(resource), fenceKey(resource)), token, ttlMillis));
             if (fencing != null && fencing > 0L) {
                 return Optional.of(new RedisLockHandle(resource, token, OptionalLong.of(fencing)));
             }
@@ -88,7 +97,8 @@ public class RedisDistributedLock implements DistributedLock {
 
     private boolean renew(String resource, String token, Duration ttl) {
         try {
-            Long result = redis.execute(RENEW, List.of(lockKey(resource)), token, Long.toString(ttl.toMillis()));
+            Long result = breaker.executeSupplier(
+                    () -> redis.execute(RENEW, List.of(lockKey(resource)), token, Long.toString(ttl.toMillis())));
             return result != null && result == 1L;
         } catch (RuntimeException ex) {
             log.warn("Error renovando el lock '{}'; se considera perdido", resource, ex);
@@ -98,7 +108,8 @@ public class RedisDistributedLock implements DistributedLock {
 
     private void release(String resource, String token) {
         try {
-            Long result = redis.execute(RELEASE, List.of(lockKey(resource)), token);
+            Long result = breaker.executeSupplier(
+                    () -> redis.execute(RELEASE, List.of(lockKey(resource)), token));
             if (result == null || result == 0L) {
                 // No era nuestro: ya expiró o lo tomó otra instancia. Normal con TTL; no es un error.
                 log.debug("Al liberar, el lock '{}' ya no pertenecía a este token (expiró o lo tomó otro)", resource);

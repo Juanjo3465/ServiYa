@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.parosurvivors.serviya.shared.ratelimit.RateLimitProperties.Algorithm;
 import com.parosurvivors.serviya.shared.ratelimit.RateLimitProperties.FailureMode;
 import com.parosurvivors.serviya.shared.ratelimit.RateLimitProperties.Policy;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -74,7 +75,7 @@ class RedisRateLimiterTest {
         RateLimitProperties props = new RateLimitProperties();
         props.setEnabled(true);
         props.setPolicies(policies);
-        return new RedisRateLimiter(tpl, props, new SimpleMeterRegistry());
+        return new RedisRateLimiter(tpl, props, new SimpleMeterRegistry(), CircuitBreakerRegistry.ofDefaults());
     }
 
     @Test

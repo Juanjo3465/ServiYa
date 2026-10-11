@@ -58,8 +58,9 @@ app:
       username: ${REDIS_COORD_USER:}
       password: ${REDIS_COORD_PASSWORD:}
       ssl: ${REDIS_COORD_SSL:false}
-      timeout: ${REDIS_COORD_TIMEOUT:2s}
+      timeout: ${REDIS_COORD_TIMEOUT:2s}                      # command timeout del lock (background)
       connect-timeout: ${REDIS_COORD_CONNECT_TIMEOUT:2s}
+      hot-command-timeout: ${REDIS_COORD_HOT_TIMEOUT:300ms}   # command timeout del rate limit (hot-path, Fase 4)
     cache:
       mode: ${REDIS_CACHE_MODE:standalone}
       host: ${REDIS_CACHE_HOST:localhost}
@@ -99,6 +100,24 @@ app:
       # --- Nivel 2 (lecturas públicas pesadas), por ip. OPEN.
       search:            { algorithm: SLIDING_WINDOW, capacity: 60, window: 1m, failure-mode: OPEN }
       stats:             { algorithm: SLIDING_WINDOW, capacity: 30, window: 1m, failure-mode: OPEN }
+
+# Circuit breaker sobre redis-coord (Fase 4). Una sola instancia "redis-coord" compartida por el lock
+# distribuido y el rate limiter: si Redis cae o se pone lento, el breaker ABRE y ambos aplican su modo de
+# fallo (D-07/D-08) al instante, sin esperar el command timeout. Todo es afinable en caliente desde aquí.
+resilience4j:
+  circuitbreaker:
+    instances:
+      redis-coord:
+        register-health-indicator: false           # NO en /health: breaker ABIERTO = degradado-pero-OK (las OPEN pasan); un health DOWN sacaría la instancia del balanceador. El estado se observa por métrica resilience4j.circuitbreaker.state (Fase 5).
+        sliding-window-type: COUNT_BASED            # decide sobre las últimas N llamadas (predecible)
+        sliding-window-size: 20                     # ventana = últimas 20 llamadas a redis-coord
+        minimum-number-of-calls: 10                 # no evalúa (ni abre) hasta tener 10 llamadas: evita abrir por un blip aislado
+        failure-rate-threshold: 50                  # abre si ≥50% de esas llamadas fallan (excepción/timeout)
+        slow-call-duration-threshold: 300ms         # una llamada > 300ms cuenta como "lenta" (= hot timeout): detecta Redis lento
+        slow-call-rate-threshold: 80                # abre si ≥80% de las llamadas son lentas (Redis degradado, no caído)
+        wait-duration-in-open-state: 10s            # abierto: 10s de fail-fast antes de volver a probar
+        permitted-number-of-calls-in-half-open-state: 3   # en half-open deja 3 pruebas; si pasan, cierra
+        automatic-transition-from-open-to-half-open-enabled: true  # pasa a half-open por tiempo aunque no llegue tráfico
 
 management:
   endpoints:

@@ -610,9 +610,20 @@ return { allowed, math.floor(tokens), retry_after }
 4. Arranque de la aplicación: decidir y documentar si la app puede arrancar con Redis caído (recomendado: sí, con health `DOWN`/degradado, para no generar caídas en cascada).
 
 **Criterios de aceptación:**
-- [ ] Con Redis detenido, los endpoints responden en < timeout + margen y según el modo de fallo.
-- [ ] Al volver Redis, la app se recupera sin reiniciarse.
-- [ ] Comportamiento de arranque documentado.
+- [x] Con Redis detenido, los endpoints responden en < timeout + margen y según el modo de fallo.
+- [x] Al volver Redis, la app se recupera sin reiniciarse.
+- [x] Comportamiento de arranque documentado.
+
+**HECHO (2026-10-11).** Resilience4j (`resilience4j-spring-boot3` 2.3.0). (1) Timeouts **diferenciados**:
+`coordHotRedisTemplate` con `hot-command-timeout=300ms` para el rate limit (hot-path); el lock sigue en
+2s. (2) Una instancia de breaker `redis-coord` **compartida** por `RedisRateLimiter` y
+`RedisDistributedLock` (envuelve `redis.execute` con `executeSupplier`; al abrir → `CallNotPermittedException`
+→ modo de fallo D-07/D-08 instantáneo). Config en `application.yaml` (`resilience4j.circuitbreaker.*`).
+(3) Reconexión Lettuce verificada (pause/unpause + stop/start del contenedor). (4) **La app arranca con
+`redis-coord` caído** (conexión lazy), degradada. `register-health-indicator=false` a propósito (breaker
+abierto = degradado-pero-OK; no debe sacar la instancia del balanceador); su estado se observa por métrica
+en Fase 5. Verificado e2e: Redis colgado → ~650ms (2×300ms) las primeras req, breaker abre, resto ~20ms;
+al recuperar, 429 vuelve a aplicar. Bucket4j eliminado del `pom`.
 
 ---
 

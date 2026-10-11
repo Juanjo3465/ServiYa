@@ -589,8 +589,23 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > notificaciones externas se difieren (`CoordinationAvailability` → FAILED → las reenvía el retry scheduler
 > al recuperarse). Con esto la **deuda #6 queda resuelta** (superficie de auth + techo global + 🔴).
 > Verificado e2e (login 429 al 11º, stats 429 al 31º, claves `rl:*` en `redis-coord`). ACL ampliado
-> (`+time` + comandos ZSET). Siguiente: Fase 4 (resiliencia) o pendientes menores (anotar search/
-> report-create/account-security — políticas ya definidas). **La rama `redis` sigue sin pushear.**
+> (`+time` + comandos ZSET). Pendientes menores completados (search/report-create/account-security
+> anotados, commit `4c9ce35`).
+>
+> **Fase 4 (resiliencia) ✅ (2026-10-11):** circuit breaker **Resilience4j** (`resilience4j-spring-boot3`
+> 2.3.0) sobre `redis-coord`. (1) **Timeouts diferenciados**: `coordHotRedisTemplate` con
+> `hot-command-timeout=300ms` para el rate limit (hot-path de cada petición); el lock de schedulers sigue
+> en 2s (background). (2) **Una** instancia de breaker `redis-coord` compartida por `RedisRateLimiter` y
+> `RedisDistributedLock` (al abrir → `CallNotPermittedException` → modo de fallo D-07/D-08 al instante, sin
+> esperar el timeout). Config 100% en `application.yaml` (`resilience4j.circuitbreaker.*`:
+> COUNT_BASED/20, min-calls 10, failure 50%, slow-call 300ms/80%, open 10s, half-open 3). (3)
+> `register-health-indicator=false` a propósito (breaker abierto = degradado-pero-OK; no debe sacar la
+> instancia del balanceador → se observará por métrica en Fase 5). (4) **La app arranca con `redis-coord`
+> caído** (conexión lazy), degradada. **Bucket4j eliminado** del `pom`. Verificado e2e con `docker pause`
+> (Redis colgado): primeras req ~650ms (2×300ms), breaker abre, resto fast-fail ~20ms, todas 401 (OPEN
+> sigue sirviendo); al recuperar, 429 vuelve a aplicar; arranque con Redis detenido OK.
+> **Siguiente: Fase 5** (pruebas de concurrencia + observabilidad: exponer métricas/Prometheus/Grafana).
+> **La rama `redis` sigue sin pushear.**
 
 **Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
 `redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción
@@ -604,8 +619,8 @@ reset-tokens) → habilita el despliegue en **≥2 instancias** sin doble ejecuc
   Redis server **`redis:8.2-alpine`** (patch exacto a fijar al implementar; **D-02 PENDIENTE**).
 - **Secretos:** `.env` local (**D-14** local DECIDIDO); gestor de prod PENDIENTE.
 
-**Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); rate limiting
-distribuido **#6/M13** (Fase 3); resiliencia/circuit breaker (Fase 4); observabilidad (Fase 5); TLS +
+**Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); ~~rate limiting
+distribuido **#6/M13** (Fase 3)~~ ✅; ~~resiliencia/circuit breaker (Fase 4)~~ ✅; observabilidad (Fase 5); TLS +
 secretos de prod + backups + runbooks + **Actuator en puerto de management separado y no publicado**
 (Fase 7; en Fase 1 el grupo de health `redis` quedó en `show-details: when_authorized` para no filtrar
 detalles por el 8080 público); alta disponibilidad Sentinel/Cluster/gestionado

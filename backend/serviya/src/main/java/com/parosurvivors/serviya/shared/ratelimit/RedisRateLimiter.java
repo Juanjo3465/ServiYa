@@ -2,6 +2,8 @@ package com.parosurvivors.serviya.shared.ratelimit;
 
 import com.parosurvivors.serviya.shared.ratelimit.RateLimitProperties.FailureMode;
 import com.parosurvivors.serviya.shared.ratelimit.RateLimitProperties.Policy;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
@@ -37,16 +39,22 @@ public class RedisRateLimiter implements RateLimiter {
     private static final RedisScript<List> SLIDING_WINDOW =
             RedisScript.of(new ClassPathResource("redis-scripts/ratelimit_sliding_window.lua"), List.class);
 
+    /** Nombre de la instancia de circuit breaker compartida con el lock (misma instancia redis-coord). */
+    public static final String BREAKER = "redis-coord";
+
     private final StringRedisTemplate redis;
     private final RateLimitProperties props;
     private final MeterRegistry meterRegistry;
+    private final CircuitBreaker breaker;
 
-    public RedisRateLimiter(@Qualifier("coordRedisTemplate") StringRedisTemplate coordRedisTemplate,
+    public RedisRateLimiter(@Qualifier("coordHotRedisTemplate") StringRedisTemplate coordHotRedisTemplate,
                             RateLimitProperties props,
-                            MeterRegistry meterRegistry) {
-        this.redis = coordRedisTemplate;
+                            MeterRegistry meterRegistry,
+                            CircuitBreakerRegistry circuitBreakerRegistry) {
+        this.redis = coordHotRedisTemplate;
         this.props = props;
         this.meterRegistry = meterRegistry;
+        this.breaker = circuitBreakerRegistry.circuitBreaker(BREAKER);
     }
 
     /** Clave de la cuota: {@code rl:v1:{<tipo>:<id>}:<politica>} (hash tag para Cluster, versión para migrar). */
@@ -67,7 +75,9 @@ public class RedisRateLimiter implements RateLimiter {
 
         String key = key(subjectType, subjectId, policy);
         try {
-            List<Long> r = evaluate(p, key, tokens);
+            // El breaker (Fase 4) corta rápido si redis-coord está caído/lento: al estar ABIERTO lanza
+            // CallNotPermittedException (RuntimeException) y se aplica el modo de fallo sin esperar el timeout.
+            List<Long> r = breaker.executeSupplier(() -> evaluate(p, key, tokens));
             boolean allowed = !r.isEmpty() && r.get(0) != null && r.get(0) == 1L;
             long remaining = r.size() > 1 && r.get(1) != null ? r.get(1) : 0L;
             long retryMs = r.size() > 2 && r.get(2) != null ? r.get(2) : 0L;

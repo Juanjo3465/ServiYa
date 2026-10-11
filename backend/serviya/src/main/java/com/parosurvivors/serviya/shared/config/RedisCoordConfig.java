@@ -49,6 +49,26 @@ public class RedisCoordConfig {
     }
 
     /**
+     * Fábrica del <b>hot-path</b> (rate limiting): misma instancia {@code redis-coord} pero con un
+     * command timeout mucho más corto ({@code app.redis.coord.hot-command-timeout}, por defecto 300ms),
+     * porque está en el camino de cada petición. El lock de los schedulers (background) sigue usando la
+     * fábrica normal con 2s. Timeouts diferenciados (Fase 4, decisión 2).
+     */
+    @Bean
+    public LettuceConnectionFactory coordHotRedisConnectionFactory(
+            AppRedisProperties props,
+            @Value("${spring.application.name:serviya}") String appName) {
+        return buildStandaloneFactory(
+                props.getCoord(), appName + "-coord-hot", props.getCoord().getHotCommandTimeout());
+    }
+
+    @Bean
+    public StringRedisTemplate coordHotRedisTemplate(
+            @Qualifier("coordHotRedisConnectionFactory") LettuceConnectionFactory factory) {
+        return new StringRedisTemplate(factory);
+    }
+
+    /**
      * Health indicator de {@code redis-coord} por {@code PING} (no {@code INFO}): el usuario de servicio
      * {@code svc-serviya-coord} solo tiene {@code +ping} por mínimo privilegio, así que el indicator
      * autoconfigurado de Spring Boot (que ejecuta {@code INFO}) se excluye y se usa este. El nombre del
@@ -75,6 +95,12 @@ public class RedisCoordConfig {
      * por la configuración de caché (Fase 6). Falla fuerte si el modo no es {@code standalone}.
      */
     static LettuceConnectionFactory buildStandaloneFactory(AppRedisProperties.Node node, String clientName) {
+        return buildStandaloneFactory(node, clientName, node.getTimeout());
+    }
+
+    /** Variante con command timeout explícito (hot-path vs. background); el connect timeout no cambia. */
+    static LettuceConnectionFactory buildStandaloneFactory(
+            AppRedisProperties.Node node, String clientName, java.time.Duration commandTimeout) {
         if (!"standalone".equalsIgnoreCase(node.getMode())) {
             throw new IllegalStateException(
                     "app.redis.*.mode='" + node.getMode() + "' no implementado aún (solo 'standalone'). "
@@ -94,7 +120,7 @@ public class RedisCoordConfig {
 
         LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfig =
                 LettuceClientConfiguration.builder()
-                        .commandTimeout(node.getTimeout())
+                        .commandTimeout(commandTimeout)
                         .clientName(clientName)
                         .clientOptions(clientOptions);
         if (node.isSsl()) {

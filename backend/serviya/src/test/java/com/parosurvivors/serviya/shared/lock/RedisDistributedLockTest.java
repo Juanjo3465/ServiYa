@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.shared.lock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import java.time.Duration;
@@ -51,7 +52,7 @@ class RedisDistributedLockTest {
         factory.start();
         redis = new StringRedisTemplate(factory);
         redis.afterPropertiesSet();
-        lock = new RedisDistributedLock(redis);
+        lock = new RedisDistributedLock(redis, CircuitBreakerRegistry.ofDefaults());
     }
 
     @AfterAll
@@ -175,7 +176,7 @@ class RedisDistributedLockTest {
         try {
             StringRedisTemplate deadTpl = new StringRedisTemplate(dead);
             deadTpl.afterPropertiesSet();
-            RedisDistributedLock deadLock = new RedisDistributedLock(deadTpl);
+            RedisDistributedLock deadLock = new RedisDistributedLock(deadTpl, CircuitBreakerRegistry.ofDefaults());
 
             assertThat(deadLock.tryAcquire("x", Duration.ofSeconds(10))).isEmpty();
         } finally {

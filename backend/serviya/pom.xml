@@ -139,10 +139,13 @@
 			<version>5.2.2</version>
 		</dependency>
 
+		<!-- Resilience4j: circuit breaker alrededor de redis-coord (Fase 4). El starter spring-boot3
+		     registra el CircuitBreakerRegistry, el binding de config en YAML (resilience4j.*) y las
+		     métricas Micrometer/health. Versión 2.3.0 = compatible con Spring Boot 3.5. -->
 		<dependency>
-			<groupId>com.bucket4j</groupId>
-			<artifactId>bucket4j_jdk17-core</artifactId>
-			<version>8.14.0</version>
+			<groupId>io.github.resilience4j</groupId>
+			<artifactId>resilience4j-spring-boot3</artifactId>
+			<version>2.3.0</version>
 		</dependency>
 
 		<dependency>

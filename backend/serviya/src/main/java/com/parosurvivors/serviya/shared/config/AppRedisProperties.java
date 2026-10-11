@@ -39,5 +39,11 @@ public class AppRedisProperties {
         private boolean ssl = false;
         private Duration timeout = Duration.ofSeconds(2);
         private Duration connectTimeout = Duration.ofSeconds(2);
+        /**
+         * Timeout de comando del <b>hot-path</b> (rate limiting, en cada petición): mucho más corto que
+         * {@link #timeout} (locks de schedulers, en background) para no amplificar la latencia si
+         * {@code redis-coord} se pone lento. Lo usa {@code coordHotRedisTemplate} (Fase 4, D-07/D-08).
+         */
+        private Duration hotCommandTimeout = Duration.ofMillis(300);
     }
 }
