@@ -547,6 +547,10 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
   de conflicto de horario del oferente (anti-doble-booking, buffers, zona horaria). **Posible gap de
   corrección — verificar en código.**
 - **M36 — Paginación configurable** (el tope duro de 20 limita).
+- **M37 — Throttling de logs en outage de Redis** (Fase 4): con `redis-coord` caído, `RedisRateLimiter`
+  loguea `ERROR` con stacktrace en **cada** petición de política OPEN (p. ej. `api-default`). Con tráfico
+  alto = ruido masivo de logs. Bajar a `WARN`/`DEBUG` o muestrear tras la primera ocurrencia (contador +
+  sampling). No bloqueante. Anotado también en NOTAS.txt (2026-10-11).
 
 **6.5.c — Nuevas características / módulos (roadmap, por impacto)**
 1. **Pagos + escrow** (prioridad alta): pasarela (Stripe / Mercado Pago), retención hasta completar,
