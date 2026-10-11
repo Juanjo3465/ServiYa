@@ -5,4 +5,4 @@ user default off
 user admin on #${ADMIN_HASH} ~* &* +@all
 user healthcheck on #${HEALTHCHECK_HASH} +ping
 user monitor on #${MONITOR_HASH} ~* +@connection +ping +info +client|list +slowlog +latency +config|get +memory|usage +scan +type +ttl +pttl +strlen
-user svc-serviya-coord on #${SVC_SERVIYA_COORD_HASH} ~lock:* ~fence:* ~rl:* +@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +eval +evalsha +script|load +script|exists
+user svc-serviya-coord on #${SVC_SERVIYA_COORD_HASH} ~lock:* ~fence:* ~rl:* +@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +time +zadd +zcard +zrange +zremrangebyscore +eval +evalsha +script|load +script|exists

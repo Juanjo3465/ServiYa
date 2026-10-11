@@ -2,7 +2,8 @@ package com.parosurvivors.serviya.users.infrastructure.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parosurvivors.serviya.shared.dto.ErrorResponse;
-import com.parosurvivors.serviya.shared.exceptions.RateLimitExceededException;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimitDecision;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimiter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,13 +19,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Aplica la cuota POR IP a los endpoints publicos de {@code /api/v1/auth/**} antes de que la peticion
- * llegue a ningun sitio.
+ * llegue a ningun sitio. Usa el {@link RateLimiter} distribuido (redis-coord), de modo que el limite es
+ * el mismo con ≥2 instancias.
  *
  * <p>Va delante del filtro JWT a proposito: frena al atacante en la puerta, sin gastar ciclos validando
  * tokens ni consultando la base de datos en peticiones que van a rechazarse igualmente. Como estos
  * endpoints son publicos y no hay usuario autenticado del que tirar, la IP es el unico sujeto disponible
- * aqui; la cuota por CORREO se aplica mas adelante, en el controlador, donde el cuerpo ya esta parseado
- * (leerlo dentro del filtro consumiria el InputStream y rompeeria la lectura posterior).</p>
+ * aqui (D-09); la cuota por CORREO de recuperacion se aplica en el controlador, donde el cuerpo ya esta
+ * parseado (leerlo dentro del filtro consumiria el InputStream y romperia la lectura posterior).</p>
  *
  * <p>No es un {@code @Component}: lo instancia {@code SecurityConfig}, igual que
  * {@link JwtAuthenticationFilter}, para que no se auto-registre fuera de la cadena de Spring Security.</p>
@@ -34,15 +36,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
 
-    /** Ruta -> politica aplicable. Lo que no este aqui no lleva cuota por IP. */
-    private static final Map<String, RateLimitPolicy> POLICIES_BY_PATH = Map.of(
-            "/api/v1/auth/login", RateLimitPolicy.LOGIN_BY_IP,
-            "/api/v1/auth/register", RateLimitPolicy.REGISTER_BY_IP,
-            "/api/v1/auth/password-reset", RateLimitPolicy.PASSWORD_RESET_BY_IP,
-            "/api/v1/auth/password-reset/validate", RateLimitPolicy.PASSWORD_RESET_VALIDATE_BY_IP,
-            "/api/v1/auth/password-reset/confirm", RateLimitPolicy.PASSWORD_RESET_CONFIRM_BY_IP);
+    /** Ruta -> politica aplicable (nombre en {@code app.ratelimit.policies}). Lo demas no lleva cuota por IP. */
+    private static final Map<String, String> POLICY_BY_PATH = Map.of(
+            "/api/v1/auth/login", "login-ip",
+            "/api/v1/auth/register", "register-ip",
+            "/api/v1/auth/password-reset", "reset-ip",
+            "/api/v1/auth/password-reset/validate", "reset-validate-ip",
+            "/api/v1/auth/password-reset/confirm", "reset-confirm-ip");
 
-    private final RateLimiterService rateLimiterService;
+    private final RateLimiter rateLimiter;
     private final ObjectMapper objectMapper;
 
     /** Solo se ejecuta en /api/v1/auth/**; el resto de la API ni siquiera lo atraviesa. */
@@ -55,18 +57,17 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        RateLimitPolicy policy = POLICIES_BY_PATH.get(request.getRequestURI());
+        String policy = POLICY_BY_PATH.get(request.getRequestURI());
         if (policy == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        try {
-            rateLimiterService.consumeOrThrow(policy, clientIp(request));
-        } catch (RateLimitExceededException ex) {
-            // Estamos ANTES del DispatcherServlet: el @RestControllerAdvice no ve esta excepcion,
-            // asi que la respuesta se escribe aqui con el mismo formato (igual que RestAccessErrorHandler).
-            writeTooManyRequests(request, response, ex);
+        RateLimitDecision decision = rateLimiter.tryConsume(policy, "ip", clientIp(request));
+        if (!decision.allowed()) {
+            // Estamos ANTES del DispatcherServlet: el @RestControllerAdvice no ve esto, asi que la
+            // respuesta se escribe aqui con el mismo formato (igual que RestAccessErrorHandler).
+            writeTooManyRequests(request, response, decision.retryAfterSeconds());
             return;
         }
 
@@ -74,35 +75,31 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     /**
-     * IP del cliente. Tras un proxy o balanceador, {@code getRemoteAddr()} devolveria la del proxy y todo
-     * el trafico compartiria un unico balde, asi que se prefiere la primera entrada de
-     * {@code X-Forwarded-For} (la del cliente original; las siguientes son los proxies encadenados).
-     *
-     * <p>OJO: esa cabecera la puede falsificar el cliente si el backend queda expuesto directamente. Solo
-     * es de fiar cuando hay delante un proxy que la reescribe. Con la cabecera falsificable, un atacante
-     * podria darse un balde nuevo en cada peticion — por eso las cuotas por CORREO del controlador, que no
-     * dependen de ningun dato manipulable, son la defensa que de verdad sostiene el flujo de reset.</p>
+     * IP del cliente. Se confia en {@code request.getRemoteAddr()}: con {@code server.forward-headers-strategy}
+     * activo, el contenedor ya resuelve la IP real del cliente a partir de {@code X-Forwarded-For} PERO solo
+     * cuando el salto inmediato es un proxy de confianza. Deliberadamente NO se parsea {@code X-Forwarded-For}
+     * a mano: hacerlo deja que un cliente con el backend expuesto directo se falsifique un balde nuevo por
+     * peticion (D-09). En produccion hay que declarar los proxies/balanceadores de confianza
+     * ({@code server.tomcat.remoteip.*}) si no estan en un rango privado.
      */
     private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
         return request.getRemoteAddr();
     }
 
     private void writeTooManyRequests(HttpServletRequest request, HttpServletResponse response,
-                                      RateLimitExceededException ex) throws IOException {
+                                      long retryAfterSeconds) throws IOException {
         ErrorResponse body = ErrorResponse.builder()
                 .status(HttpStatus.TOO_MANY_REQUESTS.value())
                 .error(HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase())
-                .message(ex.getMessage())
+                .message("Demasiadas peticiones. Intentalo de nuevo mas tarde.")
                 .path(request.getRequestURI())
                 .timestamp(LocalDateTime.now())
                 .build();
 
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()));
+        if (retryAfterSeconds > 0) {
+            response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
+        }
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getWriter(), body);

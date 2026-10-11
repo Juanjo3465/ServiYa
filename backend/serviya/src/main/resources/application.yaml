@@ -37,6 +37,11 @@ server:
   error:
     include-stacktrace: always
     include-message: always
+  # El contenedor resuelve la IP real del cliente desde X-Forwarded-For/Forwarded PERO solo cuando el
+  # salto inmediato es un proxy de confianza (rate limit por IP, D-09). Asi request.getRemoteAddr() no es
+  # falsificable con el backend expuesto directo. En prod: declarar los proxies con server.tomcat.remoteip.*
+  # si el balanceador no esta en un rango privado.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:native}
 
 app:
   upload:
@@ -74,26 +79,26 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
     policies:
       # --- Nivel 1: techo global de la API (api-default), por user/ip. OPEN: no tumbar la API si Redis cae.
-      api-default:      { algorithm: TOKEN_BUCKET,   capacity: 200, refill-per-second: 5,  failure-mode: OPEN }
+      api-default:       { algorithm: TOKEN_BUCKET, capacity: 200, refill-per-second: 5, failure-mode: OPEN }
       # --- Nivel 2 (auth públicos): login OPEN (disponibilidad del acceso); registro/reset CLOSED (abuso/Brevo).
-      login-ip:         { algorithm: SLIDING_WINDOW, capacity: 10,  window: 15m, failure-mode: OPEN }
-      register-ip:      { algorithm: SLIDING_WINDOW, capacity: 5,   window: 60m, failure-mode: CLOSED }
-      reset-ip:         { algorithm: SLIDING_WINDOW, capacity: 5,   window: 15m, failure-mode: CLOSED }
-      reset-email:      { algorithm: SLIDING_WINDOW, capacity: 3,   window: 60m, failure-mode: CLOSED }
-      reset-validate-ip:{ algorithm: SLIDING_WINDOW, capacity: 20,  window: 15m, failure-mode: CLOSED }
-      reset-confirm-ip: { algorithm: SLIDING_WINDOW, capacity: 10,  window: 15m, failure-mode: CLOSED }
+      login-ip:          { algorithm: SLIDING_WINDOW, capacity: 10, window: 15m, failure-mode: OPEN }
+      register-ip:       { algorithm: SLIDING_WINDOW, capacity: 5, window: 60m, failure-mode: CLOSED }
+      reset-ip:          { algorithm: SLIDING_WINDOW, capacity: 5, window: 15m, failure-mode: CLOSED }
+      reset-email:       { algorithm: SLIDING_WINDOW, capacity: 3, window: 60m, failure-mode: CLOSED }
+      reset-validate-ip: { algorithm: SLIDING_WINDOW, capacity: 20, window: 15m, failure-mode: CLOSED }
+      reset-confirm-ip:  { algorithm: SLIDING_WINDOW, capacity: 10, window: 15m, failure-mode: CLOSED }
       # --- Nivel 2 (autenticados que NOTIFICAN por correo): OPEN + modo degradado de notificaciones (D-07/1a).
-      request-write:    { algorithm: SLIDING_WINDOW, capacity: 30,  window: 10m, failure-mode: OPEN }
-      proposal-write:   { algorithm: SLIDING_WINDOW, capacity: 20,  window: 15m, failure-mode: OPEN }
-      report-create:    { algorithm: SLIDING_WINDOW, capacity: 10,  window: 60m, failure-mode: OPEN }
+      request-write:     { algorithm: SLIDING_WINDOW, capacity: 30, window: 10m, failure-mode: OPEN }
+      proposal-write:    { algorithm: SLIDING_WINDOW, capacity: 20, window: 15m, failure-mode: OPEN }
+      report-create:     { algorithm: SLIDING_WINDOW, capacity: 10, window: 60m, failure-mode: OPEN }
       # --- Nivel 2 (autenticados costosos: subida de ficheros / geocoding externo). CLOSED.
-      service-write:    { algorithm: SLIDING_WINDOW, capacity: 20,  window: 60m, failure-mode: CLOSED }
-      profile-photo:    { algorithm: SLIDING_WINDOW, capacity: 10,  window: 60m, failure-mode: CLOSED }
-      address-verify:   { algorithm: SLIDING_WINDOW, capacity: 20,  window: 60m, failure-mode: CLOSED }
-      account-security: { algorithm: SLIDING_WINDOW, capacity: 5,   window: 15m, failure-mode: CLOSED }
+      service-write:     { algorithm: SLIDING_WINDOW, capacity: 20, window: 60m, failure-mode: CLOSED }
+      profile-photo:     { algorithm: SLIDING_WINDOW, capacity: 10, window: 60m, failure-mode: CLOSED }
+      address-verify:    { algorithm: SLIDING_WINDOW, capacity: 20, window: 60m, failure-mode: CLOSED }
+      account-security:  { algorithm: SLIDING_WINDOW, capacity: 5, window: 15m, failure-mode: CLOSED }
       # --- Nivel 2 (lecturas públicas pesadas), por ip. OPEN.
-      search:           { algorithm: SLIDING_WINDOW, capacity: 60,  window: 1m,  failure-mode: OPEN }
-      stats:            { algorithm: SLIDING_WINDOW, capacity: 30,  window: 1m,  failure-mode: OPEN }
+      search:            { algorithm: SLIDING_WINDOW, capacity: 60, window: 1m, failure-mode: OPEN }
+      stats:             { algorithm: SLIDING_WINDOW, capacity: 30, window: 1m, failure-mode: OPEN }
 
 management:
   endpoints:
@@ -133,10 +138,6 @@ serviya:
   # Por entorno: dev http://localhost:5173/reset-password | docker http://localhost:8081/reset-password
   frontend:
     reset-url: ${FRONTEND_RESET_URL:http://localhost:5173/reset-password}
-  # Rate limiting de /api/v1/auth/** (cuotas en RateLimitPolicy). Se puede apagar para pruebas
-  # manuales o de carga sin chocar con las cuotas; en produccion siempre encendido.
-  rate-limit:
-    enabled: ${RATE_LIMIT_ENABLED:true}
   password-reset:
     # Ventana de validez del enlace. Corta a proposito: es una credencial que viaja por correo.
     token-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:30}
