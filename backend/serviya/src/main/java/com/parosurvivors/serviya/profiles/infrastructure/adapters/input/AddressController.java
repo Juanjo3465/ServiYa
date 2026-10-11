@@ -9,6 +9,7 @@ import com.parosurvivors.serviya.profiles.infrastructure.dto.form.VerifyAddressF
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AddressResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.response.AddressVerificationResponse;
 import com.parosurvivors.serviya.profiles.infrastructure.mappers.AddressWebMapper;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class AddressController implements AddressApi {
 
     @Override
     @PostMapping("/api/v1/users/me/addresses")
+    @RateLimit("address-verify")
     public ResponseEntity<AddressResponse> createAddress(@Valid @RequestBody CreateAddressForm form) {
         AddressResponse response = mapper.toResponse(
                 addressService.createAddress(mapper.toCommand(form, currentUserId())));
@@ -50,6 +52,7 @@ public class AddressController implements AddressApi {
 
     @Override
     @PatchMapping("/api/v1/addresses/{id}")
+    @RateLimit("address-verify")
     public ResponseEntity<AddressResponse> updateAddress(@PathVariable Long id,
                                                          @Valid @RequestBody UpdateAddressForm form) {
         return ResponseEntity.ok(mapper.toResponse(
@@ -65,6 +68,7 @@ public class AddressController implements AddressApi {
 
     @Override
     @PostMapping("/api/v1/addresses/verify")
+    @RateLimit("address-verify")
     public ResponseEntity<AddressVerificationResponse> verifyAddress(@Valid @RequestBody VerifyAddressForm form) {
         boolean valid = addressService.verifyAddress(form.addressLine(), form.city());
         CoordinatesResult coordinates = addressService.getCoordinates(form.addressLine(), form.city());

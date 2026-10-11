@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.profiles.infrastructure.adapters.input;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.services.UserProfilePhotoStorageService;
 import com.parosurvivors.serviya.profiles.infrastructure.adapters.input.api.UserProfileApi;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateMainAddressForm;
 import com.parosurvivors.serviya.profiles.infrastructure.dto.form.UpdateProfileForm;
@@ -46,6 +47,7 @@ public class UserProfileController implements UserProfileApi {
     }
 
     @PatchMapping("/profile/photo")
+    @RateLimit("profile-photo")
     public ResponseEntity<UserProfileResponse> updateProfilePhoto(@RequestParam("photoUrl") MultipartFile photo) {
         String photoUrl = userProfilePhotoStorageService.storeProfilePhoto(currentUserId(), photo);
         return ResponseEntity.ok(mapper.toResponse(

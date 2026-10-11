@@ -11,6 +11,7 @@ import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceReq
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestResponse;
 import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceRequestSummaryResponse;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -91,6 +92,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests")
+    @RateLimit("request-write")
     public ResponseEntity<ServiceRequestResponse> createRequest(@Valid @RequestBody CreateServiceRequestForm form) {
         ServiceRequestResponse response = mapper.toResponse(
                 commandService.createRequest(mapper.toCommand(form, CurrentUser.id())));
@@ -99,6 +101,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/accept")
+    @RateLimit("request-write")
     public ResponseEntity<Void> acceptRequest(@PathVariable Long id) {
         commandService.acceptRequest(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
@@ -106,6 +109,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/reject")
+    @RateLimit("request-write")
     public ResponseEntity<Void> rejectRequest(@PathVariable Long id) {
         commandService.rejectRequest(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
@@ -113,6 +117,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/cancel")
+    @RateLimit("request-write")
     public ResponseEntity<Void> cancelRequest(@PathVariable Long id) {
         commandService.cancelRequest(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
@@ -120,6 +125,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/mark-completed")
+    @RateLimit("request-write")
     public ResponseEntity<Void> markCompleted(@PathVariable Long id) {
         commandService.markAsPresumablyCompleted(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
@@ -127,6 +133,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/confirm-completion")
+    @RateLimit("request-write")
     public ResponseEntity<Void> confirmCompletion(@PathVariable Long id) {
         commandService.confirmCompletion(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
@@ -134,6 +141,7 @@ public class ServiceRequestController implements ServiceRequestApi {
 
     @Override
     @PostMapping("/api/v1/service-requests/{id}/reschedule")
+    @RateLimit("request-write")
     public ResponseEntity<ServiceRequestResponse> rescheduleRequest(@PathVariable Long id,
                                                                     @Valid @RequestBody RescheduleRequestForm form) {
         ServiceRequestResponse response = mapper.toResponse(

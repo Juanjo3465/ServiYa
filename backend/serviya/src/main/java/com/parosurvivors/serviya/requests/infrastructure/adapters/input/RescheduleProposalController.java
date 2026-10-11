@@ -10,6 +10,7 @@ import com.parosurvivors.serviya.requests.infrastructure.dto.response.ServiceReq
 import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.RescheduleProposalWebMapper;
 import com.parosurvivors.serviya.requests.infrastructure.mappers.ServiceRequestWebMapper;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals")
+    @RateLimit("proposal-write")
     public ResponseEntity<RescheduleProposalResponse> createProposal(
             @Valid @RequestBody CreateRescheduleProposalForm form) {
         RescheduleProposalResponse response = mapper.toResponse(
@@ -84,6 +86,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/accept")
+    @RateLimit("proposal-write")
     public ResponseEntity<ServiceRequestResponse> acceptProposal(@PathVariable Long id) {
         ServiceRequestResponse response = serviceRequestMapper.toResponse(
                 proposalService.acceptProposal(id, CurrentUser.id()));
@@ -92,6 +95,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/reject")
+    @RateLimit("proposal-write")
     public ResponseEntity<Void> rejectProposal(@PathVariable Long id) {
         proposalService.rejectProposal(id, CurrentUser.id());
         return ResponseEntity.noContent().build();
@@ -99,6 +103,7 @@ public class RescheduleProposalController implements RescheduleProposalApi {
 
     @Override
     @PostMapping("/api/v1/reschedule-proposals/{id}/cancel")
+    @RateLimit("proposal-write")
     public ResponseEntity<Void> cancelProposal(@PathVariable Long id) {
         proposalService.cancelProposal(id, CurrentUser.id());
         return ResponseEntity.noContent().build();

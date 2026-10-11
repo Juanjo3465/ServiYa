@@ -17,6 +17,7 @@ import com.parosurvivors.serviya.services.infrastructure.dto.response.ServiceRes
 import com.parosurvivors.serviya.services.infrastructure.mappers.ServiceWebMapper;
 import com.parosurvivors.serviya.services.domain.Service;
 
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -54,6 +55,7 @@ public class ServiceController implements ServiceApi {
 
     @Override
     @PostMapping(value = "/api/v1/services", consumes = {"multipart/form-data"})
+    @RateLimit("service-write")
     public ResponseEntity<ServiceResponse> create(
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "description", required = false) String description,
@@ -178,6 +180,7 @@ public class ServiceController implements ServiceApi {
 
     @Override
     @PatchMapping(value = "/api/v1/services/{id}", consumes = {"multipart/form-data"})
+    @RateLimit("service-write")
     public ResponseEntity<ServiceResponse> update(
             @Parameter(description = "ID del servicio") @PathVariable Long id,
             @RequestParam(value = "title", required = false) String title,
