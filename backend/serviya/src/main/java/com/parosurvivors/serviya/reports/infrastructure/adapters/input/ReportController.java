@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.util.List;
@@ -52,6 +53,7 @@ public class ReportController implements ReportApi {
 
     @Override
     @PostMapping("/api/v1/reports/requests")
+    @RateLimit("report-create")
     public ResponseEntity<RequestReportResponse> createRequestReport(
             @Valid @RequestBody CreateRequestReportForm form) {
         RequestReportResponse response = mapper.toResponse(
@@ -65,6 +67,7 @@ public class ReportController implements ReportApi {
 
     @Override
     @PostMapping("/api/v1/reports/service-feedback")
+    @RateLimit("report-create")
     public ResponseEntity<ServiceFeedbackReportResponse> createServiceFeedbackReport(
             @Valid @RequestBody CreateServiceFeedbackReportForm form) {
         ServiceFeedbackReportResponse response = mapper.toResponse(
@@ -79,6 +82,7 @@ public class ReportController implements ReportApi {
 
     @Override
     @PostMapping("/api/v1/reports/client-feedback")
+    @RateLimit("report-create")
     public ResponseEntity<ClientFeedbackReportResponse> createClientFeedbackReport(
             @Valid @RequestBody CreateClientFeedbackReportForm form) {
         ClientFeedbackReportResponse response = mapper.toResponse(

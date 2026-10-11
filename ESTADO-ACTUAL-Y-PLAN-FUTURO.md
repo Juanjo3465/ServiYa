@@ -538,7 +538,11 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 **6.5.b — Comportamiento y diseño**
 - **M33 — Problem Details (RFC 9457)** como cuerpo de error estándar (ya citado en el doc de diseño).
 - **M34 — Caché** de datos casi-estáticos (categorías, catálogos de tags, lecturas de métricas);
-  `@Cacheable` y Redis en microservicios.
+  `@Cacheable` y Redis en microservicios. **Candidato prioritario**: la validación `isActive` del
+  usuario que hace `JwtAuthenticationFilter.isActiveUser()` en **cada petición autenticada**
+  (`userReadPort.findById`) — un `SELECT` a MySQL por request que con 2+ instancias se multiplica.
+  Cachear con TTL corto + invalidación al banear/eliminar (evita que `identity` sea cuello de botella
+  síncrono; alinea con la nota de "autenticación distribuida" en §7).
 - **M35 — Prevención de doble reserva / motor de agenda**: verificar y, si falta, implementar detección
   de conflicto de horario del oferente (anti-doble-booking, buffers, zona horaria). **Posible gap de
   corrección — verificar en código.**

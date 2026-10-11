@@ -128,6 +128,7 @@ public class ServiceController implements ServiceApi {
 
     @Override
     @GetMapping("/api/v1/services/search")
+    @RateLimit("search")
     public ResponseEntity<Page<ServiceResponse>> search(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Long categoryId,
