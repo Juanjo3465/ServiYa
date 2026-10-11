@@ -30,6 +30,8 @@ import org.springframework.stereotype.Component;
 public class PasswordResetCleanupScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetCleanupScheduler.class);
+    /** Recurso del lock distribuido (clave Redis {@code lock:{sched:reset-token-cleanup}}; ver catálogo). */
+    private static final String LOCK_RESET_TOKEN_CLEANUP = "sched:reset-token-cleanup";
     private static final Duration LOCK_TTL = Duration.ofMinutes(5);
 
     private final PasswordResetTokenServicePort passwordResetTokenService;
@@ -37,7 +39,7 @@ public class PasswordResetCleanupScheduler {
 
     @Scheduled(cron = "${serviya.password-reset.cron.cleanup-expired:0 30 3 * * *}")
     public void deleteExpiredTokens() {
-        distributedLock.runIfAcquired("sched:reset-token-cleanup", LOCK_TTL, () -> {
+        distributedLock.runIfAcquired(LOCK_RESET_TOKEN_CLEANUP, LOCK_TTL, () -> {
             int deleted = passwordResetTokenService.deleteExpiredTokens(LocalDateTime.now());
             if (deleted > 0) {
                 log.info("Deleted {} expired password reset tokens", deleted);

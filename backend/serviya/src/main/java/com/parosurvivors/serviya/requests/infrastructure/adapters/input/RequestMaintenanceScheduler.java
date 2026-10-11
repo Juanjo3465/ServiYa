@@ -22,6 +22,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RequestMaintenanceScheduler {
 
+    // Recursos de los locks distribuidos (claves Redis lock:{<recurso>}; ver catálogo de claves).
+    private static final String LOCK_REJECT_EXPIRED_PENDING = "sched:reject-expired-pending";
+    private static final String LOCK_MARK_STALE_ACCEPTED = "sched:mark-stale-accepted";
+    private static final String LOCK_REJECT_EXPIRED_PROPOSALS = "sched:reject-expired-proposals";
+    private static final String LOCK_FINALIZE_UNCONFIRMED = "sched:finalize-unconfirmed";
     private static final Duration LOCK_TTL = Duration.ofMinutes(10);
 
     private final RequestMaintenanceServicePort maintenanceService;
@@ -29,25 +34,25 @@ public class RequestMaintenanceScheduler {
 
     @Scheduled(cron = "${serviya.maintenance.cron.reject-expired-pending:0 0 * * * *}")
     public void rejectExpiredPendingRequests() {
-        distributedLock.runIfAcquired("sched:reject-expired-pending", LOCK_TTL,
+        distributedLock.runIfAcquired(LOCK_REJECT_EXPIRED_PENDING, LOCK_TTL,
                 maintenanceService::rejectExpiredPendingRequests);
     }
 
     @Scheduled(cron = "${serviya.maintenance.cron.mark-stale-accepted:0 10 * * * *}")
     public void markStaleAcceptedAsNotProvided() {
-        distributedLock.runIfAcquired("sched:mark-stale-accepted", LOCK_TTL,
+        distributedLock.runIfAcquired(LOCK_MARK_STALE_ACCEPTED, LOCK_TTL,
                 maintenanceService::markStaleAcceptedAsNotProvided);
     }
 
     @Scheduled(cron = "${serviya.maintenance.cron.reject-expired-proposals:0 20 * * * *}")
     public void rejectExpiredProposals() {
-        distributedLock.runIfAcquired("sched:reject-expired-proposals", LOCK_TTL,
+        distributedLock.runIfAcquired(LOCK_REJECT_EXPIRED_PROPOSALS, LOCK_TTL,
                 maintenanceService::rejectExpiredProposals);
     }
 
     @Scheduled(cron = "${serviya.maintenance.cron.finalize-unconfirmed:0 30 * * * *}")
     public void finalizeUnconfirmedCompletions() {
-        distributedLock.runIfAcquired("sched:finalize-unconfirmed", LOCK_TTL,
+        distributedLock.runIfAcquired(LOCK_FINALIZE_UNCONFIRMED, LOCK_TTL,
                 maintenanceService::finalizeUnconfirmedCompletions);
     }
 }

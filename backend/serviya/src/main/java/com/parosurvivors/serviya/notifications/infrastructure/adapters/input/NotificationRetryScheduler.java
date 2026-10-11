@@ -20,6 +20,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class NotificationRetryScheduler {
 
+    /** Recurso del lock distribuido (clave Redis {@code lock:{sched:notif-retry-failed}}; ver catálogo). */
+    private static final String LOCK_RETRY_FAILED = "sched:notif-retry-failed";
     private static final Duration LOCK_TTL = Duration.ofMinutes(10);
 
     private final NotificationDeliveryServicePort notificationDeliveryService;
@@ -27,7 +29,7 @@ public class NotificationRetryScheduler {
 
     @Scheduled(cron = "${serviya.notifications.cron.retry-failed:0 */15 * * * *}")
     public void retryFailedDeliveries() {
-        distributedLock.runIfAcquired("sched:notif-retry-failed", LOCK_TTL,
+        distributedLock.runIfAcquired(LOCK_RETRY_FAILED, LOCK_TTL,
                 notificationDeliveryService::retryFailedDeliveries);
     }
 }
