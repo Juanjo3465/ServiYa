@@ -551,12 +551,13 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
   loguea `ERROR` con stacktrace en **cada** petición de política OPEN (p. ej. `api-default`). Con tráfico
   alto = ruido masivo de logs. Bajar a `WARN`/`DEBUG` o muestrear tras la primera ocurrencia (contador +
   sampling). No bloqueante. Anotado también en NOTAS.txt (2026-10-11).
-- **M38 — `ENCRYPTION_KEY` de dev marcada como insegura por el guard B6**: tras integrar `main`, el guard
-  de `PiiAttributeConverter` (fix B6) rechaza passphrases con `dev-`/`change-me`/`example`/`default` o <32
-  chars. La `ENCRYPTION_KEY` del `.env` local de dev la dispara → **cualquier cifrado de PII (registro con
-  teléfono/documento) lanzaría 500** y `PiiAttributeConverterTest` falla sin una clave fuerte. Acción:
-  generar una `ENCRYPTION_KEY` fuerte en `.env` (y en el gestor de secretos de prod, D-14/Fase 7). No es
-  regresión del merge; es la clave de dev vs. el guard nuevo.
+- **M38 — Secretos de dev (`JWT_SECRET` y `ENCRYPTION_KEY`) marcados inseguros por el guard B6**: tras
+  integrar `main`, el guard de B6 rechaza secretos con `dev-`/`change-me`/`example`/`default` o <32 chars,
+  **tanto en `JwtService` (JWT_SECRET) como en `PiiAttributeConverter` (ENCRYPTION_KEY)**. Con los valores
+  de dev: `JWT_SECRET` débil → **el backend NO arranca** (falla el bean `jwtService`); `ENCRYPTION_KEY`
+  débil → **500 al cifrar PII** (registro) y `PiiAttributeConverterTest` falla. Acción: generar **ambos**
+  secretos fuertes en `.env` (y en el gestor de secretos de prod, D-14/Fase 7). No es regresión del merge;
+  son los secretos de dev vs. el guard nuevo. (Verificado: con valores fuertes, arranca y los tests pasan.)
 
 **6.5.c — Nuevas características / módulos (roadmap, por impacto)**
 1. **Pagos + escrow** (prioridad alta): pasarela (Stripe / Mercado Pago), retención hasta completar,
@@ -633,6 +634,10 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > endurecimientos (`include-stacktrace/message: never` B11, geocoding B12, @Version B10, unique B8, etc.).
 > Suite tras merge: **377 tests, 0 failures, 3 errors ambientales** (contextLoads=BD; Pii×2=`ENCRYPTION_KEY`
 > débil, ver **M38** — pasa con clave fuerte). Rama `redis` **pusheada** a `origin/redis`.
+> **Fix de esquema durante el smoke test (bug de main/B8):** `reschedule_proposals.pending_request_id` era
+> columna generada **STORED** cuya base (`request_id`) tiene FK `ON DELETE CASCADE` → MySQL lo rechaza
+> (ERROR 1215, falla el reseed limpio). Cambiado a **VIRTUAL** (conserva CASCADE + la UNIQUE de B8).
+> Smoke test: MySQL siembra el schema mergeado OK; backend bloqueado solo por `JWT_SECRET` débil (M38).
 
 **Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
 `redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción

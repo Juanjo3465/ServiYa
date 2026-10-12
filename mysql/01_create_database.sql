@@ -380,7 +380,10 @@ CONSTRAINT fk_reschedule_offerer
         REFERENCES users(id)
         ON DELETE CASCADE,
 
-    pending_request_id BIGINT UNSIGNED AS (CASE WHEN status = 'PENDING' THEN request_id END) STORED,
+    -- VIRTUAL (no STORED): MySQL rechaza (ERROR 1215) una columna generada STORED cuya columna base
+    -- (request_id) tiene un FK ON DELETE CASCADE (ver fk_reschedule_request). VIRTUAL conserva el CASCADE
+    -- y la UNIQUE (el índice único sobre columna virtual se materializa y se aplica igual). Fix del merge.
+    pending_request_id BIGINT UNSIGNED AS (CASE WHEN status = 'PENDING' THEN request_id END) VIRTUAL,
     CONSTRAINT uq_reschedule_pending_per_request UNIQUE (pending_request_id)
 );
 
