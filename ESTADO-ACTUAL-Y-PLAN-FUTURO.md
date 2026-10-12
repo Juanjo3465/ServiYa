@@ -429,8 +429,22 @@ están alineados**; salvedades menores anotadas (no bloquean).
 
 **Conclusión:** ninguna incompatibilidad con las decisiones/estándares del proyecto. Dos arreglos propios
 fueron necesarios para que el merge fuera **desplegable**: ShedLock→lock propio (B9) y `STORED`→`VIRTUAL`
-(B8). Salvedades abiertas, ya trackeadas: **M38** (secretos de dev), **M2** (contador atómico pleno sobre
-B7), **M25** (Flyway para las columnas `version` de B10), **M34** (caché de identidad, reforzado por B15).
+(B8).
+
+#### Fixes a **analizar/reconsiderar** a futuro (deuda abierta)
+
+Los fixes anteriores cierran su bug, pero estos quedan con deuda que conviene revisar (no bloquean):
+
+| Fix | Qué reconsiderar | Trackeado en |
+|---|---|---|
+| **B1–B4, B14** | Parches IDOR endpoint‑por‑endpoint: cada endpoint nuevo debe acordarse del check → frágil. Sustituir por autorización centralizada (`@EnableMethodSecurity`/`@PreAuthorize`/`OwnershipChecker`) | **M1** |
+| **B7** | `@Version` sin retry → puede **perderse** un incremento de métrica bajo contención. Pasar a contador atómico SQL o retry con backoff | **M40** (→ **M2**) |
+| **B10** | El `01_create_database.sql` no trae la columna `version` de ~19 tablas (dependen de `ddl-auto: update`); además tipo `Integer` vs `Long` (reschedule). Unificar y migrar con Flyway | **M25** |
+| **B12** | Geocoding externo síncrono sin breaker/caché/rate‑limit de salida; `webflux` cargado solo por `WebClient` | **M39** |
+| **B15** | Relee roles **+** `isActive` de BD en cada request → más carga por request. Cachear identidad con TTL + invalidación | **M34** |
+| **B6** | El guard rechaza por substring (`dev-`,`default`,…): podría dar falso positivo sobre un secreto fuerte legítimo que contenga esa subcadena. Revisar heurística (p. ej. solo longitud+entropía) | *(menor; sin M)* |
+
+Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuertes en `.env`).
 
 ---
 
@@ -584,6 +598,18 @@ B7), **M25** (Flyway para las columnas `version` de B10), **M34** (caché de ide
   loguea `ERROR` con stacktrace en **cada** petición de política OPEN (p. ej. `api-default`). Con tráfico
   alto = ruido masivo de logs. Bajar a `WARN`/`DEBUG` o muestrear tras la primera ocurrencia (contador +
   sampling). No bloqueante. Anotado también en NOTAS.txt (2026-10-11).
+- **M39 — Resiliencia del geocoding externo (B12)**: `NominatimGeocodingAdapter` hace una llamada HTTP
+  **síncrona** a un servicio externo (OpenStreetMap) sin *circuit breaker* ni caché, y sin respetar su
+  política de uso (1 req/s). Riesgos: un Nominatim lento cuelga el hilo del request (aunque hay timeout de
+  5s, es alto); sin caché se repiten geocodificaciones; posible baneo por exceso. Acciones: breaker/timeout
+  corto (reusar el patrón de Fase 4), caché de direcciones→coordenadas (encaja con `redis-cache`, Fase 6),
+  y rate-limit de salida. Revisar además si `spring-boot-starter-webflux` (traído solo por `WebClient` en
+  una app servlet) se puede sustituir por `RestClient` para no cargar el stack reactivo completo.
+- **M40 — `@Version` sin retry en métricas (refinar B7)**: `@Version` convierte el lost-update en
+  `OptimisticLockException`, pero **no hay reintento**: en el listener `@TransactionalEventListener`
+  (AFTER_COMMIT, REQUIRES_NEW) la excepción se loguea y **el incremento de métrica se pierde** bajo
+  contención. Es mejor que corromper, pero incompleto. Cierre real = **M2** (contadores atómicos por SQL:
+  `UPDATE ... SET x = x + 1 WHERE id=? AND version=?`) o añadir retry con backoff en los listeners.
 - **M38 — Secretos de dev (`JWT_SECRET` y `ENCRYPTION_KEY`) marcados inseguros por el guard B6**: tras
   integrar `main`, el guard de B6 rechaza secretos con `dev-`/`change-me`/`example`/`default` o <32 chars,
   **tanto en `JwtService` (JWT_SECRET) como en `PiiAttributeConverter` (ENCRYPTION_KEY)**. Con los valores
