@@ -367,7 +367,10 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 
 ## 4. Catálogo de bugs (accionable)
 
-| # | Sev | Módulo | Bug | Dónde |
+> **✅ ESTADO (2026-10-12): B1–B15 y F1–F5 RESUELTOS** e integrados en la rama `redis` (merge desde
+> `main`). Auditados **uno por uno** (código real verificado en el árbol mergeado, no solo los docs de
+> `documents/fixes/`) + smoke test e2e. Veredicto por fix y salvedades en **§4.1**. La tabla se conserva
+> como referencia histórica del problema original.
 |---|-----|--------|-----|-------|
 | B1 | CRÍTICO | services | Escrituras IDOR sin autenticar (update/delete/activate/deactivate/soft-delete) | `ServiceController` + `SecurityConfig` + `MarketplaceService` (sin check de dueño) |
 | B2 | CRÍTICO | profiles | IDOR sin autenticar en `PATCH/DELETE /addresses/{id}` | `AddressController` + `SecurityConfig` |
@@ -398,6 +401,36 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > Nota: F1 agrava los IDOR del backend (§3.1) solo en lectura de UI; las escrituras IDOR son del
 > backend (B1–B4). Los bugs de concurrencia/seguridad que la doc de julio listaba como "frontend"
 > (self-admin, carrera de propuestas, revocación de rol) son en realidad del backend → B5, B8, B15.
+
+---
+
+### 4.1 — Resolución y auditoría (merge `main` → `redis`, 2026-10-12)
+
+Cada fix verificado contra el **código mergeado** (no solo su `Fix-*.md`) y contra los estándares del
+proyecto (hexagonal; `UnauthorizedException`→401; gate de rol en endpoint + autorización fina en servicio
+[[role-security-split-convention]]; DTOs record; `created_at` manual). Resultado: **todos arreglan su bug y
+están alineados**; salvedades menores anotadas (no bloquean).
+
+| Fix | ¿Arregla el bug? | Alineación / salvedades |
+|---|---|---|
+| **B1–B4** IDOR | **Sí** — `requireOwnership(owner‑o‑admin)` en servicio + reglas `authenticated()`/`hasRole(ADMIN)` en `SecurityConfig`; identidad siempre del JWT | Alineado: `UnauthorizedException`→401, patrón de split de rol, hexagonal intacto. La vía definitiva centralizada (`@PreAuthorize`/`OwnershipChecker`) sigue diferida a **M1** (estos son parches por endpoint, correctos pero endpoint‑a‑endpoint) |
+| **B5** self/último‑admin | **Sí** — `AdminActionGuard` (`requireNotSelf` + `requireAnotherActiveAdmin`) en `AdminService`+`ModerationService` | Alineado: regla de negocio en capa app (no en SecurityConfig), reusa **puertos de entrada** de `users` (no persistencia ajena); `InvalidStateException`→409 |
+| **B6** secretos débiles | **Sí** — fail‑fast en `JwtService`/`PiiAttributeConverter`; `.env.example` vaciado | Alineado con las restricciones de seguridad. **Efecto**: exige secretos fuertes en `.env` → ver **M38** (nos bloqueó el arranque hasta poner `JWT_SECRET`/`ENCRYPTION_KEY` fuertes). Es el comportamiento deseado |
+| **B7** lost‑update métricas | **Parcial‑sí** — `@Version` en las 6 entidades metrics + columnas `version` en SQL | Previene la corrupción silenciosa (ahora lanza `OptimisticLockException`). **Salvedad**: no hay *retry*; bajo alta contención un incremento de métrica podría perderse (excepción en el listener AFTER_COMMIT, logueada). El contador atómico SQL completo sigue en **M2** |
+| **B8** propuestas PENDING dup. | **Sí** — índice único parcial (columna generada) + `@Version` + retry ante `DataIntegrityViolationException` | Alineado. **Corregido durante el merge**: la columna era `STORED` (incompatible con el FK `ON DELETE CASCADE` → MySQL 1215, rompía el reseed limpio) → la pasé a **`VIRTUAL`** (conserva CASCADE y la UNIQUE). Commit `cd40623` |
+| **B9** lock `@Scheduled` | **Sí** — vía el **lock propio sobre `redis-coord`** (Fase 2) | **Decisión del merge**: ShedLock (JDBC) de `main` **eliminado** para no tener dos sistemas de lock (ADR D‑04). Ver §6.6 |
+| **B10** `@Version` global | **Sí** — `@Version` en 34 entidades | Alineado (≠ `@CreationTimestamp`, que sí está proscrito [[created-at-convention]]). **Salvedad**: el `01_create_database.sql` solo trae la columna `version` en metrics/reschedule; el resto se crean por `ddl-auto: update` al arrancar (coherente con el doble mecanismo ya documentado; el cierre real es Flyway, **M25**). Tipo `Integer` salvo reschedule (`Long`) — inocuo |
+| **B11** stacktrace expuesto | **Sí** — `include-stacktrace/message: never` + perfil `application-dev.yaml` con `always` | Alineado (seguridad). En el merge se tomó `never` de `main` conservando `forward-headers-strategy` de redis |
+| **B12** `/addresses/verify` 500 | **Sí** — `GeocodingPort` (puerto salida) + `NominatimGeocodingAdapter` + `WebClient` | Alineado: hexagonal correcto (puerto+adaptador). Nueva dep `spring-boot-starter-webflux`. **Sinergia**: respetar el límite de Nominatim (1 req/s) lo cubre ahora la política `address-verify` del rate limiter |
+| **B13** paginación en memoria | **Sí** — métodos `Page<>` con filtros en repos/ports; `ReportService.getReports`→`findReports` | Alineado (lecturas tipo CQRS, O(pageSize)) |
+| **B14** IDOR `markAsRead` | **Sí** — reglas `notifications/**` + `notification-channels` `authenticated()` (el servicio ya validaba dueño por `findByIdAndUserId`) | Alineado |
+| **B15** roles JWT no revalidados | **Sí** — `JwtAuthenticationFilter.revalidateRoles()` relee roles de BD por request | Alineado (revocación inmediata). **Interacción**: ahora cada request autenticada hace `findById` **+ roles** → **refuerza M34** (cachear identidad; ver §6.5.b) |
+| **F1–F5** frontend | **Sí** — `ProtectedRoute`+guards por rol, interceptor 401 en `api.js`, dropdown+resolución de nombres admin, `RequestServicePage` cableada, `ErrorBoundary`+`errorElement` | Alineado con el backlog frontend (M16–M21) y con los fixes de backend (B1–B4/B14) |
+
+**Conclusión:** ninguna incompatibilidad con las decisiones/estándares del proyecto. Dos arreglos propios
+fueron necesarios para que el merge fuera **desplegable**: ShedLock→lock propio (B9) y `STORED`→`VIRTUAL`
+(B8). Salvedades abiertas, ya trackeadas: **M38** (secretos de dev), **M2** (contador atómico pleno sobre
+B7), **M25** (Flyway para las columnas `version` de B10), **M34** (caché de identidad, reforzado por B15).
 
 ---
 
