@@ -613,9 +613,9 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > aplicación**. Métricas en `/actuator/prometheus` (`micrometer-registry-prometheus`), servido en un
 > **puerto de management separado (9090) NO publicado al host** (solo red interna; adelanta parte de Fase 7;
 > evita filtrar métricas internas por el 8080 público). Métricas: `ratelimit.decision`,
-> `resilience4j.circuitbreaker.*` y **nuevas** `redis.lock.acquire`/`redis.lock.renew` (`result=lost` para
-> alerta de locks perdidos). Pruebas: contrato Lua + concurrencia ya cubiertos (lock 7 / limiter 7, +test de
-> métricas). **DIFERIDO a Fase 7** (observabilidad externa, elegido en slice A): `redis_exporter` (usuario
+> `resilience4j.circuitbreaker.*` y **nuevas** `redis.lock.acquire`/`redis.lock.renew`/`redis.lock.release`
+> (ciclo de vida completo del lock; `result=lost` en renew/release → alerta de locks perdidos). Pruebas:
+> contrato Lua + concurrencia ya cubiertos (lock 7 / limiter 7, +test de métricas). **DIFERIDO a Fase 7** (observabilidad externa, elegido en slice A): `redis_exporter` (usuario
 > `monitor`, D-18) + **Prometheus** + **Grafana** + dashboards + alertas, y CI. Sin retrabajo: Prometheus
 > solo scrapea el endpoint ya expuesto.
 > **Siguiente: Fase 6** (caché sobre `redis-cache` — incluye el candidato M34 de cachear `isActive`).

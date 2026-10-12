@@ -133,11 +133,16 @@ public class RedisDistributedLock implements DistributedLock {
         try {
             Long result = breaker.executeSupplier(
                     () -> redis.execute(RELEASE, List.of(lockKey(resource)), token));
-            if (result == null || result == 0L) {
+            if (result != null && result == 1L) {
+                // Flujo normal: era nuestro y lo liberamos explícitamente.
+                metric("redis.lock.release", resource, "released");
+            } else {
                 // No era nuestro: ya expiró o lo tomó otra instancia. Normal con TTL; no es un error.
+                metric("redis.lock.release", resource, "lost");
                 log.debug("Al liberar, el lock '{}' ya no pertenecía a este token (expiró o lo tomó otro)", resource);
             }
         } catch (RuntimeException ex) {
+            metric("redis.lock.release", resource, "error");
             log.warn("Error liberando el lock '{}'; expirará solo por TTL", resource, ex);
         }
     }

@@ -195,13 +195,16 @@ class RedisDistributedLockTest {
         LockHandle h = instrumented.tryAcquire(resource, Duration.ofSeconds(60)).orElseThrow(); // acquired
         assertThat(instrumented.tryAcquire(resource, Duration.ofSeconds(60))).isEmpty();          // busy
         assertThat(h.renew(Duration.ofSeconds(60))).isTrue();                                     // renew ok
-        h.close();                                                                                // libera
+        h.close();                                                                                // release released
         assertThat(h.renew(Duration.ofSeconds(60))).isFalse();                                    // renew lost
+        h.close();                                                                                // release lost (ya no es nuestro)
 
         assertThat(counter(registry, "redis.lock.acquire", "acquired")).isEqualTo(1.0);
         assertThat(counter(registry, "redis.lock.acquire", "busy")).isEqualTo(1.0);
         assertThat(counter(registry, "redis.lock.renew", "ok")).isEqualTo(1.0);
         assertThat(counter(registry, "redis.lock.renew", "lost")).isEqualTo(1.0);
+        assertThat(counter(registry, "redis.lock.release", "released")).isEqualTo(1.0);
+        assertThat(counter(registry, "redis.lock.release", "lost")).isEqualTo(1.0);
     }
 
     private static double counter(SimpleMeterRegistry reg, String name, String result) {

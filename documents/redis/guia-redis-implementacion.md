@@ -661,8 +661,10 @@ al recuperar, 429 vuelve a aplicar. Bucket4j eliminado del `pom`.
 - **Métricas expuestas** en `/actuator/prometheus` (dep `micrometer-registry-prometheus`), servido en un
   **puerto de management separado (9090) NO publicado al host** (solo alcanzable en la red interna; adelanta
   parte de Fase 7). Métricas disponibles: `ratelimit.decision{policy,result}`,
-  `resilience4j.circuitbreaker.*` (estado/llamadas/slow) y **nuevas** `redis.lock.acquire{resource,result}`
-  y `redis.lock.renew{resource,result}` (`result=lost` → alerta de locks perdidos).
+  `resilience4j.circuitbreaker.*` (estado/llamadas/slow) y **nuevas** `redis.lock.acquire{resource,result}`,
+  `redis.lock.renew{resource,result}` y `redis.lock.release{resource,result}` — ciclo de vida completo del
+  lock: `acquire`=acquired/busy/error, `renew`=ok/lost/error, `release`=released/lost/error
+  (`result=lost` en renew/release → alerta de locks perdidos).
 - **Pruebas**: contrato Lua + concurrencia ya cubiertos (lock 7 tests: exclusión, concurrencia, ownership
   de release/renew, fencing monotónico, fail-closed, **métricas**; limiter 7). Imagen `redis:8.2-alpine`
   = la de prod.
