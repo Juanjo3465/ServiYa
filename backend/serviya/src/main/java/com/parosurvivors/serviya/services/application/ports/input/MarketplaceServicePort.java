@@ -26,13 +26,13 @@ public interface MarketplaceServicePort {
     List<Service> getAll();
     List<ServiceDetail> getByOffererId(Long offererId);
     Optional<ServiceDetail> getDetailById(Long id);
-    Service update(UpdateServiceCommand command);
+    Service update(UpdateServiceCommand command, Long requesterId, boolean isAdmin);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);
     Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds);
-    void delete(Long id);
-    void softDelete(Long id);
-    void activate(Long id);
-    void deactivate(Long id);
+    void delete(Long id, Long requesterId, boolean isAdmin);
+    void softDelete(Long id, Long requesterId, boolean isAdmin);
+    void activate(Long id, Long requesterId, boolean isAdmin);
+    void deactivate(Long id, Long requesterId, boolean isAdmin);
     void deactivateAllByOfferer(Long offererId);
     
 }

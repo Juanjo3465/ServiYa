@@ -375,9 +375,13 @@ CREATE TABLE reschedule_proposals (
         FOREIGN KEY (client_id)
         REFERENCES users(id),
 
-    CONSTRAINT fk_reschedule_offerer
+CONSTRAINT fk_reschedule_offerer
         FOREIGN KEY (offerer_id)
         REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    pending_request_id BIGINT UNSIGNED AS (CASE WHEN status = 'PENDING' THEN request_id END) STORED,
+    CONSTRAINT uq_reschedule_pending_per_request UNIQUE (pending_request_id)
 );
 
 -- =========================================================
@@ -544,6 +548,8 @@ CREATE TABLE service_metrics (
     -- Solicitudes lógicas dirigidas al servicio. Alimentada por RequestCreatedEvent.
     total_requests_received INT UNSIGNED NOT NULL DEFAULT 0,
 
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
+
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
@@ -563,6 +569,8 @@ CREATE TABLE service_tag_metrics (
     service_id BIGINT UNSIGNED NOT NULL,
 
     tag_count INT UNSIGNED NOT NULL DEFAULT 0,
+
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
     CONSTRAINT uq_service_tag_metric UNIQUE (tag_id, service_id),
 
@@ -608,6 +616,8 @@ CREATE TABLE offerer_metrics (
 
     total_not_provided_services INT UNSIGNED NOT NULL DEFAULT 0,
 
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
+
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
@@ -646,6 +656,8 @@ CREATE TABLE client_metrics (
 
     total_not_provided_requests INT UNSIGNED NOT NULL DEFAULT 0,
 
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
+
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
@@ -663,6 +675,8 @@ CREATE TABLE offerer_tag_metrics (
     tag_id BIGINT UNSIGNED NOT NULL,
 
     tag_count INT UNSIGNED NOT NULL DEFAULT 0,
+
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
     CONSTRAINT uq_offerer_tag_metric UNIQUE (offerer_id, tag_id),
 
@@ -687,6 +701,8 @@ CREATE TABLE client_tag_metrics (
     tag_id BIGINT UNSIGNED NOT NULL,
 
     tag_count INT UNSIGNED NOT NULL DEFAULT 0,
+
+    version BIGINT UNSIGNED NOT NULL DEFAULT 0,
 
     CONSTRAINT uq_client_tag_metric UNIQUE (client_id, tag_id),
 

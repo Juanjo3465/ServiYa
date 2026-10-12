@@ -16,6 +16,9 @@ public class ReportActionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "report_id", nullable = false)
     private Long reportId;
 

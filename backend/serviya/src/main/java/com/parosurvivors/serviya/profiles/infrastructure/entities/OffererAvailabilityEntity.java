@@ -15,6 +15,9 @@ public class OffererAvailabilityEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "offerer_id", nullable = false)
     private Long offererId;
 

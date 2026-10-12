@@ -30,7 +30,23 @@ public interface ServiceFeedbackRepository extends JpaRepository<ServiceFeedback
 
     /** Todo el feedback de servicio dejado por un cliente en cualquier servicio. */
     Page<ServiceFeedbackEntity> findByClientId(Long clientId, Pageable pageable);
-    
+
+    /** Feedback de servicio con filtros de búsqueda y paginación. */
+    @Query("SELECT f FROM ServiceFeedbackEntity f WHERE f.serviceId = :serviceId "
+            + "AND (:keyword IS NULL OR :keyword = '' OR LOWER(f.comment) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+            + "AND (:ratingMin IS NULL OR f.rating >= :ratingMin) "
+            + "AND (:ratingMax IS NULL OR f.rating <= :ratingMax) "
+            + "ORDER BY f.createdAt DESC")
+    Page<ServiceFeedbackEntity> findByServiceIdAndFilters(Long serviceId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
+    /** Feedback de servicio por cliente con filtros de búsqueda y paginación. */
+    @Query("SELECT f FROM ServiceFeedbackEntity f WHERE f.clientId = :clientId "
+            + "AND (:keyword IS NULL OR :keyword = '' OR LOWER(f.comment) LIKE LOWER(CONCAT('%', :keyword, '%'))) "
+            + "AND (:ratingMin IS NULL OR f.rating >= :ratingMin) "
+            + "AND (:ratingMax IS NULL OR f.rating <= :ratingMax) "
+            + "ORDER BY f.createdAt DESC")
+    Page<ServiceFeedbackEntity> findByClientIdAndFilters(Long clientId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
     /** Calificación promedio de todos los feedback de servicio. */
     @Query("SELECT AVG(CAST(f.rating AS DOUBLE)) FROM ServiceFeedbackEntity f")
     Double findAverageRating();

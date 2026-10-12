@@ -551,6 +551,12 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
   loguea `ERROR` con stacktrace en **cada** petición de política OPEN (p. ej. `api-default`). Con tráfico
   alto = ruido masivo de logs. Bajar a `WARN`/`DEBUG` o muestrear tras la primera ocurrencia (contador +
   sampling). No bloqueante. Anotado también en NOTAS.txt (2026-10-11).
+- **M38 — `ENCRYPTION_KEY` de dev marcada como insegura por el guard B6**: tras integrar `main`, el guard
+  de `PiiAttributeConverter` (fix B6) rechaza passphrases con `dev-`/`change-me`/`example`/`default` o <32
+  chars. La `ENCRYPTION_KEY` del `.env` local de dev la dispara → **cualquier cifrado de PII (registro con
+  teléfono/documento) lanzaría 500** y `PiiAttributeConverterTest` falla sin una clave fuerte. Acción:
+  generar una `ENCRYPTION_KEY` fuerte en `.env` (y en el gestor de secretos de prod, D-14/Fase 7). No es
+  regresión del merge; es la clave de dev vs. el guard nuevo.
 
 **6.5.c — Nuevas características / módulos (roadmap, por impacto)**
 1. **Pagos + escrow** (prioridad alta): pasarela (Stripe / Mercado Pago), retención hasta completar,
@@ -619,7 +625,14 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > `monitor`, D-18) + **Prometheus** + **Grafana** + dashboards + alertas, y CI. Sin retrabajo: Prometheus
 > solo scrapea el endpoint ya expuesto.
 > **Siguiente: Fase 6** (caché sobre `redis-cache` — incluye el candidato M34 de cachear `isActive`).
-> **La rama `redis` sigue sin pushear.**
+>
+> **Merge `main` → `redis` (2026-10-11):** integrados los 46 commits de `main` (fixes B1–B15, F01). 3
+> conflictos resueltos (2 schedulers + `application.yaml`) + 6 archivos auto-mergeados. **Decisión B9:** se
+> eliminó **ShedLock** (deps, `ShedLockConfig`, `@SchedulerLock`, tabla `shedlock`) y B9 queda resuelto por
+> el **lock propio sobre `redis-coord`** (ADR D-04, no dos sistemas de lock). De `main` se conservaron sus
+> endurecimientos (`include-stacktrace/message: never` B11, geocoding B12, @Version B10, unique B8, etc.).
+> Suite tras merge: **377 tests, 0 failures, 3 errors ambientales** (contextLoads=BD; Pii×2=`ENCRYPTION_KEY`
+> débil, ver **M38** — pasa con clave fuerte). Rama `redis` **pusheada** a `origin/redis`.
 
 **Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
 `redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción

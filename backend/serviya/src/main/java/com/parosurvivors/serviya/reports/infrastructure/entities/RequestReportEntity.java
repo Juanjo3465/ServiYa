@@ -13,6 +13,9 @@ public class RequestReportEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "report_id", nullable = false, unique = true)
     private Long reportId;
 

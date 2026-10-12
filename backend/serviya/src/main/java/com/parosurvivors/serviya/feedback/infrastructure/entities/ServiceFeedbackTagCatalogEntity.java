@@ -14,6 +14,9 @@ public class ServiceFeedbackTagCatalogEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "tag_name", nullable = false, unique = true, length = 150)
     private String tagName;
 

@@ -6,7 +6,6 @@ import com.parosurvivors.serviya.profiles.application.dto.command.UpdateProfileC
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
 import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
-import java.util.Map;
 import com.parosurvivors.serviya.admin.application.dto.query.AdminFeedbackSearchQuery;
 import com.parosurvivors.serviya.admin.application.dto.result.AdminFeedbackSearchResult;
 import com.parosurvivors.serviya.admin.application.dto.result.UserAdminDetailResult;
@@ -37,7 +36,6 @@ import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePo
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.domain.User;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -45,9 +43,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 /**
@@ -75,6 +73,8 @@ public class AdminService implements AdminServicePort {
     private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
+    /** B5: anti auto-accion y guard de ultimo admin activo. */
+    private final AdminActionGuard adminActionGuard;
 
     @Override
     public UserSummaryItem createUserByAdmin(CreateUserByAdminCommand command) {
@@ -133,6 +133,12 @@ public class AdminService implements AdminServicePort {
     public void revokeRoleByAdmin(Long adminId, Long userId, String roleName) {
         RoleName role = parseRole(roleName);
         userQueryServicePort.getUserById(userId); // 404 si no existe
+
+        // B5: retirar el rol ADMIN a uno mismo o al ultimo admin activo provocaria lockout.
+        if (role == RoleName.ADMIN) {
+            adminActionGuard.requireNotSelf(adminId, userId);
+            adminActionGuard.requireAnotherActiveAdmin(userId);
+        }
 
         switch (role) {
             case OFFERER -> {
@@ -222,6 +228,8 @@ public class AdminService implements AdminServicePort {
 
     @Override
     public void banUser(Long adminId, Long userId, String reason) {
+        adminActionGuard.requireNotSelf(adminId, userId);
+        adminActionGuard.requireAnotherActiveAdmin(userId);
         userServicePort.banUser(userId, reason);
     }
 
@@ -232,16 +240,18 @@ public class AdminService implements AdminServicePort {
 
     @Override
     public void deleteUser(Long adminId, Long userId) {
+        adminActionGuard.requireNotSelf(adminId, userId);
+        adminActionGuard.requireAnotherActiveAdmin(userId);
         userDeletionServicePort.deleteUser(userId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<AdminFeedbackSearchResult> searchFeedback(AdminFeedbackSearchQuery query, Pageable pageable) {
-        Stream<AdminFeedbackSearchResult> serviceStream = searchServiceFeedback(query);
-        Stream<AdminFeedbackSearchResult> clientStream = searchClientFeedback(query);
+        Page<AdminFeedbackSearchResult> servicePage = searchServiceFeedback(query, pageable);
+        Page<AdminFeedbackSearchResult> clientPage = searchClientFeedback(query, pageable);
 
-        List<AdminFeedbackSearchResult> combined = Stream.concat(serviceStream, clientStream)
+        List<AdminFeedbackSearchResult> combined = Stream.concat(servicePage.getContent().stream(), clientPage.getContent().stream())
                 .sorted(Comparator.comparing(AdminFeedbackSearchResult::createdAt,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
@@ -249,64 +259,48 @@ public class AdminService implements AdminServicePort {
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), combined.size());
         List<AdminFeedbackSearchResult> pageContent = start >= combined.size() ? List.of() : combined.subList(start, end);
-        return new PageImpl<>(pageContent, pageable, combined.size());
+        long totalElements = servicePage.getTotalElements() + clientPage.getTotalElements();
+        return new PageImpl<>(pageContent, pageable, totalElements);
     }
 
-    private Stream<AdminFeedbackSearchResult> searchServiceFeedback(AdminFeedbackSearchQuery query) {
+    private Page<AdminFeedbackSearchResult> searchServiceFeedback(AdminFeedbackSearchQuery query, Pageable pageable) {
         if (query.serviceId() == null && query.clientId() == null) {
-            return Stream.empty();
+            return Page.empty(pageable);
         }
-        List<ServiceFeedback> feedbacks;
+        Page<ServiceFeedback> feedbackPage;
         if (query.serviceId() != null) {
-            feedbacks = serviceFeedbackPersistencePort.findByServiceId(query.serviceId(),
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            feedbackPage = serviceFeedbackPersistencePort.findByServiceIdAndFilters(
+                    query.serviceId(), query.keyword(), query.ratingMin(), query.ratingMax(), pageable);
         } else {
-            feedbacks = serviceFeedbackPersistencePort.findByClientId(query.clientId(),
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            feedbackPage = serviceFeedbackPersistencePort.findByClientIdAndFilters(
+                    query.clientId(), query.keyword(), query.ratingMin(), query.ratingMax(), pageable);
         }
-        return feedbacks.stream()
-                .filter(f -> query.clientId() == null || query.clientId().equals(f.getClientId()))
-                .filter(f -> query.serviceId() == null || query.serviceId().equals(f.getServiceId()))
-                .filter(f -> query.keyword() == null || query.keyword().isBlank()
-                        || (f.getComment() != null && f.getComment().toLowerCase().contains(query.keyword().toLowerCase())))
-                .filter(f -> query.ratingMin() == null || (f.getRating() != null && f.getRating() >= query.ratingMin()))
-                .filter(f -> query.ratingMax() == null || (f.getRating() != null && f.getRating() <= query.ratingMax()))
-                .map(f -> new AdminFeedbackSearchResult(
-                        "SERVICE", f.getId(), f.getRequestId(),
-                        f.getClientId(), f.getServiceId(),
-                        f.getRating(), f.getComment(), f.getCreatedAt()));
+        return feedbackPage.map(f -> new AdminFeedbackSearchResult(
+                "SERVICE", f.getId(), f.getRequestId(),
+                f.getClientId(), f.getServiceId(),
+                f.getRating(), f.getComment(), f.getCreatedAt()));
     }
 
-    private Stream<AdminFeedbackSearchResult> searchClientFeedback(AdminFeedbackSearchQuery query) {
+    private Page<AdminFeedbackSearchResult> searchClientFeedback(AdminFeedbackSearchQuery query, Pageable pageable) {
         if (query.clientId() == null && query.offererId() == null) {
-            return Stream.empty();
+            return Page.empty(pageable);
         }
-        List<ClientFeedback> feedbacks;
-        if (query.clientId() != null && query.offererId() == null) {
-            feedbacks = clientFeedbackPersistencePort.findByClientId(query.clientId(),
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
-        } else if (query.offererId() != null) {
-            feedbacks = clientFeedbackPersistencePort.findByOffererId(query.offererId(),
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        Page<ClientFeedback> feedbackPage;
+        if (query.offererId() != null) {
+            feedbackPage = clientFeedbackPersistencePort.findByOffererIdAndFilters(
+                    query.offererId(), query.keyword(), query.ratingMin(), query.ratingMax(), pageable);
         } else {
-            feedbacks = clientFeedbackPersistencePort.findByClientId(query.clientId(),
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            feedbackPage = clientFeedbackPersistencePort.findByClientIdAndFilters(
+                    query.clientId(), query.keyword(), query.ratingMin(), query.ratingMax(), pageable);
         }
-        return feedbacks.stream()
-                .filter(f -> query.clientId() == null || query.clientId().equals(f.getClientId()))
-                .filter(f -> query.offererId() == null || query.offererId().equals(f.getOffererId()))
-                .filter(f -> query.keyword() == null || query.keyword().isBlank()
-                        || (f.getComment() != null && f.getComment().toLowerCase().contains(query.keyword().toLowerCase())))
-                .filter(f -> query.ratingMin() == null || (f.getRating() != null && f.getRating() >= query.ratingMin()))
-                .filter(f -> query.ratingMax() == null || (f.getRating() != null && f.getRating() <= query.ratingMax()))
-                .map(f -> new AdminFeedbackSearchResult(
-                        "CLIENT", f.getId(), f.getRequestId(),
-                        f.getOffererId(), f.getClientId(),
-                        f.getRating(), f.getComment(), f.getCreatedAt()));
+        return feedbackPage.map(f -> new AdminFeedbackSearchResult(
+                "CLIENT", f.getId(), f.getRequestId(),
+                f.getOffererId(), f.getClientId(),
+                f.getRating(), f.getComment(), f.getCreatedAt()));
     }
 
     @Override
-    public void deleteService(Long serviceId) {
-        marketplaceServicePort.delete(serviceId);
+    public void deleteService(Long serviceId, Long adminId, boolean isAdmin) {
+        marketplaceServicePort.delete(serviceId, adminId, isAdmin);
     }
 }

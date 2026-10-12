@@ -15,6 +15,9 @@ public class RoleEntity {
     @Column(columnDefinition = "INT UNSIGNED")
     private Integer id;
 
+    @Version
+    private Integer version;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, unique = true)
     private RoleName name;

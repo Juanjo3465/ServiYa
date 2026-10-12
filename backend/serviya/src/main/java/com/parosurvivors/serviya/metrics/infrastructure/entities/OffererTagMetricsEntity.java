@@ -16,6 +16,9 @@ public class OffererTagMetricsEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @Column(name = "offerer_id", nullable = false)
     private Long offererId;
 

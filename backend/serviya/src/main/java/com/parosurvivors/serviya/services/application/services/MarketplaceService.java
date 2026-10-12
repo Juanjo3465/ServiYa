@@ -24,6 +24,7 @@ import com.parosurvivors.serviya.services.domain.ServiceDetail;
 import com.parosurvivors.serviya.services.domain.FeedbackUser;
 import com.parosurvivors.serviya.services.domain.ServiceAvailability;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -114,10 +115,12 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public Service update(UpdateServiceCommand command) {
+    public Service update(UpdateServiceCommand command, Long requesterId, boolean isAdmin) {
         Service service = persistencePort.findById(command.serviceId())
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Servicio no encontrado con id: " + command.serviceId()));
+
+        requireOwnership(service, requesterId, isAdmin);
 
         // PATCH semantico: el mapper aplica solo los campos no-nulos del command
         // (IGNORE strategy).
@@ -164,41 +167,57 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public void delete(Long id) {
-        if (persistencePort.findById(id).isEmpty()) {
-            throw new ResourceNotFoundException("Servicio no encontrado con id: " + id);
-        }
+    public void delete(Long id, Long requesterId, boolean isAdmin) {
+        Service service = persistencePort.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
+        requireOwnership(service, requesterId, isAdmin);
         persistencePort.deleteById(id);
     }
 
     @Override
-    public void softDelete(Long id) {
+    public void softDelete(Long id, Long requesterId, boolean isAdmin) {
         Service service = persistencePort.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
 
+        requireOwnership(service, requesterId, isAdmin);
         service.softDelete();
         service.setUpdatedAt(LocalDateTime.now());
         persistencePort.update(service);
     }
 
     @Override
-    public void activate(Long id) {
+    public void activate(Long id, Long requesterId, boolean isAdmin) {
         Service service = persistencePort.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
 
+        requireOwnership(service, requesterId, isAdmin);
         service.activate();
         service.setUpdatedAt(LocalDateTime.now());
         persistencePort.update(service);
     }
 
     @Override
-    public void deactivate(Long id) {
+    public void deactivate(Long id, Long requesterId, boolean isAdmin) {
         Service service = persistencePort.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
 
+        requireOwnership(service, requesterId, isAdmin);
         service.deactivate();
         service.setUpdatedAt(LocalDateTime.now());
         persistencePort.update(service);
+    }
+
+    /**
+     * El actor debe ser el oferente propietario del servicio, o un admin (IDOR: B1).
+     * Mismo patron "participante O admin" que {@code ServiceRequestQueryService.getRequestHistory}.
+     */
+    private void requireOwnership(Service service, Long requesterId, boolean isAdmin) {
+        if (isAdmin) {
+            return;
+        }
+        if (requesterId == null || !requesterId.equals(service.getOffererId())) {
+            throw new UnauthorizedException("El usuario no es el propietario del servicio");
+        }
     }
 
     @Override

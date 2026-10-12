@@ -17,9 +17,9 @@ public interface AddressServicePort {
 
     Address createAddress(CreateAddressCommand command);
 
-    void deleteAddress(Long addressId);
+    void deleteAddress(Long addressId, Long requesterId, boolean isAdmin);
 
-    Address updateAddress(UpdateAddressCommand command);
+    Address updateAddress(UpdateAddressCommand command, Long requesterId, boolean isAdmin);
 
     boolean verifyAddress(String addressLine, String city);
 

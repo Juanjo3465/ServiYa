@@ -16,6 +16,9 @@ public class ServiceTagMetricsEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @Column(name = "tag_id", nullable = false)
     private Long tagId;
 

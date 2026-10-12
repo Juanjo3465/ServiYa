@@ -62,4 +62,8 @@ public class RescheduleProposalEntity {
 
     @Column(name = "responded_at")
     private LocalDateTime respondedAt;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 }

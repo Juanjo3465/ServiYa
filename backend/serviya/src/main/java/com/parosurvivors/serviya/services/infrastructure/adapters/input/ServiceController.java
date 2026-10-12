@@ -86,7 +86,7 @@ public class ServiceController implements ServiceApi {
                     null,
                     null,
                     null,
-                    null));
+                    null), CurrentUser.id(), CurrentUser.isAdmin());
         }
 
         ServiceResponse response = mapper.toResponse(createdService);
@@ -203,7 +203,7 @@ public class ServiceController implements ServiceApi {
                 parseInteger(averageDurationMinutes),
                 parseDecimal(operationRadiusKm));
 
-        Service updatedService = marketplaceService.update(mapper.toCommand(form, id));
+        Service updatedService = marketplaceService.update(mapper.toCommand(form, id), CurrentUser.id(), CurrentUser.isAdmin());
         List<String> retainedPhotos = existingPhotos == null ? List.of() : existingPhotos.stream().filter(p -> p != null && !p.isBlank()).toList();
         if (removedPhotos != null && !removedPhotos.isEmpty()) {
             photoStorageService.deletePhotos(removedPhotos);
@@ -223,7 +223,7 @@ public class ServiceController implements ServiceApi {
                     null,
                     null,
                     null,
-                    null));
+                    null), CurrentUser.id(), CurrentUser.isAdmin());
         } else if (!retainedPhotos.isEmpty() || (removedPhotos != null && !removedPhotos.isEmpty())) {
             updatedService = marketplaceService.update(new UpdateServiceCommand(
                     id,
@@ -233,7 +233,7 @@ public class ServiceController implements ServiceApi {
                     null,
                     null,
                     null,
-                    null));
+                    null), CurrentUser.id(), CurrentUser.isAdmin());
         }
 
         return ResponseEntity.ok(mapper.toResponse(updatedService));
@@ -276,7 +276,7 @@ public class ServiceController implements ServiceApi {
     @DeleteMapping("/api/v1/services/{id}")
     public ResponseEntity<Void> delete(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
-        marketplaceService.delete(id);
+        marketplaceService.delete(id, CurrentUser.id(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 
@@ -284,7 +284,7 @@ public class ServiceController implements ServiceApi {
     @PatchMapping("/api/v1/services/{id}/soft-delete")
     public ResponseEntity<Void> softDelete(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
-        marketplaceService.softDelete(id);
+        marketplaceService.softDelete(id, CurrentUser.id(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 
@@ -292,7 +292,7 @@ public class ServiceController implements ServiceApi {
     @PostMapping("/api/v1/services/{id}/activate")
     public ResponseEntity<Void> activate(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
-        marketplaceService.activate(id);
+        marketplaceService.activate(id, CurrentUser.id(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 
@@ -300,7 +300,7 @@ public class ServiceController implements ServiceApi {
     @PostMapping("/api/v1/services/{id}/deactivate")
     public ResponseEntity<Void> deactivate(
             @Parameter(description = "ID del servicio") @PathVariable Long id) {
-        marketplaceService.deactivate(id);
+        marketplaceService.deactivate(id, CurrentUser.id(), CurrentUser.isAdmin());
         return ResponseEntity.noContent().build();
     }
 

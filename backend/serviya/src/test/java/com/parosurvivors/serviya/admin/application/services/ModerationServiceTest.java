@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +42,7 @@ class ModerationServiceTest {
     @Mock private ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     @Mock private UserServicePort userServicePort;
     @Mock private NotificationServicePort notificationServicePort;
+    @Mock private AdminActionGuard adminActionGuard;
 
     @InjectMocks
     private ModerationService service;
@@ -86,6 +88,32 @@ class ModerationServiceTest {
         verify(reportServicePort).resolveReport(2L, ADMIN, ReportActionType.BAN);
         // La notificación al baneado la hace UserService.banUser, no ModerationService.
         verify(notificationServicePort, never()).notify(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void banUserFromReportAppliesSelfActionAndLastAdminGuards() {
+        when(reportServicePort.getReportSummary(10L)).thenReturn(requestReport(10L, 99L));
+
+        service.banUserFromReport(10L, ADMIN, "spam");
+
+        // B5: el adminId se usa para evitar auto-ban y dejar al sistema sin administradores.
+        verify(adminActionGuard).requireNotSelf(ADMIN, REPORTED);
+        verify(adminActionGuard).requireAnotherActiveAdmin(REPORTED);
+        verify(userServicePort).banUser(eq(REPORTED), anyString());
+    }
+
+    @Test
+    void banUserFromReportAbortsWhenGuardRejects() {
+        // Reporte cuyo reportado es el propio admin (auto-accion).
+        when(reportServicePort.getReportSummary(11L))
+                .thenReturn(new ReportSummary(11L, 8L, ADMIN, ReportType.REQUEST, "SPAM",
+                        ReportStatus.PENDING, 99L, null, null));
+        doThrow(new InvalidStateException("self")).when(adminActionGuard).requireNotSelf(ADMIN, ADMIN);
+
+        assertThatThrownBy(() -> service.banUserFromReport(11L, ADMIN, "spam"))
+                .isInstanceOf(InvalidStateException.class);
+        verify(userServicePort, never()).banUser(any(), any());
+        verify(reportServicePort, never()).resolveReport(any(), any(), any());
     }
 
     @Test

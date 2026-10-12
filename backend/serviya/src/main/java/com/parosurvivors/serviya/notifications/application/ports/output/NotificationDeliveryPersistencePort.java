@@ -12,6 +12,7 @@ public interface NotificationDeliveryPersistencePort {
     NotificationDelivery save(NotificationDelivery delivery);
     NotificationDelivery update(NotificationDelivery delivery);
     Optional<NotificationDelivery> findById(Long id);
+    Optional<NotificationDelivery> findByIdAndUserId(Long id, Long userId);
     List<NotificationDelivery> findByNotificationId(Long notificationId);
     Optional<NotificationDelivery> findByNotificationIdAndChannelId(Long notificationId, Integer channelId);
     Page<NotificationDelivery> findDeliveriesByUserId(Long userId, Boolean read, Long channelId, DeliveryStatus status, Pageable pageable);

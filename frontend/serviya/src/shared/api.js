@@ -53,6 +53,7 @@ export function userIdFromToken(token = getToken()) {
 }
 
 // Llama a la API y devuelve el JSON; si la respuesta es de error, lanza con el mensaje del backend.
+// Si recibe 401 en una petición autenticada, limpia el token y redirige a login.
 async function request(path, { method = 'GET', body, auth = false, formData = false } = {}) {
     const headers = {};
     if (!formData) {
@@ -68,6 +69,15 @@ async function request(path, { method = 'GET', body, auth = false, formData = fa
         headers,
         body: body ? (formData ? body : JSON.stringify(body)) : undefined,
     });
+
+    // Interceptor de 401: si la petición era autenticada y el token expira/es inválido
+    if (res.status === 401 && auth) {
+        clearToken();
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+        }
+        throw new Error('Sesión expirada. Redirigiendo al login...');
+    }
 
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : null;

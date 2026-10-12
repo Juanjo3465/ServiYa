@@ -8,6 +8,8 @@ import com.parosurvivors.serviya.reports.infrastructure.entities.ReportEntity;
 import com.parosurvivors.serviya.reports.infrastructure.mappers.ReportPersistenceMapper;
 import com.parosurvivors.serviya.reports.infrastructure.repositories.ReportRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -81,5 +83,33 @@ public class ReportPersistenceAdapter implements ReportPersistencePort {
     @Override
     public long countByReportedUserId(Long reportedUserId) {
         return repository.countByReportedUserId(reportedUserId);
+    }
+
+    @Override
+    public Page<Report> findReports(String type, String category, String status, Pageable pageable) {
+        ReportType reportType = (type == null || type.isBlank()) ? null : ReportType.valueOf(type.toUpperCase());
+        ReportStatus reportStatus = (status == null || status.isBlank()) ? null : ReportStatus.valueOf(status.toUpperCase());
+        String cat = (category == null || category.isBlank()) ? null : category;
+
+        Page<ReportEntity> entityPage;
+        if (reportType != null && cat != null && reportStatus != null) {
+            entityPage = repository.findByReportTypeAndCategoryAndStatus(reportType, cat, reportStatus, pageable);
+        } else if (reportType != null && cat != null) {
+            entityPage = repository.findByReportTypeAndCategory(reportType, cat, pageable);
+        } else if (reportType != null && reportStatus != null) {
+            entityPage = repository.findByReportTypeAndStatus(reportType, reportStatus, pageable);
+        } else if (cat != null && reportStatus != null) {
+            entityPage = repository.findByCategoryAndStatus(cat, reportStatus, pageable);
+        } else if (reportType != null) {
+            entityPage = repository.findByReportType(reportType, pageable);
+        } else if (cat != null) {
+            entityPage = repository.findByCategory(cat, pageable);
+        } else if (reportStatus != null) {
+            entityPage = repository.findByStatus(reportStatus, pageable);
+        } else {
+            entityPage = repository.findAllReports(pageable);
+        }
+
+        return entityPage.map(mapper::toDomain);
     }
 }

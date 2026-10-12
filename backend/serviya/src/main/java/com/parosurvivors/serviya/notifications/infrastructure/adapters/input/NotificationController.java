@@ -46,7 +46,7 @@ public class NotificationController implements NotificationApi {
     @Override
     @PostMapping("/api/v1/notifications/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
-        notificationDeliveryService.markAsRead(id);
+        notificationDeliveryService.markAsRead(id, currentUserId());
         return ResponseEntity.noContent().build();
     }
 

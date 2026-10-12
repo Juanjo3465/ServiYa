@@ -20,6 +20,9 @@ public class ClientFeedbackEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Integer version;
+
     @Column(name = "request_id", nullable = false, unique = true)
     private Long requestId;
 

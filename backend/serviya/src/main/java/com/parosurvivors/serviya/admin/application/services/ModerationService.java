@@ -40,6 +40,8 @@ public class ModerationService implements ModerationServicePort {
     private final ServiceRequestCommandServicePort serviceRequestCommandServicePort;
     private final UserServicePort userServicePort;
     private final NotificationServicePort notificationServicePort;
+    /** B5: anti auto-accion y guard de ultimo admin activo. */
+    private final AdminActionGuard adminActionGuard;
 
     @Override
     @Transactional
@@ -63,6 +65,9 @@ public class ModerationService implements ModerationServicePort {
     @Transactional
     public void banUserFromReport(Long reportId, Long adminId, String reason) {
         ReportSummary report = reportServicePort.getReportSummary(reportId);
+        // B5: el admin no puede banearse a si mismo ni dejar al sistema sin administradores activos.
+        adminActionGuard.requireNotSelf(adminId, report.reportedUserId());
+        adminActionGuard.requireAnotherActiveAdmin(report.reportedUserId());
         // Motivo del admin si lo escribió; si no, se deriva de la categoría del reporte (nunca el texto
         // libre del reportante, que es la acusación y podría venir manipulada u ofensiva).
         String finalReason = (reason != null && !reason.isBlank())

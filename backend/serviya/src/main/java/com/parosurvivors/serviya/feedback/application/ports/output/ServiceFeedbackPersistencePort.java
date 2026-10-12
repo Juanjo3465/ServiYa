@@ -25,5 +25,11 @@ public interface ServiceFeedbackPersistencePort {
     /** Todo el feedback de servicio dejado por un cliente, paginado. */
     Page<ServiceFeedback> findByClientId(Long clientId, Pageable pageable);
 
+    /** Feedback de servicio con filtros de búsqueda y paginación. */
+    Page<ServiceFeedback> findByServiceIdAndFilters(Long serviceId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
+    /** Feedback de servicio por cliente con filtros de búsqueda y paginación. */
+    Page<ServiceFeedback> findByClientIdAndFilters(Long clientId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable);
+
     void deleteById(Long id);
 }

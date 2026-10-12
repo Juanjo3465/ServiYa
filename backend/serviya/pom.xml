@@ -46,6 +46,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
 
 		<!-- Redis: sustrato de coordinación (locks distribuidos, Fase 2; rate limit Fase 3; caché Fase 6).
 		     Trae Lettuce (gestionado por el BOM 3.5.5). -->
@@ -155,6 +159,10 @@
 			<artifactId>resilience4j-spring-boot3</artifactId>
 			<version>2.3.0</version>
 		</dependency>
+
+		<!-- (ShedLock de main/B9 eliminado en el merge con la rama redis: el lock distribuido de los
+		     schedulers lo provee el protocolo propio sobre redis-coord —shared/lock—, para no tener dos
+		     sistemas de lock. Ver ESTADO §6.6 / guía ADR D-04.) -->
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

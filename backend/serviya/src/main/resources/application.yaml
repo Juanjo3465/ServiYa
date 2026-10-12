@@ -28,15 +28,10 @@ spring:
         default-page-size: 20
         max-page-size: 20
 
-logging:
-  level:
-    org.hibernate.SQL: DEBUG
-    org.springframework.web: DEBUG
-
 server:
   error:
-    include-stacktrace: always
-    include-message: always
+    include-stacktrace: never
+    include-message: never
   # El contenedor resuelve la IP real del cliente desde X-Forwarded-For/Forwarded PERO solo cuando el
   # salto inmediato es un proxy de confianza (rate limit por IP, D-09). Asi request.getRemoteAddr() no es
   # falsificable con el backend expuesto directo. En prod: declarar los proxies con server.tomcat.remoteip.*
@@ -100,6 +95,14 @@ app:
       # --- Nivel 2 (lecturas públicas pesadas), por ip. OPEN.
       search:            { algorithm: SLIDING_WINDOW, capacity: 60, window: 1m, failure-mode: OPEN }
       stats:             { algorithm: SLIDING_WINDOW, capacity: 30, window: 1m, failure-mode: OPEN }
+  # Geocodificación de direcciones (RF-009, RNF-019). Usa Nominatim (OpenStreetMap) por defecto.
+  # enabled=false para deshabilitar en tests o entornos sin internet.
+  geocoding:
+    enabled: ${GEOCODING_ENABLED:true}
+    nominatim:
+      base-url: ${GEOCODING_NOMINATIM_BASE_URL:https://nominatim.openstreetmap.org}
+      user-agent: ${GEOCODING_NOMINATIM_USER_AGENT:ServiYa/1.0}
+      timeout-seconds: ${GEOCODING_NOMINATIM_TIMEOUT_SECONDS:5}
 
 # Circuit breaker sobre redis-coord (Fase 4). Una sola instancia "redis-coord" compartida por el lock
 # distribuido y el rate limiter: si Redis cae o se pone lento, el breaker ABRE y ambos aplican su modo de

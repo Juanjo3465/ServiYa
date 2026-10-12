@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
 import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
 import { useToast } from '../../../../shared/hooks/useToast';
 import { adminFeedbackApi } from '../../../../shared/api';
+import { userApi } from '../../../../shared/api';
 import { DirectRemoveModal } from '../../components/DirectRemoveModal/DirectRemoveModal';
 
 import './AdminFeedbackPage.css';
@@ -27,6 +28,23 @@ export function AdminFeedbackPage() {
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
     const [selectedFeedback, setSelectedFeedback] = useState(null);
+    const [nameCache, setNameCache] = useState({});
+
+    // Resolve display names for user IDs to avoid N+1 calls
+    const resolveName = useCallback(async (userId) => {
+        if (!userId) return `Usuario ${userId}`;
+        if (nameCache[userId]) return nameCache[userId];
+
+        try {
+            const name = await userApi.getDisplayName(userId);
+            setNameCache((prev) => ({ ...prev, [userId]: name }));
+            return name;
+        } catch {
+            const fallback = `Usuario ${userId}`;
+            setNameCache((prev) => ({ ...prev, [userId]: fallback }));
+            return fallback;
+        }
+    }, [nameCache]);
 
     const handleChange = (field, value) => {
         setFilters((prev) => ({ ...prev, [field]: value }));
@@ -54,6 +72,22 @@ export function AdminFeedbackPage() {
             setLoading(false);
         }
     }, [filters, showToast]);
+
+    // Resolve names for author and target when results load
+    useEffect(() => {
+        if (results.length > 0) {
+            const uniqueIds = new Set();
+            results.forEach((item) => {
+                if (item.authorId) uniqueIds.add(item.authorId);
+                if (item.targetId) uniqueIds.add(item.targetId);
+            });
+            uniqueIds.forEach((id) => {
+                if (!nameCache[id]) {
+                    resolveName(id);
+                }
+            });
+        }
+    }, [results, nameCache, resolveName]);
 
     const handleRemove = async (item) => {
         setSelectedFeedback(item);
@@ -223,12 +257,20 @@ export function AdminFeedbackPage() {
                                     <div style={{ display: 'flex', gap: '14px', marginBottom: '10px', flexWrap: 'wrap', fontSize: '13px' }}>
                                         <div>
                                             <span style={{ color: 'var(--c-soft)', fontSize: '11px', textTransform: 'uppercase' }}>Autor </span>
-                                            <span style={{ fontWeight: 600 }}>Usuario #{item.authorId}</span>
+                                            <span style={{ fontWeight: 600 }}>
+                                                {nameCache[item.authorId] ? nameCache[item.authorId] : `Usuario #${item.authorId}`}
+                                            </span>
                                         </div>
                                         <div>
                                             <span style={{ color: 'var(--c-soft)', fontSize: '11px', textTransform: 'uppercase' }}>Destino </span>
                                             <span style={{ fontWeight: 600 }}>
-                                                {item.feedbackType === 'SERVICE' ? `Servicio #${item.targetId}` : `Cliente #${item.targetId}`}
+                                                {item.feedbackType === 'SERVICE'
+                                                    ? nameCache[item.targetId]
+                                                        ? nameCache[item.targetId]
+                                                        : `Servicio #${item.targetId}`
+                                                    : nameCache[item.targetId]
+                                                        ? nameCache[item.targetId]
+                                                        : `Cliente #${item.targetId}`}
                                             </span>
                                         </div>
                                         {item.createdAt && (

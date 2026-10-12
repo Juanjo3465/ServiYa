@@ -68,6 +68,16 @@ public class ServiceFeedbackPersistenceAdapter implements ServiceFeedbackPersist
     }
 
     @Override
+    public Page<ServiceFeedback> findByServiceIdAndFilters(Long serviceId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable) {
+        return repository.findByServiceIdAndFilters(serviceId, keyword, ratingMin, ratingMax, pageable).map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<ServiceFeedback> findByClientIdAndFilters(Long clientId, String keyword, Integer ratingMin, Integer ratingMax, Pageable pageable) {
+        return repository.findByClientIdAndFilters(clientId, keyword, ratingMin, ratingMax, pageable).map(mapper::toDomain);
+    }
+
+    @Override
     public void deleteById(Long id) {
         repository.deleteById(id);
     }
