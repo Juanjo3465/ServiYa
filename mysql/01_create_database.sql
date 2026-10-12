@@ -380,7 +380,10 @@ CONSTRAINT fk_reschedule_offerer
         REFERENCES users(id)
         ON DELETE CASCADE,
 
-    pending_request_id BIGINT UNSIGNED AS (CASE WHEN status = 'PENDING' THEN request_id END) STORED,
+    -- VIRTUAL (no STORED): MySQL rechaza (ERROR 1215) una columna generada STORED cuya columna base
+    -- (request_id) tiene un FK ON DELETE CASCADE (ver fk_reschedule_request). VIRTUAL conserva el CASCADE
+    -- y la UNIQUE (el índice único sobre columna virtual se materializa y se aplica igual). Fix del merge.
+    pending_request_id BIGINT UNSIGNED AS (CASE WHEN status = 'PENDING' THEN request_id END) VIRTUAL,
     CONSTRAINT uq_reschedule_pending_per_request UNIQUE (pending_request_id)
 );
 
@@ -921,18 +924,6 @@ CREATE TABLE notification_deliveries (
     CONSTRAINT fk_notification_deliveries_channel
         FOREIGN KEY (channel_id)
         REFERENCES notification_channels(id)
-);
-
--- =========================================================
--- SHEDLOCK (distributed scheduler lock)
--- =========================================================
-
-CREATE TABLE shedlock (
-    name VARCHAR(64) NOT NULL,
-    lock_until DATETIME(3) NOT NULL,
-    locked_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    locked_by VARCHAR(255) NOT NULL,
-    PRIMARY KEY (name)
 );
 
 -- =========================================================

@@ -304,7 +304,7 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
   `admin.searchFeedback` (`Integer.MAX_VALUE`).
 - **[MEDIO] Catálogo de tags escaneado completo por ítem** en lecturas de feedback.
 - **[MEDIO] Query a BD por request autenticado** (revalidación `isActive()` en el filtro JWT).
-- **[BAJO] Rate limiting en memoria** (Bucket4j local) → no compartido entre instancias.
+- ~~**[BAJO] Rate limiting en memoria** (Bucket4j local) → no compartido entre instancias.~~ **RESUELTO (rama `redis`, Fase 3, 2026-10-11):** `RateLimiter` distribuido sobre `redis-coord` (Lua); Bucket4j eliminado. Ver §6.6.
 
 ### 3.5 Calidad / deuda / doc-rot / código muerto
 
@@ -367,7 +367,10 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 
 ## 4. Catálogo de bugs (accionable)
 
-| # | Sev | Módulo | Bug | Dónde |
+> **✅ ESTADO (2026-10-12): B1–B15 y F1–F5 RESUELTOS** e integrados en la rama `redis` (merge desde
+> `main`). Auditados **uno por uno** (código real verificado en el árbol mergeado, no solo los docs de
+> `documents/fixes/`) + smoke test e2e. Veredicto por fix y salvedades en **§4.1**. La tabla se conserva
+> como referencia histórica del problema original.
 |---|-----|--------|-----|-------|
 | B1 | CRÍTICO | services | Escrituras IDOR sin autenticar (update/delete/activate/deactivate/soft-delete) | `ServiceController` + `SecurityConfig` + `MarketplaceService` (sin check de dueño) |
 | B2 | CRÍTICO | profiles | IDOR sin autenticar en `PATCH/DELETE /addresses/{id}` | `AddressController` + `SecurityConfig` |
@@ -398,6 +401,50 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > Nota: F1 agrava los IDOR del backend (§3.1) solo en lectura de UI; las escrituras IDOR son del
 > backend (B1–B4). Los bugs de concurrencia/seguridad que la doc de julio listaba como "frontend"
 > (self-admin, carrera de propuestas, revocación de rol) son en realidad del backend → B5, B8, B15.
+
+---
+
+### 4.1 — Resolución y auditoría (merge `main` → `redis`, 2026-10-12)
+
+Cada fix verificado contra el **código mergeado** (no solo su `Fix-*.md`) y contra los estándares del
+proyecto (hexagonal; `UnauthorizedException`→401; gate de rol en endpoint + autorización fina en servicio
+[[role-security-split-convention]]; DTOs record; `created_at` manual). Resultado: **todos arreglan su bug y
+están alineados**; salvedades menores anotadas (no bloquean).
+
+| Fix | ¿Arregla el bug? | Alineación / salvedades |
+|---|---|---|
+| **B1–B4** IDOR | **Sí** — `requireOwnership(owner‑o‑admin)` en servicio + reglas `authenticated()`/`hasRole(ADMIN)` en `SecurityConfig`; identidad siempre del JWT | Alineado: `UnauthorizedException`→401, patrón de split de rol, hexagonal intacto. La vía definitiva centralizada (`@PreAuthorize`/`OwnershipChecker`) sigue diferida a **M1** (estos son parches por endpoint, correctos pero endpoint‑a‑endpoint) |
+| **B5** self/último‑admin | **Sí** — `AdminActionGuard` (`requireNotSelf` + `requireAnotherActiveAdmin`) en `AdminService`+`ModerationService` | Alineado: regla de negocio en capa app (no en SecurityConfig), reusa **puertos de entrada** de `users` (no persistencia ajena); `InvalidStateException`→409 |
+| **B6** secretos débiles | **Sí** — fail‑fast en `JwtService`/`PiiAttributeConverter`; `.env.example` vaciado | Alineado con las restricciones de seguridad. **Efecto**: exige secretos fuertes en `.env` → ver **M38** (nos bloqueó el arranque hasta poner `JWT_SECRET`/`ENCRYPTION_KEY` fuertes). Es el comportamiento deseado |
+| **B7** lost‑update métricas | **Parcial‑sí** — `@Version` en las 6 entidades metrics + columnas `version` en SQL | Previene la corrupción silenciosa (ahora lanza `OptimisticLockException`). **Salvedad**: no hay *retry*; bajo alta contención un incremento de métrica podría perderse (excepción en el listener AFTER_COMMIT, logueada). El contador atómico SQL completo sigue en **M2** |
+| **B8** propuestas PENDING dup. | **Sí** — índice único parcial (columna generada) + `@Version` + retry ante `DataIntegrityViolationException` | Alineado. **Corregido durante el merge**: la columna era `STORED` (incompatible con el FK `ON DELETE CASCADE` → MySQL 1215, rompía el reseed limpio) → la pasé a **`VIRTUAL`** (conserva CASCADE y la UNIQUE). Commit `cd40623` |
+| **B9** lock `@Scheduled` | **Sí** — vía el **lock propio sobre `redis-coord`** (Fase 2) | **Decisión del merge**: ShedLock (JDBC) de `main` **eliminado** para no tener dos sistemas de lock (ADR D‑04). Ver §6.6 |
+| **B10** `@Version` global | **Sí** — `@Version` en 34 entidades | Alineado (≠ `@CreationTimestamp`, que sí está proscrito [[created-at-convention]]). **Salvedad**: el `01_create_database.sql` solo trae la columna `version` en metrics/reschedule; el resto se crean por `ddl-auto: update` al arrancar (coherente con el doble mecanismo ya documentado; el cierre real es Flyway, **M25**). Tipo `Integer` salvo reschedule (`Long`) — inocuo |
+| **B11** stacktrace expuesto | **Sí** — `include-stacktrace/message: never` + perfil `application-dev.yaml` con `always` | Alineado (seguridad). En el merge se tomó `never` de `main` conservando `forward-headers-strategy` de redis |
+| **B12** `/addresses/verify` 500 | **Sí** — `GeocodingPort` (puerto salida) + `NominatimGeocodingAdapter` + `WebClient` | Alineado: hexagonal correcto (puerto+adaptador). Nueva dep `spring-boot-starter-webflux`. **Sinergia**: respetar el límite de Nominatim (1 req/s) lo cubre ahora la política `address-verify` del rate limiter |
+| **B13** paginación en memoria | **Sí** — métodos `Page<>` con filtros en repos/ports; `ReportService.getReports`→`findReports` | Alineado (lecturas tipo CQRS, O(pageSize)) |
+| **B14** IDOR `markAsRead` | **Sí** — reglas `notifications/**` + `notification-channels` `authenticated()` (el servicio ya validaba dueño por `findByIdAndUserId`) | Alineado |
+| **B15** roles JWT no revalidados | **Sí** — `JwtAuthenticationFilter.revalidateRoles()` relee roles de BD por request | Alineado (revocación inmediata). **Interacción**: ahora cada request autenticada hace `findById` **+ roles** → **refuerza M34** (cachear identidad; ver §6.5.b) |
+| **F1–F5** frontend | **Sí** — `ProtectedRoute`+guards por rol, interceptor 401 en `api.js`, dropdown+resolución de nombres admin, `RequestServicePage` cableada, `ErrorBoundary`+`errorElement` | Alineado con el backlog frontend (M16–M21) y con los fixes de backend (B1–B4/B14) |
+
+**Conclusión:** ninguna incompatibilidad con las decisiones/estándares del proyecto. Dos arreglos propios
+fueron necesarios para que el merge fuera **desplegable**: ShedLock→lock propio (B9) y `STORED`→`VIRTUAL`
+(B8).
+
+#### Fixes a **analizar/reconsiderar** a futuro (deuda abierta)
+
+Los fixes anteriores cierran su bug, pero estos quedan con deuda que conviene revisar (no bloquean):
+
+| Fix | Qué reconsiderar | Trackeado en |
+|---|---|---|
+| **B1–B4, B14** | Parches IDOR endpoint‑por‑endpoint: cada endpoint nuevo debe acordarse del check → frágil. Sustituir por autorización centralizada (`@EnableMethodSecurity`/`@PreAuthorize`/`OwnershipChecker`) | **M1** |
+| **B7** | `@Version` sin retry → puede **perderse** un incremento de métrica bajo contención. Pasar a contador atómico SQL o retry con backoff | **M40** (→ **M2**) |
+| **B10** | El `01_create_database.sql` no trae la columna `version` de ~19 tablas (dependen de `ddl-auto: update`); además tipo `Integer` vs `Long` (reschedule). Unificar y migrar con Flyway | **M25** |
+| **B12** | Geocoding externo síncrono sin breaker/caché/rate‑limit de salida; `webflux` cargado solo por `WebClient` | **M39** |
+| **B15** | Relee roles **+** `isActive` de BD en cada request → más carga por request. Cachear identidad con TTL + invalidación | **M34** |
+| **B6** | El guard rechaza por substring (`dev-`,`default`,…): podría dar falso positivo sobre un secreto fuerte legítimo que contenga esa subcadena. Revisar heurística (p. ej. solo longitud+entropía) | *(menor; sin M)* |
+
+Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuertes en `.env`).
 
 ---
 
@@ -538,11 +585,38 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 **6.5.b — Comportamiento y diseño**
 - **M33 — Problem Details (RFC 9457)** como cuerpo de error estándar (ya citado en el doc de diseño).
 - **M34 — Caché** de datos casi-estáticos (categorías, catálogos de tags, lecturas de métricas);
-  `@Cacheable` y Redis en microservicios.
+  `@Cacheable` y Redis en microservicios. **Candidato prioritario**: la validación `isActive` del
+  usuario que hace `JwtAuthenticationFilter.isActiveUser()` en **cada petición autenticada**
+  (`userReadPort.findById`) — un `SELECT` a MySQL por request que con 2+ instancias se multiplica.
+  Cachear con TTL corto + invalidación al banear/eliminar (evita que `identity` sea cuello de botella
+  síncrono; alinea con la nota de "autenticación distribuida" en §7).
 - **M35 — Prevención de doble reserva / motor de agenda**: verificar y, si falta, implementar detección
   de conflicto de horario del oferente (anti-doble-booking, buffers, zona horaria). **Posible gap de
   corrección — verificar en código.**
 - **M36 — Paginación configurable** (el tope duro de 20 limita).
+- **M37 — Throttling de logs en outage de Redis** (Fase 4): con `redis-coord` caído, `RedisRateLimiter`
+  loguea `ERROR` con stacktrace en **cada** petición de política OPEN (p. ej. `api-default`). Con tráfico
+  alto = ruido masivo de logs. Bajar a `WARN`/`DEBUG` o muestrear tras la primera ocurrencia (contador +
+  sampling). No bloqueante. Anotado también en NOTAS.txt (2026-10-11).
+- **M39 — Resiliencia del geocoding externo (B12)**: `NominatimGeocodingAdapter` hace una llamada HTTP
+  **síncrona** a un servicio externo (OpenStreetMap) sin *circuit breaker* ni caché, y sin respetar su
+  política de uso (1 req/s). Riesgos: un Nominatim lento cuelga el hilo del request (aunque hay timeout de
+  5s, es alto); sin caché se repiten geocodificaciones; posible baneo por exceso. Acciones: breaker/timeout
+  corto (reusar el patrón de Fase 4), caché de direcciones→coordenadas (encaja con `redis-cache`, Fase 6),
+  y rate-limit de salida. Revisar además si `spring-boot-starter-webflux` (traído solo por `WebClient` en
+  una app servlet) se puede sustituir por `RestClient` para no cargar el stack reactivo completo.
+- **M40 — `@Version` sin retry en métricas (refinar B7)**: `@Version` convierte el lost-update en
+  `OptimisticLockException`, pero **no hay reintento**: en el listener `@TransactionalEventListener`
+  (AFTER_COMMIT, REQUIRES_NEW) la excepción se loguea y **el incremento de métrica se pierde** bajo
+  contención. Es mejor que corromper, pero incompleto. Cierre real = **M2** (contadores atómicos por SQL:
+  `UPDATE ... SET x = x + 1 WHERE id=? AND version=?`) o añadir retry con backoff en los listeners.
+- **M38 — Secretos de dev (`JWT_SECRET` y `ENCRYPTION_KEY`) marcados inseguros por el guard B6**: tras
+  integrar `main`, el guard de B6 rechaza secretos con `dev-`/`change-me`/`example`/`default` o <32 chars,
+  **tanto en `JwtService` (JWT_SECRET) como en `PiiAttributeConverter` (ENCRYPTION_KEY)**. Con los valores
+  de dev: `JWT_SECRET` débil → **el backend NO arranca** (falla el bean `jwtService`); `ENCRYPTION_KEY`
+  débil → **500 al cifrar PII** (registro) y `PiiAttributeConverterTest` falla. Acción: generar **ambos**
+  secretos fuertes en `.env` (y en el gestor de secretos de prod, D-14/Fase 7). No es regresión del merge;
+  son los secretos de dev vs. el guard nuevo. (Verificado: con valores fuertes, arranca y los tests pasan.)
 
 **6.5.c — Nuevas características / módulos (roadmap, por impacto)**
 1. **Pagos + escrow** (prioridad alta): pasarela (Stripe / Mercado Pago), retención hasta completar,
@@ -559,6 +633,92 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 
 > Roadmap inmediato sugerido tras la Fase 0: **pagos** (define el modelo de negocio) y **tiempo real**
 > (chat + notificaciones). El resto, incremental.
+
+### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
+
+> **Fuente de verdad detallada:** `documents/redis/guia-redis-implementacion.md` (guía dedicada, 9 fases,
+> registro de decisiones tipo ADR). Esta sección es el **resumen + tracker de aplazamientos**, para no
+> perder de vista lo postergado. Resuelve la **deuda #1 (M4)** y, por fases, **#6/M13** y **M34**.
+
+> **Estado de implementación (rama `redis`):** Fase 0 (fundamentos) ✅ · Fase 1 (entorno local seguro:
+> `redis-coord` + ACL + health por PING) ✅ verificada en runtime · **Fase 2 (lock distribuido) ✅**:
+> interfaz `DistributedLock`/`LockHandle` + `RedisDistributedLock` (protocolo propio, scripts Lua
+> `lock_acquire`/`_fenced`/`release`/`renew`), los **6 `@Scheduled` envueltos**, prueba de exclusión mutua
+> con Testcontainers, `protocolo-lock.md` escrito y las 6 claves `lock:{sched:...}` en el catálogo. Con esto
+> la **deuda #1 queda resuelta**: el monolito puede correr en ≥2 instancias sin doble ejecución de los
+> schedulers.
+>
+> **Fase 3 (rate limiting distribuido, #6/M13) ✅ (2026-10-11):** interfaz `RateLimiter` +
+> `RedisRateLimiter` sobre `redis-coord` con **dos algoritmos Lua** — token bucket (techo global
+> `api-default`) y **ventana deslizante** (auth/costosos). **Bucket4j eliminado** (contador local → clave
+> `rl:v1:{...}` compartida). Dos niveles: (1) `GlobalRateLimitFilter` tras el JWT, por user/IP; (2)
+> `@RateLimit` + interceptor en endpoints 🔴 (requests/propuestas que notifican, subidas multipart,
+> geocoding) + stats. Auth migrado (login/registro/reset) con el sujeto estandarizado **D-09** (correo solo
+> en reset; login sin correo → evita DoS de bloqueo) y endurecido el XFF (`forward-headers-strategy=native`).
+> **D-07 mixto** (login OPEN; registro/reset/costosos CLOSED) + **compensación 1a**: si Redis cae, las
+> notificaciones externas se difieren (`CoordinationAvailability` → FAILED → las reenvía el retry scheduler
+> al recuperarse). Con esto la **deuda #6 queda resuelta** (superficie de auth + techo global + 🔴).
+> Verificado e2e (login 429 al 11º, stats 429 al 31º, claves `rl:*` en `redis-coord`). ACL ampliado
+> (`+time` + comandos ZSET). Pendientes menores completados (search/report-create/account-security
+> anotados, commit `4c9ce35`).
+>
+> **Fase 4 (resiliencia) ✅ (2026-10-11):** circuit breaker **Resilience4j** (`resilience4j-spring-boot3`
+> 2.3.0) sobre `redis-coord`. (1) **Timeouts diferenciados**: `coordHotRedisTemplate` con
+> `hot-command-timeout=300ms` para el rate limit (hot-path de cada petición); el lock de schedulers sigue
+> en 2s (background). (2) **Una** instancia de breaker `redis-coord` compartida por `RedisRateLimiter` y
+> `RedisDistributedLock` (al abrir → `CallNotPermittedException` → modo de fallo D-07/D-08 al instante, sin
+> esperar el timeout). Config 100% en `application.yaml` (`resilience4j.circuitbreaker.*`:
+> COUNT_BASED/20, min-calls 10, failure 50%, slow-call 300ms/80%, open 10s, half-open 3). (3)
+> `register-health-indicator=false` a propósito (breaker abierto = degradado-pero-OK; no debe sacar la
+> instancia del balanceador → se observará por métrica en Fase 5). (4) **La app arranca con `redis-coord`
+> caído** (conexión lazy), degradada. **Bucket4j eliminado** del `pom`. Verificado e2e con `docker pause`
+> (Redis colgado): primeras req ~650ms (2×300ms), breaker abre, resto fast-fail ~20ms, todas 401 (OPEN
+> sigue sirviendo); al recuperar, 429 vuelve a aplicar; arranque con Redis detenido OK.
+>
+> **Fase 5 (observabilidad + pruebas) — slice A ✅ (2026-10-11):** observabilidad **del lado de la
+> aplicación**. Métricas en `/actuator/prometheus` (`micrometer-registry-prometheus`), servido en un
+> **puerto de management separado (9090) NO publicado al host** (solo red interna; adelanta parte de Fase 7;
+> evita filtrar métricas internas por el 8080 público). Métricas: `ratelimit.decision`,
+> `resilience4j.circuitbreaker.*` y **nuevas** `redis.lock.acquire`/`redis.lock.renew`/`redis.lock.release`
+> (ciclo de vida completo del lock; `result=lost` en renew/release → alerta de locks perdidos). Pruebas:
+> contrato Lua + concurrencia ya cubiertos (lock 7 / limiter 7, +test de métricas). **DIFERIDO a Fase 7** (observabilidad externa, elegido en slice A): `redis_exporter` (usuario
+> `monitor`, D-18) + **Prometheus** + **Grafana** + dashboards + alertas, y CI. Sin retrabajo: Prometheus
+> solo scrapea el endpoint ya expuesto.
+> **Siguiente: Fase 6** (caché sobre `redis-cache` — incluye el candidato M34 de cachear `isActive`).
+>
+> **Merge `main` → `redis` (2026-10-11):** integrados los 46 commits de `main` (fixes B1–B15, F01). 3
+> conflictos resueltos (2 schedulers + `application.yaml`) + 6 archivos auto-mergeados. **Decisión B9:** se
+> eliminó **ShedLock** (deps, `ShedLockConfig`, `@SchedulerLock`, tabla `shedlock`) y B9 queda resuelto por
+> el **lock propio sobre `redis-coord`** (ADR D-04, no dos sistemas de lock). De `main` se conservaron sus
+> endurecimientos (`include-stacktrace/message: never` B11, geocoding B12, @Version B10, unique B8, etc.).
+> Suite tras merge: **377 tests, 0 failures, 3 errors ambientales** (contextLoads=BD; Pii×2=`ENCRYPTION_KEY`
+> débil, ver **M38** — pasa con clave fuerte). Rama `redis` **pusheada** a `origin/redis`.
+> **Fix de esquema durante el smoke test (bug de main/B8):** `reschedule_proposals.pending_request_id` era
+> columna generada **STORED** cuya base (`request_id`) tiene FK `ON DELETE CASCADE` → MySQL lo rechaza
+> (ERROR 1215, falla el reseed limpio). Cambiado a **VIRTUAL** (conserva CASCADE + la UNIQUE de B8).
+> Smoke test: MySQL siembra el schema mergeado OK; backend bloqueado solo por `JWT_SECRET` débil (M38).
+
+**Decisión:** adoptar Redis como sustrato de coordinación, en modalidad **Vía B (slice mínimo)**: solo
+`redis-coord` + una interfaz `DistributedLock` (**protocolo propio** `SET NX PX` + Lua, **D-04 = Opción
+B**) para envolver los **6 `@Scheduled`** (requests ×4, reintento de notificaciones, limpieza de
+reset-tokens) → habilita el despliegue en **≥2 instancias** sin doble ejecución.
+
+- **ShedLock descartado** a favor de un único sistema de locking coherente (ver guía §2.1).
+- **Fencing token** no se usa en los schedulers (idempotentes); la API lo expone para secciones críticas
+  por-entidad futuras (p. ej. **B8** — propuestas PENDING duplicadas).
+- **Versiones:** Spring Boot 3.5.5 gestiona `spring-boot-starter-data-redis` (Lettuce 6.5.x, Java 21 OK);
+  Redis server **`redis:8.2-alpine`** (patch exacto a fijar al implementar; **D-02 PENDIENTE**).
+- **Secretos:** `.env` local (**D-14** local DECIDIDO); gestor de prod PENDIENTE.
+
+**Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); ~~rate limiting
+distribuido **#6/M13** (Fase 3)~~ ✅; ~~resiliencia/circuit breaker (Fase 4)~~ ✅; observabilidad del lado
+de la app (Fase 5, slice A) ✅ — **observabilidad externa diferida** (`redis_exporter`/Prometheus/Grafana/
+dashboards/alertas + CI → Fase 7); TLS +
+secretos de prod + backups + runbooks + **Actuator en puerto de management separado y no publicado**
+(Fase 7 — el puerto separado **ya se adelantó en Fase 5** (9090 no publicado); en Fase 1 el grupo de health
+`redis` quedó en `show-details: when_authorized` para no filtrar detalles por el 8080 público); alta disponibilidad Sentinel/Cluster/gestionado
+(Fase 8); interop multilenguaje (Fase 9); fencing token / columna `version` en tablas (al proteger una
+sección crítica por-entidad). **Detalle y mapeo por fase en la guía §2.1.**
 
 ---
 
@@ -785,6 +945,32 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   colgantes). Anotados en CLAUDE.md + NOTAS.txt tres known-unknowns operativos: build/tests no
   verificados esta sesión (primer paso: `./mvnw clean test`), 3 archivos de frontend sin commitear
   ajenos al diagnóstico, y el flujo de trabajo en `main`. M35 (doble reserva) marcado "verificar en código".
+- **2026-10-11** — Implementada en la rama `redis` la **Fase 3 (rate limiting distribuido, #6/M13)** en
+  5 sub-commits (`1ad4436` núcleo, `682db9e` auth, `1e0d52d` techo global, `89f5909` @RateLimit, `067dca5`
+  modo degradado notif): interfaz `RateLimiter` + `RedisRateLimiter` sobre `redis-coord` con dos algoritmos
+  Lua (token bucket + ventana deslizante), **Bucket4j eliminado**; dos niveles (filtro global `api-default`
+  + `@RateLimit`/interceptor en endpoints 🔴 + stats); auth/reset migrados con sujeto estandarizado **D-09**;
+  **D-06/D-07/D-09 cerradas**; compensación 1a (notificaciones externas diferidas si Redis cae). **Deuda #6
+  resuelta.** Verificado e2e (login/stats → 429, claves `rl:*`). Hallazgos (en NOTAS.txt): ACL necesitaba
+  `+time`+comandos ZSET; YAML flow-map exige espacio tras `:`; regresión de slice `@WebMvcTest` por
+  componentes no cargados (interceptor y `RateLimiter`) → resuelta con construcción desde config/ObjectProvider;
+  el `up` parcial de Docker vuelve a soltar una red (usar `down`+`up`). Suite: 328 tests, 0 fallos, 1 error
+  ambiental preexistente (contextLoads/BD). Rama `redis` aún sin pushear. Antes: refactor de constantes de
+  recurso de los locks (`b31a280`). Siguiente: Fase 4 (resiliencia) o pendientes menores de Fase 3.
+- **2026-10-10** — Elegido el **sustrato Redis** para la deuda #1 (lock distribuido de los `@Scheduled`).
+  Leída y adoptada `documents/redis/guia-redis-implementacion.md` en modalidad **Vía B (slice mínimo)**.
+  Decisiones cerradas: **D-04** = protocolo propio (ShedLock descartado), **D-02** = Redis 8.2-alpine
+  (patch pendiente), **D-14** = `.env` local (gestor de prod pendiente); fencing no usado en schedulers.
+  Aplazamientos registrados en §6.6 (resumen) y en la guía §2.1 (detalle por fase). Siguiente:
+  implementar Fase 0 + Fase 1 reducida (`redis-coord`) + Fase 2 (`DistributedLock`) sobre los 6 schedulers.
+- **2026-10-10** — Implementadas en la rama `redis`: **Fase 0** (fundamentos, commit `68f130c`), **Fase 1**
+  (entorno local seguro: `redis-coord` + ACL mínimo privilegio + health por PING; verificada en runtime con
+  Docker — contenedor healthy, ACL denegando mantenimiento, `/actuator/health`=UP) y **Fase 2** (lock
+  distribuido: `DistributedLock`/`LockHandle` + `RedisDistributedLock`, scripts Lua, los 6 `@Scheduled`
+  envueltos, prueba de exclusión mutua con Testcontainers, `protocolo-lock.md`). **Deuda #1 resuelta.**
+  Hallazgos corregidos (en NOTAS.txt): comentarios no admitidos en `redis.conf`/`aclfile`, health por `INFO`
+  vs usuario de mínimo privilegio, y la fuga de detalles del Actuator por el 8080 (grupo `redis` →
+  `when_authorized`). Siguiente: Fase 3 (rate limiting distribuido, #6/M13).
 - **2026-10-03** — Dos insumos del equipo incorporados: **(1)** el split a microservicios con **API
   gateway** es **requisito de entrega** (no opcional) → §7.0 y §7.7 reencuadrados a "split completo, el
   cómo es lo que importa"; **(2)** diagnóstico de **testing** (§3.7): cobertura casi nula de integración,

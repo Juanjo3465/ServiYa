@@ -5,6 +5,7 @@ import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServi
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimit;
 import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.users.infrastructure.adapters.input.api.AccountApi;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ChangeEmailForm;
@@ -68,6 +69,7 @@ public class AccountController implements AccountApi {
 
     @Override
     @PatchMapping("/me/password")
+    @RateLimit("account-security")
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordForm form) {
         userService.changePassword(mapper.toCommand(form, currentUserId()));
         return ResponseEntity.noContent().build();
@@ -75,6 +77,7 @@ public class AccountController implements AccountApi {
 
     @Override
     @PatchMapping("/me/email")
+    @RateLimit("account-security")
     public ResponseEntity<Void> changeEmail(@Valid @RequestBody ChangeEmailForm form) {
         userService.changeEmail(mapper.toCommand(form, currentUserId()));
         return ResponseEntity.noContent().build();

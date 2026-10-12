@@ -1,5 +1,11 @@
 # Fix for Bug B9: `@Scheduled` sin lock distribuido (doble ejecución al escalar)
 
+> **NOTA (merge con la rama `redis`, 2026-10-11):** este fix original usaba **ShedLock (JDBC)**. Al
+> integrar la rama `redis`, B9 se resuelve con el **lock distribuido propio sobre `redis-coord`**
+> (`shared/lock`, protocolo `SET NX PX` + Lua) para no mantener dos sistemas de lock (ADR D-04). ShedLock
+> (deps, `ShedLockConfig`, anotaciones `@SchedulerLock`, tabla `shedlock`) fue **eliminado**. El resultado
+> funcional es el mismo (un solo ejecutor por disparo con ≥2 instancias); el sustrato es Redis, no MySQL.
+
 ## Resumen del Bug
 
 **Severidad:** ALTO  

@@ -12,6 +12,7 @@ import com.parosurvivors.serviya.notifications.domain.DeliveryStatus;
 import com.parosurvivors.serviya.notifications.domain.Notification;
 import com.parosurvivors.serviya.notifications.domain.NotificationChannel;
 import com.parosurvivors.serviya.notifications.domain.NotificationDelivery;
+import com.parosurvivors.serviya.shared.coordination.CoordinationAvailability;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.util.List;
@@ -49,6 +50,8 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
     private final NotificationPersistencePort notificationPersistencePort;
     private final ObjectProvider<EmailPort> emailPortProvider;
     private final DomainEventPublisherPort eventPublisher;
+    /** Opcional: si está y reporta Redis caído, se difieren los envíos externos (protocolo D-07/1a). */
+    private final ObjectProvider<CoordinationAvailability> coordinationAvailabilityProvider;
 
     /** Máximo de intentos de envío por entrega antes de rendirse. Configurable por entorno. */
     @Value("${serviya.notifications.max-delivery-attempts:3}")
@@ -148,27 +151,7 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
         channel.ifPresentOrElse(c -> {
             switch (c.getName()) {
                 case "INTERNAL" -> delivery.markAsSent();
-                case "EMAIL" -> {
-                    EmailPort emailPort = emailPortProvider.getIfUnique();
-                    if (emailPort != null) {
-                        Notification notification = notificationPersistencePort
-                                .findById(delivery.getNotificationId()).orElse(null);
-                        if (notification != null && emailPort.send(
-                                notification.getUserId(),
-                                notification.getNotificationType(),
-                                notification.getTitle(),
-                                notification.getMessage(),
-                                protectedData)) {
-                            delivery.markAsSent();
-                        } else {
-                            delivery.markAsFailed();
-                        }
-                    } else {
-                        log.warn("No EmailPort bean available — marking EMAIL delivery {} as FAILED",
-                                delivery.getNotificationId());
-                        delivery.markAsFailed();
-                    }
-                }
+                case "EMAIL" -> dispatchEmail(delivery, protectedData);
                 default -> {
                     log.warn("Unknown channel '{}' — marking delivery {} as FAILED",
                             c.getName(), delivery.getNotificationId());
@@ -180,6 +163,50 @@ public class NotificationDeliveryService implements NotificationDeliveryServiceP
                     delivery.getChannelId(), delivery.getNotificationId());
             delivery.markAsFailed();
         });
+    }
+
+    /**
+     * Envía el correo por {@code EmailPort}, pero antes aplica el MODO DEGRADADO (protocolo D-07/1a): si el
+     * sustrato de coordinación ({@code redis-coord}) está caído, el rate limiting no puede proteger, así que
+     * NO se envía el correo (para no amplificar un posible abuso durante la caída). Se marca FAILED y lo
+     * reenviará {@link #retryFailedDeliveries()} cuando Redis vuelva (el scheduler está lock-guarded, así que
+     * tampoco corre durante la caída: el backlog espera y se vacía al recuperarse). Alternativa de análisis
+     * de abuso antes de reenviar (opción b) anotada como deuda.
+     */
+    private void dispatchEmail(NotificationDelivery delivery, Map<String, String> protectedData) {
+        if (!coordinationAvailable()) {
+            log.warn("Coordinación (redis-coord) no disponible — se DIFIERE el EMAIL de la entrega {} "
+                    + "(quedará FAILED y lo reenviará el reintento al recuperarse)", delivery.getNotificationId());
+            delivery.markAsFailed();
+            return;
+        }
+
+        EmailPort emailPort = emailPortProvider.getIfUnique();
+        if (emailPort == null) {
+            log.warn("No EmailPort bean available — marking EMAIL delivery {} as FAILED",
+                    delivery.getNotificationId());
+            delivery.markAsFailed();
+            return;
+        }
+
+        Notification notification = notificationPersistencePort
+                .findById(delivery.getNotificationId()).orElse(null);
+        if (notification != null && emailPort.send(
+                notification.getUserId(),
+                notification.getNotificationType(),
+                notification.getTitle(),
+                notification.getMessage(),
+                protectedData)) {
+            delivery.markAsSent();
+        } else {
+            delivery.markAsFailed();
+        }
+    }
+
+    /** ¿Está el sustrato de coordinación disponible? Si no hay bean (p. ej. en tests), se asume que sí. */
+    private boolean coordinationAvailable() {
+        CoordinationAvailability availability = coordinationAvailabilityProvider.getIfAvailable();
+        return availability == null || availability.isAvailable();
     }
 
     @Override

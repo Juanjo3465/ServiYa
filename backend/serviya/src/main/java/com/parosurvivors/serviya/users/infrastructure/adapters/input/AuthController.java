@@ -8,9 +8,10 @@ import com.parosurvivors.serviya.users.infrastructure.dto.form.RegisterUserForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.RequestPasswordResetForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.form.ValidatePasswordResetTokenForm;
 import com.parosurvivors.serviya.users.infrastructure.dto.response.AuthResponse;
+import com.parosurvivors.serviya.shared.exceptions.RateLimitExceededException;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimitDecision;
+import com.parosurvivors.serviya.shared.ratelimit.RateLimiter;
 import com.parosurvivors.serviya.users.infrastructure.mappers.UserWebMapper;
-import com.parosurvivors.serviya.users.infrastructure.security.RateLimitPolicy;
-import com.parosurvivors.serviya.users.infrastructure.security.RateLimiterService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,7 @@ public class AuthController implements AuthApi {
 
     private final UserAuthenticationServicePort authService;
     private final UserWebMapper mapper;
-    private final RateLimiterService rateLimiterService;
+    private final RateLimiter rateLimiter;
 
     /**
      * Normaliza el correo antes de usarlo como clave de cuota. Sin esto, {@code Ana@X.com} y
@@ -42,6 +43,14 @@ public class AuthController implements AuthApi {
      */
     private static String normalized(String email) {
         return email == null ? null : email.trim().toLowerCase();
+    }
+
+    /** Consume una cuota por correo (D-09) y, si esta agotada, corta con 429 + {@code Retry-After}. */
+    private void enforceEmailQuota(String policy, String email) {
+        RateLimitDecision decision = rateLimiter.tryConsume(policy, "email", normalized(email));
+        if (!decision.allowed()) {
+            throw new RateLimitExceededException(decision.retryAfterSeconds());
+        }
     }
 
     @Override
@@ -54,14 +63,15 @@ public class AuthController implements AuthApi {
     @Override
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginForm form) {
-        rateLimiterService.consumeOrThrow(RateLimitPolicy.LOGIN_BY_EMAIL, normalized(form.email()));
+        // Sin cuota por correo a proposito (D-09): un limite por correo en login habilita un DoS de
+        // bloqueo de la cuenta de la victima. La fuerza bruta por origen la frena la cuota por IP (filtro).
         return ResponseEntity.ok(mapper.toResponse(authService.login(mapper.toCommand(form))));
     }
 
     @Override
     @PostMapping("/password-reset")
     public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody RequestPasswordResetForm form) {
-        rateLimiterService.consumeOrThrow(RateLimitPolicy.PASSWORD_RESET_BY_EMAIL, normalized(form.email()));
+        enforceEmailQuota("reset-email", form.email());
         authService.requestPasswordReset(mapper.toCommand(form));
         return ResponseEntity.accepted().build();
     }

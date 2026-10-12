@@ -41,13 +41,19 @@ class NotificationDeliveryServiceTest {
     @Mock private NotificationPersistencePort notificationPort;
     @Mock private ObjectProvider<EmailPort> emailPortProvider;
     @Mock private DomainEventPublisherPort eventPublisher;
+    @Mock private ObjectProvider<com.parosurvivors.serviya.shared.coordination.CoordinationAvailability> coordinationAvailabilityProvider;
 
-    @InjectMocks private NotificationDeliveryService service;
+    private NotificationDeliveryService service;
 
     private static final int MAX_ATTEMPTS = 3;
 
     @BeforeEach
-    void setMaxAttempts() {
+    void setUp() {
+        // Construccion explicita (no @InjectMocks): hay dos ObjectProvider del mismo tipo borrado y la
+        // inyeccion por nombre de Mockito es ambigua. Asi el orden de argumentos es inequivoco.
+        service = new NotificationDeliveryService(
+                deliveryPort, channelPort, notificationPort, emailPortProvider, eventPublisher,
+                coordinationAvailabilityProvider);
         ReflectionTestUtils.setField(service, "maxDeliveryAttempts", MAX_ATTEMPTS);
     }
 
@@ -99,6 +105,26 @@ class NotificationDeliveryServiceTest {
 
         assertThat(pending.getDeliveryStatus()).isEqualTo(DeliveryStatus.FAILED);
         assertThat(pending.getAttempts()).isEqualTo(1);
+        verify(deliveryPort).update(pending);
+    }
+
+    @Test
+    void sendPendingEmail_whenCoordinationDown_isDeferredWithoutSending() {
+        // Modo degradado (D-07/1a): si redis-coord esta caido, NO se envia el correo; queda FAILED para
+        // que el reintento lo reenvie al recuperarse. Asi no se amplifica abuso mientras el rate limit no protege.
+        NotificationDelivery pending = NotificationDelivery.builder()
+                .id(8L).notificationId(10L).channelId(2)
+                .deliveryStatus(DeliveryStatus.PENDING).attempts(0).build();
+        when(deliveryPort.findById(8L)).thenReturn(Optional.of(pending));
+        when(channelPort.findById(2)).thenReturn(Optional.of(channel(2, "EMAIL")));
+        when(coordinationAvailabilityProvider.getIfAvailable())
+                .thenReturn((com.parosurvivors.serviya.shared.coordination.CoordinationAvailability) () -> false);
+
+        service.sendPendingEmail(8L, Map.of());
+
+        assertThat(pending.getDeliveryStatus()).isEqualTo(DeliveryStatus.FAILED);
+        assertThat(pending.getAttempts()).isEqualTo(1);
+        verify(emailPortProvider, never()).getIfUnique(); // no se intenta el envio externo durante la caida
         verify(deliveryPort).update(pending);
     }
 
