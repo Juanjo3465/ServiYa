@@ -155,7 +155,11 @@ springdoc OpenAPI 2.8.9; java-dotenv; **Bucket4j** (rate limiting); devtools.
   event-driven** (importa `requests` y `feedback`). Mitigación elegante: fila de métricas creada
   BEFORE_COMMIT al asignar rol.
 
-#### Módulo 7 — `notifications` (40 archivos)
+#### Módulo 7 — `notifications` (40 archivos) → **EXTRAÍDO a `notifications-service` (2026-10-12)**
+> **Actualización 2026-10-12:** el módulo ya no vive en el monolito. Es el microservicio
+> `backend/notifications-service` (BD propia, consumidor RabbitMQ, bandeja REST tras el API gateway); en el
+> monolito queda solo el cliente (`NotificationServicePort` + outbox). Detalle, contrato y operación en
+> `documents/microservicios/notifications-service.md`. Lo de abajo describe el estado PREVIO a la extracción.
 - **Estado: el mejor en fiabilidad.** INTERNAL en línea; EMAIL diferido (AFTER_COMMIT +
   REQUIRES_NEW); **reintentos con tope** y salto inteligente de tipos inservibles sin
   `protectedData`. Integra con **Brevo** (única llamada externa), adaptador que **nunca lanza**,
@@ -805,6 +809,10 @@ Candidatos de servicio derivados del grafo (§3.3), agrupando lo que está fuert
 
 1. **notifications** — la más fácil: ya es hoja + I/O externo. Requiere: recibir `notify` como
    **evento** (no llamada síncrona) y conocer el email (API a identity o réplica). Primer servicio real.
+   ✅ **HECHO (2026-10-12, rama `feature/notifications-microservice`)**: outbox transaccional en el monolito →
+   RabbitMQ → `notifications-service` (BD propia con Flyway, consumidor idempotente, DLQ); el correo viaja en el
+   mensaje, sellado con AES-GCM; **API gateway** (Spring Cloud Gateway) levantado como fachada del
+   estrangulamiento. Ver `documents/microservicios/notifications-service.md`.
 2. **metrics** — puro consumidor de eventos vía el bus (M3). Su lado de lectura (hoy síncrono desde
    catalog/moderation) se sirve por API o read-model replicado.
 3. **feedback** — productor/consumidor de eventos; depende de `requests` (validación) → API de consulta.
@@ -864,6 +872,13 @@ síncronas (los N+1 de §3.4 se vuelven N+1 de red); sagas sin compensación; so
 ---
 
 ## 8. Decisiones abiertas
+
+- **[NUEVO 2026-10-12, CRÍTICO] Bug sistémico de `@Version` (regresión de B10), confirmado en runtime**: 31
+  entidades tienen `@Version` pero ningún dominio lleva la versión; los `update` hacen
+  `repository.save(mapper.toEntity(dominio))` con `version = null` y Hibernate lo rechaza
+  (`PATCH /api/v1/users/me/profile` → 500, "Detached entity … uninitialized version value 'null'"). Ver
+  `documents/microservicios/notifications-service.md` §9.5. Decidir el arreglo (llevar `version` al dominio, o
+  actualizar cargando la entidad gestionada). Además, `GlobalExceptionHandler` no registra las excepciones genéricas.
 
 - Ubicación/nombre definitivo de este documento (hoy en la raíz del repo).
 - ¿`CLAUDE.md` se reescribe conciso apuntando aquí (recomendado) o se elimina? — pendiente de tu
@@ -930,6 +945,21 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
 ---
 
 ## 10. Registro de la sesión de diagnóstico
+
+- **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
+  `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
+  (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,
+  excepciones); entrantes solo por `notify()` desde users/requests/reports/admin, siempre dentro de la
+  transacción del llamador. Decisiones (con el equipo): **RabbitMQ + Transactional Outbox** (M3, acotado a
+  notificaciones), **correo en el mensaje** (sellado AES-GCM junto con `protectedData`), **API gateway** ya.
+  Resultado: `backend/notifications-service` (BD propia + Flyway `validate` (M25), consumidor idempotente por
+  `eventId`, DLQ, reintento con `SKIP LOCKED` en vez de lock en Redis, JWT verificado con el mismo secreto,
+  `denyAll` por defecto); `backend/api-gateway`; en el monolito queda la fachada cliente (misma firma de
+  `notify`, ningún llamador cambió) + outbox + relay con publisher confirms. `shared/coordination` se movió al
+  servicio (era su único consumidor). Usuario ACL `svc-notifications-coord` (solo PING). Pruebas: servicio 30
+  unitarias + 4 de integración (MySQL+RabbitMQ reales); gateway 4 de enrutado; monolito igual que `main`.
+  Hallazgo: bug sistémico de `@Version` confirmado en runtime (§8). Verificado E2E en Docker (registro →
+  bienvenida en la bandeja vía gateway; RabbitMQ caído → la notificación espera en el outbox y llega al volver).
 
 - **2026-10-03** — Sesión de diagnóstico (sin tocar código). Backend barrido módulo por módulo
   (estructura + config + 9 módulos). Creado este documento con los hallazgos del backend y un backlog

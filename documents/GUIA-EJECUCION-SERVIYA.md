@@ -1,6 +1,14 @@
 # Guía de ejecución del proyecto Serviya
 
-Guía de referencia con los comandos para levantar, manejar y mantener el proyecto. El proyecto está compuesto por tres servicios: **backend** (Spring Boot), **mysql** (base de datos) y **frontend** (React + Vite).
+Guía de referencia con los comandos para levantar, manejar y mantener el proyecto. Servicios del `docker-compose.yml`:
+
+- **gateway** (Spring Cloud Gateway) — único punto de entrada de la API en `:8080`. Enruta las notificaciones a `notifications-service` y todo lo demás al monolito.
+- **backend** (Spring Boot, el monolito) + **mysql** (su base de datos).
+- **notifications-service** (microservicio de notificaciones) + **notifications-mysql** (su base de datos propia, esquema por Flyway).
+- **rabbitmq** — bus de eventos entre el monolito y `notifications-service`.
+- **frontend** (React + Vite).
+
+Arquitectura y operación del microservicio: [`microservicios/notifications-service.md`](microservicios/notifications-service.md).
 
 ---
 
@@ -17,8 +25,11 @@ variables `${...}`; sin él, variables como `DB_PASSWORD`, `JWT_SECRET` o `ENCRY
 cp .env.example .env      # crea tu copia local (no se sube al repo)
 ```
 
-Luego edita `.env` y rellena los secretos reales. En particular, para activar el envío de
-correo pon tu clave de Brevo en `EMAIL_API_KEY` (la de `.env.example` es un placeholder).
+Luego edita `.env` y rellena los secretos reales. Además de `JWT_SECRET` y `ENCRYPTION_KEY`, ahora son
+**obligatorios** (sin ellos el arranque falla a propósito): `RABBITMQ_PASSWORD`, `NOTIFICATIONS_PAYLOAD_KEY`
+(la misma para el monolito y `notifications-service`, ≥ 32 caracteres aleatorios), `NOTIFICATIONS_ENCRYPTION_KEY`,
+`NOTIFICATIONS_DB_PASSWORD` y `NOTIFICATIONS_MYSQL_ROOT_PASSWORD`. Para activar el envío de correo pon tu clave
+de Brevo en `EMAIL_API_KEY` (la de `.env.example` es un placeholder); el correo lo envía `notifications-service`.
 **Nunca** pongas secretos reales en `.env.example` — ese archivo sí se sube.
 
 ---
@@ -66,11 +77,16 @@ docker compose up -d --build
 
 | Servicio | Desarrollo | Producción |
 |---|---|---|
-| Backend (API) | http://localhost:8080 | http://localhost:8080 |
+| API (a través del gateway) | http://localhost:8080 | http://localhost:8080 |
 | Frontend | http://localhost:5173 | http://localhost:8081 |
-| MySQL (cliente externo) | localhost:3307 | localhost:3307 |
+| MySQL del monolito (cliente externo) | localhost:3307 | localhost:3307 |
+| MySQL de notificaciones (cliente externo) | localhost:3308 | localhost:3308 |
+| Consola de RabbitMQ | http://localhost:15672 | http://localhost:15672 |
 
 > Dentro de la red de Docker, el backend se conecta a la base de datos usando el host `mysql` y el puerto interno `3306` (no `localhost` ni `3307`).
+>
+> El monolito (`backend`) y `notifications-service` **ya no se publican al host**: todo el tráfico HTTP entra por el
+> gateway en `:8080`, así que el frontend no cambia de URL. Swagger del monolito: http://localhost:8080/swagger-ui.html.
 
 ---
 

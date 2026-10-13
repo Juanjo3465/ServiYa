@@ -57,6 +57,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-redis</artifactId>
 		</dependency>
+		<!-- RabbitMQ: el outbox de notificaciones publica los comandos notification.requested que consume
+		     notifications-service (microservicio extraido, ESTADO §7.4 paso 1). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
 		<!-- Actuator: /actuator/health con el estado de la(s) conexión(es) Redis. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

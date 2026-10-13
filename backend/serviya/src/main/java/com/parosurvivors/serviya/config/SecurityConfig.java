@@ -87,10 +87,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/addresses/*").authenticated()
                 // Crear una categoria (modulo 3): solo ADMIN. Las lecturas (GET) siguen publicas.
                 .requestMatchers(HttpMethod.POST, "/api/v1/categories").hasRole("ADMIN")
-                // Notificaciones del usuario (modulo 8): listar y marcar como leida requieren autenticacion.
-                // Los canales pueden ser publicos, pero la API declara bearerAuth.
-                .requestMatchers("/api/v1/notifications/**").authenticated()
-                .requestMatchers("/api/v1/notification-channels").authenticated()
+                // (/api/v1/notifications/** y /api/v1/notification-channels ya NO viven aqui: el API gateway
+                // las enruta a notifications-service, que aplica su propia autenticacion JWT.)
                 // El resto se mantiene abierto por ahora (modulos aun no implementados)
                 .anyRequest().permitAll()
             )

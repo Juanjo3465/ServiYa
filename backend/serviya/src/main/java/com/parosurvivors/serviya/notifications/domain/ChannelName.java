@@ -1,10 +1,9 @@
 package com.parosurvivors.serviya.notifications.domain;
 
 /**
- * Nombres canónicos de los canales de entrega. Cada valor debe coincidir EXACTAMENTE con la columna
- * {@code name} de la tabla {@code notification_channels} (sembrada como INTERNAL, EMAIL): así los
- * llamadores expresan la intención por nombre y {@code NotificationService} resuelve el id real en un
- * único lugar, sin depender del orden de inserción del seed. Ver [[notifications-wiring]].
+ * Nombres canónicos de los canales de entrega. Forman parte del CONTRATO del mensaje
+ * {@code notification.requested} (campo {@code channels}): cada valor debe existir en el catálogo
+ * {@code notification_channels} de notifications-service, que es quien resuelve el id real.
  */
 public enum ChannelName {
     INTERNAL,

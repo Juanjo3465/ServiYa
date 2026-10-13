@@ -29,6 +29,12 @@ services:
     networks: [redis-net]
     # SIN "ports:" — Redis no se expone fuera de la red interna
 
+  # Con Redis presente, notifications-service activa su sondeo de disponibilidad (modo degradado D-07/1a:
+  # si redis-coord cae, difiere los correos). Definición PARCIAL: se fusiona con la del compose raíz.
+  notifications-service:
+    environment:
+      COORDINATION_PROBE_ENABLED: "true"
+
 networks:
   redis-net:
     name: serviya-redis-net

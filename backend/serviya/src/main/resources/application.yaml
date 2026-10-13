@@ -27,6 +27,16 @@ spring:
       pageable:
         default-page-size: 20
         max-page-size: 20
+  # RabbitMQ: bus hacia notifications-service. Solo PRODUCE (outbox relay). publisher-confirm-type simple:
+  # el relay espera la confirmación del broker antes de borrar la fila del outbox (entrega ≥1).
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:serviya}
+    password: ${RABBITMQ_PASSWORD:}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    publisher-confirm-type: simple
+    connection-timeout: 5s
 
 server:
   error:
@@ -133,6 +143,10 @@ management:
     web:
       exposure:
         include: health,prometheus   # health (liveness) + prometheus (scrapeo de métricas), solo por 9090
+  health:
+    # RabbitMQ caído = degradado-pero-OK: las notificaciones esperan en el outbox; la API sigue sirviendo.
+    rabbit:
+      enabled: false
   endpoint:
     health:
       show-details: when_authorized
@@ -152,16 +166,17 @@ serviya:
       idiota,imbecil,estupido,estupida,maldito,maldita,mierda,puta,puto,
       cabron,gilipollas,pendejo,pendeja,marica,huevon,malparido,gonorrea,
       hijueputa,verga,coño,joder,zorra,perra
-  # Envío de correo (canal EMAIL). enabled=false por defecto: sin bean de EmailPort, la entrega EMAIL
-  # degrada a FAILED sin romper nada. El api-key es SECRETO -> solo por variable de entorno EMAIL_API_KEY.
-  email:
-    enabled: ${EMAIL_ENABLED:false}
-    provider-url: ${EMAIL_API_URL:https://api.brevo.com/v3/smtp/email}
-    api-key: ${EMAIL_API_KEY:}
-    from-email: ${EMAIL_FROM:no-reply@serviya.com}
-    from-name: ${EMAIL_FROM_NAME:ServiYa}
-    connect-timeout-ms: ${EMAIL_CONNECT_TIMEOUT_MS:3000}
-    read-timeout-ms: ${EMAIL_READ_TIMEOUT_MS:5000}
+  # Notificaciones: las registra y entrega notifications-service (microservicio). El monolito solo deja
+  # el comando en el outbox (misma transacción del negocio) y un relay lo publica en RabbitMQ.
+  # El envío de correo (Brevo, EMAIL_*) se configura ahora en notifications-service, no aquí.
+  notifications:
+    # Clave COMPARTIDA con notifications-service para sellar (AES-GCM) correo + protectedData del mensaje.
+    payload-key: ${NOTIFICATIONS_PAYLOAD_KEY:}
+    outbox:
+      relay-enabled: ${NOTIFICATIONS_OUTBOX_RELAY_ENABLED:true}
+      poll-interval-ms: ${NOTIFICATIONS_OUTBOX_POLL_MS:1000}
+      batch-size: 100
+      confirm-timeout-ms: 5000
   # Por entorno: dev http://localhost:5173/reset-password | docker http://localhost:8081/reset-password
   frontend:
     reset-url: ${FRONTEND_RESET_URL:http://localhost:5173/reset-password}
