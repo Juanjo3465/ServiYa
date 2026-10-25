@@ -859,71 +859,27 @@ CREATE TABLE report_actions (
 );
 
 -- =========================================================
--- NOTIFICATIONS
+-- NOTIFICATION OUTBOX
+-- Las tablas notifications / notification_channels / notification_deliveries se movieron a la BD propia
+-- de notifications-service (backend/notifications-service, migraciones Flyway). El monolito solo guarda
+-- aqui los comandos notification.requested pendientes de publicar en RabbitMQ (Transactional Outbox, M3).
 -- =========================================================
 
-CREATE TABLE notifications (
+CREATE TABLE notification_outbox (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
-    user_id BIGINT UNSIGNED NOT NULL,
+    -- Id del mensaje: clave de idempotencia con la que el consumidor descarta duplicados.
+    event_id VARCHAR(36) NOT NULL UNIQUE,
 
-    notification_type VARCHAR(100) NOT NULL,
-
-    title VARCHAR(255) NOT NULL,
-
-    message TEXT NOT NULL,
-
-    entity_type VARCHAR(100) NULL,
-
-    entity_id BIGINT UNSIGNED NULL,
+    -- JSON del contrato notification.requested.v1 (correo y protectedData van sellados con AES-GCM).
+    payload MEDIUMTEXT NOT NULL,
 
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    INDEX idx_notifications_created_at (created_at),
-
-    CONSTRAINT fk_notifications_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
-CREATE TABLE notification_channels (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    name VARCHAR(50) NOT NULL UNIQUE
-);
-
-CREATE TABLE notification_deliveries (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    notification_id BIGINT UNSIGNED NOT NULL,
-
-    channel_id INT UNSIGNED NOT NULL,
-
-    delivery_status ENUM(
-        'PENDING',
-        'SENT',
-        'FAILED',
-        'READ'
-    ) NOT NULL DEFAULT 'PENDING',
-
-    read_at DATETIME NULL,
-
-    sent_at DATETIME NULL,
-
-    -- Intentos de envío realizados (el primero cuenta como 1). Lo usa el reintento programado.
+    -- Intentos de publicacion fallidos y ultimo error (diagnostico; el relay reintenta sin limite).
     attempts INT UNSIGNED NOT NULL DEFAULT 0,
 
-    INDEX idx_notification_deliveries_notification (notification_id),
-
-    CONSTRAINT fk_notification_deliveries_notification
-        FOREIGN KEY (notification_id)
-        REFERENCES notifications(id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_notification_deliveries_channel
-        FOREIGN KEY (channel_id)
-        REFERENCES notification_channels(id)
+    last_error VARCHAR(500) NULL
 );
 
 -- =========================================================
@@ -935,8 +891,3 @@ VALUES
 ('CLIENT'),
 ('OFFERER'),
 ('ADMIN');
-
-INSERT INTO notification_channels(name)
-VALUES
-('INTERNAL'),
-('EMAIL');

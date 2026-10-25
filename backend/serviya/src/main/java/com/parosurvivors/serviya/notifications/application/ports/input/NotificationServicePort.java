@@ -1,26 +1,27 @@
 package com.parosurvivors.serviya.notifications.application.ports.input;
 
 import com.parosurvivors.serviya.notifications.domain.ChannelName;
-import com.parosurvivors.serviya.notifications.domain.Notification;
 
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Puerto de entrada de NotificationService — orquesta la entrega multicanal.
- * protectedData NO se persiste; el adaptador del canal arma el mensaje final.
- * Ver documents/project-structure/estructura-servicios.docx (módulo 8).
+ * Puerto de entrada para PEDIR una notificación. Desde la extracción del microservicio
+ * {@code notifications-service} (ESTADO §7.4 paso 1), el monolito ya no registra ni entrega notificaciones:
+ * este puerto es la fachada CLIENTE que conservan users/requests/reports/admin, con la misma firma de
+ * siempre, para que ningún llamador cambie.
+ *
+ * <p>La implementación deja un comando {@code notification.requested} en la tabla outbox DENTRO de la
+ * transacción del llamador (si el negocio hace rollback, la notificación tampoco sale) y un relay lo
+ * publica después en RabbitMQ. protectedData NO se persiste en claro: viaja sellado (AES-GCM).</p>
  */
 public interface NotificationServicePort {
 
     /**
-     * Registra la notificación y la entrega por los {@code channels} indicados (por nombre, no por id).
-     * Si {@code channels} es {@code null} o vacío se usa el canal por defecto INTERNAL. La resolución
-     * nombre→id vive en la implementación (única fuente de verdad); los llamadores nunca manejan ids.
+     * Pide notificar al usuario por los {@code channels} indicados (por nombre). Si {@code channels} es
+     * {@code null} o vacío el servicio usa el canal por defecto INTERNAL. Asíncrono: la notificación aparece
+     * en la bandeja del usuario poco después del commit, no dentro de esta llamada.
      */
     void notify(Long userId, String type, String title, String message, String entityType, Long entityId,
                 Set<ChannelName> channels, Map<String, String> protectedData);
-
-    Notification createNotification(Long userId, String type, String title, String message,
-                                    String entityType, Long entityId);
 }

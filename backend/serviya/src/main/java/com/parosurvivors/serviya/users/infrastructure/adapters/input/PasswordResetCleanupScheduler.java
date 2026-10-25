@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>Un token expirado no sirve para nada — ni siquiera para auditoría, porque su valor en claro nunca
  * se guardó — y dejarlos acumularse solo hace crecer la tabla y su índice único. Fino: solo enruta hacia
- * el puerto de entrada, igual que {@code NotificationRetryScheduler} o {@code RequestMaintenanceScheduler}.
+ * el puerto de entrada, igual que {@code RequestMaintenanceScheduler}.
  * Requiere {@code @EnableScheduling} (ya activado en la clase de arranque).</p>
  *
  * <p>Por defecto se ejecuta a diario de madrugada: es mantenimiento, no tiene ninguna urgencia (un token

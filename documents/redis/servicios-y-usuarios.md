@@ -10,6 +10,10 @@ Hoy el sistema es un **monolito** → un solo servicio lógico: **`serviya`** (b
 Al migrar a microservicios, cada servicio tendrá su propio par de usuarios con el mismo patrón
 (`svc-<servicio>-coord`, `svc-<servicio>-cache`).
 
+**Primer microservicio (2026-10-12): `notifications-service`** → usuario `svc-notifications-coord`. No usa locks
+ni claves (su reintento se coordina con `SKIP LOCKED` en su propia BD); solo hace `PING` para saber si
+`redis-coord` está caído y diferir los correos. Ver `documents/microservicios/notifications-service.md`.
+
 ## Usuarios ACL
 
 ### Instancia `redis-coord` (locks + rate limit)
@@ -21,6 +25,7 @@ Al migrar a microservicios, cada servicio tendrá su propio par de usuarios con 
 | `healthcheck` | Healthcheck del contenedor | — | Solo `+ping` |
 | `monitor` | `redis_exporter` (Fase 5) | `~*` | Solo lectura + `INFO`/`SLOWLOG`/`LATENCY`/... |
 | `svc-serviya-coord` | El backend: locks (Fase 2) + rate limit (Fase 3) | `~lock:*` `~fence:*` `~rl:*` | R/W + scripting; `-@dangerous` |
+| `svc-notifications-coord` | `notifications-service`: sondeo de disponibilidad (modo degradado D-07/1a) | ninguno (`resetkeys`) | Solo `+@connection +ping` |
 
 > Comandos exactos de `svc-serviya-coord` (allowlist, deny-by-default) en `users.coord.acl.tpl`:
 > `+@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +time +zadd +zcard +zrange`

@@ -10,11 +10,13 @@ hash() { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
 : "${REDIS_HEALTHCHECK_PASSWORD:?falta REDIS_HEALTHCHECK_PASSWORD}"
 : "${REDIS_MONITOR_PASSWORD:?falta REDIS_MONITOR_PASSWORD}"
 : "${REDIS_SVC_SERVIYA_COORD_PASSWORD:?falta REDIS_SVC_SERVIYA_COORD_PASSWORD}"
+: "${REDIS_SVC_NOTIFICATIONS_COORD_PASSWORD:?falta REDIS_SVC_NOTIFICATIONS_COORD_PASSWORD}"
 
 export ADMIN_HASH="$(hash "$REDIS_ADMIN_PASSWORD")"
 export HEALTHCHECK_HASH="$(hash "$REDIS_HEALTHCHECK_PASSWORD")"
 export MONITOR_HASH="$(hash "$REDIS_MONITOR_PASSWORD")"
 export SVC_SERVIYA_COORD_HASH="$(hash "$REDIS_SVC_SERVIYA_COORD_PASSWORD")"
+export SVC_NOTIFICATIONS_COORD_HASH="$(hash "$REDIS_SVC_NOTIFICATIONS_COORD_PASSWORD")"
 
 # El aclfile de Redis NO admite comentarios ni líneas en blanco: cada línea debe empezar por 'user'.
 # Por eso, tras sustituir los hashes, descartamos las líneas de comentario (^#) y las vacías; los
