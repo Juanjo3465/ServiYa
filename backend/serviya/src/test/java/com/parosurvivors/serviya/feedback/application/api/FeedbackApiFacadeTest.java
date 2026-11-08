@@ -132,6 +132,15 @@ class FeedbackApiFacadeTest {
     }
 
     @Test
+    void averageServiceFeedbackRatingDefaultsToZero() {
+        when(serviceFeedbackPersistencePort.findAverageRating()).thenReturn(null);
+        assertThat(facade.averageServiceFeedbackRating()).isZero();
+
+        when(serviceFeedbackPersistencePort.findAverageRating()).thenReturn(4.25);
+        assertThat(facade.averageServiceFeedbackRating()).isEqualTo(4.25);
+    }
+
+    @Test
     void revertCommandsDelegate() {
         when(serviceFeedbackServicePort.revertFeedbackById(1L)).thenReturn(true);
         when(clientFeedbackServicePort.revertFeedbackById(2L)).thenReturn(false);

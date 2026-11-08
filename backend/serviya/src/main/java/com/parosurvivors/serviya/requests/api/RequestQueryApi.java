@@ -18,6 +18,8 @@ public interface RequestQueryApi {
 
     long countActiveClientRequests(Long clientId);
 
+    long countByStatus(String status);
+
     PageResult<RequestSummary> searchForClient(
             Long clientId, RequestSearchCriteria criteria, int page, int size);
 

@@ -11,6 +11,7 @@ import com.parosurvivors.serviya.requests.application.dto.query.SearchServiceReq
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestCommandServicePort;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
+import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.shared.contract.PageResult;
 import java.util.List;
@@ -52,6 +53,11 @@ public class RequestApiFacade implements RequestQueryApi, RequestCommandApi {
     @Override
     public long countActiveClientRequests(Long clientId) {
         return serviceRequestQueryServicePort.countActiveClientRequests(clientId);
+    }
+
+    @Override
+    public long countByStatus(String status) {
+        return serviceRequestReadPort.countByStatus(RequestStatus.valueOf(status));
     }
 
     @Override

@@ -87,6 +87,12 @@ public class FeedbackApiFacade implements FeedbackQueryApi, FeedbackCommandApi {
                 .toList();
     }
 
+    @Override
+    public double averageServiceFeedbackRating() {
+        Double average = serviceFeedbackPersistencePort.findAverageRating();
+        return average == null || average.isNaN() ? 0.0 : average;
+    }
+
     // ---------------------------------------------------------------------
     // FeedbackCommandApi
     // ---------------------------------------------------------------------

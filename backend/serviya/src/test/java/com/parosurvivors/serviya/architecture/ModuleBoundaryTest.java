@@ -47,6 +47,7 @@ public class ModuleBoundaryTest {
             "reports",
             "requests",
             "services",
+            "statistics",
             "users");
 
     private static final JavaClasses CLASSES = new ClassFileImporter()
@@ -69,13 +70,13 @@ public class ModuleBoundaryTest {
                     "Un modulo no debe compartir entidades de dominio; debe usar DTOs de su API"));
 
     private static final ArchRule SHARED_WITHOUT_BUSINESS_MODULES =
-            FreezingArchRule.freeze(noClasses()
+            noClasses()
                     .that().resideInAPackage("..serviya.shared..")
                     .should().dependOnClassesThat().resideInAnyPackage(
                             MODULES.stream()
                                     .map(module -> "..serviya." + module + "..")
                                     .toArray(String[]::new))
-                    .because("shared es el kernel transversal y no debe conocer modulos de negocio"));
+                    .because("shared es el kernel transversal y no debe conocer modulos de negocio");
 
     @Test
     void modulesMustNotDependOnForeignInfrastructure() {

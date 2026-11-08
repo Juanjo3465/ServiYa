@@ -24,4 +24,7 @@ public interface FeedbackQueryApi {
     List<TagCatalogEntry> getServiceTags();
 
     List<TagCatalogEntry> getClientTags();
+
+    /** Calificacion promedio de todo el feedback de servicio (0 si no hay datos). */
+    double averageServiceFeedbackRating();
 }

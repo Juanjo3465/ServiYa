@@ -84,6 +84,13 @@ class RequestApiFacadeTest {
     }
 
     @Test
+    void countByStatusConvertsContractString() {
+        when(serviceRequestReadPort.countByStatus(RequestStatus.COMPLETED)).thenReturn(12L);
+
+        assertThat(facade.countByStatus("COMPLETED")).isEqualTo(12L);
+    }
+
+    @Test
     void cancelCommandsMapDomainToSnapshots() {
         when(serviceRequestCommandServicePort.cancelActiveRequestsForUser(10L))
                 .thenReturn(List.of(request()));
