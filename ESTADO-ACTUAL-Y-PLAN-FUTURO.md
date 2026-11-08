@@ -817,13 +817,17 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
   `domain` ni `application.ports.output`; usa `ProfileQueryApi` y `ServiceQueryApi`. Se
   reemplazaron los 6 puertos de persistencia ajenos y se adaptaron los tests de command/query/
   reschedule. El baseline bajó de **414 a 316**.
-- **Verificación**: 409 tests, 0 fallos, 14 skipped (Redis sin Docker).
+- **Incremento 3 (workflow contracts)**: añadidos `requests.api` (`RequestQueryApi`,
+  `RequestCommandApi`), `feedback.api` (`FeedbackQueryApi`, `FeedbackCommandApi`) y
+  `metrics.api` (`MetricsQueryApi`) con DTOs propios y fachadas. No exponen vistas compuestas:
+  admin/BFF compone nombres, servicio y categoría. El baseline sigue en **316**.
+- **Verificación**: 429 tests, 0 fallos, 14 skipped (Redis sin Docker).
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: **Incremento 3** (`requests.api`, `feedback.api`, `metrics.api`) y el resto de
-violaciones profundas (`services` → metrics/profiles, `admin`, `feedback` → requests,
-`shared/PlatformStatsRepository`, `users` → profiles).
+Siguiente: migrar los consumidores restantes con los contratos ya disponibles —
+`feedback` → `requests.api`, `services` → `metrics.api`/`profiles.api`, `users` → `profiles.api`,
+`admin` → APIs, y `shared/PlatformStatsRepository` → APIs/read module.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1015,6 +1019,16 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   privado de requests. Tests adaptados: 33 + 14 + 21. Baseline ArchUnit: **414 → 316**
   (domain 249, persistence 15, shared 15, infrastructure 37). Suite: 409 tests, 0 fallos, 14
   skipped. Siguiente: Incremento 3 y el resto de violaciones profundas.
+- **2026-11-08** — **Incremento 3: contratos de workflow.** Añadidos `requests.api`
+  (`RequestQueryApi`, `RequestCommandApi`; `RequestSnapshot`, `RequestDetailSnapshot`,
+  `RequestSummary`, `RequestSearchCriteria`), `feedback.api` (`FeedbackQueryApi`,
+  `FeedbackCommandApi`; `ServiceFeedbackSnapshot`, `ClientFeedbackSnapshot`,
+  `TagCatalogEntry`) y `metrics.api` (`MetricsQueryApi`; `ServiceMetricsSnapshot`,
+  `OffererMetricsSnapshot`, `ClientMetricsSnapshot`, `TagMetricSnapshot`). Fachadas en
+  `<módulo>.application.api`; tests `RequestApiFacadeTest` (8), `FeedbackApiFacadeTest` (7),
+  `MetricsApiFacadeTest` (5). Las APIs no exponen vistas compuestas; el BFF compone nombres,
+  servicio y categoría. Baseline ArchUnit sin cambios (**316**). Suite: 429 tests, 0 fallos,
+  14 skipped. Siguiente: migrar `feedback` → `requests.api`, `services` → `metrics.api`, etc.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

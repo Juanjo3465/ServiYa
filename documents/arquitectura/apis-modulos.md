@@ -13,8 +13,9 @@
 | 2026-11-08 | Incremento 1 de contratos: `shared.contract`, `notifications.api`, `users.api`; contratos de eventos con `String`/`boolean`. | Completado |
 | 2026-11-08 | Incremento 2A: contratos del cluster catalog (`profiles.api` + `services.api`), lecturas por lote y fachadas. | Completado |
 | 2026-11-08 | Incremento 2B: `requests` migrado a `profiles.api`/`services.api`; baseline reducido. | Completado |
-| Pendiente | Incremento 3: `requests.api` + `feedback.api` + `metrics.api`. | Pendiente |
+| 2026-11-08 | Incremento 3: contratos `requests.api`, `feedback.api` y `metrics.api` con fachadas y tests. | Completado |
 | Pendiente | Incremento 4: `reports.api`. | Pendiente |
+| Pendiente | Migraciones de consumidores restantes (`feedback`, `services`, `users`, `admin`, `shared`). | Pendiente |
 
 ## 1. Convencion
 
@@ -121,6 +122,51 @@ Decisiones:
   `MarketplaceServicePort`.
 - Se añadió `ServicePersistencePort.findByIds(...)` para implementar la consulta por lote sin N+1.
 
+### `requests.api` (Incremento 3)
+
+| Interfaz | Operaciones |
+|---|---|
+| `RequestQueryApi` | `findById`, `findDetail`, `countActiveClientRequests`, `searchForClient`, `searchForOfferer`. |
+| `RequestCommandApi` | `cancelActiveRequestsForUser`, `cancelActiveRequestsForRole`, `markAsNotProvided`. |
+
+DTOs: `RequestSnapshot`, `RequestDetailSnapshot`, `RequestSummary`, `RequestSearchCriteria`.
+
+Decisiones:
+
+- La API expone solo datos propios de la solicitud (ids, estado, fechas, precio).
+- `findDetail` **no** compone nombres, titulo del servicio, categoria ni direccion; el consumidor/BFF
+  lo hace con `profiles.api` y `services.api`.
+- Los estados viajan como `String`; `RequestSnapshot` ofrece helpers `isCompleted`,
+  `isPresumablyCompleted`, `isTerminal`.
+
+### `feedback.api` (Incremento 3)
+
+| Interfaz | Operaciones |
+|---|---|
+| `FeedbackQueryApi` | `findServiceFeedback`, `findClientFeedback`, `getRecentServiceFeedback`, `existsServiceFeedbackForRequest`, `existsClientFeedbackForRequest`, `getServiceTags`, `getClientTags`. |
+| `FeedbackCommandApi` | `revertServiceFeedback`, `revertClientFeedback`. |
+
+DTOs: `ServiceFeedbackSnapshot`, `ClientFeedbackSnapshot`, `TagCatalogEntry`.
+
+Decisiones:
+
+- Los feedback snapshots llevan `tagIds`; los nombres/sentimiento viven en `TagCatalogEntry`.
+- `metrics.api` no depende de `feedback.api`: la enrichment de nombres de tags queda en el BFF.
+
+### `metrics.api` (Incremento 3)
+
+| Interfaz | Operaciones |
+|---|---|
+| `MetricsQueryApi` | `getServiceMetrics` (simple y por lote), `getOffererMetrics`, `getOffererMainMetrics`, `getClientMetrics`, `getClientMainMetrics`, `getServiceTagMetrics`, `getOffererTagMetrics`, `getClientTagMetrics`. |
+
+DTOs: `ServiceMetricsSnapshot`, `OffererMetricsSnapshot`, `ClientMetricsSnapshot`, `TagMetricSnapshot`.
+
+Decisiones:
+
+- `TagMetricSnapshot` solo lleva `tagId` + `count`; el nombre/sentimiento se enriquece con
+  `feedback.api`.
+- Los snapshots reflejan los contadores actuales del read-model de metrics.
+
 ## 3. Reglas ArchUnit
 
 `backend/serviya/src/test/java/com/parosurvivors/serviya/architecture/ModuleBoundaryTest.java`:
@@ -145,6 +191,7 @@ Las reglas con deuda existente usan `FreezingArchRule`. Baseline actual:
 Antes del Incremento 1 eran 451 (24 shared + 326 domain + 64 persistence + 37 infrastructure).
 El Incremento 2A no cambió el baseline (**414**). El Incremento 2B lo redujo a **316**:
 `requests` ya no importa `profiles`/`services` `domain` ni `application.ports.output`.
+El Incremento 3 no cambió el baseline: sigue en **316** (solo añade contratos).
 
 Para actualizar el baseline de forma intencional:
 
@@ -159,8 +206,9 @@ cd backend/serviya
 |---|---|
 | 2A | `profiles.api` + `services.api` (catalog) — **completado**. |
 | 2B | Migrar `requests` a las APIs de catalog — **completado**. |
-| 3 | `requests.api` + `feedback.api` + `metrics.api`. |
+| 3 | `requests.api` + `feedback.api` + `metrics.api` — **completado**. |
 | 4 | `reports.api` (solo lo consume admin). |
+| — | Migrar consumidores restantes: `feedback`, `services`, `users`, `admin`, `shared`. |
 
 `admin` no publica API: es consumidor/orquestador. `config` es la raiz de composicion y puede
 cablear implementaciones de cualquier modulo.
@@ -188,11 +236,14 @@ Resultados:
 - `ModuleBoundaryTest`: 7/7.
 - Incremento 2B: `ServiceRequestCommandServiceTest` 33/33, `ServiceRequestQueryServiceTest`
   14/14, `RescheduleProposalServiceTest` 21/21.
-- Suite amplia: **409 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+- Incremento 3: `RequestApiFacadeTest` 8/8, `FeedbackApiFacadeTest` 7/7,
+  `MetricsApiFacadeTest` 5/5.
+- Suite amplia: **429 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
   (`@Testcontainers(disabledWithoutDocker = true)`).
 - La regla de pureza de APIs no es vacua: encontro 9 clases en `users.api`, 3 en
-  `notifications.api`, 2 en `shared.contract`, 9 en `profiles.api` y 5 en `services.api`.
+  `notifications.api`, 2 en `shared.contract`, 9 en `profiles.api`, 5 en `services.api`,
+  6 en `requests.api`, 5 en `feedback.api` y 5 en `metrics.api`.
 
 Fallos ambientales preexistentes, **no causados por este cambio** (por eso se excluyen de la suite
 amplia):
@@ -249,6 +300,17 @@ backend/serviya/src/main/java/com/parosurvivors/serviya/
   requests/application/services/ServiceRequestCommandService.java
   requests/application/services/ServiceRequestQueryService.java
   requests/application/services/RescheduleProposalService.java
+  requests/api/RequestQueryApi.java
+  requests/api/RequestCommandApi.java
+  requests/api/dto/*.java
+  requests/application/api/RequestApiFacade.java
+  feedback/api/FeedbackQueryApi.java
+  feedback/api/FeedbackCommandApi.java
+  feedback/api/dto/*.java
+  feedback/application/api/FeedbackApiFacade.java
+  metrics/api/MetricsQueryApi.java
+  metrics/api/dto/*.java
+  metrics/application/api/MetricsApiFacade.java
 
 backend/serviya/src/test/java/com/parosurvivors/serviya/
   architecture/ModuleBoundaryTest.java
@@ -256,6 +318,9 @@ backend/serviya/src/test/java/com/parosurvivors/serviya/
   users/application/api/UserApiFacadeTest.java
   profiles/application/api/ProfileApiFacadeTest.java
   services/application/api/ServiceApiFacadeTest.java
+  requests/application/api/RequestApiFacadeTest.java
+  feedback/application/api/FeedbackApiFacadeTest.java
+  metrics/application/api/MetricsApiFacadeTest.java
 
 backend/serviya/src/test/resources/
   archunit.properties
