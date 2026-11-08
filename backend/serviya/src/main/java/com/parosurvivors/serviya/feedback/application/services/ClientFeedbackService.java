@@ -10,8 +10,8 @@ import com.parosurvivors.serviya.feedback.application.ports.output.ClientFeedbac
 import com.parosurvivors.serviya.feedback.domain.ClientFeedback;
 import com.parosurvivors.serviya.feedback.domain.ClientFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.domain.TagSentiment;
-import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
-import com.parosurvivors.serviya.requests.domain.ServiceRequest;
+import com.parosurvivors.serviya.requests.api.RequestQueryApi;
+import com.parosurvivors.serviya.requests.api.dto.RequestSnapshot;
 import com.parosurvivors.serviya.shared.events.domain.ClientFeedbackRevertedEvent;
 import com.parosurvivors.serviya.shared.events.domain.ClientFeedbackSubmittedEvent;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
@@ -44,22 +44,22 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
     private final ClientFeedbackPersistencePort clientFeedbackPersistencePort;
     private final ClientFeedbackTagPersistencePort clientFeedbackTagPersistencePort;
     private final ClientFeedbackTagCatalogPersistencePort clientFeedbackTagCatalogPersistencePort;
-    private final ServiceRequestReadPort serviceRequestReadPort;
+    private final RequestQueryApi requestQueryApi;
     private final ClientFeedbackCommandMapper commandMapper;
     private final DomainEventPublisherPort eventPublisher;
 
     @Override
     @Transactional
     public void submitClientFeedback(SubmitClientFeedbackCommand command) {
-        ServiceRequest request = serviceRequestReadPort.findById(command.requestId())
+        RequestSnapshot request = requestQueryApi.findById(command.requestId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Solicitud no encontrada: " + command.requestId()));
-        if (!request.getOffererId().equals(command.offererId())) {
+        if (!request.offererId().equals(command.offererId())) {
             throw new UnauthorizedException("El feedback al cliente solo lo puede dejar el oferente de la solicitud");
         }
         if (!(request.isPresumablyCompleted() || request.isCompleted())) {
             throw new InvalidStateException(
-                    "Solo se puede calificar una solicitud prestada; estado actual: " + request.getStatus());
+                    "Solo se puede calificar una solicitud prestada; estado actual: " + request.status());
         }
         if (clientFeedbackPersistencePort.findByRequestId(command.requestId()).isPresent()) {
             throw new InvalidStateException(
@@ -76,7 +76,7 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
         }
 
         eventPublisher.publish(new ClientFeedbackSubmittedEvent(
-                request.getId(),
+                request.id(),
                 saved.getClientId(),
                 saved.getOffererId(),
                 saved.getRating(),
