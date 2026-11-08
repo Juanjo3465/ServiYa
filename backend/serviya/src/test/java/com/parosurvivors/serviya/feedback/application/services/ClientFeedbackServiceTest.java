@@ -15,7 +15,7 @@ import com.parosurvivors.serviya.feedback.application.ports.output.ClientFeedbac
 import com.parosurvivors.serviya.feedback.domain.ClientFeedback;
 import com.parosurvivors.serviya.feedback.domain.ClientFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.domain.TagSentiment;
-import com.parosurvivors.serviya.requests.api.RequestQueryApi;
+import com.parosurvivors.serviya.requests.api.RequestLookupApi;
 import com.parosurvivors.serviya.requests.api.dto.RequestSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.ClientFeedbackSubmittedEvent;
@@ -44,7 +44,7 @@ class ClientFeedbackServiceTest {
     @Mock private ClientFeedbackPersistencePort clientFeedbackPersistencePort;
     @Mock private ClientFeedbackTagPersistencePort clientFeedbackTagPersistencePort;
     @Mock private ClientFeedbackTagCatalogPersistencePort clientFeedbackTagCatalogPersistencePort;
-    @Mock private RequestQueryApi requestQueryApi;
+    @Mock private RequestLookupApi requestLookupApi;
     @Mock private ClientFeedbackCommandMapper commandMapper;
     @Mock private DomainEventPublisherPort eventPublisher;
 
@@ -54,7 +54,7 @@ class ClientFeedbackServiceTest {
     void submitSucceedsWhenOffererMatchesAndRequestIsCompleted() {
         SubmitClientFeedbackCommand command = new SubmitClientFeedbackCommand(
                 OFFERER_ID, REQUEST_ID, CLIENT_ID, 4, "Good", List.of(TAG_ID));
-        when(requestQueryApi.findById(REQUEST_ID))
+        when(requestLookupApi.findById(REQUEST_ID))
                 .thenReturn(Optional.of(request("COMPLETED")));
         when(clientFeedbackPersistencePort.findByRequestId(REQUEST_ID)).thenReturn(Optional.empty());
         when(commandMapper.toFeedback(command)).thenReturn(ClientFeedback.builder()
@@ -83,7 +83,7 @@ class ClientFeedbackServiceTest {
 
     @Test
     void submitRejectsFeedbackFromAnotherOfferer() {
-        when(requestQueryApi.findById(REQUEST_ID))
+        when(requestLookupApi.findById(REQUEST_ID))
                 .thenReturn(Optional.of(request("COMPLETED", 99L)));
 
         assertThatThrownBy(() -> service.submitClientFeedback(new SubmitClientFeedbackCommand(
@@ -95,7 +95,7 @@ class ClientFeedbackServiceTest {
 
     @Test
     void submitRejectsRequestThatIsNotCompleted() {
-        when(requestQueryApi.findById(REQUEST_ID))
+        when(requestLookupApi.findById(REQUEST_ID))
                 .thenReturn(Optional.of(request("ACCEPTED")));
 
         assertThatThrownBy(() -> service.submitClientFeedback(new SubmitClientFeedbackCommand(

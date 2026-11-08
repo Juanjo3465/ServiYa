@@ -15,7 +15,7 @@ import com.parosurvivors.serviya.feedback.application.ports.output.ServiceFeedba
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.domain.TagSentiment;
-import com.parosurvivors.serviya.requests.api.RequestQueryApi;
+import com.parosurvivors.serviya.requests.api.RequestLookupApi;
 import com.parosurvivors.serviya.requests.api.dto.RequestSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackRevertedEvent;
@@ -46,7 +46,7 @@ class ServiceFeedbackServiceTest {
     @Mock private ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     @Mock private ServiceFeedbackTagPersistencePort serviceFeedbackTagPersistencePort;
     @Mock private ServiceFeedbackTagCatalogPersistencePort serviceFeedbackTagCatalogPersistencePort;
-    @Mock private RequestQueryApi requestQueryApi;
+    @Mock private RequestLookupApi requestLookupApi;
     @Mock private ServiceFeedbackCommandMapper commandMapper;
     @Mock private DomainEventPublisherPort eventPublisher;
 
@@ -56,7 +56,7 @@ class ServiceFeedbackServiceTest {
     void submitSucceedsWhenRequestIsPresumablyCompleted() {
         SubmitServiceFeedbackCommand command = new SubmitServiceFeedbackCommand(
                 CLIENT_ID, REQUEST_ID, 5, "Great", List.of(TAG_ID));
-        when(requestQueryApi.findById(REQUEST_ID))
+        when(requestLookupApi.findById(REQUEST_ID))
                 .thenReturn(Optional.of(request("PRESUMABLY_COMPLETED")));
         when(serviceFeedbackPersistencePort.findByRequestId(REQUEST_ID)).thenReturn(Optional.empty());
         when(commandMapper.toFeedback(command)).thenReturn(ServiceFeedback.builder()
@@ -85,7 +85,7 @@ class ServiceFeedbackServiceTest {
 
     @Test
     void submitRejectsFeedbackFromAnotherClient() {
-        when(requestQueryApi.findById(REQUEST_ID))
+        when(requestLookupApi.findById(REQUEST_ID))
                 .thenReturn(Optional.of(request("COMPLETED", 99L)));
 
         assertThatThrownBy(() -> service.submitServiceFeedback(new SubmitServiceFeedbackCommand(
@@ -97,7 +97,7 @@ class ServiceFeedbackServiceTest {
 
     @Test
     void submitRejectsRequestThatIsNotCompleted() {
-        when(requestQueryApi.findById(REQUEST_ID))
+        when(requestLookupApi.findById(REQUEST_ID))
                 .thenReturn(Optional.of(request("ACCEPTED")));
 
         assertThatThrownBy(() -> service.submitServiceFeedback(new SubmitServiceFeedbackCommand(
@@ -109,7 +109,7 @@ class ServiceFeedbackServiceTest {
 
     @Test
     void submitRejectsMissingRequest() {
-        when(requestQueryApi.findById(REQUEST_ID)).thenReturn(Optional.empty());
+        when(requestLookupApi.findById(REQUEST_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.submitServiceFeedback(new SubmitServiceFeedbackCommand(
                 CLIENT_ID, REQUEST_ID, 5, "Great", List.of())))
@@ -124,7 +124,7 @@ class ServiceFeedbackServiceTest {
         when(serviceFeedbackPersistencePort.findById(FEEDBACK_ID)).thenReturn(Optional.of(feedback));
         when(serviceFeedbackTagPersistencePort.findTagIdsByFeedbackId(FEEDBACK_ID))
                 .thenReturn(List.of(TAG_ID));
-        when(requestQueryApi.findById(REQUEST_ID)).thenReturn(Optional.of(request("COMPLETED")));
+        when(requestLookupApi.findById(REQUEST_ID)).thenReturn(Optional.of(request("COMPLETED")));
         when(serviceFeedbackTagCatalogPersistencePort.findAll()).thenReturn(List.of(
                 ServiceFeedbackTagCatalog.builder()
                         .id(TAG_ID).tagName("Puntual").sentiment(TagSentiment.P).build()));

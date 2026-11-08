@@ -10,7 +10,7 @@ import com.parosurvivors.serviya.feedback.application.ports.output.ServiceFeedba
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
 import com.parosurvivors.serviya.feedback.domain.ServiceFeedbackTagCatalog;
 import com.parosurvivors.serviya.feedback.domain.TagSentiment;
-import com.parosurvivors.serviya.requests.api.RequestQueryApi;
+import com.parosurvivors.serviya.requests.api.RequestLookupApi;
 import com.parosurvivors.serviya.requests.api.dto.RequestSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackRevertedEvent;
@@ -45,14 +45,14 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
     private final ServiceFeedbackPersistencePort serviceFeedbackPersistencePort;
     private final ServiceFeedbackTagPersistencePort serviceFeedbackTagPersistencePort;
     private final ServiceFeedbackTagCatalogPersistencePort serviceFeedbackTagCatalogPersistencePort;
-    private final RequestQueryApi requestQueryApi;
+    private final RequestLookupApi requestLookupApi;
     private final ServiceFeedbackCommandMapper commandMapper;
     private final DomainEventPublisherPort eventPublisher;
 
     @Override
     @Transactional
     public void submitServiceFeedback(SubmitServiceFeedbackCommand command) {
-        RequestSnapshot request = requestQueryApi.findById(command.requestId())
+        RequestSnapshot request = requestLookupApi.findById(command.requestId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Solicitud no encontrada: " + command.requestId()));
         if (!request.clientId().equals(command.clientId())) {
@@ -102,7 +102,7 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
         serviceFeedbackPersistencePort.deleteById(feedback.getId());
 
         // El oferente objetivo no vive en el feedback; se lee de la solicitud para el evento de reverso.
-        Long offererId = requestQueryApi.findById(requestId)
+        Long offererId = requestLookupApi.findById(requestId)
                 .map(RequestSnapshot::offererId)
                 .orElse(null);
 

@@ -42,7 +42,7 @@ public class RequestApiFacade implements RequestQueryApi, RequestCommandApi {
 
     @Override
     public Optional<RequestSnapshot> findById(Long requestId) {
-        return serviceRequestReadPort.findById(requestId).map(this::toSnapshot);
+        return serviceRequestReadPort.findById(requestId).map(RequestSnapshots::toSnapshot);
     }
 
     @Override
@@ -83,14 +83,14 @@ public class RequestApiFacade implements RequestQueryApi, RequestCommandApi {
     @Override
     public List<RequestSnapshot> cancelActiveRequestsForUser(Long userId) {
         return serviceRequestCommandServicePort.cancelActiveRequestsForUser(userId).stream()
-                .map(this::toSnapshot)
+                .map(RequestSnapshots::toSnapshot)
                 .toList();
     }
 
     @Override
     public List<RequestSnapshot> cancelActiveRequestsForRole(Long userId, boolean asOfferer) {
         return serviceRequestCommandServicePort.cancelActiveRequestsForRole(userId, asOfferer).stream()
-                .map(this::toSnapshot)
+                .map(RequestSnapshots::toSnapshot)
                 .toList();
     }
 
@@ -140,22 +140,6 @@ public class RequestApiFacade implements RequestQueryApi, RequestCommandApi {
                 item.createdAt(),
                 item.serviceId(),
                 item.counterpartyId());
-    }
-
-    private RequestSnapshot toSnapshot(ServiceRequest request) {
-        return new RequestSnapshot(
-                request.getId(),
-                request.getServiceId(),
-                request.getPreviousRequestId(),
-                request.getClientId(),
-                request.getOffererId(),
-                request.getAddressId(),
-                request.getScheduledDate(),
-                request.getStatus() == null ? null : request.getStatus().name(),
-                request.getRequestedPrice(),
-                request.getCreatedAt(),
-                request.getCompletedAt(),
-                request.getUpdatedStatusAt());
     }
 
     private RequestDetailSnapshot toDetail(ServiceRequest request) {

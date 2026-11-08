@@ -97,6 +97,12 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- H2 en memoria: lo usa ServiyaApplicationTests para levantar el contexto sin MySQL. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!-- ArchUnit: reglas de arquitectura ejecutables (fronteras entre modulos, capas y ciclos).
 		     Se ejecutan con el resto de tests unitarios; no necesitan contexto de Spring ni BD. -->
 		<dependency>
