@@ -23,10 +23,9 @@ import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
-import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
-import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.domain.Category;
-import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.api.ServiceQueryApi;
+import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
+import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
@@ -50,8 +49,7 @@ class RescheduleProposalServiceTest {
     @Mock ServiceRequestPersistencePort serviceRequestPersistencePort;
     @Mock ServiceRequestReadPort serviceRequestReadPort;
     @Mock RescheduleProposalCommandMapper commandMapper;
-    @Mock ServicePersistencePort servicePersistencePort;
-    @Mock CategoryPersistencePort categoryPersistencePort;
+    @Mock ServiceQueryApi serviceQueryApi;
     @Mock UserProfilePersistencePort userProfilePersistencePort;
     @Mock AddressPersistencePort addressPersistencePort;
     @Mock NotificationServicePort notificationServicePort;
@@ -339,8 +337,8 @@ class RescheduleProposalServiceTest {
 
         when(rescheduleProposalReadPort.findById(PROPOSAL_ID)).thenReturn(Optional.of(proposal));
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(servicePersistencePort.findById(REQUEST_ID)).thenReturn(Optional.of(domainService()));
-        when(categoryPersistencePort.findById(1L)).thenReturn(Optional.of(category()));
+        when(serviceQueryApi.findById(REQUEST_ID)).thenReturn(Optional.of(domainService()));
+        when(serviceQueryApi.findCategory(1L)).thenReturn(Optional.of(category()));
         when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
         when(addressPersistencePort.findById(40L)).thenReturn(Optional.of(address()));
 
@@ -412,17 +410,25 @@ class RescheduleProposalServiceTest {
                 .build();
     }
 
-    private Service domainService() {
-        return Service.builder()
-                .id(1L)
-                .title("Plomeria")
-                .categoryId(1L)
-                .priceHourly(new BigDecimal("25.00"))
-                .build();
+    private ServiceSnapshot domainService() {
+        return new ServiceSnapshot(
+                1L,
+                20L,
+                "Plomeria",
+                null,
+                List.of(),
+                new BigDecimal("25.00"),
+                1L,
+                null,
+                true,
+                null,
+                null,
+                null,
+                null);
     }
 
-    private Category category() {
-        return Category.builder().id(1L).name("Hogar").build();
+    private CategorySnapshot category() {
+        return new CategorySnapshot(1L, "Hogar");
     }
 
     private UserProfile clientProfile() {

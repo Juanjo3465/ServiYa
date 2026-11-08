@@ -20,10 +20,9 @@ import com.parosurvivors.serviya.requests.application.ports.output.ServiceReques
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
-import com.parosurvivors.serviya.services.application.ports.output.ServiceAvailabilityPersistencePort;
-import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.domain.Service;
-import com.parosurvivors.serviya.services.domain.ServiceAvailability;
+import com.parosurvivors.serviya.services.api.ServiceQueryApi;
+import com.parosurvivors.serviya.services.api.dto.ServiceAvailabilitySnapshot;
+import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.exceptions.BusinessRuleException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
@@ -49,8 +48,7 @@ class ServiceRequestCommandServiceTest {
     @Mock RescheduleProposalServicePort rescheduleProposalService;
     @Mock NotificationServicePort notificationServicePort;
     @Mock ServiceRequestCommandMapper commandMapper;
-    @Mock ServicePersistencePort servicePersistencePort;
-    @Mock ServiceAvailabilityPersistencePort serviceAvailabilityPersistencePort;
+    @Mock ServiceQueryApi serviceQueryApi;
     @Mock AddressPersistencePort addressPersistencePort;
     @Mock UserProfilePersistencePort userProfilePersistencePort;
     @Mock DomainEventPublisherPort eventPublisher;
@@ -70,12 +68,12 @@ class ServiceRequestCommandServiceTest {
     @Test
     void createRequest_succeeds_withValidCommand() {
         CreateServiceRequestCommand command = createCommand();
-        Service domainService = existingService();
+        ServiceSnapshot domainService = existingService();
         ServiceRequest unmapped = ServiceRequest.builder().clientId(CLIENT_ID).serviceId(SERVICE_ID).build();
         ServiceRequest saved = pendingRequest();
 
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(domainService));
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(List.of(
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService));
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(List.of(
                 availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0))));
         when(commandMapper.toDomain(command)).thenReturn(unmapped);
         when(serviceRequestPersistencePort.save(any())).thenReturn(saved);
@@ -91,7 +89,7 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void createRequest_throws_whenServiceNotFound() {
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.empty());
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.createRequest(createCommand()))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -102,9 +100,9 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void createRequest_throws_whenServiceUnavailable() {
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(existingService()));
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(existingService()));
         // Martes (dayOfWeek=2 → index 2) pero disponibilidad es solo lunes (index 1)
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(List.of(
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(List.of(
                 availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0))));
 
         CreateServiceRequestCommand command = new CreateServiceRequestCommand(
@@ -118,8 +116,8 @@ class ServiceRequestCommandServiceTest {
     @Test
     void createRequest_succeeds_whenNoAvailabilitiesConfigured() {
         ServiceRequest unmapped = ServiceRequest.builder().clientId(CLIENT_ID).serviceId(SERVICE_ID).build();
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(existingService()));
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(Collections.emptyList());
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(existingService()));
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(Collections.emptyList());
         when(commandMapper.toDomain(createCommand())).thenReturn(unmapped);
         when(serviceRequestPersistencePort.save(any())).thenReturn(pendingRequest());
         when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
@@ -131,10 +129,9 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void createRequest_throws_whenAddressOutsideRadius() {
-        Service svc = existingService();
-        svc.setOperationRadiusKm(new BigDecimal("5.0"));
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(Collections.emptyList());
+        ServiceSnapshot svc = existingService(new BigDecimal("5.0"));
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(Collections.emptyList());
 
         Address clientAddress = Address.builder().id(ADDRESS_ID)
                 .latitude(new BigDecimal("10.0")).longitude(new BigDecimal("-75.0")).build();
@@ -159,7 +156,7 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void checkServiceAvailability_returnsTrue_whenNoAvailabilities() {
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(Collections.emptyList());
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(Collections.emptyList());
 
         boolean result = service.checkServiceAvailability(SERVICE_ID, LocalDateTime.of(2026, 8, 1, 14, 0));
 
@@ -168,7 +165,7 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void checkServiceAvailability_returnsTrue_whenWithinWindow() {
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(List.of(
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(List.of(
                 availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0))));
         // lunes 14:00 — dentro de la ventana
         boolean result = service.checkServiceAvailability(SERVICE_ID, LocalDateTime.of(2026, 8, 3, 14, 0));
@@ -178,7 +175,7 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void checkServiceAvailability_throws_whenOutsideWindow() {
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(List.of(
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(List.of(
                 availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0))));
         // lunes 20:00 — fuera de la ventana
         assertThatThrownBy(() ->
@@ -188,9 +185,8 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void checkServiceAvailability_ignoresInactiveAvailability() {
-        ServiceAvailability inactive = availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0));
-        inactive.setActive(false);
-        when(serviceAvailabilityPersistencePort.findByServiceId(SERVICE_ID)).thenReturn(List.of(inactive));
+        ServiceAvailabilitySnapshot inactive = availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0), false);
+        when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(List.of(inactive));
 
         assertThatThrownBy(() ->
                 service.checkServiceAvailability(SERVICE_ID, LocalDateTime.of(2026, 8, 3, 14, 0)))
@@ -203,27 +199,24 @@ class ServiceRequestCommandServiceTest {
 
     @Test
     void checkWithinRadius_returnsTrue_whenNoRadiusSet() {
-        Service svc = existingService();
-        svc.setOperationRadiusKm(null);
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
+        ServiceSnapshot svc = existingService(null);
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
 
         assertThat(service.checkWithinRadius(SERVICE_ID, ADDRESS_ID)).isTrue();
     }
 
     @Test
     void checkWithinRadius_returnsTrue_whenRadiusIsZero() {
-        Service svc = existingService();
-        svc.setOperationRadiusKm(BigDecimal.ZERO);
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
+        ServiceSnapshot svc = existingService(BigDecimal.ZERO);
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
 
         assertThat(service.checkWithinRadius(SERVICE_ID, ADDRESS_ID)).isTrue();
     }
 
     @Test
     void checkWithinRadius_throws_whenOffererHasNoAddress() {
-        Service svc = existingService();
-        svc.setOperationRadiusKm(new BigDecimal("10.0"));
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
+        ServiceSnapshot svc = existingService(new BigDecimal("10.0"));
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
         when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(
                 Address.builder().id(ADDRESS_ID).latitude(BigDecimal.ZERO).longitude(BigDecimal.ZERO).build()));
         when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(
@@ -579,26 +572,39 @@ class ServiceRequestCommandServiceTest {
         return request;
     }
 
-    private Service existingService() {
-        return Service.builder()
-                .id(SERVICE_ID)
-                .offererId(OFFERER_ID)
-                .title("Plomeria")
-                .priceHourly(new BigDecimal("25.00"))
-                .operationRadiusKm(null)
-                .active(true)
-                .build();
+    private ServiceSnapshot existingService() {
+        return existingService(null);
     }
 
-    private ServiceAvailability availability(int weekDay, LocalTime start, LocalTime end) {
-        return ServiceAvailability.builder()
-                .id((long) weekDay)
-                .serviceId(SERVICE_ID)
-                .weekDay((byte) weekDay)
-                .startTime(start)
-                .endTime(end)
-                .isActive(true)
-                .build();
+    private ServiceSnapshot existingService(BigDecimal operationRadiusKm) {
+        return new ServiceSnapshot(
+                SERVICE_ID,
+                OFFERER_ID,
+                "Plomeria",
+                null,
+                List.of(),
+                new BigDecimal("25.00"),
+                null,
+                null,
+                true,
+                operationRadiusKm,
+                null,
+                null,
+                null);
+    }
+
+    private ServiceAvailabilitySnapshot availability(int weekDay, LocalTime start, LocalTime end) {
+        return availability(weekDay, start, end, true);
+    }
+
+    private ServiceAvailabilitySnapshot availability(int weekDay, LocalTime start, LocalTime end, boolean active) {
+        return new ServiceAvailabilitySnapshot(
+                (long) weekDay,
+                SERVICE_ID,
+                weekDay,
+                start,
+                end,
+                active);
     }
 
     private Address clientAddress() {

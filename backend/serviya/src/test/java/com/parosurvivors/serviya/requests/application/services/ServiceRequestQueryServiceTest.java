@@ -19,10 +19,9 @@ import com.parosurvivors.serviya.requests.application.dto.result.ServiceRequestD
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
-import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
-import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.domain.Category;
-import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.api.ServiceQueryApi;
+import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
+import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.math.BigDecimal;
@@ -44,8 +43,7 @@ import org.springframework.data.domain.Pageable;
 class ServiceRequestQueryServiceTest {
 
     @Mock ServiceRequestReadPort serviceRequestReadPort;
-    @Mock ServicePersistencePort servicePersistencePort;
-    @Mock CategoryPersistencePort categoryPersistencePort;
+    @Mock ServiceQueryApi serviceQueryApi;
     @Mock UserProfilePersistencePort userProfilePersistencePort;
     @Mock AddressPersistencePort addressPersistencePort;
 
@@ -97,8 +95,8 @@ class ServiceRequestQueryServiceTest {
     void getRequestDetailForParty_returnsDetail_whenClientViewsOwnRequest() {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
-        when(categoryPersistencePort.findById(1L)).thenReturn(Optional.of(category()));
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
+        when(serviceQueryApi.findCategory(1L)).thenReturn(Optional.of(category()));
         when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
         when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
         when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(address()));
@@ -117,7 +115,7 @@ class ServiceRequestQueryServiceTest {
     void getRequestDetailForParty_returnsCounterparty_whenOffererViews() {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
         when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
         when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
         when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(address()));
@@ -149,7 +147,7 @@ class ServiceRequestQueryServiceTest {
     void getRequestDetailForParty_handlesMissingService() {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.empty());
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.empty());
 
         ServiceRequestDetailResult result = service.getRequestDetailForParty(REQUEST_ID, CLIENT_ID);
 
@@ -165,8 +163,8 @@ class ServiceRequestQueryServiceTest {
     void getRequestDetailForAdmin_returnsBothParties() {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(servicePersistencePort.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
-        when(categoryPersistencePort.findById(1L)).thenReturn(Optional.of(category()));
+        when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
+        when(serviceQueryApi.findCategory(1L)).thenReturn(Optional.of(category()));
         when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
         when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
         when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(address()));
@@ -286,18 +284,25 @@ class ServiceRequestQueryServiceTest {
                 .build();
     }
 
-    private Service domainService() {
-        return Service.builder()
-                .id(SERVICE_ID)
-                .title("Plomeria")
-                .categoryId(1L)
-                .priceHourly(new BigDecimal("25.00"))
-                .averageDurationMinutes(120)
-                .build();
+    private ServiceSnapshot domainService() {
+        return new ServiceSnapshot(
+                SERVICE_ID,
+                OFFERER_ID,
+                "Plomeria",
+                null,
+                List.of(),
+                new BigDecimal("25.00"),
+                1L,
+                120,
+                true,
+                null,
+                null,
+                null,
+                null);
     }
 
-    private Category category() {
-        return Category.builder().id(1L).name("Hogar").build();
+    private CategorySnapshot category() {
+        return new CategorySnapshot(1L, "Hogar");
     }
 
     private UserProfile clientProfile() {

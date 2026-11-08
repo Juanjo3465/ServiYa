@@ -13,9 +13,9 @@ import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequest
 import com.parosurvivors.serviya.requests.application.ports.output.ServiceRequestReadPort;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
-import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
-import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.api.ServiceQueryApi;
+import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
+import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import java.util.ArrayList;
@@ -39,8 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ServiceRequestQueryService implements ServiceRequestQueryServicePort {
 
     private final ServiceRequestReadPort serviceRequestReadPort;
-    private final ServicePersistencePort servicePersistencePort;
-    private final CategoryPersistencePort categoryPersistencePort;
+    private final ServiceQueryApi serviceQueryApi;
     private final UserProfilePersistencePort userProfilePersistencePort;
     private final AddressPersistencePort addressPersistencePort;
 
@@ -167,20 +166,20 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
      * ausente deja su campo en null (no es un 404): el 404/403 solo lo decide la solicitud y la parte.
      */
     private Enrichment enrich(ServiceRequest request) {
-        Optional<Service> service = servicePersistencePort.findById(request.getServiceId());
-        String categoryName = service.map(Service::getCategoryId)
-                .flatMap(categoryPersistencePort::findById)
-                .map(c -> c.getName())
+        Optional<ServiceSnapshot> service = serviceQueryApi.findById(request.getServiceId());
+        String categoryName = service.map(ServiceSnapshot::categoryId)
+                .flatMap(serviceQueryApi::findCategory)
+                .map(CategorySnapshot::name)
                 .orElse(null);
         UserProfile client = userProfilePersistencePort.findByUserId(request.getClientId()).orElse(null);
         UserProfile offerer = userProfilePersistencePort.findByUserId(request.getOffererId()).orElse(null);
         Address address = request.getAddressId() == null ? null
                 : addressPersistencePort.findById(request.getAddressId()).orElse(null);
         return new Enrichment(
-                service.map(Service::getTitle).orElse(null),
+                service.map(ServiceSnapshot::title).orElse(null),
                 categoryName,
-                service.map(Service::getPriceHourly).orElse(null),
-                service.map(Service::getAverageDurationMinutes).orElse(null),
+                service.map(ServiceSnapshot::priceHourly).orElse(null),
+                service.map(ServiceSnapshot::averageDurationMinutes).orElse(null),
                 client == null ? null : client.getFullName(),
                 client == null ? null : client.getProfilePhotoUrl(),
                 offerer == null ? null : offerer.getFullName(),

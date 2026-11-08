@@ -19,10 +19,9 @@ import com.parosurvivors.serviya.requests.domain.ProposalStatus;
 import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.requests.domain.RescheduleProposal;
 import com.parosurvivors.serviya.requests.domain.ServiceRequest;
-import com.parosurvivors.serviya.services.application.ports.output.CategoryPersistencePort;
-import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.domain.Category;
-import com.parosurvivors.serviya.services.domain.Service;
+import com.parosurvivors.serviya.services.api.ServiceQueryApi;
+import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
+import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
 import com.parosurvivors.serviya.shared.events.domain.RescheduleProposalCreatedEvent;
@@ -56,8 +55,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     private final ServiceRequestPersistencePort serviceRequestPersistencePort;
     private final ServiceRequestReadPort serviceRequestReadPort;
     private final RescheduleProposalCommandMapper commandMapper;
-    private final ServicePersistencePort servicePersistencePort;
-    private final CategoryPersistencePort categoryPersistencePort;
+    private final ServiceQueryApi serviceQueryApi;
     private final UserProfilePersistencePort userProfilePersistencePort;
     private final AddressPersistencePort addressPersistencePort;
     private final NotificationServicePort notificationServicePort;
@@ -237,9 +235,9 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         requireParticipant(proposal.getClientId(), proposal.getOffererId(), viewerId);
 
         ServiceRequest request = loadRequest(proposal.getRequestId());
-        Service service = servicePersistencePort.findById(request.getServiceId()).orElse(null);
+        ServiceSnapshot service = serviceQueryApi.findById(request.getServiceId()).orElse(null);
         String categoryName = service == null ? null
-                : categoryPersistencePort.findById(service.getCategoryId()).map(Category::getName).orElse(null);
+                : serviceQueryApi.findCategory(service.categoryId()).map(CategorySnapshot::name).orElse(null);
         String addressLabel = request.getAddressId() == null ? null
                 : addressPersistencePort.findById(request.getAddressId()).map(Address::getCity).orElse(null);
         // La contraparte es la otra parte relativa al que consulta.
@@ -253,9 +251,9 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
                 request.getId(), request.getStatus().name(), request.getScheduledDate(), request.getRequestedPrice(),
                 addressLabel, request.getPreviousRequestId(),
                 request.getServiceId(),
-                service == null ? null : service.getTitle(), categoryName,
-                service == null ? null : service.getPriceHourly(),
-                service == null ? null : service.getAverageDurationMinutes(),
+                service == null ? null : service.title(), categoryName,
+                service == null ? null : service.priceHourly(),
+                service == null ? null : service.averageDurationMinutes(),
                 counterpartyUserId,
                 counterparty == null ? null : counterparty.getFullName(),
                 counterparty == null ? null : counterparty.getProfilePhotoUrl());
