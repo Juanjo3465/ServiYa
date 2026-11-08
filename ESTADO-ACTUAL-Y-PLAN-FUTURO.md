@@ -809,12 +809,17 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
   `requests.domain` y `feedback.domain`; `metrics` deja de importar `requests.domain`.
 - **Baseline ArchUnit**: 451 → **414** violaciones congeladas (shared 24→15, domain 326→298,
   persistence 64, infrastructure 37). Las reglas nuevas sí fallan ante una violación nueva.
-- **Verificación**: 390 tests, 0 fallos, 14 skipped (Redis sin Docker).
+- **Incremento 2A (catalog)**: añadidos `profiles.api` (`ProfileQueryApi`, `ProfileCommandApi`) y
+  `services.api` (`ServiceQueryApi`, `ServiceCommandApi`), con lecturas por lote
+  (`findProfiles`, `findByIds`). El resumen del oferente no incluye rating (lo compone
+  `metrics.api`) y no se expone `ServiceDetail`. El baseline sigue en **414**.
+- **Verificación**: 409 tests, 0 fallos, 14 skipped (Redis sin Docker).
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Pendiente inmediato: **Incremento 2** (`profiles.api` + `services.api`) y después migrar los
-consumidores para reducir el baseline (empezando por `requests` → persistencia de catalog/profiles).
+Pendiente inmediato: **Incremento 2B** — migrar `requests` a las APIs de catalog para eliminar los
+puertos de persistencia ajenos (el mayor bloque del baseline) y después seguir con el resto de
+violaciones profundas.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -985,7 +990,18 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   congeladas (shared 24→15, domain 326→298). Verificación: 390 tests, 0 fallos, 14 skipped (Redis
   sin Docker), excluyendo solo `ServiyaApplicationTests` (falta H2) y `PiiAttributeConverterTest`
   (falta `ENCRYPTION_KEY`), fallos ambientales preexistentes. Detalle en
-  `documents/arquitectura/apis-modulos.md`. Siguiente: Incremento 2 (`profiles.api` + `services.api`).
+  `documents/arquitectura/apis-modulos.md`. Siguiente: Incremento 2A (`profiles.api` + `services.api`).
+- **2026-11-08** — **Incremento 2A: contratos del cluster catalog**. Añadidos `profiles.api`
+  (`ProfileQueryApi`, `ProfileCommandApi`; `ProfileSnapshot`, `OffererProfileSnapshot`,
+  `OffererProfileSummarySnapshot`, `AddressSnapshot`, `OffererAvailabilitySnapshot`) y
+  `services.api` (`ServiceQueryApi`, `ServiceCommandApi`; `ServiceSnapshot`, `CategorySnapshot`,
+  `ServiceAvailabilitySnapshot`). Las lecturas usan los puertos de persistencia del propio módulo
+  para no arrastrar la composición de `OffererPublicProfileService`/`ServiceDetail`; se añadieron
+  `findByUserIdIn` y `findByIds` para evitar N+1. El resumen de oferente excluye `averageRating`
+  (lo compone `metrics.api`) y no se expone `ServiceDetail`. Fachadas en
+  `<módulo>.application.api`; tests `ProfileApiFacadeTest` (11) y `ServiceApiFacadeTest` (8).
+  Baseline ArchUnit sin cambios (**414**). Verificación: 409 tests, 0 fallos, 14 skipped. Siguiente:
+  Incremento 2B (migrar `requests` a catalog).
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

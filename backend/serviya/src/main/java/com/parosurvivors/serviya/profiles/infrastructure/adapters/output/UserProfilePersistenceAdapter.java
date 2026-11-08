@@ -8,6 +8,8 @@ import com.parosurvivors.serviya.profiles.infrastructure.repositories.UserProfil
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -37,5 +39,15 @@ public class UserProfilePersistenceAdapter implements UserProfilePersistencePort
     @Override
     public Optional<UserProfile> findByUserId(Long userId) {
         return repository.findByUserId(userId).map(mapper::toDomain);
+    }
+
+    @Override
+    public List<UserProfile> findByUserIdIn(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return repository.findByUserIdIn(userIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

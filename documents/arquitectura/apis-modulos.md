@@ -10,7 +10,8 @@
 |---|---|---|
 | 2026-11-08 | Reglas ArchUnit de fronteras entre modulos con baseline congelado (`ModuleBoundaryTest`). | Completado |
 | 2026-11-08 | Incremento 1 de contratos: `shared.contract`, `notifications.api`, `users.api`; contratos de eventos con `String`/`boolean`. | Completado |
-| Pendiente | Incremento 2: `profiles.api` + `services.api` (catalog). | Pendiente |
+| 2026-11-08 | Incremento 2A: contratos del cluster catalog (`profiles.api` + `services.api`), lecturas por lote y fachadas. | Completado |
+| Pendiente | Incremento 2B: migrar `requests` a las APIs de catalog y reducir el baseline. | Pendiente |
 | Pendiente | Incremento 3: `requests.api` + `feedback.api` + `metrics.api`. | Pendiente |
 | Pendiente | Incremento 4: `reports.api`. | Pendiente |
 
@@ -79,6 +80,46 @@ DTOs: `UserSnapshot`, `UserSummary`, `RoleSnapshot`, `UserRoleAssignmentSnapshot
 frontera. `UserSummary` solo contiene datos propios de identity; el nombre/foto del perfil los
 compone el consumidor/BFF con `profiles.api`.
 
+### `profiles.api` (Incremento 2A)
+
+| Interfaz | Operaciones |
+|---|---|
+| `ProfileQueryApi` | `findProfile`, `findProfiles` (lote), `findOffererProfile`, `getOffererSummary`, `findAddress`, `getAddresses`, `getAvailabilities`. |
+| `ProfileCommandApi` | `createProfile`, `createOffererProfile`, `createAddress`, `updateMainAddress`. |
+
+DTOs: `ProfileSnapshot`, `OffererProfileSnapshot`, `OffererProfileSummarySnapshot`,
+`AddressSnapshot`, `OffererAvailabilitySnapshot`, `CreateProfileCommand`, `CreateAddressCommand`.
+
+Decisiones:
+
+- Las lecturas usan los puertos de persistencia de profiles directamente; no se usa
+  `OffererPublicProfileService` (que compone metrics/services).
+- `OffererProfileSummarySnapshot` **no incluye `averageRating`**; ese dato lo compone el consumidor
+  con `metrics.api`.
+- `OffererAvailabilitySnapshot.weekDay` conserva la convención de profiles: **0 = lunes … 6 = domingo**.
+- `ProfileSnapshot` incluye documento y teléfono (PII propia de profiles); la exposición pública
+  debe pasar por un BFF con política de privacidad.
+- Se añadió `UserProfilePersistencePort.findByUserIdIn(...)` para implementar `findProfiles` sin N+1.
+
+### `services.api` (Incremento 2A)
+
+| Interfaz | Operaciones |
+|---|---|
+| `ServiceQueryApi` | `findById`, `findByIds` (lote), `findByOffererId`, `findCategory`, `getCategories`, `getAvailabilities`. |
+| `ServiceCommandApi` | `deactivateAllByOfferer`, `deleteServiceAsAdmin`. |
+
+DTOs: `ServiceSnapshot`, `CategorySnapshot`, `ServiceAvailabilitySnapshot`.
+
+Decisiones:
+
+- No se expone `ServiceDetail` ni otra vista compuesta; el detalle se arma fuera del módulo.
+- `ServiceAvailabilitySnapshot.weekDay` conserva la convención de services: **1 = lunes … 7 = domingo**.
+- `findByOffererId` devuelve todos los servicios del oferente, incluidos inactivos/soft-deleted; el
+  consumidor filtra por `active`/`deletedAt`.
+- Las lecturas usan los puertos de persistencia de services; las escrituras delegan en
+  `MarketplaceServicePort`.
+- Se añadió `ServicePersistencePort.findByIds(...)` para implementar la consulta por lote sin N+1.
+
 ## 3. Reglas ArchUnit
 
 `backend/serviya/src/test/java/com/parosurvivors/serviya/architecture/ModuleBoundaryTest.java`:
@@ -101,6 +142,7 @@ Las reglas con deuda existente usan `FreezingArchRule`. Baseline actual:
 | **Total** | **414** |
 
 Antes del Incremento 1 eran 451 (24 shared + 326 domain + 64 persistence + 37 infrastructure).
+El Incremento 2A no cambió el baseline: sigue en **414**.
 
 Para actualizar el baseline de forma intencional:
 
@@ -113,7 +155,8 @@ cd backend/serviya
 
 | Incremento | Contratos |
 |---|---|
-| 2 | `profiles.api` + `services.api` (catalog). |
+| 2A | `profiles.api` + `services.api` (catalog) — **completado**. |
+| 2B | Migrar `requests` a las APIs de catalog (elimina los puertos de persistencia ajenos). |
 | 3 | `requests.api` + `feedback.api` + `metrics.api`. |
 | 4 | `reports.api` (solo lo consume admin). |
 
@@ -128,7 +171,7 @@ Comandos ejecutados el 2026-11-08:
 cd backend/serviya
 
 # Contratos + reglas de arquitectura
-./mvnw -Dtest='UserApiFacadeTest,NotificationCommandApiFacadeTest,ModuleBoundaryTest' test
+./mvnw -Dtest='UserApiFacadeTest,NotificationCommandApiFacadeTest,ProfileApiFacadeTest,ServiceApiFacadeTest,ModuleBoundaryTest' test
 
 # Suite amplia, excluyendo solo las dos clases con fallos ambientales preexistentes
 ./mvnw -Dtest='!ServiyaApplicationTests,!PiiAttributeConverterTest' test
@@ -138,8 +181,10 @@ Resultados:
 
 - `UserApiFacadeTest`: 7/7.
 - `NotificationCommandApiFacadeTest`: 1/1.
+- `ProfileApiFacadeTest`: 11/11.
+- `ServiceApiFacadeTest`: 8/8.
 - `ModuleBoundaryTest`: 7/7.
-- Suite amplia: **390 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+- Suite amplia: **409 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
   (`@Testcontainers(disabledWithoutDocker = true)`).
 - La regla de pureza de APIs no es vacua: encontro 9 clases en `users.api`, 3 en
@@ -188,11 +233,21 @@ backend/serviya/src/main/java/com/parosurvivors/serviya/
   users/api/UserContactApi.java
   users/api/dto/*.java
   users/application/api/UserApiFacade.java
+  profiles/api/ProfileQueryApi.java
+  profiles/api/ProfileCommandApi.java
+  profiles/api/dto/*.java
+  profiles/application/api/ProfileApiFacade.java
+  services/api/ServiceQueryApi.java
+  services/api/ServiceCommandApi.java
+  services/api/dto/*.java
+  services/application/api/ServiceApiFacade.java
 
 backend/serviya/src/test/java/com/parosurvivors/serviya/
   architecture/ModuleBoundaryTest.java
   notifications/application/api/NotificationCommandApiFacadeTest.java
   users/application/api/UserApiFacadeTest.java
+  profiles/application/api/ProfileApiFacadeTest.java
+  services/application/api/ServiceApiFacadeTest.java
 
 backend/serviya/src/test/resources/
   archunit.properties
