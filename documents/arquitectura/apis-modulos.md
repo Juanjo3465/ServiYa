@@ -17,7 +17,8 @@
 | 2026-11-08 | Migración `feedback` → `requests.api`; tests nuevos de feedback. | Completado |
 | 2026-11-08 | Migración `users` → `profiles.api` en `AccountController`. | Completado |
 | 2026-11-08 | Nuevo módulo `statistics`; `shared` queda como kernel puro (regla absoluta). | Completado |
-| Pendiente | Incremento 4: `reports.api`. | Pendiente |
+| 2026-11-08 | Incremento 4: contrato `reports.api` + fachada y tests. | Completado |
+| 2026-11-08 | `RequestLookupApi` para romper el ciclo de beans; gate completo de tests habilitado (H2 + ENCRYPTION_KEY). | Completado |
 | Pendiente | Migraciones restantes (`services`, `admin`, `reports`). | Pendiente |
 
 ## 1. Convencion
@@ -170,6 +171,21 @@ Decisiones:
   `feedback.api`.
 - Los snapshots reflejan los contadores actuales del read-model de metrics.
 
+### `reports.api` (Incremento 4)
+
+| Interfaz | Operaciones |
+|---|---|
+| `ReportQueryApi` | `findById`, `findSummary`, `search`, `getActions`, `countByReportedUser`, `countByReporter`. |
+| `ReportCommandApi` | `createBaseReport`, `resolveReport`, `closeReport`, `createAction`. |
+
+DTOs: `ReportSnapshot`, `ReportSummarySnapshot`, `ReportActionSnapshot`.
+
+Decisiones:
+
+- `ReportSnapshot`/`ReportSummarySnapshot` exponen datos propios del reporte y el id del objetivo;
+  `ReportDetailResult` (con nombres y payloads) se compone en el consumidor/BFF.
+- Los tipos de accion viajan como `String` y se validan contra `ReportActionType` en la frontera.
+
 ## 3. Reglas ArchUnit
 
 `backend/serviya/src/test/java/com/parosurvivors/serviya/architecture/ModuleBoundaryTest.java`:
@@ -216,7 +232,7 @@ cd backend/serviya
 | 2A | `profiles.api` + `services.api` (catalog) — **completado**. |
 | 2B | Migrar `requests` a las APIs de catalog — **completado**. |
 | 3 | `requests.api` + `feedback.api` + `metrics.api` — **completado**. |
-| 4 | `reports.api` (solo lo consume admin). |
+| 4 | `reports.api` — **completado**. |
 | — | Migrar consumidores restantes: `services`, `admin`, `reports`. |
 
 `admin` no publica API: es consumidor/orquestador. `config` es la raiz de composicion y puede
@@ -250,7 +266,10 @@ Resultados:
 - Migraciones posteriores: `RequestApiFacadeTest` 9/9, `FeedbackApiFacadeTest` 8/8,
   `ServiceFeedbackServiceTest` 5/5, `ClientFeedbackServiceTest` 3/3,
   `PlatformStatsServiceTest` 3/3, `AccountControllerIntegrationTest` 4/4.
-- Suite amplia: **442 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+- Incremento 4: `ReportApiFacadeTest` 8/8.
+- **Suite completa**: **454 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+  Ya no se excluyen `ServiyaApplicationTests` ni `PiiAttributeConverterTest`: se añadió H2 y se
+  configura `ENCRYPTION_KEY` en el test de PII.
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
   (`@Testcontainers(disabledWithoutDocker = true)`).
 - La regla de pureza de APIs no es vacua: encontro 9 clases en `users.api`, 3 en
@@ -271,6 +290,9 @@ Pendiente recomendado: corregir ambos para que `./mvnw test` completo sea el gat
 - **Migrados:** `requests` → catalog, `feedback` → `requests.api`, `users` →
   `profiles.api` (`AccountController`), y `statistics` como módulo de lectura.
 - **Pendientes:** `services`, `admin` y `reports` siguen usando puertos internos de otros módulos.
+- **`RequestLookupApi`** es una lectura mínima de requests (solo `ServiceRequestReadPort`) para
+  consumidores como feedback. Evita el ciclo de beans
+  `feedback → RequestApiFacade → requests query → services.api → marketplace → feedback`.
 - **`UserSummary` no incluye nombre ni foto.** Son datos de `profiles`; el consumidor/BFF los
   compone con `profiles.api` cuando se migre el listado de admin.
 - **`shared` es un kernel puro:** `PlatformStatsRepository` se movió al módulo `statistics`; la regla
@@ -328,6 +350,13 @@ backend/serviya/src/main/java/com/parosurvivors/serviya/
   statistics/application/services/PlatformStatsService.java
   statistics/application/dto/response/PlatformStatsResponse.java
   statistics/infrastructure/adapters/input/StatisticsController.java
+  reports/api/ReportQueryApi.java
+  reports/api/ReportCommandApi.java
+  reports/api/dto/*.java
+  reports/application/api/ReportApiFacade.java
+  requests/api/RequestLookupApi.java
+  requests/application/api/RequestLookupFacade.java
+  requests/application/api/RequestSnapshots.java
 
 backend/serviya/src/test/java/com/parosurvivors/serviya/
   architecture/ModuleBoundaryTest.java
@@ -341,6 +370,7 @@ backend/serviya/src/test/java/com/parosurvivors/serviya/
   feedback/application/services/ServiceFeedbackServiceTest.java
   feedback/application/services/ClientFeedbackServiceTest.java
   statistics/application/services/PlatformStatsServiceTest.java
+  reports/application/api/ReportApiFacadeTest.java
 
 backend/serviya/src/test/resources/
   archunit.properties

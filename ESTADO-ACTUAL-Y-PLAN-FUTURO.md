@@ -829,12 +829,16 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
 - **Módulo `statistics`**: `PlatformStatsRepository`/controller salen de `shared` y componen con
   `users.api`, `requests.api`, `feedback.api` y `services.api`. Baseline **287 → 272**;
   la regla de pureza de `shared` queda absoluta (0 violaciones).
-- **Verificación**: 442 tests, 0 fallos, 14 skipped (Redis sin Docker).
+- **Incremento 4 (`reports.api`)**: añadidos `ReportQueryApi`/`ReportCommandApi` con snapshots
+  propios y fachada. No expone el detalle enriquecido; el BFF compone nombres y payloads.
+  Baseline sin cambios (**272**).
+- **`RequestLookupApi` + gate completo**: lectura mínima de requests para feedback (rompe el ciclo
+  de beans `feedback → requests → services → marketplace → feedback`); H2 + `ENCRYPTION_KEY`
+  permiten correr **toda** la suite sin exclusiones. **454 tests, 0 fallos, 14 skipped**.
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: **Incremento 4** (`reports.api`) y las migraciones restantes:
-`services` → `metrics.api`/`profiles.api`, `admin` → APIs, `reports` → APIs.
+Siguiente: migrar `services` → `metrics.api`/`profiles.api`, `admin` → APIs y `reports` → APIs.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1048,6 +1052,14 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   `shared` ya es absoluta (sin freeze). Suite: 442 tests, 0 fallos, 14 skipped. Commits:
   `6100302`, `25b2544`, `0db13ab`. Siguiente: Incremento 4 (`reports.api`) y migración de
   `services`/`admin`/`reports`.
+- **2026-11-08** — **Incremento 4 + gate completo de tests.** Añadido `reports.api`
+  (`ReportQueryApi`, `ReportCommandApi`; `ReportSnapshot`, `ReportSummarySnapshot`,
+  `ReportActionSnapshot`) con fachada y `ReportApiFacadeTest` (8). Se añadió `RequestLookupApi`
+  (lectura mínima de requests solo con `ServiceRequestReadPort`) para romper el ciclo de beans
+  `feedback → RequestApiFacade → requests query → services.api → marketplace → feedback`.
+  Se añadió H2 como dependencia de test y `ENCRYPTION_KEY` en `PiiAttributeConverterTest`.
+  Resultado: **454 tests, 0 fallos, 14 skipped** sin exclusiones. Baseline ArchUnit sin cambios
+  (**272**). Commits: `e253b5a`, `c2ec693`. Siguiente: migrar `services`, `admin` y `reports`.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,
