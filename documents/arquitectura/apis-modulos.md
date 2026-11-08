@@ -1,8 +1,9 @@
 # APIs entre modulos del monolito
 
-> Estado: **Incremento 1 completado** (2026-11-08). Define los primeros contratos publicos y el
+> Estado: **Incrementos 1, 2A y 2B completados** (2026-11-08). Define los contratos publicos y el
 > mecanismo para que los modulos dejen de depender de `domain`, `infrastructure` y puertos de
-> persistencia ajenos. Ver `ESTADO-ACTUAL-Y-PLAN-FUTURO.md` §7 y `ModuleBoundaryTest`.
+> persistencia ajenos. `requests` ya consume `profiles.api`/`services.api`.
+> Ver `ESTADO-ACTUAL-Y-PLAN-FUTURO.md` §7 y `ModuleBoundaryTest`.
 
 ## Control de cambios
 
@@ -11,7 +12,7 @@
 | 2026-11-08 | Reglas ArchUnit de fronteras entre modulos con baseline congelado (`ModuleBoundaryTest`). | Completado |
 | 2026-11-08 | Incremento 1 de contratos: `shared.contract`, `notifications.api`, `users.api`; contratos de eventos con `String`/`boolean`. | Completado |
 | 2026-11-08 | Incremento 2A: contratos del cluster catalog (`profiles.api` + `services.api`), lecturas por lote y fachadas. | Completado |
-| Pendiente | Incremento 2B: migrar `requests` a las APIs de catalog y reducir el baseline. | Pendiente |
+| 2026-11-08 | Incremento 2B: `requests` migrado a `profiles.api`/`services.api`; baseline reducido. | Completado |
 | Pendiente | Incremento 3: `requests.api` + `feedback.api` + `metrics.api`. | Pendiente |
 | Pendiente | Incremento 4: `reports.api`. | Pendiente |
 
@@ -135,14 +136,15 @@ Las reglas con deuda existente usan `FreezingArchRule`. Baseline actual:
 
 | Regla | Violaciones congeladas |
 |---|---:|
-| `domain` ajeno | 298 |
-| Puertos de persistencia ajenos | 64 |
+| `domain` ajeno | 249 |
+| Puertos de persistencia ajenos | 15 |
 | `infrastructure` ajena | 37 |
 | `shared` hacia modulos | 15 |
-| **Total** | **414** |
+| **Total** | **316** |
 
 Antes del Incremento 1 eran 451 (24 shared + 326 domain + 64 persistence + 37 infrastructure).
-El Incremento 2A no cambió el baseline: sigue en **414**.
+El Incremento 2A no cambió el baseline (**414**). El Incremento 2B lo redujo a **316**:
+`requests` ya no importa `profiles`/`services` `domain` ni `application.ports.output`.
 
 Para actualizar el baseline de forma intencional:
 
@@ -156,7 +158,7 @@ cd backend/serviya
 | Incremento | Contratos |
 |---|---|
 | 2A | `profiles.api` + `services.api` (catalog) — **completado**. |
-| 2B | Migrar `requests` a las APIs de catalog (elimina los puertos de persistencia ajenos). |
+| 2B | Migrar `requests` a las APIs de catalog — **completado**. |
 | 3 | `requests.api` + `feedback.api` + `metrics.api`. |
 | 4 | `reports.api` (solo lo consume admin). |
 
@@ -184,11 +186,13 @@ Resultados:
 - `ProfileApiFacadeTest`: 11/11.
 - `ServiceApiFacadeTest`: 8/8.
 - `ModuleBoundaryTest`: 7/7.
+- Incremento 2B: `ServiceRequestCommandServiceTest` 33/33, `ServiceRequestQueryServiceTest`
+  14/14, `RescheduleProposalServiceTest` 21/21.
 - Suite amplia: **409 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
   (`@Testcontainers(disabledWithoutDocker = true)`).
 - La regla de pureza de APIs no es vacua: encontro 9 clases en `users.api`, 3 en
-  `notifications.api` y 2 en `shared.contract`.
+  `notifications.api`, 2 en `shared.contract`, 9 en `profiles.api` y 5 en `services.api`.
 
 Fallos ambientales preexistentes, **no causados por este cambio** (por eso se excluyen de la suite
 amplia):
@@ -201,8 +205,9 @@ Pendiente recomendado: corregir ambos para que `./mvnw test` completo sea el gat
 
 ## 6. Alcance y límites
 
-- **No se migraron consumidores.** Este incremento solo define contratos y fachadas; los modulos
-  siguen usando sus puertos internos. La adopcion es parte de los pasos 3 y 4.
+- **La migración empezó por `requests`.** Ya no importa `profiles`/`services` `domain` ni
+  `application.ports.output`; usa `ProfileQueryApi` y `ServiceQueryApi`. El resto de consumidores
+  (`users`, `admin`, `reports`) sigue con sus puertos internos y se migrará en los pasos 3 y 4.
 - **`UserSummary` no incluye nombre ni foto.** Son datos de `profiles`; el consumidor/BFF los
   compone con `profiles.api` cuando se migre el listado de admin.
 - **`shared` sigue teniendo una violacion conocida:** `PlatformStatsRepository` importa repositorios
@@ -214,7 +219,7 @@ Pendiente recomendado: corregir ambos para que `./mvnw test` completo sea el gat
 - **`metrics` ya no importa `requests.domain`.** Los estados viajan como `String` y el switch interno
   ignora estados desconocidos. Esto prepara la extraccion de metrics sin arrastrar el enum de requests.
 - **La arquitectura no esta limpia.** El baseline congelado es un ratchet: impide violaciones nuevas,
-  no certifica que las 414 existentes sean correctas.
+  no certifica que las **316** existentes sean correctas.
 
 ## 7. Archivos principales
 
@@ -241,6 +246,9 @@ backend/serviya/src/main/java/com/parosurvivors/serviya/
   services/api/ServiceCommandApi.java
   services/api/dto/*.java
   services/application/api/ServiceApiFacade.java
+  requests/application/services/ServiceRequestCommandService.java
+  requests/application/services/ServiceRequestQueryService.java
+  requests/application/services/RescheduleProposalService.java
 
 backend/serviya/src/test/java/com/parosurvivors/serviya/
   architecture/ModuleBoundaryTest.java

@@ -7,10 +7,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
-import com.parosurvivors.serviya.profiles.domain.Address;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.requests.application.dto.item.RequestHistoryItem;
 import com.parosurvivors.serviya.requests.application.dto.item.ServiceRequestSummaryItem;
 import com.parosurvivors.serviya.requests.application.dto.query.SearchServiceRequestsQuery;
@@ -44,8 +43,7 @@ class ServiceRequestQueryServiceTest {
 
     @Mock ServiceRequestReadPort serviceRequestReadPort;
     @Mock ServiceQueryApi serviceQueryApi;
-    @Mock UserProfilePersistencePort userProfilePersistencePort;
-    @Mock AddressPersistencePort addressPersistencePort;
+    @Mock ProfileQueryApi profileQueryApi;
 
     @InjectMocks ServiceRequestQueryService service;
 
@@ -97,9 +95,9 @@ class ServiceRequestQueryServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
         when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
         when(serviceQueryApi.findCategory(1L)).thenReturn(Optional.of(category()));
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
-        when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(address()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findAddress(ADDRESS_ID)).thenReturn(Optional.of(address()));
 
         ServiceRequestDetailResult result = service.getRequestDetailForParty(REQUEST_ID, CLIENT_ID);
 
@@ -116,9 +114,9 @@ class ServiceRequestQueryServiceTest {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
         when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
-        when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(address()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findAddress(ADDRESS_ID)).thenReturn(Optional.of(address()));
 
         ServiceRequestDetailResult result = service.getRequestDetailForParty(REQUEST_ID, OFFERER_ID);
 
@@ -165,9 +163,9 @@ class ServiceRequestQueryServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
         when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(domainService()));
         when(serviceQueryApi.findCategory(1L)).thenReturn(Optional.of(category()));
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
-        when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(address()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findAddress(ADDRESS_ID)).thenReturn(Optional.of(address()));
 
         AdminRequestDetailResult result = service.getRequestDetailForAdmin(REQUEST_ID);
 
@@ -305,29 +303,23 @@ class ServiceRequestQueryServiceTest {
         return new CategorySnapshot(1L, "Hogar");
     }
 
-    private UserProfile clientProfile() {
-        return UserProfile.builder()
-                .userId(CLIENT_ID)
-                .fullName("Juan Perez")
-                .profilePhotoUrl("photo_juan.jpg")
-                .build();
+    private ProfileSnapshot clientProfile() {
+        return profile(CLIENT_ID, "Juan Perez", "photo_juan.jpg");
     }
 
-    private UserProfile offererProfile() {
-        return UserProfile.builder()
-                .userId(OFFERER_ID)
-                .fullName("Maria Garcia")
-                .profilePhotoUrl("photo_maria.jpg")
-                .build();
+    private ProfileSnapshot offererProfile() {
+        return profile(OFFERER_ID, "Maria Garcia", "photo_maria.jpg");
     }
 
-    private Address address() {
-        return Address.builder()
-                .id(ADDRESS_ID)
-                .addressLine("Calle 123")
-                .city("Medellin")
-                .latitude(new BigDecimal("-75.5700"))
-                .longitude(new BigDecimal("6.2442"))
-                .build();
+    private ProfileSnapshot profile(Long userId, String fullName, String photoUrl) {
+        return new ProfileSnapshot(
+                null, userId, fullName, null, null, null,
+                null, photoUrl, null, null, null);
+    }
+
+    private AddressSnapshot address() {
+        return new AddressSnapshot(
+                ADDRESS_ID, CLIENT_ID, "Calle 123", "Medellin",
+                new BigDecimal("-75.5700"), new BigDecimal("6.2442"), null);
     }
 }

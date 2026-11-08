@@ -9,10 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
-import com.parosurvivors.serviya.profiles.domain.Address;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateRescheduleProposalCommand;
 import com.parosurvivors.serviya.requests.application.mappers.RescheduleProposalCommandMapper;
 import com.parosurvivors.serviya.requests.application.ports.output.RescheduleProposalPersistencePort;
@@ -50,8 +49,7 @@ class RescheduleProposalServiceTest {
     @Mock ServiceRequestReadPort serviceRequestReadPort;
     @Mock RescheduleProposalCommandMapper commandMapper;
     @Mock ServiceQueryApi serviceQueryApi;
-    @Mock UserProfilePersistencePort userProfilePersistencePort;
-    @Mock AddressPersistencePort addressPersistencePort;
+    @Mock ProfileQueryApi profileQueryApi;
     @Mock NotificationServicePort notificationServicePort;
     @Mock DomainEventPublisherPort eventPublisher;
 
@@ -78,7 +76,7 @@ class RescheduleProposalServiceTest {
                 .thenReturn(Collections.emptyList());
         when(commandMapper.toDomain(command)).thenReturn(unmapped);
         when(rescheduleProposalPersistencePort.save(any())).thenReturn(saved);
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
 
         RescheduleProposal result = service.createProposal(command);
 
@@ -153,7 +151,7 @@ class RescheduleProposalServiceTest {
         when(rescheduleProposalReadPort.findById(PROPOSAL_ID)).thenReturn(Optional.of(proposal));
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
         when(serviceRequestPersistencePort.save(any())).thenReturn(replacement);
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
 
         ServiceRequest result = service.acceptProposal(PROPOSAL_ID, CLIENT_ID);
 
@@ -194,7 +192,7 @@ class RescheduleProposalServiceTest {
         ServiceRequest request = acceptedRequest();
         when(rescheduleProposalReadPort.findById(PROPOSAL_ID)).thenReturn(Optional.of(proposal));
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
 
         service.rejectProposal(PROPOSAL_ID, CLIENT_ID);
 
@@ -225,7 +223,7 @@ class RescheduleProposalServiceTest {
         ServiceRequest request = acceptedRequest();
         when(rescheduleProposalReadPort.findById(PROPOSAL_ID)).thenReturn(Optional.of(proposal));
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
 
         service.cancelProposal(PROPOSAL_ID, OFFERER_ID);
 
@@ -339,8 +337,8 @@ class RescheduleProposalServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
         when(serviceQueryApi.findById(REQUEST_ID)).thenReturn(Optional.of(domainService()));
         when(serviceQueryApi.findCategory(1L)).thenReturn(Optional.of(category()));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
-        when(addressPersistencePort.findById(40L)).thenReturn(Optional.of(address()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findAddress(40L)).thenReturn(Optional.of(address()));
 
         var result = service.getProposalDetail(PROPOSAL_ID, CLIENT_ID);
 
@@ -431,25 +429,21 @@ class RescheduleProposalServiceTest {
         return new CategorySnapshot(1L, "Hogar");
     }
 
-    private UserProfile clientProfile() {
-        return UserProfile.builder()
-                .userId(CLIENT_ID)
-                .fullName("Juan Perez")
-                .build();
+    private ProfileSnapshot clientProfile() {
+        return profile(CLIENT_ID, "Juan Perez", null);
     }
 
-    private UserProfile offererProfile() {
-        return UserProfile.builder()
-                .userId(OFFERER_ID)
-                .fullName("Maria Garcia")
-                .profilePhotoUrl("photo.jpg")
-                .build();
+    private ProfileSnapshot offererProfile() {
+        return profile(OFFERER_ID, "Maria Garcia", "photo.jpg");
     }
 
-    private Address address() {
-        return Address.builder()
-                .id(40L)
-                .city("Medellin")
-                .build();
+    private ProfileSnapshot profile(Long userId, String fullName, String photoUrl) {
+        return new ProfileSnapshot(
+                null, userId, fullName, null, null, null,
+                null, photoUrl, null, null, null);
+    }
+
+    private AddressSnapshot address() {
+        return new AddressSnapshot(40L, CLIENT_ID, null, "Medellin", null, null, null);
     }
 }

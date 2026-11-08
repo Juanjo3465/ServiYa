@@ -9,10 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
-import com.parosurvivors.serviya.profiles.domain.Address;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateServiceRequestCommand;
 import com.parosurvivors.serviya.requests.application.mappers.ServiceRequestCommandMapper;
 import com.parosurvivors.serviya.requests.application.ports.input.RescheduleProposalServicePort;
@@ -49,8 +48,7 @@ class ServiceRequestCommandServiceTest {
     @Mock NotificationServicePort notificationServicePort;
     @Mock ServiceRequestCommandMapper commandMapper;
     @Mock ServiceQueryApi serviceQueryApi;
-    @Mock AddressPersistencePort addressPersistencePort;
-    @Mock UserProfilePersistencePort userProfilePersistencePort;
+    @Mock ProfileQueryApi profileQueryApi;
     @Mock DomainEventPublisherPort eventPublisher;
 
     @InjectMocks ServiceRequestCommandService service;
@@ -77,7 +75,7 @@ class ServiceRequestCommandServiceTest {
                 availability(1, LocalTime.of(8, 0), LocalTime.of(18, 0))));
         when(commandMapper.toDomain(command)).thenReturn(unmapped);
         when(serviceRequestPersistencePort.save(any())).thenReturn(saved);
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
 
         ServiceRequest result = service.createRequest(command);
 
@@ -120,7 +118,7 @@ class ServiceRequestCommandServiceTest {
         when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(Collections.emptyList());
         when(commandMapper.toDomain(createCommand())).thenReturn(unmapped);
         when(serviceRequestPersistencePort.save(any())).thenReturn(pendingRequest());
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
 
         service.createRequest(createCommand());
 
@@ -133,17 +131,19 @@ class ServiceRequestCommandServiceTest {
         when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
         when(serviceQueryApi.getAvailabilities(SERVICE_ID)).thenReturn(Collections.emptyList());
 
-        Address clientAddress = Address.builder().id(ADDRESS_ID)
-                .latitude(new BigDecimal("10.0")).longitude(new BigDecimal("-75.0")).build();
-        when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(clientAddress));
+        AddressSnapshot clientAddress = new AddressSnapshot(
+                ADDRESS_ID, CLIENT_ID, null, null,
+                new BigDecimal("10.0"), new BigDecimal("-75.0"), null);
+        when(profileQueryApi.findAddress(ADDRESS_ID)).thenReturn(Optional.of(clientAddress));
 
-        UserProfile offererProfile = UserProfile.builder().userId(OFFERER_ID).primaryAddressId(50L).build();
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile));
+        ProfileSnapshot offererProfile = profile(OFFERER_ID, null, 50L);
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile));
 
         // Offerer address far away (different city)
-        Address offererAddress = Address.builder().id(50L)
-                .latitude(new BigDecimal("0.0")).longitude(new BigDecimal("0.0")).build();
-        when(addressPersistencePort.findById(50L)).thenReturn(Optional.of(offererAddress));
+        AddressSnapshot offererAddress = new AddressSnapshot(
+                50L, OFFERER_ID, null, null,
+                new BigDecimal("0.0"), new BigDecimal("0.0"), null);
+        when(profileQueryApi.findAddress(50L)).thenReturn(Optional.of(offererAddress));
 
         assertThatThrownBy(() -> service.createRequest(createCommand()))
                 .isInstanceOf(BusinessRuleException.class)
@@ -217,10 +217,11 @@ class ServiceRequestCommandServiceTest {
     void checkWithinRadius_throws_whenOffererHasNoAddress() {
         ServiceSnapshot svc = existingService(new BigDecimal("10.0"));
         when(serviceQueryApi.findById(SERVICE_ID)).thenReturn(Optional.of(svc));
-        when(addressPersistencePort.findById(ADDRESS_ID)).thenReturn(Optional.of(
-                Address.builder().id(ADDRESS_ID).latitude(BigDecimal.ZERO).longitude(BigDecimal.ZERO).build()));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(
-                Optional.of(UserProfile.builder().userId(OFFERER_ID).primaryAddressId(null).build()));
+        when(profileQueryApi.findAddress(ADDRESS_ID)).thenReturn(Optional.of(
+                new AddressSnapshot(ADDRESS_ID, CLIENT_ID, null, null,
+                        BigDecimal.ZERO, BigDecimal.ZERO, null)));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(
+                Optional.of(profile(OFFERER_ID, null, null)));
 
         assertThatThrownBy(() -> service.checkWithinRadius(SERVICE_ID, ADDRESS_ID))
                 .isInstanceOf(BusinessRuleException.class)
@@ -235,7 +236,7 @@ class ServiceRequestCommandServiceTest {
     void acceptRequest_succeeds_whenOffererOwnsRequest() {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
 
         service.acceptRequest(REQUEST_ID, OFFERER_ID);
 
@@ -271,7 +272,7 @@ class ServiceRequestCommandServiceTest {
     void rejectRequest_succeeds_whenOffererOwnsRequest() {
         ServiceRequest request = pendingRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
 
         service.rejectRequest(REQUEST_ID, OFFERER_ID);
 
@@ -337,7 +338,7 @@ class ServiceRequestCommandServiceTest {
     void markAsPresumablyCompleted_succeeds() {
         ServiceRequest request = acceptedRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(userProfilePersistencePort.findByUserId(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
+        when(profileQueryApi.findProfile(OFFERER_ID)).thenReturn(Optional.of(offererProfile()));
 
         service.markAsPresumablyCompleted(REQUEST_ID, OFFERER_ID);
 
@@ -363,7 +364,7 @@ class ServiceRequestCommandServiceTest {
     void confirmCompletion_succeeds() {
         ServiceRequest request = presumablyCompletedRequest();
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
 
         service.confirmCompletion(REQUEST_ID, CLIENT_ID);
 
@@ -506,7 +507,7 @@ class ServiceRequestCommandServiceTest {
 
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
         when(serviceRequestPersistencePort.save(any())).thenReturn(replacement);
-        when(userProfilePersistencePort.findByUserId(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
+        when(profileQueryApi.findProfile(CLIENT_ID)).thenReturn(Optional.of(clientProfile()));
 
         ServiceRequest result = service.rescheduleRequest(REQUEST_ID, newDate, CLIENT_ID);
 
@@ -607,27 +608,23 @@ class ServiceRequestCommandServiceTest {
                 active);
     }
 
-    private Address clientAddress() {
-        return Address.builder()
-                .id(ADDRESS_ID)
-                .latitude(new BigDecimal("-75.5700"))
-                .longitude(new BigDecimal("6.2442"))
-                .build();
+    private AddressSnapshot clientAddress() {
+        return new AddressSnapshot(
+                ADDRESS_ID, CLIENT_ID, null, null,
+                new BigDecimal("-75.5700"), new BigDecimal("6.2442"), null);
     }
 
-    private UserProfile clientProfile() {
-        return UserProfile.builder()
-                .userId(CLIENT_ID)
-                .fullName("Juan Perez")
-                .primaryAddressId(ADDRESS_ID)
-                .build();
+    private ProfileSnapshot clientProfile() {
+        return profile(CLIENT_ID, "Juan Perez", ADDRESS_ID);
     }
 
-    private UserProfile offererProfile() {
-        return UserProfile.builder()
-                .userId(OFFERER_ID)
-                .fullName("Maria Garcia")
-                .primaryAddressId(50L)
-                .build();
+    private ProfileSnapshot offererProfile() {
+        return profile(OFFERER_ID, "Maria Garcia", 50L);
+    }
+
+    private ProfileSnapshot profile(Long userId, String fullName, Long primaryAddressId) {
+        return new ProfileSnapshot(
+                null, userId, fullName, null, null, null,
+                primaryAddressId, null, null, null, null);
     }
 }

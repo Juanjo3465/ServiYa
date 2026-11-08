@@ -807,19 +807,23 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
 - **Contratos de eventos**: `RequestStatusChangedEvent` usa `String`; `TagRef` usa
   `(Long tagId, boolean positive)`. Se eliminan las dependencias de `shared` hacia
   `requests.domain` y `feedback.domain`; `metrics` deja de importar `requests.domain`.
-- **Baseline ArchUnit**: 451 → **414** violaciones congeladas (shared 24→15, domain 326→298,
-  persistence 64, infrastructure 37). Las reglas nuevas sí fallan ante una violación nueva.
+- **Baseline ArchUnit**: 451 → **316** violaciones congeladas (shared 24→15, domain 326→249,
+  persistence 64→15, infrastructure 37). Las reglas nuevas sí fallan ante una violación nueva.
 - **Incremento 2A (catalog)**: añadidos `profiles.api` (`ProfileQueryApi`, `ProfileCommandApi`) y
   `services.api` (`ServiceQueryApi`, `ServiceCommandApi`), con lecturas por lote
   (`findProfiles`, `findByIds`). El resumen del oferente no incluye rating (lo compone
-  `metrics.api`) y no se expone `ServiceDetail`. El baseline sigue en **414**.
+  `metrics.api`) y no se expone `ServiceDetail`.
+- **Incremento 2B (`requests` → catalog)**: `requests` ya no importa `profiles`/`services`
+  `domain` ni `application.ports.output`; usa `ProfileQueryApi` y `ServiceQueryApi`. Se
+  reemplazaron los 6 puertos de persistencia ajenos y se adaptaron los tests de command/query/
+  reschedule. El baseline bajó de **414 a 316**.
 - **Verificación**: 409 tests, 0 fallos, 14 skipped (Redis sin Docker).
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Pendiente inmediato: **Incremento 2B** — migrar `requests` a las APIs de catalog para eliminar los
-puertos de persistencia ajenos (el mayor bloque del baseline) y después seguir con el resto de
-violaciones profundas.
+Siguiente: **Incremento 3** (`requests.api`, `feedback.api`, `metrics.api`) y el resto de
+violaciones profundas (`services` → metrics/profiles, `admin`, `feedback` → requests,
+`shared/PlatformStatsRepository`, `users` → profiles).
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1002,6 +1006,15 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   `<módulo>.application.api`; tests `ProfileApiFacadeTest` (11) y `ServiceApiFacadeTest` (8).
   Baseline ArchUnit sin cambios (**414**). Verificación: 409 tests, 0 fallos, 14 skipped. Siguiente:
   Incremento 2B (migrar `requests` a catalog).
+- **2026-11-08** — **Incremento 2B: `requests` migrado a las APIs de catalog.** Eliminados de
+  `ServiceRequestCommandService`, `ServiceRequestQueryService` y `RescheduleProposalService` los
+  puertos `ServicePersistencePort`, `ServiceAvailabilityPersistencePort`, `CategoryPersistencePort`,
+  `UserProfilePersistencePort` y `AddressPersistencePort`. Ahora usan `ServiceQueryApi` y
+  `ProfileQueryApi` (`ServiceSnapshot`, `ServiceAvailabilitySnapshot`, `CategorySnapshot`,
+  `ProfileSnapshot`, `AddressSnapshot`). La fórmula Haversine de `Address` se movió a un helper
+  privado de requests. Tests adaptados: 33 + 14 + 21. Baseline ArchUnit: **414 → 316**
+  (domain 249, persistence 15, shared 15, infrastructure 37). Suite: 409 tests, 0 fallos, 14
+  skipped. Siguiente: Incremento 3 y el resto de violaciones profundas.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

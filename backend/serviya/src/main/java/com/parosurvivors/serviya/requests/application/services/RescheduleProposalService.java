@@ -1,10 +1,9 @@
 package com.parosurvivors.serviya.requests.application.services;
 
 import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
-import com.parosurvivors.serviya.profiles.domain.Address;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.requests.application.dto.command.CreateRescheduleProposalCommand;
 import com.parosurvivors.serviya.requests.application.dto.item.RescheduleProposalItem;
 import com.parosurvivors.serviya.requests.application.dto.query.SearchRescheduleProposalsQuery;
@@ -56,8 +55,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
     private final ServiceRequestReadPort serviceRequestReadPort;
     private final RescheduleProposalCommandMapper commandMapper;
     private final ServiceQueryApi serviceQueryApi;
-    private final UserProfilePersistencePort userProfilePersistencePort;
-    private final AddressPersistencePort addressPersistencePort;
+    private final ProfileQueryApi profileQueryApi;
     private final NotificationServicePort notificationServicePort;
     private final DomainEventPublisherPort eventPublisher;
 
@@ -100,12 +98,12 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         // La participación del oferente en el flujo de reprogramación es proponer: cuenta la propuesta.
         eventPublisher.publish(new RescheduleProposalCreatedEvent(
                 saved.getId(), request.getId(), request.getOffererId(), request.getClientId()));
-        userProfilePersistencePort.findByUserId(command.offererId())
+        profileQueryApi.findProfile(command.offererId())
                 .ifPresent(offerer -> notificationServicePort.notify(
                         request.getClientId(),
                         "reschedule_proposed",
                         "Propuesta de reprogramación",
-                        offerer.getFullName() + " propuso reprogramar tu servicio para el "
+                        offerer.fullName() + " propuso reprogramar tu servicio para el "
                                 + command.proposedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
                         "SERVICE_REQUEST",
                         command.requestId(),
@@ -147,12 +145,12 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         // flujo libre donde el reemplazo PENDING se acepta después).
         publishStatusChanged(request, previous);
         publishStatusChanged(saved, null);
-        userProfilePersistencePort.findByUserId(clientId)
+        profileQueryApi.findProfile(clientId)
                 .ifPresent(client -> notificationServicePort.notify(
                         request.getOffererId(),
                         "reschedule_accepted",
                         "Reprogramación aceptada",
-                        client.getFullName() + " aceptó la propuesta de reprogramación.",
+                        client.fullName() + " aceptó la propuesta de reprogramación.",
                         "SERVICE_REQUEST",
                         request.getId(),
                         null,
@@ -169,12 +167,12 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
 
         proposal.reject();
         rescheduleProposalPersistencePort.update(proposal);
-        userProfilePersistencePort.findByUserId(clientId)
+        profileQueryApi.findProfile(clientId)
                 .ifPresent(client -> notificationServicePort.notify(
                         request.getOffererId(),
                         "reschedule_rejected",
                         "Reprogramación rechazada",
-                        client.getFullName() + " rechazó la propuesta de reprogramación.",
+                        client.fullName() + " rechazó la propuesta de reprogramación.",
                         "SERVICE_REQUEST",
                         request.getId(),
                         null,
@@ -190,12 +188,12 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
 
         proposal.cancel();
         rescheduleProposalPersistencePort.update(proposal);
-        userProfilePersistencePort.findByUserId(offererId)
+        profileQueryApi.findProfile(offererId)
                 .ifPresent(offerer -> notificationServicePort.notify(
                         request.getClientId(),
                         "reschedule_cancelled",
                         "Propuesta retirada",
-                        offerer.getFullName() + " retiró la propuesta de reprogramación.",
+                        offerer.fullName() + " retiró la propuesta de reprogramación.",
                         "SERVICE_REQUEST",
                         request.getId(),
                         null,
@@ -239,11 +237,11 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         String categoryName = service == null ? null
                 : serviceQueryApi.findCategory(service.categoryId()).map(CategorySnapshot::name).orElse(null);
         String addressLabel = request.getAddressId() == null ? null
-                : addressPersistencePort.findById(request.getAddressId()).map(Address::getCity).orElse(null);
+                : profileQueryApi.findAddress(request.getAddressId()).map(AddressSnapshot::city).orElse(null);
         // La contraparte es la otra parte relativa al que consulta.
         Long counterpartyUserId = viewerId.equals(proposal.getClientId())
                 ? proposal.getOffererId() : proposal.getClientId();
-        UserProfile counterparty = userProfilePersistencePort.findByUserId(counterpartyUserId).orElse(null);
+        ProfileSnapshot counterparty = profileQueryApi.findProfile(counterpartyUserId).orElse(null);
 
         return new RescheduleProposalDetailResult(
                 proposal.getId(), proposal.getStatus().name(), proposal.getReason(), proposal.getProposedDate(),
@@ -255,8 +253,8 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
                 service == null ? null : service.priceHourly(),
                 service == null ? null : service.averageDurationMinutes(),
                 counterpartyUserId,
-                counterparty == null ? null : counterparty.getFullName(),
-                counterparty == null ? null : counterparty.getProfilePhotoUrl());
+                counterparty == null ? null : counterparty.fullName(),
+                counterparty == null ? null : counterparty.profilePhotoUrl());
     }
 
     @Override

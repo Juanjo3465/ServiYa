@@ -1,9 +1,8 @@
 package com.parosurvivors.serviya.requests.application.services;
 
-import com.parosurvivors.serviya.profiles.application.ports.output.AddressPersistencePort;
-import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
-import com.parosurvivors.serviya.profiles.domain.Address;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.requests.application.dto.item.RequestHistoryItem;
 import com.parosurvivors.serviya.requests.application.dto.item.ServiceRequestSummaryItem;
 import com.parosurvivors.serviya.requests.application.dto.query.SearchServiceRequestsQuery;
@@ -30,8 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Servicio de lecturas de solicitudes (CQRS, módulo 4). Los listados paginados y filtrados van por el
  * {@link ServiceRequestReadPort} (query nativa enriquecida). El detalle NO usa query nativa: se
- * compone inyectando los puertos de servicio, categoría, perfiles y dirección, porque la dirección
- * (address_line) está cifrada y solo {@link AddressPersistencePort} la devuelve descifrada.
+ * compone con las APIs de catalog (services/profiles), porque la dirección (address_line) está
+ * cifrada y {@link ProfileQueryApi} la devuelve descifrada.
  * Ver documents/project-structure/estructura-servicios.docx.
  */
 @Component
@@ -40,8 +39,7 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
 
     private final ServiceRequestReadPort serviceRequestReadPort;
     private final ServiceQueryApi serviceQueryApi;
-    private final UserProfilePersistencePort userProfilePersistencePort;
-    private final AddressPersistencePort addressPersistencePort;
+    private final ProfileQueryApi profileQueryApi;
 
     /** Estados "activos" (no terminales) de una solicitud: aún en curso desde la óptica del cliente. */
     private static final List<RequestStatus> ACTIVE_STATUSES =
@@ -171,23 +169,23 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
                 .flatMap(serviceQueryApi::findCategory)
                 .map(CategorySnapshot::name)
                 .orElse(null);
-        UserProfile client = userProfilePersistencePort.findByUserId(request.getClientId()).orElse(null);
-        UserProfile offerer = userProfilePersistencePort.findByUserId(request.getOffererId()).orElse(null);
-        Address address = request.getAddressId() == null ? null
-                : addressPersistencePort.findById(request.getAddressId()).orElse(null);
+        ProfileSnapshot client = profileQueryApi.findProfile(request.getClientId()).orElse(null);
+        ProfileSnapshot offerer = profileQueryApi.findProfile(request.getOffererId()).orElse(null);
+        AddressSnapshot address = request.getAddressId() == null ? null
+                : profileQueryApi.findAddress(request.getAddressId()).orElse(null);
         return new Enrichment(
                 service.map(ServiceSnapshot::title).orElse(null),
                 categoryName,
                 service.map(ServiceSnapshot::priceHourly).orElse(null),
                 service.map(ServiceSnapshot::averageDurationMinutes).orElse(null),
-                client == null ? null : client.getFullName(),
-                client == null ? null : client.getProfilePhotoUrl(),
-                offerer == null ? null : offerer.getFullName(),
-                offerer == null ? null : offerer.getProfilePhotoUrl(),
-                address == null ? null : address.getAddressLine(),
-                address == null ? null : address.getCity(),
-                address == null ? null : address.getLatitude(),
-                address == null ? null : address.getLongitude());
+                client == null ? null : client.fullName(),
+                client == null ? null : client.profilePhotoUrl(),
+                offerer == null ? null : offerer.fullName(),
+                offerer == null ? null : offerer.profilePhotoUrl(),
+                address == null ? null : address.addressLine(),
+                address == null ? null : address.city(),
+                address == null ? null : address.latitude(),
+                address == null ? null : address.longitude());
     }
 
     /** Datos enriquecidos comunes al detalle de parte y de admin. */
