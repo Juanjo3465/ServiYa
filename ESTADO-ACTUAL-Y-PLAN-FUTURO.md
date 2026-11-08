@@ -807,8 +807,8 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
 - **Contratos de eventos**: `RequestStatusChangedEvent` usa `String`; `TagRef` usa
   `(Long tagId, boolean positive)`. Se eliminan las dependencias de `shared` hacia
   `requests.domain` y `feedback.domain`; `metrics` deja de importar `requests.domain`.
-- **Baseline ArchUnit**: 451 → **316** violaciones congeladas (shared 24→15, domain 326→249,
-  persistence 64→15, infrastructure 37). Las reglas nuevas sí fallan ante una violación nueva.
+- **Baseline ArchUnit**: 451 → **272** violaciones congeladas (shared 24→0, domain 326→234,
+  persistence 64→8, infrastructure 37→30). Las reglas nuevas sí fallan ante una violación nueva.
 - **Incremento 2A (catalog)**: añadidos `profiles.api` (`ProfileQueryApi`, `ProfileCommandApi`) y
   `services.api` (`ServiceQueryApi`, `ServiceCommandApi`), con lecturas por lote
   (`findProfiles`, `findByIds`). El resumen del oferente no incluye rating (lo compone
@@ -821,13 +821,20 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
   `RequestCommandApi`), `feedback.api` (`FeedbackQueryApi`, `FeedbackCommandApi`) y
   `metrics.api` (`MetricsQueryApi`) con DTOs propios y fachadas. No exponen vistas compuestas:
   admin/BFF compone nombres, servicio y categoría. El baseline sigue en **316**.
-- **Verificación**: 429 tests, 0 fallos, 14 skipped (Redis sin Docker).
+- **Migración `feedback` → `requests.api`**: reemplazados `ServiceRequestReadPort` y
+  `ServiceRequest` por `RequestQueryApi`/`RequestSnapshot`; tests nuevos de feedback.
+  Baseline **316 → 294**.
+- **Migración `users` → `profiles.api`**: `AccountController` usa `ProfileQueryApi` en lugar de
+  `UserProfileRepository`. Baseline **294 → 287**.
+- **Módulo `statistics`**: `PlatformStatsRepository`/controller salen de `shared` y componen con
+  `users.api`, `requests.api`, `feedback.api` y `services.api`. Baseline **287 → 272**;
+  la regla de pureza de `shared` queda absoluta (0 violaciones).
+- **Verificación**: 442 tests, 0 fallos, 14 skipped (Redis sin Docker).
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: migrar los consumidores restantes con los contratos ya disponibles —
-`feedback` → `requests.api`, `services` → `metrics.api`/`profiles.api`, `users` → `profiles.api`,
-`admin` → APIs, y `shared/PlatformStatsRepository` → APIs/read module.
+Siguiente: **Incremento 4** (`reports.api`) y las migraciones restantes:
+`services` → `metrics.api`/`profiles.api`, `admin` → APIs, `reports` → APIs.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1029,6 +1036,18 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   `MetricsApiFacadeTest` (5). Las APIs no exponen vistas compuestas; el BFF compone nombres,
   servicio y categoría. Baseline ArchUnit sin cambios (**316**). Suite: 429 tests, 0 fallos,
   14 skipped. Siguiente: migrar `feedback` → `requests.api`, `services` → `metrics.api`, etc.
+- **2026-11-08** — **Migraciones de consumidores + módulo `statistics`.** (1) `feedback` pasó de
+  `ServiceRequestReadPort`/`ServiceRequest` a `RequestQueryApi`/`RequestSnapshot`; se añadieron
+  `ServiceFeedbackServiceTest` (5) y `ClientFeedbackServiceTest` (3); baseline **316 → 294**.
+  (2) `AccountController` pasó de `UserProfileRepository` a `ProfileQueryApi`; baseline
+  **294 → 287**. (3) `PlatformStatsRepository`/`StatisticsController` salieron de `shared` a un
+  nuevo módulo `statistics` que compone con `users.api`, `requests.api`, `feedback.api` y
+  `services.api`; se añadieron `RequestQueryApi.countByStatus`,
+  `FeedbackQueryApi.averageServiceFeedbackRating` y `PlatformStatsServiceTest` (3); baseline
+  **287 → 272** (domain 234, persistence 8, infrastructure 30, shared 0). La regla de pureza de
+  `shared` ya es absoluta (sin freeze). Suite: 442 tests, 0 fallos, 14 skipped. Commits:
+  `6100302`, `25b2544`, `0db13ab`. Siguiente: Incremento 4 (`reports.api`) y migración de
+  `services`/`admin`/`reports`.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

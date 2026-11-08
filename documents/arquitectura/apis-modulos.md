@@ -14,8 +14,11 @@
 | 2026-11-08 | Incremento 2A: contratos del cluster catalog (`profiles.api` + `services.api`), lecturas por lote y fachadas. | Completado |
 | 2026-11-08 | Incremento 2B: `requests` migrado a `profiles.api`/`services.api`; baseline reducido. | Completado |
 | 2026-11-08 | Incremento 3: contratos `requests.api`, `feedback.api` y `metrics.api` con fachadas y tests. | Completado |
+| 2026-11-08 | Migración `feedback` → `requests.api`; tests nuevos de feedback. | Completado |
+| 2026-11-08 | Migración `users` → `profiles.api` en `AccountController`. | Completado |
+| 2026-11-08 | Nuevo módulo `statistics`; `shared` queda como kernel puro (regla absoluta). | Completado |
 | Pendiente | Incremento 4: `reports.api`. | Pendiente |
-| Pendiente | Migraciones de consumidores restantes (`feedback`, `services`, `users`, `admin`, `shared`). | Pendiente |
+| Pendiente | Migraciones restantes (`services`, `admin`, `reports`). | Pendiente |
 
 ## 1. Convencion
 
@@ -182,16 +185,22 @@ Las reglas con deuda existente usan `FreezingArchRule`. Baseline actual:
 
 | Regla | Violaciones congeladas |
 |---|---:|
-| `domain` ajeno | 249 |
-| Puertos de persistencia ajenos | 15 |
-| `infrastructure` ajena | 37 |
-| `shared` hacia modulos | 15 |
-| **Total** | **316** |
+| `domain` ajeno | 234 |
+| Puertos de persistencia ajenos | 8 |
+| `infrastructure` ajena | 30 |
+| `shared` hacia modulos | 0 |
+| **Total** | **272** |
 
 Antes del Incremento 1 eran 451 (24 shared + 326 domain + 64 persistence + 37 infrastructure).
 El Incremento 2A no cambió el baseline (**414**). El Incremento 2B lo redujo a **316**:
 `requests` ya no importa `profiles`/`services` `domain` ni `application.ports.output`.
-El Incremento 3 no cambió el baseline: sigue en **316** (solo añade contratos).
+El Incremento 3 no cambió el baseline. Las migraciones posteriores lo redujeron a **272**:
+
+- `feedback` → `requests.api`: **316 → 294**.
+- `users` → `profiles.api` (`AccountController`): **294 → 287**.
+- `statistics` extraído de `shared`: **287 → 272**.
+
+La regla `shared` ya **no está congelada**: tiene 0 violaciones y es absoluta.
 
 Para actualizar el baseline de forma intencional:
 
@@ -208,7 +217,7 @@ cd backend/serviya
 | 2B | Migrar `requests` a las APIs de catalog — **completado**. |
 | 3 | `requests.api` + `feedback.api` + `metrics.api` — **completado**. |
 | 4 | `reports.api` (solo lo consume admin). |
-| — | Migrar consumidores restantes: `feedback`, `services`, `users`, `admin`, `shared`. |
+| — | Migrar consumidores restantes: `services`, `admin`, `reports`. |
 
 `admin` no publica API: es consumidor/orquestador. `config` es la raiz de composicion y puede
 cablear implementaciones de cualquier modulo.
@@ -238,7 +247,10 @@ Resultados:
   14/14, `RescheduleProposalServiceTest` 21/21.
 - Incremento 3: `RequestApiFacadeTest` 8/8, `FeedbackApiFacadeTest` 7/7,
   `MetricsApiFacadeTest` 5/5.
-- Suite amplia: **429 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+- Migraciones posteriores: `RequestApiFacadeTest` 9/9, `FeedbackApiFacadeTest` 8/8,
+  `ServiceFeedbackServiceTest` 5/5, `ClientFeedbackServiceTest` 3/3,
+  `PlatformStatsServiceTest` 3/3, `AccountControllerIntegrationTest` 4/4.
+- Suite amplia: **442 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
   (`@Testcontainers(disabledWithoutDocker = true)`).
 - La regla de pureza de APIs no es vacua: encontro 9 clases en `users.api`, 3 en
@@ -256,14 +268,13 @@ Pendiente recomendado: corregir ambos para que `./mvnw test` completo sea el gat
 
 ## 6. Alcance y límites
 
-- **La migración empezó por `requests`.** Ya no importa `profiles`/`services` `domain` ni
-  `application.ports.output`; usa `ProfileQueryApi` y `ServiceQueryApi`. El resto de consumidores
-  (`users`, `admin`, `reports`) sigue con sus puertos internos y se migrará en los pasos 3 y 4.
+- **Migrados:** `requests` → catalog, `feedback` → `requests.api`, `users` →
+  `profiles.api` (`AccountController`), y `statistics` como módulo de lectura.
+- **Pendientes:** `services`, `admin` y `reports` siguen usando puertos internos de otros módulos.
 - **`UserSummary` no incluye nombre ni foto.** Son datos de `profiles`; el consumidor/BFF los
   compone con `profiles.api` cuando se migre el listado de admin.
-- **`shared` sigue teniendo una violacion conocida:** `PlatformStatsRepository` importa repositorios
-  de users/services/requests/feedback. Esta en el baseline (15 lineas) y se resuelve moviendo las
-  estadisticas a un modulo de lectura/BFF.
+- **`shared` es un kernel puro:** `PlatformStatsRepository` se movió al módulo `statistics`; la regla
+  de pureza de `shared` ya no necesita baseline y es absoluta.
 - **Los eventos cambiaron de tipo, no de transporte.** `RequestStatusChangedEvent` y `TagRef` siguen
   siendo eventos in-process (`ApplicationEventPublisher`); no hay broker para ellos todavia. Cuando
   se publiquen por RabbitMQ/Kafka, el contrato ya es serializable a JSON, pero debera versionarse.
@@ -311,6 +322,12 @@ backend/serviya/src/main/java/com/parosurvivors/serviya/
   metrics/api/MetricsQueryApi.java
   metrics/api/dto/*.java
   metrics/application/api/MetricsApiFacade.java
+  feedback/application/services/ServiceFeedbackService.java
+  feedback/application/services/ClientFeedbackService.java
+  users/infrastructure/adapters/input/AccountController.java
+  statistics/application/services/PlatformStatsService.java
+  statistics/application/dto/response/PlatformStatsResponse.java
+  statistics/infrastructure/adapters/input/StatisticsController.java
 
 backend/serviya/src/test/java/com/parosurvivors/serviya/
   architecture/ModuleBoundaryTest.java
@@ -321,6 +338,9 @@ backend/serviya/src/test/java/com/parosurvivors/serviya/
   requests/application/api/RequestApiFacadeTest.java
   feedback/application/api/FeedbackApiFacadeTest.java
   metrics/application/api/MetricsApiFacadeTest.java
+  feedback/application/services/ServiceFeedbackServiceTest.java
+  feedback/application/services/ClientFeedbackServiceTest.java
+  statistics/application/services/PlatformStatsServiceTest.java
 
 backend/serviya/src/test/resources/
   archunit.properties
