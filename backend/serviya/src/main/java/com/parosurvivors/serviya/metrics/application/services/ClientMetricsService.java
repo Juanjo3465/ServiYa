@@ -4,7 +4,6 @@ import com.parosurvivors.serviya.metrics.application.ports.input.ClientMetricsSe
 import com.parosurvivors.serviya.metrics.application.ports.output.ClientMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
 import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
-import com.parosurvivors.serviya.requests.domain.RequestStatus;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -109,14 +108,17 @@ public class ClientMetricsService implements ClientMetricsServicePort {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void applyRequestStatusChanged(Long clientId, RequestStatus newStatus) {
+    public void applyRequestStatusChanged(Long clientId, String newStatus) {
+        if (newStatus == null) {
+            return;
+        }
         ClientMetrics metrics = findOrCreate(clientId);
         switch (newStatus) {
-            case ACCEPTED -> metrics.incrementAccepted();
-            case COMPLETED -> metrics.incrementCompleted();
-            case CANCELLED -> metrics.incrementCancelled();
-            case RESCHEDULED -> metrics.incrementRescheduled();
-            case NOT_PROVIDED -> metrics.incrementNotProvided();
+            case "ACCEPTED" -> metrics.incrementAccepted();
+            case "COMPLETED" -> metrics.incrementCompleted();
+            case "CANCELLED" -> metrics.incrementCancelled();
+            case "RESCHEDULED" -> metrics.incrementRescheduled();
+            case "NOT_PROVIDED" -> metrics.incrementNotProvided();
             // PENDING / REJECTED / PRESUMABLY_COMPLETED no tienen contador de cliente.
             default -> {
                 return;

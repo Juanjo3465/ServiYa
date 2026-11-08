@@ -317,7 +317,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
                 request.getClientId(),
                 request.getOffererId(),
                 request.getServiceId(),
-                previous,
-                request.getStatus()));
+                previous != null ? previous.name() : null,
+                request.getStatus() != null ? request.getStatus().name() : null));
     }
 }

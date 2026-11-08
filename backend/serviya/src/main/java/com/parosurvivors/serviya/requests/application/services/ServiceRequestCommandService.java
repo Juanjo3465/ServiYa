@@ -393,8 +393,8 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
                 request.getClientId(),
                 request.getOffererId(),
                 request.getServiceId(),
-                previous,
-                request.getStatus()));
+                previous != null ? previous.name() : null,
+                request.getStatus() != null ? request.getStatus().name() : null));
     }
 
     private void requireOwnership(Long ownerId, Long actorId) {

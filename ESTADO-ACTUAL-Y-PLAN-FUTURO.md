@@ -790,6 +790,32 @@ un **monolito distribuido** (el peor de los mundos: la complejidad de red sin la
 (schedulers con lock, estado fuera del disco, eventos fiables), con autorización correcta y sin que
 ningún módulo toque la persistencia de otro. **Si no se llega aquí, no se empieza a partir.**
 
+#### 7.2.1 Contratos entre módulos (M8) — Incremento 1 (2026-11-08)
+
+Primer paso ejecutable de M8: convertir las fronteras de módulo en contratos explícitos y congelar la
+deuda actual como **ratchet** para que no crezca mientras se paga.
+
+- **`ModuleBoundaryTest`** (ArchUnit, 7 reglas): ningún módulo importa `infrastructure`,
+  `application.ports.output` ni `domain` de otro; `shared` no conoce módulos de negocio; los paquetes
+  `.api` son puros; `domain`/`application` respetan las capas hexagonales.
+- **Convención**: cada módulo publica `com.parosurvivors.serviya.<módulo>.api` (interfaces + DTOs
+  `record`); la implementación es una fachada en `<módulo>.application.api` que delega en los casos
+  de uso existentes. Los enums que cruzan fronteras viajan como `String`; los tags como `boolean`.
+- **Contratos definidos**: `shared.contract` (`PageResult`, `Roles`), `notifications.api`
+  (`Channel`, `NotificationCommand`, `NotificationCommandApi`) y `users.api`
+  (`UserQueryApi`, `UserCommandApi`, `UserContactApi`).
+- **Contratos de eventos**: `RequestStatusChangedEvent` usa `String`; `TagRef` usa
+  `(Long tagId, boolean positive)`. Se eliminan las dependencias de `shared` hacia
+  `requests.domain` y `feedback.domain`; `metrics` deja de importar `requests.domain`.
+- **Baseline ArchUnit**: 451 → **414** violaciones congeladas (shared 24→15, domain 326→298,
+  persistence 64, infrastructure 37). Las reglas nuevas sí fallan ante una violación nueva.
+- **Verificación**: 390 tests, 0 fallos, 14 skipped (Redis sin Docker).
+
+> Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
+
+Pendiente inmediato: **Incremento 2** (`profiles.api` + `services.api`) y después migrar los
+consumidores para reducir el baseline (empezando por `requests` → persistencia de catalog/profiles).
+
 ### 7.3 Decomposición objetivo (grano grueso)
 
 Candidatos de servicio derivados del grafo (§3.3), agrupando lo que está fuertemente acoplado:
@@ -946,6 +972,20 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
 
 ## 10. Registro de la sesión de diagnóstico
 
+- **2026-11-08** — **Fronteras entre módulos: ArchUnit + Incremento 1 de contratos públicos**
+  (M8, §7.2.1). Añadido `ModuleBoundaryTest` (7 reglas ArchUnit) con baseline congelado
+  (`FreezingArchRule`, `src/test/resources/archunit_store`): prohíbe importar `infrastructure`,
+  puertos de persistencia y `domain` ajenos; exige `.api` puro; y vigila las capas hexagonales
+  internas. Primeros contratos: `shared.contract` (`PageResult`, `Roles`), `notifications.api`
+  (`Channel`, `NotificationCommand`, `NotificationCommandApi`) y `users.api` (`UserQueryApi`,
+  `UserCommandApi`, `UserContactApi`), implementados como fachadas en `<módulo>.application.api`.
+  Los contratos de eventos pasan a tipos serializables: `RequestStatusChangedEvent` con `String` y
+  `TagRef` con `boolean positive`; `shared` deja de importar `requests.domain`/`feedback.domain` y
+  `metrics` deja de importar `requests.domain`. Baseline ArchUnit: **451 → 414** violaciones
+  congeladas (shared 24→15, domain 326→298). Verificación: 390 tests, 0 fallos, 14 skipped (Redis
+  sin Docker), excluyendo solo `ServiyaApplicationTests` (falta H2) y `PiiAttributeConverterTest`
+  (falta `ENCRYPTION_KEY`), fallos ambientales preexistentes. Detalle en
+  `documents/arquitectura/apis-modulos.md`. Siguiente: Incremento 2 (`profiles.api` + `services.api`).
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

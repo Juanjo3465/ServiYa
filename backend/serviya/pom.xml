@@ -97,6 +97,16 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- ArchUnit: reglas de arquitectura ejecutables (fronteras entre modulos, capas y ciclos).
+		     Se ejecutan con el resto de tests unitarios; no necesitan contexto de Spring ni BD. -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<!-- 1.4.1 is built against JUnit Platform 1.12.2, the version managed by
+			     Spring Boot 3.5.5. Newer ArchUnit releases require a newer platform. -->
+			<version>1.4.1</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- Testcontainers: prueba de concurrencia del lock contra un Redis real y efímero. Versión
 		     gestionada por el BOM de Spring Boot. La prueba se SALTA (no falla) si no hay Docker

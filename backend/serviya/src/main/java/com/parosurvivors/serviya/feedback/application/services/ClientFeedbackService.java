@@ -180,7 +180,8 @@ public class ClientFeedbackService implements ClientFeedbackServicePort {
         Map<Long, TagSentiment> sentimentByTag = clientFeedbackTagCatalogPersistencePort.findAll().stream()
                 .collect(Collectors.toMap(ClientFeedbackTagCatalog::getId, ClientFeedbackTagCatalog::getSentiment));
         return tagIds.stream()
-                .map(tagId -> new TagRef(tagId, sentimentByTag.get(tagId)))
+                .map(tagId -> new TagRef(tagId,
+                        sentimentByTag.get(tagId) != null && sentimentByTag.get(tagId).isPositive()))
                 .toList();
     }
 }

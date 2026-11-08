@@ -198,7 +198,8 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
         Map<Long, TagSentiment> sentimentByTag = serviceFeedbackTagCatalogPersistencePort.findAll().stream()
                 .collect(Collectors.toMap(ServiceFeedbackTagCatalog::getId, ServiceFeedbackTagCatalog::getSentiment));
         return tagIds.stream()
-                .map(tagId -> new TagRef(tagId, sentimentByTag.get(tagId)))
+                .map(tagId -> new TagRef(tagId,
+                        sentimentByTag.get(tagId) != null && sentimentByTag.get(tagId).isPositive()))
                 .toList();
     }
 }
