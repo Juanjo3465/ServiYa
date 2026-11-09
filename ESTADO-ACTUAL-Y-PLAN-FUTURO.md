@@ -790,7 +790,7 @@ un **monolito distribuido** (el peor de los mundos: la complejidad de red sin la
 (schedulers con lock, estado fuera del disco, eventos fiables), con autorización correcta y sin que
 ningún módulo toque la persistencia de otro. **Si no se llega aquí, no se empieza a partir.**
 
-#### 7.2.1 Contratos entre módulos (M8) — Incremento 1 (2026-11-08)
+#### 7.2.1 Contratos entre módulos (M8) — Incrementos 1–4 (2026-11-08)
 
 Primer paso ejecutable de M8: convertir las fronteras de módulo en contratos explícitos y congelar la
 deuda actual como **ratchet** para que no crezca mientras se paga.
@@ -835,10 +835,34 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
 - **`RequestLookupApi` + gate completo**: lectura mínima de requests para feedback (rompe el ciclo
   de beans `feedback → requests → services → marketplace → feedback`); H2 + `ENCRYPTION_KEY`
   permiten correr **toda** la suite sin exclusiones. **454 tests, 0 fallos, 14 skipped**.
+- **Migración `reports` → APIs públicas**: `ReportService`, `RequestReportService`,
+  `ClientFeedbackReportService` y `ServiceFeedbackReportService` usan `ProfileQueryApi`,
+  `RequestQueryApi`, `ServiceQueryApi`, `FeedbackQueryApi`, `UserQueryApi` y
+  `NotificationCommandApi`. El detalle compuesto (nombres, título de servicio, ciudad y nombres de
+  tags) se arma en el propio BFF de reports a partir de snapshots. Baseline **272 → 263**.
+- **Migración `services` → `metrics.api`/`profiles.api`/`feedback.api`**: `MarketplaceService`,
+  `ServiceAvailabilityService`, `ServiceController` y los mappers dejan de usar puertos y dominio
+  ajenos. `ServiceDetail`/`FeedbackUser` guardan snapshots públicos. El filtro por rating se
+  resuelve con `MetricsQueryApi.findServiceIdsByAverageRating`, eliminando el import de
+  `ServiceMetricsEntity` en `ServiceSpecificationRepository`. Nuevo `RequestCountApi` para romper
+  el ciclo `metrics → requests query → services → marketplace`. Baseline **263 → 183**.
+- **Migración `metrics`/`notifications`**: `MetricsController` enriquece tags con
+  `FeedbackQueryApi`; `UserRecipientEmailAdapter` usa un `UserContactApi` estrecho
+  (`UserContactFacade`) que evita el ciclo
+  `notifications → user API → user service → notifications`. Baseline **183 → 176**.
+- **Migración `users`**: autenticación, `UserService` y borrado de cuenta usan
+  `NotificationCommandApi`/`Channel`, `RequestCommandApi`/`RequestSnapshot` y
+  `ProfileCommandApi`/`AddressSnapshot`. Baseline **176 → 160**.
+- **Migración `profiles`**: `OffererProfileService` y `OffererPublicProfileService` usan
+  `MetricsQueryApi` y `ServiceQueryApi` en lugar de puertos/dominio ajenos. Baseline **160 → 136**
+  (domain 100, persistence 8, infrastructure 28, shared 0).
+- **Gate actual**: **455 tests, 0 fallos, 0 errores, 14 skipped**; la deuda restante se concentra
+  en `admin` (~131 líneas) y `services → profiles.infrastructure` (~6 líneas).
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: migrar `services` → `metrics.api`/`profiles.api`, `admin` → APIs y `reports` → APIs.
+Siguiente: pagar la deuda restante de `admin` y el spec de búsqueda de
+`services → profiles.infrastructure`; opcionalmente, un test determinista de ciclos.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1060,6 +1084,16 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   Se añadió H2 como dependencia de test y `ENCRYPTION_KEY` en `PiiAttributeConverterTest`.
   Resultado: **454 tests, 0 fallos, 14 skipped** sin exclusiones. Baseline ArchUnit sin cambios
   (**272**). Commits: `e253b5a`, `c2ec693`. Siguiente: migrar `services`, `admin` y `reports`.
+- **2026-11-08** — **Migración de consumidores a las APIs públicas.** Se eliminaron las últimas
+  dependencias cruzadas de `reports`, `services`, `metrics`, `notifications`, `users` y `profiles`
+  hacia `domain`, `infrastructure` y puertos internos ajenos. Se añadieron `RequestCountApi`
+  (conteo mínimo para metrics) y `UserContactFacade` (contacto mínimo para notifications) para
+  romper sendos ciclos de beans. `ServiceDetail`/`FeedbackUser` pasan a contener snapshots de API;
+  el filtro por rating se resuelve con `MetricsQueryApi.findServiceIdsByAverageRating`; los tags de
+  metrics se enriquecen con `FeedbackQueryApi`. Baseline ArchUnit: **272 → 136** (domain 100,
+  persistence 8, infrastructure 28, shared 0). Suite completa: **455 tests, 0 fallos, 0 errores,
+  14 skipped**. Commits: `fefd78a`, `e9b0e54`, `8f9e56e`, `9cb35b4`, `9e8722a`. Deuda restante:
+  `admin` (~131 líneas) y `services → profiles.infrastructure` (~6 líneas).
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,
