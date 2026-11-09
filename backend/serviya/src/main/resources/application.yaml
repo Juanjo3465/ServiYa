@@ -161,6 +161,17 @@ management:
 # Filtro de palabras (RNF-006): se censuran en todo texto libre antes de persistir
 # (descripcion de perfil, motivo de reportes, resenas). Ampliar la lista NO requiere recompilar.
 serviya:
+  # Emisión de access tokens ES256 + JWKS (Fase 1, guia-implementacion-auth.md). Las claves se inyectan por
+  # entorno (nunca en el repo); el gestor de secretos de prod queda como deuda (P1.1 / D-14).
+  security:
+    jwt:
+      private-key: ${JWT_PRIVATE_KEY:}
+      public-key: ${JWT_PUBLIC_KEY:}
+      key-id: ${JWT_KEY_ID:}
+      issuer: ${JWT_ISSUER:https://auth.serviya.local}
+      audience: ${JWT_AUDIENCE:marketplace-api}
+      access-ttl: ${JWT_ACCESS_TTL:15m}
+      typ: ${JWT_TYP:at+jwt}
   word-filter:
     blocked-words: >-
       idiota,imbecil,estupido,estupida,maldito,maldita,mierda,puta,puto,

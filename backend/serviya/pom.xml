@@ -148,6 +148,14 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Nimbus JOSE+JWT: construye el JWKS (claves publicas ES256) que publica JwksController (Fase 1
+		     de centralizacion de auth). Version gestionada por el BOM de Spring Boot 3.5.5. -->
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>9.48</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

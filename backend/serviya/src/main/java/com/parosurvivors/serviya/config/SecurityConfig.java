@@ -49,6 +49,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Documentacion OpenAPI/Swagger
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                // JWKS: claves publicas para verificar los access tokens ES256 (Fase 1 de centralizacion
+                // de auth). Publico por definicion: gateway y servicios lo consumen sin token.
+                .requestMatchers(HttpMethod.GET, "/.well-known/jwks.json").permitAll()
                 // El area propia del oferente (/offerers/me/**: perfil propio, disponibilidad) SIEMPRE exige
                 // login: la identidad sale del JWT. Va ANTES de la regla publica de abajo, que si no
                 // dejaria "me" abierto al hacer match con el comodin del id.

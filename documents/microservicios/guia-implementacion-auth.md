@@ -209,66 +209,47 @@ Reglas:
 
 ### Pendientes bloqueantes
 
-- [ ] **P1.1. Almacenamiento de la clave privada.** ¿Vault, KMS de la nube o Docker secrets? Nunca en el repositorio ni en un `.env` versionado.
-  Decisión:
-- [ ] **P1.2. Procedimiento de rotación de claves.** Documentar los pasos: (1) generar la clave nueva, (2) publicarla en el JWKS junto a la actual, (3) esperar a que los verificadores refresquen su caché, (4) firmar con la nueva, (5) retirar la vieja cuando expire el último token firmado con ella. Definir la periodicidad (sugerido: cada 6–12 meses) y el procedimiento de emergencia si la clave se compromete.
-  Decisión:
-- [ ] **P1.3. Valor de `iss`.** Debe ser una URL lógica estable que sobreviva a la Fase 8.
-  Decisión:
-- [ ] **P1.4. Valor de `aud`.** Sugerido: un único valor `marketplace-api`.
-  Decisión:
-- [ ] **P1.5. Vida del access token** (10–15 min).
-  Decisión:
-- [ ] **P1.6. Usar `typ: at+jwt` o no.** Recomendado, porque evita aceptar como access token otros JWT futuros. Requiere que todos los verificadores acepten ese `typ` (ver notas técnicas). Si complica la Fase 3, se puede omitir sin pérdida grave.
-  Decisión:
-- [ ] **P1.7. Versión del JDK** en el monolito, notif y el gateway: confirmar que es un JDK 17/21 actualizado (CVE-2022-21449).
-  Decisión:
+- [x] **P1.1. Almacenamiento de la clave privada.**
+  Decisión (2026-11-09): **`.env` local + inyección por `docker-compose`** (mismo patrón que `JWT_SECRET`/`ENCRYPTION_KEY`), nunca versionada. El **gestor de secretos de prod (Vault/KMS) queda como deuda** (P1.1 / D-14 "gestor de prod pendiente", ESTADO §6.6). Formato: base64 del DER (o PEM) en `JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`.
+- [x] **P1.2. Procedimiento de rotación de claves.**
+  Decisión: documentado (publicar la nueva en el JWKS → esperar caché (`max-age=300`) → firmar con la nueva → retirar la vieja al expirar el último token). El JWKS y `JwtKeys` ya se diseñaron para **varias claves**. Periodicidad y procedimiento de emergencia: se concretan al montar el gestor de prod (deuda).
+- [x] **P1.3. Valor de `iss`.**
+  Decisión: **`https://auth.serviya.local`** (URL lógica estable; sobrevive a la Fase 8). Configurable por `JWT_ISSUER`.
+- [x] **P1.4. Valor de `aud`.**
+  Decisión: **`marketplace-api`**. Configurable por `JWT_AUDIENCE`.
+- [x] **P1.5. Vida del access token.**
+  Decisión: **15 min**, en variable **`JWT_ACCESS_TTL`** (default `15m` en `application.yaml`).
+- [x] **P1.6. Usar `typ: at+jwt`.**
+  Decisión: **Sí** (`JWT_TYP`, default `at+jwt`). Implica que en la Fase 3 los verificadores Nimbus deben aceptar ese `typ` (T3.3).
+- [x] **P1.7. Versión del JDK** (CVE-2022-21449).
+  Decisión: los contenedores usan `eclipse-temurin:21` → **a salvo** (el CVE afecta JDK 15–18). Compilación local con JDK 21 (CLAUDE.md). Confirmado.
 - [x] **P1.8. Coordinación con el equipo de chat (otro equipo).** El chat es greenfield y sus docs apuntaban a HS256; el cambio a ES256/JWKS los afecta antes de que construyan.
   Decisión (2026-11-08): **coordinado.** Se actualizaron `documents/microservicios/chat/` (DP-03 → **ES256/JWKS**, variables de entorno, claims `iss`/`aud`/`kid`/`typ`, el chat no chequea `min_iat`). El chat nace como resource server ES256; no hay migración. Mensaje de aviso enviado al equipo.
 
 ### Tareas
 
-- [ ] T1.1. Generar el par de claves EC P-256 para desarrollo y staging (producción según P1.1):
-  ```bash
-  openssl ecparam -name prime256v1 -genkey -noout -out ec-private.pem
-  openssl pkcs8 -topk8 -nocrypt -in ec-private.pem -out ec-private-pkcs8.pem
-  openssl ec -in ec-private.pem -pubout -out ec-public.pem
-  ```
-- [ ] T1.2. Reemplazar la configuración `JWT_SECRET` por `JWT_PRIVATE_KEY` (PEM PKCS#8) y `JWT_KEY_ID`, y agregar `JWT_ISSUER`, `JWT_AUDIENCE` y `JWT_ACCESS_TTL`.
-- [ ] T1.3. Adaptar el **fail-fast** del constructor de `JwtService` (:41-:71): abortar el arranque si la clave falta, no es EC P-256 o falta el `kid`. Eliminar `isWeakJwtSecret` y la derivación SHA-256 del secreto.
-- [ ] T1.4. Reescribir `JwtService.issue(...)` con ES256:
-  ```java
-  String token = Jwts.builder()
-          .header().keyId(keyId).type("at+jwt").and()   // type según P1.6
-          .issuer(issuer)
-          .audience().add(audience).and()
-          .subject(String.valueOf(userId))
-          .claim("roles", roleNames)
-          .id(UUID.randomUUID().toString())             // jti
-          .issuedAt(Date.from(now))
-          .expiration(Date.from(now.plus(accessTtl)))
-          .signWith(privateKey, Jwts.SIG.ES256)
-          .compact();
-  ```
-- [ ] T1.5. Exponer `GET /.well-known/jwks.json` (público, `Cache-Control: max-age=300`), construido con Nimbus a partir de la clave **pública**:
-  ```java
-  ECKey jwk = new ECKey.Builder(Curve.P_256, (ECPublicKey) publicKey)
-          .keyID(keyId).keyUse(KeyUse.SIGNATURE).algorithm(JWSAlgorithm.ES256).build();
-  return new JWKSet(jwk).toJSONObject(); // toJSONObject() excluye la parte privada por defecto
-  ```
-  Diseñarlo para publicar **varias** claves (necesario para la rotación de P1.2).
-- [ ] T1.6. `JwtService.resolve(...)` se mantiene **temporalmente** solo para que el monolito siga funcionando en staging hasta la Fase 4. Adaptarlo a ES256 con la clave pública, o reemplazarlo directamente si la Fase 4 se hace inmediatamente después.
+- [x] T1.1. Par EC P-256 generado con `openssl` (dev/test). Claves reales por `.env` (prod = deuda, P1.1). `.env.example` trae los comandos de generación.
+- [x] T1.2. Config migrada: `JwtProperties` (`@ConfigurationProperties serviya.security.jwt`): `private-key`/`public-key`/`key-id`/`issuer`/`audience`/`access-ttl`/`typ`, mapeadas a `JWT_*` en `application.yaml`, `.env.example` y `docker-compose.yml`. `JWT_SECRET`/`JWT_EXPIRATION_MS` eliminadas del monolito.
+- [x] T1.3. Fail-fast en `JwtKeys` (nuevo `@Component`): aborta si falta la clave, no decodifica (base64/PEM), no es EC P-256 (field size 256) o falta el `kid`. `isWeakJwtSecret`/SHA-256 eliminados.
+- [x] T1.4. `JwtService.issue(...)` reescrito a ES256 (header `kid`+`typ`; `iss`/`aud`/`sub`/`roles`/`jti`/`iat`/`exp`; `signWith(privateKey, Jwts.SIG.ES256)`).
+- [x] T1.5. `JwksController` expone `GET /.well-known/jwks.json` (público en `SecurityConfig`, `Cache-Control: max-age=300`), construido con Nimbus; multi-clave para rotación. Dep `com.nimbusds:nimbus-jose-jwt` añadida.
+- [x] T1.6. `JwtService.resolve(...)` mantenido para el `JwtAuthenticationFilter` del monolito, ahora verificando ES256 con la clave pública + `requireIssuer`. Se eliminará en la Fase 4.
 
 ### Criterios de aceptación
 
-- [ ] Un token emitido por login, register y acquireRole se valida en jwt.io (o una herramienta equivalente) con la clave pública del JWKS.
-- [ ] El token contiene exactamente los claims del contrato 4.1. Test unitario que lo verifica.
-- [ ] El JWKS no expone el parámetro privado `d`. Test unitario que lo verifica.
-- [ ] El arranque falla con una clave ausente, inválida o de otra curva. Tests de fail-fast.
-- [ ] `UserAuthenticationService` no cambió, salvo que se agregue `refreshToken` en la Fase 2.
+- [x] El token contiene exactamente los claims del contrato 4.1 (`alg`/`kid`/`typ` + `iss`/`aud`/`sub`/`roles`/`jti`/`iat`/`exp`). Verificado en `JwtServiceTest#issuedTokenCarriesContractClaims`.
+- [x] El JWKS no expone el parámetro privado `d`. Verificado en `JwksControllerTest`.
+- [x] El arranque falla con clave ausente/ inválida/ de otra curva o `kid` vacío. Verificado en `JwtKeysTest` (6 casos).
+- [x] `UserAuthenticationService` **no cambió** (el refresh llega en la Fase 2); `TokenProviderPort.issue` conserva su firma.
+- [ ] _Pendiente e2e (manual):_ validar en jwt.io un token de login/register/acquireRole con la clave pública del JWKS (requiere el stack arriba con claves en `.env`).
 
 ### Notas de implementación
-_(completar durante la implementación)_
+
+- **Implementado y verificado 2026-11-09** (rama `api-gateway`). Build + tests: **BUILD SUCCESS**; 12 tests nuevos (`JwtServiceTest` 4, `JwtKeysTest` 6, `JwksControllerTest` 2) + `ServiyaApplicationTests` (context-load con las claves ES256) + `JwtAuthenticationFilterTest` en verde.
+- **Archivos:** nuevos `JwtProperties`, `JwtKeys`, `JwksController`, tests (`JwtKeysTest`, `JwksControllerTest`, `JwtTestSupport`); reescritos `JwtService`, `JwtServiceTest`; tocados `SecurityConfig` (permit JWKS), `pom.xml` (Nimbus), `application.yaml`, `.env.example`, `docker-compose.yml`, `ServiyaApplicationTests`.
+- **Decisión de formato de clave:** se acepta base64 del DER (una línea, cómodo para `.env`) **o** PEM con armadura; `JwtKeys` limpia la armadura y los espacios antes de decodificar.
+- **⚠️ Consistencia del stack durante la transición:** el monolito ya emite **ES256**, pero `notifications-service` aún verifica **HS256** (su conversión a resource server es la **Fase 4**). Hasta entonces, un token nuevo NO validará en la bandeja de notificaciones vía gateway. Es el modelo big-bang/staging del plan (Fases 1–6 juntas al corte); el monolito **solo** sí queda consistente. No desplegar Fase 1 aislada a un entorno con el stack completo esperando funcionar.
+- **Interacción `@Version` (ESTADO §8):** no tocó la emisión; pendiente de vigilancia cuando la Fase 2 escriba `refresh_tokens` y cambie `acquireRole`.
 
 ---
 
@@ -640,13 +621,13 @@ _(completar durante la implementación)_
 
 | ID | Fase | Pendiente | Tipo | Estado |
 |---|---|---|---|---|
-| P1.1 | 1 | Almacenamiento de la clave privada | Técnico/operación | Abierto |
-| P1.2 | 1 | Procedimiento de rotación de claves | Operación | Abierto |
-| P1.3 | 1 | Valor de `iss` | Técnico | Abierto |
-| P1.4 | 1 | Valor de `aud` | Técnico | Abierto |
-| P1.5 | 1 | Vida del access token | Técnico | Abierto |
-| P1.6 | 1 | Usar `typ: at+jwt` | Técnico | Abierto |
-| P1.7 | 1 | Versión del JDK (CVE-2022-21449) | Técnico | Abierto (runtime 21 a salvo; confirmar) |
+| P1.1 | 1 | Almacenamiento de la clave privada | Técnico/operación | **Cerrado: `.env`+compose** (gestor de prod = deuda) |
+| P1.2 | 1 | Procedimiento de rotación de claves | Operación | **Cerrado** (JWKS multi-clave; periodicidad al montar prod) |
+| P1.3 | 1 | Valor de `iss` | Técnico | **Cerrado: `https://auth.serviya.local`** |
+| P1.4 | 1 | Valor de `aud` | Técnico | **Cerrado: `marketplace-api`** |
+| P1.5 | 1 | Vida del access token | Técnico | **Cerrado: 15m** (`JWT_ACCESS_TTL`) |
+| P1.6 | 1 | Usar `typ: at+jwt` | Técnico | **Cerrado: Sí** |
+| P1.7 | 1 | Versión del JDK (CVE-2022-21449) | Técnico | **Cerrado:** temurin:21, a salvo |
 | P1.8 | 1 | Coordinación con el equipo de chat (HS256→ES256) | Organización | **Cerrado** (docs del chat actualizados + aviso) |
 | P2.1 | 2 | Almacenamiento del refresh en el cliente | Técnico/seguridad | Abierto |
 | P2.2 | 2 | Protección CSRF | Seguridad | Abierto |

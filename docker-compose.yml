@@ -36,8 +36,13 @@ services:
       DB_URL: ${DB_URL}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      # Claves ES256 para firmar/verificar access tokens + publicar el JWKS (Fase 1 centralizacion de auth).
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      JWT_KEY_ID: ${JWT_KEY_ID:-serviya-dev-1}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.serviya.local}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-marketplace-api}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       # Bus hacia notifications-service. Si RabbitMQ cae, el negocio sigue: las notificaciones esperan en
       # la tabla notification_outbox y el relay las publica al volver (por eso no hay depends_on).
