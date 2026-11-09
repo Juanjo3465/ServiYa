@@ -169,6 +169,66 @@ services:
       interval: 5s
       start_period: 20s
 
+  # ---------------------------------------------------------------------------------------------------
+  # MinIO: almacenamiento de objetos para adjuntos del chat (fase 3). Perfil opcional:
+  #   docker compose --profile minio up -d minio minio-init
+  # El bucket se crea privado y el usuario chat solo puede operar sobre él.
+  # ---------------------------------------------------------------------------------------------------
+  minio:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    container_name: serviya-minio
+    profiles: ["minio"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:-http://localhost:9001}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - redis-net
+      - default
+    restart: on-failure
+
+  minio-init:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    container_name: serviya-minio-init
+    profiles: ["minio"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_CHAT_ACCESS_KEY: ${MINIO_CHAT_ACCESS_KEY}
+      MINIO_CHAT_SECRET_KEY: ${MINIO_CHAT_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-attachments}
+    volumes:
+      - ./infra/minio/cors.xml:/config/cors.xml:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set local "http://minio:9000" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 1; done
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        mc anonymous set none "local/$$MINIO_BUCKET"
+        mc cors set "local/$$MINIO_BUCKET" /config/cors.xml
+        mc admin user add local "$$MINIO_CHAT_ACCESS_KEY" "$$MINIO_CHAT_SECRET_KEY" || true
+        printf '%s' "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\"],\"Resource\":[\"arn:aws:s3:::$$MINIO_BUCKET/*\"]},{\"Effect\":\"Allow\",\"Action\":[\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$$MINIO_BUCKET\"]}]}" > /tmp/chat-policy.json
+        mc admin policy create local chat-attachments-rw /tmp/chat-policy.json || true
+        mc admin policy attach local chat-attachments-rw --user "$$MINIO_CHAT_ACCESS_KEY" || true
+        echo "MinIO listo: bucket $$MINIO_BUCKET privado, usuario chat con politica chat-attachments-rw"
+    networks:
+      - redis-net
+    restart: "no"
+
   frontend:
     build:
       context: ./frontend/serviya
@@ -184,6 +244,7 @@ volumes:
   mysql_data:
   notifications_mysql_data:
   rabbitmq_data:
+  minio_data:
 
 networks:
   # Red compartida con infra/redis/docker-compose.redis.yml. Declarada aquí también para que el compose
