@@ -45,6 +45,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable()) // REST stateless API: no se usan cookies de sesion
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // logout-all cierra TODAS las sesiones del usuario: exige el access token (la identidad sale
+                // del JWT, no de la cookie). Va ANTES de la regla publica de abajo, que si no lo dejaria abierto.
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout-all").authenticated()
                 // Autenticacion publica (login/registro/recuperacion) — RF-001/RF-002
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Documentacion OpenAPI/Swagger

@@ -70,4 +70,13 @@ public class JwtProperties {
 
     /** {@code SameSite}: Strict por defecto (defensa CSRF principal, P2.2). */
     private String refreshCookieSameSite = "Strict";
+
+    // --- Revocación min_iat (Fase 2, Axis B) ---
+
+    /**
+     * Tolerancia de reloj que se suma a {@link #accessTtl} para el TTL de la clave {@code min_iat}
+     * (contrato 4.3). El TTL = vida máxima del access + este margen: pasado ese plazo ningún token anterior
+     * al corte sigue vivo, así que la clave se autolimpia. Por defecto 60 s.
+     */
+    private Duration revocationClockSkew = Duration.ofSeconds(60);
 }

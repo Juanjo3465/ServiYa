@@ -15,6 +15,7 @@ import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
 import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.SessionRevocationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.TokenSessionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
@@ -58,6 +59,8 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     private final TokenProviderPort tokenProvider;
     private final TokenSessionServicePort tokenSessionService;
     private final ResetLinkPort resetLinkPort;
+    /** Cierre total de sesión (familias de refresh + min_iat) al confirmar el reset de contraseña (P2.5). */
+    private final SessionRevocationServicePort sessionRevocationService;
 
     @Override
     public AuthResult login(LoginCommand command) {
@@ -205,6 +208,11 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
 
         user.changePassword(passwordEncoder.encode(command.newPassword()));
         userPersistencePort.update(user);
+
+        // Resetear la contraseña cierra la sesión en todos los dispositivos (P2.5): revoca las familias de
+        // refresh y escribe min_iat. Si el reset lo hizo un atacante, igualmente expulsa al titular; si lo
+        // hizo el titular, cierra cualquier sesión que el atacante tuviera abierta.
+        sessionRevocationService.revokeAllSessions(user.getId());
 
         // Aviso de contención: si el cambio no lo hizo el titular, este correo es su señal de alarma.
         notificationCommandApi.notify(new NotificationCommand(

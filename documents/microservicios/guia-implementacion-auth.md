@@ -278,8 +278,8 @@ Reglas:
 
 ### Tareas
 
-> **Implementación en dos sub-slices:** **(A) refresh tokens** ✅ y **(B) `min_iat`** ⏳. Axis A hecho y
-> verificado (2026-11-09); Axis B pendiente (el `logout-all` lo necesita).
+> **Implementación en dos sub-slices:** **(A) refresh tokens** ✅ y **(B) `min_iat`** ✅. Ambos hechos y
+> verificados (2026-11-09). Fase 2 completa; falta la verificación e2e (se hace junto con la Fase 6).
 
 **Refresh tokens (Axis A)**
 - [x] T2.1. Tabla `refresh_tokens` vía `RefreshTokenEntity` (`ddl-auto`): `id`, `version`, `user_id`, `family_id`, `token_hash` (único CHAR(64)), `issued_at`, `expires_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `ip`.
@@ -287,12 +287,12 @@ Reglas:
 - [x] T2.3. Login y register abren sesión (`startSession` → access + refresh, familia nueva). **acquireRole NO rota** el refresh (deja la cookie; la próxima rotación releerá el rol). `AuthResult` ampliado con `refreshToken`/`refreshExpiresAt`.
 - [x] T2.4. `POST /auth/refresh` (`RefreshTokenService.refresh`): lookup por hash; revocado/rotado → reuso ⇒ revoca familia ⇒ 401; expirado → 401; relee cuenta (baneado/eliminado ⇒ revoca familia) y **roles** de BD; dentro de la gracia reemite solo access (mismo refresh); fuera, rota (nuevo refresh en la familia, caducidad absoluta) + `markReplaced` (bulk, evita el bug @Version §8).
 - [x] T2.5. `POST /auth/logout`: revoca la familia y limpia la cookie.
-- [ ] T2.6. `POST /auth/logout-all`: revoca todas las familias del usuario y escribe `min_iat`. **(Axis B)**
+- [x] T2.6. `POST /auth/logout-all`: revoca todas las familias del usuario y escribe `min_iat`. **(Axis B)** Endpoint **autenticado** (identidad del access token, no de la cookie); limpia la cookie de este dispositivo.
 - [x] T2.7. `RefreshTokenCleanupScheduler` (`@Scheduled` + `DistributedLock`, clave `sched:refresh-token-cleanup`).
 
 **Revocación `min_iat` (Axis B)**
-- [ ] T2.8. Puerto `TokenRevocationPort` con `revokeAllIssuedBefore(userId, instant)` y adaptador Redis (`redis-coord`) según el contrato 4.3 (`ahora + 1 s`, TTL).
-- [ ] T2.9. Invocar el puerto en los casos de P2.5 (baneo, eliminación, quita de rol, cambio/reset de contraseña, logout-all), junto con la revocación de las familias de refresh donde aplique.
+- [x] T2.8. Puerto `TokenRevocationPort` con `revokeAllIssuedBefore(userId, instant)` y adaptador Redis (`RedisTokenRevocationAdapter` sobre `redis-coord`) según el contrato 4.3 (clave `auth:min_iat:{userId}`, valor `ahora + 1 s`, TTL `access-ttl + revocation-clock-skew`). Reusa el breaker `redis-coord`; **mejor esfuerzo** (si Redis cae, no tumba el baneo: la revocación durable es la de familias en BD).
+- [x] T2.9. `SessionRevocationService` (`revokeAllSessions` = revoca familias de refresh **+** escribe `min_iat`) invocado en los casos de P2.5: `UserService.banUser`/`changePassword`, `UserDeletionService.deleteUser`, `UserRoleService.revokeRole`, `UserAuthenticationService.confirmPasswordReset` y `logout-all`.
 - [x] ~~T2.10. Bloqueo por intentos fallidos.~~ **OMITIDO** (P2.7): se trackea en **M29** (backoff progresivo + MFA admins).
 
 ### Criterios de aceptación
@@ -301,7 +301,7 @@ Reglas:
 - [x] Test: reusar un refresh rotado revoca toda la familia. **(A)**
 - [x] Test: el refresh de un usuario baneado/eliminado devuelve 401 y revoca la familia. **(A)**
 - [x] Test: el refresh relee los roles desde BD (access con los roles actuales, no los del token). **(A)**
-- [ ] Test: cada caso de P2.5 escribe `min_iat` con el valor y el TTL correctos. **(B)**
+- [x] Test: cada caso de P2.5 escribe `min_iat` con el valor y el TTL correctos. **(B)** `RedisTokenRevocationAdapterTest` (clave/valor/TTL + mejor esfuerzo), `SessionRevocationServiceTest` (orden familias→min_iat, corte `ahora+1s`) y verificación de `revokeAllSessions` en los tests de cada servicio llamador.
 - [x] Los refresh tokens nunca se guardan en texto plano (solo SHA-256). Verificado en `RefreshTokenServiceTest`. **(A)**
 
 ### Notas de implementación
@@ -309,7 +309,11 @@ Reglas:
 - **Axis A implementado y verificado 2026-11-09** (rama `api-gateway`): **486 tests, BUILD SUCCESS** (8 nuevos en `RefreshTokenServiceTest` + `UserAuthenticationServiceTest` ajustado + ArchUnit y context-load en verde). Sin regresiones.
 - **Cookie (P2.1/P2.2):** el refresh viaja en cookie `HttpOnly; SameSite=Strict; Path=/api/v1/auth` (el Path cubre refresh **y** logout; se amplió respecto a `/auth/refresh` del plan para que logout reciba la cookie). `Secure` configurable (`false` en dev http). El access token sigue en el cuerpo. **Origin check** (P2.2) diferido: SameSite=Strict es la defensa CSRF en esta fase; el allowlist de orígenes lo aplicará el **gateway** (Fase 3, que ya centraliza CORS).
 - **Hexagonal/ArchUnit:** `RefreshTokenService` (application) NO importa `JwtProperties` (infra); recibe `refresh-ttl`/`refresh-grace` por `@Value`. Rotación con `@Modifying` bulk (`markReplaced`/`revokeFamily`) para no caer en el bug sistémico de `@Version` (§8).
-- **Pendiente Axis B:** `TokenRevocationPort` + adaptador `redis-coord` (`min_iat`) y su cableado en ban/delete/quita-rol/cambio-reset de contraseña + `logout-all`.
+- **Axis B implementado y verificado 2026-11-09** (rama `api-gateway`): **494 tests, BUILD SUCCESS** (nuevos `SessionRevocationServiceTest` + `RedisTokenRevocationAdapterTest`; extendidos los de `UserService`/`UserRoleService`/`UserAuthenticationService`). `TokenRevocationPort` + `RedisTokenRevocationAdapter` (`auth:min_iat:{userId}`, valor `ahora+1s`, TTL `access-ttl + revocation-clock-skew`, breaker `redis-coord`, **mejor esfuerzo**). `SessionRevocationService` (familias de refresh **+** `min_iat`) cableado en los 5 eventos de P2.5 + `logout-all`.
+- **Decisión de diseño (quita de rol):** se usa `revokeAllSessions` (min_iat **+** revoca familias ⇒ re-login completo), más conservador. La alternativa (min_iat-solo, refrescando sin re-login) se descartó por simplicidad y seguridad.
+- **`logout-all`** quedó en `POST /api/v1/auth/logout-all` (matcher `authenticated()` **antes** de la regla pública `/auth/**`), no bajo `/users/me`, para agrupar la limpieza de cookie con el resto de auth. La identidad sale del access token (`CurrentUser.id()`).
+- **Mejor esfuerzo vs. fail-closed:** el `min_iat` traga errores de Redis (a diferencia del lock, D-08) porque la garantía durable es la revocación de familias en BD; bloquear un baneo porque `redis-coord` está caído sería peor que tolerar una ventana ≤ `access-ttl`.
+- **Config nueva:** `serviya.security.jwt.revocation-clock-skew` (`JWT_REVOCATION_CLOCK_SKEW`, default `60s`). Pasadas al `docker-compose.yml` las `JWT_REFRESH_*` + `JWT_REVOCATION_CLOCK_SKEW`.
 
 ---
 

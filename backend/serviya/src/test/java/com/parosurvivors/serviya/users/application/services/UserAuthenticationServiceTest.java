@@ -21,6 +21,7 @@ import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.SessionRevocationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.TokenSessionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
@@ -65,6 +66,7 @@ class UserAuthenticationServiceTest {
     @Mock TokenProviderPort tokenProvider;
     @Mock TokenSessionServicePort tokenSessionService;
     @Mock ResetLinkPort resetLinkPort;
+    @Mock SessionRevocationServicePort sessionRevocationService;
 
     @InjectMocks UserAuthenticationService service;
 
@@ -264,6 +266,8 @@ class UserAuthenticationServiceTest {
 
         service.confirmPasswordReset(RESET_CONFIRM);
 
+        // Resetear la contrasena cierra la sesion en todos los dispositivos (P2.5).
+        verify(sessionRevocationService).revokeAllSessions(1L);
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userPersistencePort).update(saved.capture());
         // Se guarda el hash BCrypt, nunca la contrasena en claro.

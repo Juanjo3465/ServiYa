@@ -1,6 +1,8 @@
 package com.parosurvivors.serviya.users.infrastructure.adapters.input;
 
+import com.parosurvivors.serviya.shared.security.CurrentUser;
 import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
+import com.parosurvivors.serviya.users.application.ports.input.SessionRevocationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.TokenSessionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.infrastructure.adapters.input.api.AuthApi;
@@ -43,6 +45,7 @@ public class AuthController implements AuthApi {
 
     private final UserAuthenticationServicePort authService;
     private final TokenSessionServicePort tokenSessionService;
+    private final SessionRevocationServicePort sessionRevocationService;
     private final UserWebMapper mapper;
     private final RateLimiter rateLimiter;
     private final JwtProperties jwtProperties;
@@ -133,6 +136,17 @@ public class AuthController implements AuthApi {
             @CookieValue(name = "${serviya.security.jwt.refresh-cookie-name:serviya_refresh}", required = false)
             String refreshCookie) {
         tokenSessionService.logout(refreshCookie);
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, clearedRefreshCookie().toString())
+                .build();
+    }
+
+    @Override
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutAll() {
+        // La identidad sale del access token (CurrentUser.id()), nunca de la cookie: cerrar TODAS las
+        // sesiones es una accion autenticada. Revoca todas las familias de refresh + escribe min_iat.
+        sessionRevocationService.revokeAllSessions(CurrentUser.id());
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, clearedRefreshCookie().toString())
                 .build();

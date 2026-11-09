@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
+import com.parosurvivors.serviya.users.application.ports.input.SessionRevocationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.RoleAssignedEvent;
@@ -29,6 +30,8 @@ public class UserRoleService implements UserRoleServicePort {
     private final RolePersistencePort rolePersistencePort;
     /** Publica RoleAssignedEvent: metrics (y profiles) inicializan sus filas 1-a-1 sin acoplarse aqui. */
     private final DomainEventPublisherPort domainEventPublisher;
+    /** Cierre total de sesión (familias de refresh + min_iat) al quitar un rol (P2.5). */
+    private final SessionRevocationServicePort sessionRevocationService;
 
     @Override
     public List<Role> getUserRoles(Long userId) {
@@ -71,6 +74,10 @@ public class UserRoleService implements UserRoleServicePort {
             throw new InvalidStateException("User " + userId + " does not have role: " + roleName);
         }
         userRolePersistencePort.removeRole(userId, role.getId());
+        // Quitar un rol cierra la sesión (P2.5): el access actual lleva el rol revocado en sus claims, así
+        // que se invalida vía min_iat y se fuerza re-login (el nuevo token ya no tendrá el rol). Revoca
+        // también las familias de refresh para que no renueve con el rol viejo.
+        sessionRevocationService.revokeAllSessions(userId);
     }
 
     /** RF-067: roles del usuario con la fecha en que se le concedio cada uno. */

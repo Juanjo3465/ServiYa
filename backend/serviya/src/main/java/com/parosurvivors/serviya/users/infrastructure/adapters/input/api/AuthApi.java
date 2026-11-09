@@ -58,6 +58,17 @@ public interface AuthApi {
     @ApiResponse(responseCode = "204", description = "Sesion cerrada (cookie de refresh eliminada)")
     ResponseEntity<Void> logout(String refreshCookie);
 
+    @Operation(summary = "Cerrar sesion en todos los dispositivos",
+            description = "Revoca TODAS las familias de refresh del usuario autenticado y escribe min_iat "
+                    + "(el gateway invalida de inmediato cualquier access token ya emitido). A diferencia de "
+                    + "/logout, exige el access token (la identidad sale del JWT, no de la cookie) y limpia "
+                    + "la cookie de este dispositivo. RF — gestion de sesiones.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Todas las sesiones cerradas"),
+            @ApiResponse(responseCode = "401", description = "Sin access token valido")
+    })
+    ResponseEntity<Void> logoutAll();
+
     @Operation(summary = "Solicitar recuperacion de contrasena",
             description = "Genera y envia el token de recuperacion por correo. RF-003.")
     @ApiResponse(responseCode = "202", description = "Solicitud aceptada (respuesta generica por seguridad)")

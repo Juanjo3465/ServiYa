@@ -43,6 +43,13 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-https://auth.serviya.local}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-marketplace-api}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      # Refresh token rotativo (Fase 2A) + revocacion min_iat (Fase 2B). En prod (https) poner
+      # JWT_REFRESH_COOKIE_SECURE=true; en dev http se queda false para que la cookie viaje.
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
+      JWT_REFRESH_GRACE: ${JWT_REFRESH_GRACE:-15s}
+      JWT_REFRESH_COOKIE_SECURE: ${JWT_REFRESH_COOKIE_SECURE:-false}
+      JWT_REFRESH_COOKIE_SAME_SITE: ${JWT_REFRESH_COOKIE_SAME_SITE:-Strict}
+      JWT_REVOCATION_CLOCK_SKEW: ${JWT_REVOCATION_CLOCK_SKEW:-60s}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       # Bus hacia notifications-service. Si RabbitMQ cae, el negocio sigue: las notificaciones esperan en
       # la tabla notification_outbox y el relay las publica al volver (por eso no hay depends_on).

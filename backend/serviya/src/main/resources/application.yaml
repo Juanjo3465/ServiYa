@@ -179,6 +179,8 @@ serviya:
       refresh-cookie-path: ${JWT_REFRESH_COOKIE_PATH:/api/v1/auth}
       refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:false}
       refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE:Strict}
+      # Revocación min_iat (Axis B): TTL de la clave = access-ttl + esta tolerancia de reloj.
+      revocation-clock-skew: ${JWT_REVOCATION_CLOCK_SKEW:60s}
   word-filter:
     blocked-words: >-
       idiota,imbecil,estupido,estupida,maldito,maldita,mierda,puta,puto,
