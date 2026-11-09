@@ -2,13 +2,25 @@ package com.parosurvivors.serviya.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.tngtech.archunit.core.domain.Dependency;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -23,19 +35,16 @@ import org.junit.jupiter.api.Test;
  * <p>Todas las reglas son absolutas: la deuda historica se pago y ya no hay baseline congelado.
  * Cualquier dependencia cruzada nueva rompe el build.</p>
  *
- * <p>Se usa JUnit 5 directamente (en lugar del TestEngine propio de ArchUnit) para que las reglas
- * se ejecuten con el mismo runner que el resto de la suite y no dependan de la version del
- * JUnit Platform que gestione Spring Boot.</p>
- *
- * <p><strong>Pendiente (fase posterior):</strong> la deteccion de ciclos entre modulos. La regla
- * {@code slices().should().beFreeOfCycles()} de ArchUnit produce violaciones con orden no
- * determinista; se sustituira por un test determinista de la matriz de dependencias.</p>
+ * <p>El grafo de modulos es aciclico y se verifica con una matriz determinista (Tarjan sobre las
+ * dependencias directas). Ademas, {@code metrics}, {@code notifications}, {@code profiles} y
+ * {@code services} son hojas: no pueden depender de ningun otro modulo de negocio.</p>
  */
 public class ModuleBoundaryTest {
 
     /** Modulos de negocio. {@code shared} (kernel) y {@code config} (composition root) se tratan aparte. */
     private static final List<String> MODULES = List.of(
             "admin",
+            "bff",
             "feedback",
             "metrics",
             "notifications",
@@ -45,6 +54,13 @@ public class ModuleBoundaryTest {
             "services",
             "statistics",
             "users");
+
+    /** Modulos que solo pueden depender de si mismos y del kernel shared. */
+    private static final List<String> LEAF_MODULES = List.of(
+            "metrics",
+            "notifications",
+            "profiles",
+            "services");
 
     private static final JavaClasses CLASSES = new ClassFileImporter()
             .withImportOption(new ImportOption.DoNotIncludeTests())
@@ -117,6 +133,122 @@ public class ModuleBoundaryTest {
                 .should().dependOnClassesThat().resideInAPackage("..serviya..infrastructure..")
                 .because("la capa de aplicacion no debe depender de infraestructura (puertos y adaptadores)")
                 .check(CLASSES);
+    }
+
+    @Test
+    void leafModulesMustNotDependOnOtherModules() {
+        String[] leaves = LEAF_MODULES.stream()
+                .map(module -> "..serviya." + module + "..")
+                .toArray(String[]::new);
+        String[] others = MODULES.stream()
+                .filter(module -> !LEAF_MODULES.contains(module))
+                .map(module -> "..serviya." + module + "..")
+                .toArray(String[]::new);
+
+        noClasses()
+                .that().resideInAnyPackage(leaves)
+                .should().dependOnClassesThat().resideInAnyPackage(others)
+                .because("metrics, notifications, profiles y services son proveedores hoja; "
+                        + "las vistas compuestas pertenecen al BFF")
+                .check(CLASSES);
+    }
+
+    @Test
+    void modulesMustBeFreeOfCycles() {
+        Map<String, Set<String>> graph = moduleGraph();
+        List<List<String>> cycles = stronglyConnectedComponents(graph).stream()
+                .filter(component -> component.size() > 1)
+                .sorted((left, right) -> String.join(",", left).compareTo(String.join(",", right)))
+                .toList();
+
+        assertThat(cycles)
+                .as("el grafo de dependencias entre modulos debe ser aciclico: %s", graph)
+                .isEmpty();
+    }
+
+    /**
+     * Matriz de dependencias directas entre modulos, normalizada y ordenada para que el test sea
+     * determinista.
+     */
+    private static Map<String, Set<String>> moduleGraph() {
+        Map<String, Set<String>> graph = new TreeMap<>();
+        MODULES.forEach(module -> graph.put(module, new TreeSet<>()));
+
+        for (JavaClass clazz : CLASSES) {
+            String source = moduleOf(clazz.getPackageName());
+            if (source == null) {
+                continue;
+            }
+            for (Dependency dependency : clazz.getDirectDependenciesFromSelf()) {
+                String target = moduleOf(dependency.getTargetClass().getPackageName());
+                if (target != null && !target.equals(source)) {
+                    graph.get(source).add(target);
+                }
+            }
+        }
+        return graph;
+    }
+
+    private static String moduleOf(String packageName) {
+        for (String module : MODULES) {
+            if (packageName.startsWith("com.parosurvivors.serviya." + module)) {
+                return module;
+            }
+        }
+        return null;
+    }
+
+    private static List<List<String>> stronglyConnectedComponents(Map<String, Set<String>> graph) {
+        Tarjan tarjan = new Tarjan(graph);
+        for (String node : graph.keySet()) {
+            if (!tarjan.index.containsKey(node)) {
+                tarjan.visit(node);
+            }
+        }
+        return tarjan.components;
+    }
+
+    private static final class Tarjan {
+        private final Map<String, Set<String>> graph;
+        private final Map<String, Integer> index = new HashMap<>();
+        private final Map<String, Integer> lowLink = new HashMap<>();
+        private final Set<String> onStack = new HashSet<>();
+        private final Deque<String> stack = new ArrayDeque<>();
+        private final List<List<String>> components = new ArrayList<>();
+        private int nextIndex;
+
+        private Tarjan(Map<String, Set<String>> graph) {
+            this.graph = graph;
+        }
+
+        private void visit(String node) {
+            index.put(node, nextIndex);
+            lowLink.put(node, nextIndex);
+            nextIndex++;
+            stack.push(node);
+            onStack.add(node);
+
+            for (String target : graph.getOrDefault(node, Set.of())) {
+                if (!index.containsKey(target)) {
+                    visit(target);
+                    lowLink.put(node, Math.min(lowLink.get(node), lowLink.get(target)));
+                } else if (onStack.contains(target)) {
+                    lowLink.put(node, Math.min(lowLink.get(node), index.get(target)));
+                }
+            }
+
+            if (lowLink.get(node).equals(index.get(node))) {
+                List<String> component = new ArrayList<>();
+                String member;
+                do {
+                    member = stack.pop();
+                    onStack.remove(member);
+                    component.add(member);
+                } while (!member.equals(node));
+                component.sort(String::compareTo);
+                components.add(component);
+            }
+        }
     }
 
     /**
