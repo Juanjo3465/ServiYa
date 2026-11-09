@@ -191,6 +191,7 @@ public class UserApiFacade implements UserQueryApi, UserCommandApi {
                 user.getEmail(),
                 user.isBanned(),
                 user.isDeleted(),
+                user.getDeletedAt(),
                 user.getCreatedAt(),
                 toRoleNames(user));
     }

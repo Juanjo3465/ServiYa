@@ -8,7 +8,6 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.CompositeArchRule;
-import com.tngtech.archunit.library.freeze.FreezingArchRule;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -21,10 +20,8 @@ import org.junit.jupiter.api.Test;
  * {@code infrastructure}. La raiz de composicion ({@code config}) es la unica excepcion: puede
  * cablear implementaciones de cualquier modulo.</p>
  *
- * <p>Las reglas que hoy tienen violaciones se envuelven en {@link FreezingArchRule}: el baseline
- * actual queda congelado en {@code src/test/resources/archunit_store} y cualquier dependencia
- * NUEVA rompe el build. A medida que se corrige el acoplamiento, el baseline se reduce hasta poder
- * eliminar el freeze. Ver {@code archunit.properties} para actualizar el baseline a proposito.</p>
+ * <p>Todas las reglas son absolutas: la deuda historica se pago y ya no hay baseline congelado.
+ * Cualquier dependencia cruzada nueva rompe el build.</p>
  *
  * <p>Se usa JUnit 5 directamente (en lugar del TestEngine propio de ArchUnit) para que las reglas
  * se ejecuten con el mismo runner que el resto de la suite y no dependan de la version del
@@ -32,8 +29,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p><strong>Pendiente (fase posterior):</strong> la deteccion de ciclos entre modulos. La regla
  * {@code slices().should().beFreeOfCycles()} de ArchUnit produce violaciones con orden no
- * determinista, por lo que no es apta para {@link FreezingArchRule}; se sustituira por un test
- * determinista de la matriz de dependencias cuando se aborde la rotura de ciclos (paso 5 del plan).</p>
+ * determinista; se sustituira por un test determinista de la matriz de dependencias.</p>
  */
 public class ModuleBoundaryTest {
 
@@ -55,19 +51,19 @@ public class ModuleBoundaryTest {
             .importPackages("com.parosurvivors.serviya");
 
     private static final ArchRule NO_FOREIGN_INFRASTRUCTURE =
-            FreezingArchRule.freeze(noForeignLayer(
+            noForeignLayer(
                     "infrastructure",
-                    "Un modulo no debe usar la infraestructura de otro modulo; debe pasar por su API"));
+                    "Un modulo no debe usar la infraestructura de otro modulo; debe pasar por su API");
 
     private static final ArchRule NO_FOREIGN_PERSISTENCE_PORTS =
-            FreezingArchRule.freeze(noForeignLayer(
+            noForeignLayer(
                     "application.ports.output",
-                    "Un modulo no debe usar los puertos de persistencia de otro modulo; debe usar una API de consulta"));
+                    "Un modulo no debe usar los puertos de persistencia de otro modulo; debe usar una API de consulta");
 
     private static final ArchRule NO_FOREIGN_DOMAIN =
-            FreezingArchRule.freeze(noForeignLayer(
+            noForeignLayer(
                     "domain",
-                    "Un modulo no debe compartir entidades de dominio; debe usar DTOs de su API"));
+                    "Un modulo no debe compartir entidades de dominio; debe usar DTOs de su API");
 
     private static final ArchRule SHARED_WITHOUT_BUSINESS_MODULES =
             noClasses()

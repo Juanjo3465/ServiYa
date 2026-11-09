@@ -11,6 +11,7 @@ public record UserSnapshot(
         String email,
         boolean banned,
         boolean deleted,
+        LocalDateTime deletedAt,
         LocalDateTime createdAt,
         Set<String> roles) {
 
