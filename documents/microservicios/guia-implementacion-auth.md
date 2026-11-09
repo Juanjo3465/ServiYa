@@ -404,8 +404,22 @@ Reglas:
   Decisión: **No.** El chequeo de `min_iat` vive solo en el gateway (fila 11). Los servicios no tocan `redis-coord` para auth. El aislamiento de red (P3.8) + mTLS futuro (fila 14) es la garantía de que nadie llega a un servicio sin pasar por el gateway.
 - [x] **P4.2. ¿Se mantienen las reglas de rol por ruta en los servicios?**
   Decisión (2026-11-08, fila #8): **No.** Los servicios **dejan de verificar roles**; el rol-por-ruta vive **solo** en el gateway. Los servicios conservan **solo las reglas de dominio** (propiedad/participación de recursos: "el oferente solo edita su servicio", "solo el participante ve la solicitud"). **Control compensatorio:** los servicios quedan inalcanzables desde internet (P3.8) y, a futuro, **mTLS interno** gateway↔servicios (fila 14). Esta decisión se **preserva**. *Nota:* quita la defensa en profundidad de autorización → P3.8 pasa de recomendación a invariante duro; por eso el mTLS.
-- [ ] **P4.3. Inventario de reglas de autorización de dominio** existentes (por ejemplo, "el vendedor solo edita sus productos", "solo el comprador califica su pedido"), para confirmar que ninguna se pierde al quitar el filtro propio.
-  Decisión:
+- [x] **P4.3. Inventario de reglas de autorización de dominio** existentes (por ejemplo, "el vendedor solo edita sus productos", "solo el comprador califica su pedido"), para confirmar que ninguna se pierde al quitar el filtro propio.
+  Decisión/inventario (2026-11-09, verificado en código — todas usan `CurrentUser.id()` = `sub` del JWT y **se quedan** en los servicios; ninguna es rol-por-ruta):
+  - **services / `MarketplaceService`:** editar/activar/desactivar/borrar servicio → dueño (`requesterId == service.offererId`).
+  - **profiles / `AddressService`:** editar/borrar dirección → dueño (`requesterId == address.userId`).
+  - **profiles / `OffererAvailabilityService`:** editar/borrar franja → dueño (`requesterId == slot.offererId`).
+  - **requests / `ServiceRequestCommandService`:** `requireOwnership(ownerId, actorId)` + `requireParticipant`; cancel distingue cliente/oferente.
+  - **requests / `ServiceRequestQueryService`:** ver detalle → participante **o admin** (`!isAdmin && !isParticipant`).
+  - **requests / `RescheduleProposalService`:** `requireOwnership` + participante (cliente/oferente).
+  - **reports / `RequestReportService`:** crear reporte sobre una solicitud → participante.
+  - **feedback / `ServiceFeedbackService`:** feedback de servicio → solo el cliente de la solicitud.
+  - **feedback / `ClientFeedbackService`:** feedback al cliente → solo el oferente de la solicitud.
+  - **admin / `AdminActionGuard`:** `requireNotSelf` (un admin no se banea/elimina) + "debe quedar otro admin activo".
+  - **Bypass admin de grano fino:** `CurrentUser.isAdmin()` (lee `ROLE_ADMIN` de las authorities) se usa en `ServiceRequestQueryService` → el converter del resource server **debe** seguir mapeando `roles`→`ROLE_*` (igual que el gateway) para que siga funcionando.
+  - **Hallazgo para T4.6:** hoy TODAS estas reglas lanzan `UnauthorizedException`→**401**. Separar ownership/participación a **403** (decisión #12/M10) exige una **excepción distinta** (p. ej. `ForbiddenException`→403) y remapear ~10 sitios, **distinguiéndolas** de las `UnauthorizedException` que SÍ son autenticación (login inválido, baneado, refresh) y siguen en 401.
+
+- [x] **P4.4 (añadido 2026-11-09). Exposición de red durante la Fase 4.** Decisión del usuario: **cablear el gateway como única entrada ahora** (no diferir a Fase 7). El gateway entra en `docker-compose.yml` como único puerto publicado; monolito y notif dejan de mapearse al host (solo red interna). Así P3.8 (control compensatorio de la decisión #8) es real desde que el monolito pierde su rol-gating, no una promesa futura.
 
 ### Tareas
 
