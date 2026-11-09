@@ -123,8 +123,15 @@ class ApiGatewayRoutingTest {
     // --- Seguridad: validación del token y matriz de autorización ---
 
     @Test
-    void protectedRoute_withoutToken_is401() {
-        client.get().uri("/api/v1/notifications").exchange().expectStatus().isUnauthorized();
+    void protectedRoute_withoutToken_is401_withTokenMissingBody() {
+        client.get().uri("/api/v1/notifications").exchange()
+                .expectStatus().isUnauthorized()
+                .expectHeader().valueEquals(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                .expectBody()
+                .jsonPath("$.status").isEqualTo(401)
+                .jsonPath("$.error").isEqualTo("unauthorized")
+                .jsonPath("$.code").isEqualTo("TOKEN_MISSING")
+                .jsonPath("$.correlationId").exists();
     }
 
     @Test
@@ -135,17 +142,19 @@ class ApiGatewayRoutingTest {
     }
 
     @Test
-    void expiredToken_is401() {
+    void expiredToken_is401_withTokenExpiredCode() {
         client.get().uri("/api/v1/notifications")
                 .headers(bearer(JWKS.expiredToken(ISSUER, AUDIENCE, "1", List.of("CLIENT"))))
-                .exchange().expectStatus().isUnauthorized();
+                .exchange().expectStatus().isUnauthorized()
+                .expectBody().jsonPath("$.code").isEqualTo("TOKEN_EXPIRED");
     }
 
     @Test
-    void tokenForAnotherAudience_is401() {
+    void tokenForAnotherAudience_is401_withTokenInvalidCode() {
         client.get().uri("/api/v1/notifications")
                 .headers(bearer(JWKS.validToken(ISSUER, "otra-api", "1", List.of("CLIENT"))))
-                .exchange().expectStatus().isUnauthorized();
+                .exchange().expectStatus().isUnauthorized()
+                .expectBody().jsonPath("$.code").isEqualTo("TOKEN_INVALID");
     }
 
     @Test
@@ -156,9 +165,10 @@ class ApiGatewayRoutingTest {
     }
 
     @Test
-    void adminRoute_withClientRole_is403_not401() {
+    void adminRoute_withClientRole_is403_withForbiddenCode() {
         client.get().uri("/api/v1/reports").headers(bearer(CLIENT_TOKEN))
-                .exchange().expectStatus().isForbidden();
+                .exchange().expectStatus().isForbidden()
+                .expectBody().jsonPath("$.code").isEqualTo("FORBIDDEN");
     }
 
     @Test

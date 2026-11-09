@@ -1,7 +1,11 @@
 package com.parosurvivors.gateway.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
+import com.parosurvivors.gateway.error.GatewayAccessDeniedHandler;
+import com.parosurvivors.gateway.error.GatewayAuthenticationEntryPoint;
+import com.parosurvivors.gateway.error.GatewayErrorWriter;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -119,13 +123,26 @@ public class GatewaySecurityConfig {
         return converter;
     }
 
+    /** Cuerpo de error 4.4 compartido por el entry point (401) y el access denied handler (403). */
+    @Bean
+    public GatewayErrorWriter gatewayErrorWriter(ObjectMapper objectMapper) {
+        return new GatewayErrorWriter(objectMapper);
+    }
+
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(
             ServerHttpSecurity http,
             ReactiveJwtDecoder jwtDecoder,
-            ReactiveJwtAuthenticationConverter jwtAuthenticationConverter) {
+            ReactiveJwtAuthenticationConverter jwtAuthenticationConverter,
+            GatewayErrorWriter errorWriter) {
+        GatewayAuthenticationEntryPoint entryPoint = new GatewayAuthenticationEntryPoint(errorWriter);
+        GatewayAccessDeniedHandler accessDeniedHandler = new GatewayAccessDeniedHandler(errorWriter);
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                // Formato de error 4.4 uniforme (T3.7) para fallos de auth/authz fuera del resource server.
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 // CORS lo resuelve globalcors de Spring Cloud Gateway (P3.6); aquí no se duplica.
                 .authorizeExchange(exchange -> exchange
                         // Preflight CORS sin token.
@@ -155,9 +172,12 @@ public class GatewaySecurityConfig {
                         .pathMatchers(HttpMethod.POST, "/api/v1/categories").hasRole("ADMIN")
                         // Todo lo demás exige autenticación.
                         .anyExchange().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                        .jwtDecoder(jwtDecoder)
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter)));
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                        .jwt(jwt -> jwt
+                                .jwtDecoder(jwtDecoder)
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter)));
         return http.build();
     }
 }
