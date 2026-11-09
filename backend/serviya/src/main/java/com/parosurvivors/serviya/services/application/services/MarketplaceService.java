@@ -1,59 +1,32 @@
 package com.parosurvivors.serviya.services.application.services;
 
-import com.parosurvivors.serviya.feedback.api.FeedbackQueryApi;
-import com.parosurvivors.serviya.metrics.api.MetricsQueryApi;
-import com.parosurvivors.serviya.metrics.api.dto.OffererMetricsSnapshot;
-import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
-import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
-import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSnapshot;
-import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSummarySnapshot;
-import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.mappers.ServiceCommandMapper;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
-import com.parosurvivors.serviya.services.application.ports.input.ServiceAvailabilityServicePort;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
-import com.parosurvivors.serviya.services.application.ports.input.MarketplaceCategoryPort;
 import com.parosurvivors.serviya.services.domain.Service;
-import com.parosurvivors.serviya.services.domain.Category;
-import com.parosurvivors.serviya.services.domain.ServiceDetail;
-import com.parosurvivors.serviya.services.domain.FeedbackUser;
-import com.parosurvivors.serviya.services.domain.ServiceAvailability;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * Implementacion del marketplace de servicios. Unico servicio del esqueleto con
- * logica real.
- * Construye el dominio a partir de los Commands (sin mapper web) y devuelve la
- * entidad de dominio;
- * el controller mapea a Response via ServiceWebMapper.
+ * Implementacion del marketplace de servicios. Solo conoce su propio dominio/persistencia; las
+ * vistas compuestas y la resolucion de filtros de otros modulos viven en el BFF.
  */
 @Component
 @RequiredArgsConstructor
 public class MarketplaceService implements MarketplaceServicePort {
 
     private final ServicePersistencePort persistencePort;
-    private final MarketplaceCategoryPort categoryPort;
-    private final ProfileQueryApi profileQueryApi;
-    private final MetricsQueryApi metricsQueryApi;
-    private final FeedbackQueryApi feedbackQueryApi;
-    private final ServiceAvailabilityServicePort serviceAvailabilityService;
     private final ServiceCommandMapper commandMapper;
 
     @Override
@@ -79,61 +52,8 @@ public class MarketplaceService implements MarketplaceServicePort {
     }
 
     @Override
-    public List<ServiceDetail> getByOffererId(Long offererId) {
-        List<Service> services = persistencePort.findByOffererId(offererId);
-
-        if (services.isEmpty())
-            throw new ResourceNotFoundException("El oferente no tiene servicios");
-
-        List<ServiceDetail> details = new ArrayList<>();
-
-        for (Service service : services) {
-            Category category = categoryPort.getById(service.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Categoria no encontrada con id: " + service.getCategoryId()));
-            details.add(ServiceDetail.builder()
-                    .service(service)
-                    .category(category)
-                    .build());
-        }
-
-        return details;
-    }
-
-    @Override
     public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
-        SearchServiceQuery effective = criteria;
-
-        if (criteria.minRating() != null || criteria.maxRating() != null) {
-            List<Long> ids = metricsQueryApi.findServiceIdsByAverageRating(
-                    criteria.minRating(), criteria.maxRating());
-            if (ids.isEmpty()) {
-                return Page.empty(pageable);
-            }
-            effective = effective.withServiceIds(ids);
-        }
-
-        if (criteria.name() != null && !criteria.name().isBlank()) {
-            effective = effective.withOffererIdsByName(
-                    profileQueryApi.findUserIdsByFullName(criteria.name()));
-        }
-
-        if (criteria.latitude() != null && criteria.longitude() != null
-                && criteria.maxDistanceKm() != null) {
-            List<Long> ids = profileQueryApi.findUserIdsWithinDistance(
-                    criteria.latitude(), criteria.longitude(), criteria.maxDistanceKm());
-            if (ids.isEmpty()) {
-                return Page.empty(pageable);
-            }
-            effective = effective.withOffererIdsWithinDistance(ids);
-        }
-
-        return persistencePort.search(effective, pageable);
-    }
-
-    @Override
-    public Map<Long, ServiceMetricsSnapshot> getMetricsForServices(List<Long> serviceIds) {
-        return metricsQueryApi.getServiceMetrics(serviceIds);
+        return persistencePort.search(criteria, pageable);
     }
 
     @Override
@@ -150,47 +70,6 @@ public class MarketplaceService implements MarketplaceServicePort {
         service.setUpdatedAt(LocalDateTime.now());
 
         return persistencePort.update(service);
-    }
-
-    @Override
-    public Optional<ServiceDetail> getDetailById(Long id) {
-
-        Service service = getById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
-
-        Category category = categoryPort.getById(service.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Categoria no encontrada con id: " + service.getCategoryId()));
-
-        OffererProfileSnapshot offererProfile = profileQueryApi.findOffererProfile(service.getOffererId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Perfil de oferente no encontrado para userId: " + service.getOffererId()));
-        OffererProfileSummarySnapshot summary = profileQueryApi.getOffererSummary(service.getOffererId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Resumen de oferente no encontrado para userId: " + service.getOffererId()));
-        OffererMetricsSnapshot offererMetrics = metricsQueryApi.getOffererMainMetrics(service.getOffererId());
-        ServiceMetricsSnapshot serviceMetrics = metricsQueryApi.getServiceMetrics(service.getId());
-
-        // Reseñas recientes (hasta 3): cada feedback con comentario se empareja con el
-        // perfil público de su autor para mostrar nombre y foto en el detalle del servicio.
-        List<FeedbackUser> feedbacks = feedbackQueryApi.getRecentServiceFeedback(service.getId(), 3).stream()
-                .map(feedback -> new FeedbackUser(
-                        feedback,
-                        profileQueryApi.findProfile(feedback.clientId()).orElse(null)))
-                .collect(Collectors.toList());
-
-        List<ServiceAvailability> availability = serviceAvailabilityService.getByServiceId(service.getId());
-
-        return Optional.of(ServiceDetail.builder()
-                .service(service)
-                .category(category)
-                .offererProfile(offererProfile)
-                .offererSummary(summary)
-                .feedbackUsers(feedbacks)
-                .availability(availability)
-                .serviceMetrics(serviceMetrics)
-                .offererMetrics(offererMetrics)
-                .build());
     }
 
     @Override
@@ -250,7 +129,7 @@ public class MarketplaceService implements MarketplaceServicePort {
     @Override
     public void deactivateAllByOfferer(Long offererId) {
         // Usado por UserDeletionService al eliminar un oferente: oculta todos sus servicios del buscador.
-        // Corre dentro de la transacción del orquestador llamante.
+        // Corre dentro de la transaccion del orquestador llamante.
         LocalDateTime now = LocalDateTime.now();
         for (Service service : persistencePort.findByOffererId(offererId)) {
             if (service.isAvailable()) {
@@ -260,5 +139,4 @@ public class MarketplaceService implements MarketplaceServicePort {
             }
         }
     }
-
 }

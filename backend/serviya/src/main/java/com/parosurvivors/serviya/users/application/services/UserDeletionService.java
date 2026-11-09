@@ -8,7 +8,7 @@ import com.parosurvivors.serviya.requests.api.dto.RequestSnapshot;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
+import com.parosurvivors.serviya.services.api.ServiceCommandApi;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
@@ -30,7 +30,7 @@ public class UserDeletionService implements UserDeletionServicePort {
 
     private final UserPersistencePort userPersistencePort;
     private final UserReadPort userReadPort;
-    private final MarketplaceServicePort marketplaceServicePort;
+    private final ServiceCommandApi serviceCommandApi;
     private final RequestCommandApi requestCommandApi;
     private final NotificationCommandApi notificationCommandApi;
 
@@ -46,7 +46,7 @@ public class UserDeletionService implements UserDeletionServicePort {
         user.softDelete();
         userPersistencePort.update(user);
         // (2) Si es oferente, ocultar todos sus servicios del buscador (no-op si no tiene servicios).
-        marketplaceServicePort.deactivateAllByOfferer(userId);
+        serviceCommandApi.deactivateAllByOfferer(userId);
         // (3) Cancelar las solicitudes activas donde participa (como cliente u oferente) para no dejar huérfanas.
         //     cancelRequest ya publica RequestStatusChangedEvent (métricas) y avisa IN_APP a la contraparte.
         List<RequestSnapshot> cancelled = requestCommandApi.cancelActiveRequestsForUser(userId);

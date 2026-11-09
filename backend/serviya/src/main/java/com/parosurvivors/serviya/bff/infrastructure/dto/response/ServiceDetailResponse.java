@@ -1,14 +1,14 @@
-package com.parosurvivors.serviya.services.infrastructure.dto.response;
+package com.parosurvivors.serviya.bff.infrastructure.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
- * Salida web (Response) para detalle de servicio. Se usa cuando se necesita
- * informacion compuesta del servicio + datos publicos del oferente.
+ * Detalle compuesto de un servicio. Misma forma JSON que el endpoint historico de services.
  */
 @Schema(description = "Detalle de un servicio con informacion del oferente")
 public record ServiceDetailResponse(
@@ -37,5 +37,27 @@ public record ServiceDetailResponse(
         Integer serviceTotalRatings,
         Integer serviceTotalComments,
         Integer totalCompletedServices,
-        Integer totalCancelledServices
-) {}
+        Integer totalCancelledServices) {
+
+    public record CategoryResponse(Long id, String name) {
+    }
+
+    public record FeedbackResponse(
+            Long id,
+            Long requestId,
+            Long userId,
+            String userName,
+            String userPhotoUrl,
+            String comment,
+            Integer rating,
+            LocalDateTime createdAt) {
+    }
+
+    public record ServiceAvailabilityResponse(
+            Long id,
+            byte weekDay,
+            LocalTime startTime,
+            LocalTime endTime,
+            boolean activeStatus) {
+    }
+}

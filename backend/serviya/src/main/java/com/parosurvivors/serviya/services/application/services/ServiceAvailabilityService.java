@@ -6,8 +6,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
-import com.parosurvivors.serviya.profiles.api.dto.OffererAvailabilitySnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceAvailabilityCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceAvailabilityCommand;
 import com.parosurvivors.serviya.services.application.ports.input.ServiceAvailabilityServicePort;
@@ -21,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 public class ServiceAvailabilityService implements ServiceAvailabilityServicePort {
 
     private final ServiceAvailabilityPersistencePort persistencePort;
-    private final ProfileQueryApi profileQueryApi;
 
     @Override
     public ServiceAvailability create(CreateServiceAvailabilityCommand command) {
@@ -58,25 +55,6 @@ public class ServiceAvailabilityService implements ServiceAvailabilityServicePor
         return persistencePort.findByServiceId(serviceId).stream()
                 .filter(ServiceAvailability::isActive)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public void applyGeneralTemplate(Long serviceId, Long offererId) {
-        List<ServiceAvailability> existingSlots = persistencePort.findByServiceId(serviceId);
-        existingSlots.forEach(slot -> persistencePort.deleteById(slot.getId()));
-
-        List<OffererAvailabilitySnapshot> generalSlots = profileQueryApi.getAvailabilities(offererId).stream()
-                .filter(OffererAvailabilitySnapshot::active)
-                .toList();
-
-        for (OffererAvailabilitySnapshot slot : generalSlots) {
-            create(new CreateServiceAvailabilityCommand(
-                    serviceId,
-                    (byte) slot.weekDay(),
-                    slot.startTime(),
-                    slot.endTime(),
-                    true));
-        }
     }
 
     private void validate(CreateServiceAvailabilityCommand command) {

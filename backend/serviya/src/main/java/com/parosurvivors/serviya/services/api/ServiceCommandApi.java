@@ -1,5 +1,8 @@
 package com.parosurvivors.serviya.services.api;
 
+import com.parosurvivors.serviya.services.api.dto.AvailabilityTemplateSlot;
+import java.util.List;
+
 /**
  * Comandos publicos del modulo services.
  */
@@ -10,4 +13,7 @@ public interface ServiceCommandApi {
 
     /** Borrado de un servicio por un administrador. */
     void deleteServiceAsAdmin(Long serviceId, Long adminId);
+
+    /** Reemplaza las franjas del servicio por la plantilla resuelta por el BFF. */
+    void applyAvailabilityTemplate(Long serviceId, List<AvailabilityTemplateSlot> slots);
 }
