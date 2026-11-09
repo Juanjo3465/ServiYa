@@ -17,6 +17,9 @@ public interface MetricsQueryApi {
 
     Map<Long, ServiceMetricsSnapshot> getServiceMetrics(Collection<Long> serviceIds);
 
+    /** Ids de servicios cuyo averageRating cae en el rango (null = sin limite en ese extremo). */
+    List<Long> findServiceIdsByAverageRating(Double minRating, Double maxRating);
+
     OffererMetricsSnapshot getOffererMetrics(Long offererId);
 
     OffererMetricsSnapshot getOffererMainMetrics(Long offererId);

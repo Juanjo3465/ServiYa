@@ -1,15 +1,13 @@
 package com.parosurvivors.serviya.services.application.services;
 
-import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
-import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
-import com.parosurvivors.serviya.metrics.application.ports.input.ServiceMetricsServicePort;
-import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
-import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
-import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
-import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
-import com.parosurvivors.serviya.profiles.domain.OffererProfile;
-import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.feedback.api.FeedbackQueryApi;
+import com.parosurvivors.serviya.metrics.api.MetricsQueryApi;
+import com.parosurvivors.serviya.metrics.api.dto.OffererMetricsSnapshot;
+import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSummarySnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
@@ -52,11 +50,9 @@ public class MarketplaceService implements MarketplaceServicePort {
 
     private final ServicePersistencePort persistencePort;
     private final MarketplaceCategoryPort categoryPort;
-    private final OffererProfileServicePort offererProfileService;
-    private final OffererMetricsServicePort offererMetricsService;
-    private final ServiceMetricsServicePort serviceMetricsService;
-    private final ServiceFeedbackServicePort serviceFeedbackService;
-    private final UserProfileServicePort userProfileService;
+    private final ProfileQueryApi profileQueryApi;
+    private final MetricsQueryApi metricsQueryApi;
+    private final FeedbackQueryApi feedbackQueryApi;
     private final ServiceAvailabilityServicePort serviceAvailabilityService;
     private final ServiceCommandMapper commandMapper;
 
@@ -106,12 +102,21 @@ public class MarketplaceService implements MarketplaceServicePort {
 
     @Override
     public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
-        return persistencePort.search(criteria, pageable);
+        SearchServiceQuery effective = criteria;
+        if (criteria.minRating() != null || criteria.maxRating() != null) {
+            List<Long> ids = metricsQueryApi.findServiceIdsByAverageRating(
+                    criteria.minRating(), criteria.maxRating());
+            if (ids.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            effective = criteria.withServiceIds(ids);
+        }
+        return persistencePort.search(effective, pageable);
     }
 
     @Override
-    public Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds) {
-        return serviceMetricsService.getMetricsByServiceIds(serviceIds);
+    public Map<Long, ServiceMetricsSnapshot> getMetricsForServices(List<Long> serviceIds) {
+        return metricsQueryApi.getServiceMetrics(serviceIds);
     }
 
     @Override
@@ -140,16 +145,21 @@ public class MarketplaceService implements MarketplaceServicePort {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Categoria no encontrada con id: " + service.getCategoryId()));
 
-        OffererProfile offererProfile = offererProfileService.getPublicProfile(service.getOffererId());
-        OffererProfileSummary summary = offererProfileService.getProfileSummary(service.getOffererId());
-        OffererMetrics offererMetrics = offererMetricsService.getMainMetrics(service.getOffererId());
-        ServiceMetrics serviceMetrics = serviceMetricsService.getMetrics(service.getId());
+        OffererProfileSnapshot offererProfile = profileQueryApi.findOffererProfile(service.getOffererId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Perfil de oferente no encontrado para userId: " + service.getOffererId()));
+        OffererProfileSummarySnapshot summary = profileQueryApi.getOffererSummary(service.getOffererId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Resumen de oferente no encontrado para userId: " + service.getOffererId()));
+        OffererMetricsSnapshot offererMetrics = metricsQueryApi.getOffererMainMetrics(service.getOffererId());
+        ServiceMetricsSnapshot serviceMetrics = metricsQueryApi.getServiceMetrics(service.getId());
 
         // Reseñas recientes (hasta 3): cada feedback con comentario se empareja con el
-        // perfil
-        // público de su autor para mostrar nombre y foto en el detalle del servicio.
-        List<FeedbackUser> feedbacks = serviceFeedbackService.getRecentServiceFeedback(service.getId(), 3).stream()
-                .map(feedback -> new FeedbackUser(feedback, userProfileService.getProfileInfo(feedback.getClientId())))
+        // perfil público de su autor para mostrar nombre y foto en el detalle del servicio.
+        List<FeedbackUser> feedbacks = feedbackQueryApi.getRecentServiceFeedback(service.getId(), 3).stream()
+                .map(feedback -> new FeedbackUser(
+                        feedback,
+                        profileQueryApi.findProfile(feedback.clientId()).orElse(null)))
                 .collect(Collectors.toList());
 
         List<ServiceAvailability> availability = serviceAvailabilityService.getByServiceId(service.getId());

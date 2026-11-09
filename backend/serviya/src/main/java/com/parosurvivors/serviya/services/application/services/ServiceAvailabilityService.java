@@ -6,8 +6,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.parosurvivors.serviya.profiles.application.ports.input.OffererAvailabilityServicePort;
-import com.parosurvivors.serviya.profiles.domain.OffererAvailability;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.OffererAvailabilitySnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceAvailabilityCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceAvailabilityCommand;
 import com.parosurvivors.serviya.services.application.ports.input.ServiceAvailabilityServicePort;
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class ServiceAvailabilityService implements ServiceAvailabilityServicePort {
 
     private final ServiceAvailabilityPersistencePort persistencePort;
-    private final OffererAvailabilityServicePort offererAvailabilityService;
+    private final ProfileQueryApi profileQueryApi;
 
     @Override
     public ServiceAvailability create(CreateServiceAvailabilityCommand command) {
@@ -65,16 +65,16 @@ public class ServiceAvailabilityService implements ServiceAvailabilityServicePor
         List<ServiceAvailability> existingSlots = persistencePort.findByServiceId(serviceId);
         existingSlots.forEach(slot -> persistencePort.deleteById(slot.getId()));
 
-        List<OffererAvailability> generalSlots = offererAvailabilityService.getSchedule(offererId).stream()
-                .filter(OffererAvailability::isActive)
+        List<OffererAvailabilitySnapshot> generalSlots = profileQueryApi.getAvailabilities(offererId).stream()
+                .filter(OffererAvailabilitySnapshot::active)
                 .toList();
 
-        for (OffererAvailability slot : generalSlots) {
+        for (OffererAvailabilitySnapshot slot : generalSlots) {
             create(new CreateServiceAvailabilityCommand(
                     serviceId,
-                    slot.getWeekDay().byteValue(),
-                    slot.getStartTime(),
-                    slot.getEndTime(),
+                    (byte) slot.weekDay(),
+                    slot.startTime(),
+                    slot.endTime(),
                     true));
         }
     }

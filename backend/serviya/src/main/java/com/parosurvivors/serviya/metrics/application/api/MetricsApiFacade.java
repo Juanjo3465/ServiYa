@@ -11,12 +11,14 @@ import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsS
 import com.parosurvivors.serviya.metrics.application.ports.input.OffererTagMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.input.ServiceMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.input.ServiceTagMetricsServicePort;
+import com.parosurvivors.serviya.metrics.application.ports.output.ServiceMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
 import com.parosurvivors.serviya.metrics.domain.ClientTagMetrics;
 import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
 import com.parosurvivors.serviya.metrics.domain.OffererTagMetrics;
 import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import com.parosurvivors.serviya.metrics.domain.ServiceTagMetrics;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ public class MetricsApiFacade implements MetricsQueryApi {
     private final OffererTagMetricsServicePort offererTagMetricsServicePort;
     private final ClientMetricsServicePort clientMetricsServicePort;
     private final ClientTagMetricsServicePort clientTagMetricsServicePort;
+    private final ServiceMetricsPersistencePort serviceMetricsPersistencePort;
 
     @Override
     public ServiceMetricsSnapshot getServiceMetrics(Long serviceId) {
@@ -50,6 +53,13 @@ public class MetricsApiFacade implements MetricsQueryApi {
     public Map<Long, ServiceMetricsSnapshot> getServiceMetrics(Collection<Long> serviceIds) {
         return serviceMetricsServicePort.getMetricsByServiceIds(serviceIds).entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> toServiceSnapshot(entry.getValue())));
+    }
+
+    @Override
+    public List<Long> findServiceIdsByAverageRating(Double minRating, Double maxRating) {
+        BigDecimal min = minRating == null ? null : BigDecimal.valueOf(minRating);
+        BigDecimal max = maxRating == null ? null : BigDecimal.valueOf(maxRating);
+        return serviceMetricsPersistencePort.findServiceIdsByAverageRating(min, max);
     }
 
     @Override

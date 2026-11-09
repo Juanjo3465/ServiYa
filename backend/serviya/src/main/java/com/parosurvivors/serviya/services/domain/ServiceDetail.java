@@ -1,10 +1,9 @@
 package com.parosurvivors.serviya.services.domain;
 
-import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
-import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
-import com.parosurvivors.serviya.profiles.domain.OffererProfile;
-import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
-
+import com.parosurvivors.serviya.metrics.api.dto.OffererMetricsSnapshot;
+import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSummarySnapshot;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,6 +12,10 @@ import lombok.Setter;
 
 import java.util.List;
 
+/**
+ * Vista compuesta del servicio para el detalle: datos propios + snapshots publicos de profiles,
+ * metrics y feedback. Los DTOs de otros modulos entran como snapshots de su API, no como dominio.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,10 +24,10 @@ import java.util.List;
 public class ServiceDetail {
     private Service service;
     private Category category;
-    private OffererProfile offererProfile;
-    private OffererProfileSummary offererSummary;
+    private OffererProfileSnapshot offererProfile;
+    private OffererProfileSummarySnapshot offererSummary;
     private List<FeedbackUser> feedbackUsers;
     private List<ServiceAvailability> availability;
-    private ServiceMetrics serviceMetrics;
-    private OffererMetrics offererMetrics;
+    private ServiceMetricsSnapshot serviceMetrics;
+    private OffererMetricsSnapshot offererMetrics;
 }

@@ -1,6 +1,5 @@
 package com.parosurvivors.serviya.services.infrastructure.repositories;
 
-import com.parosurvivors.serviya.metrics.infrastructure.entities.ServiceMetricsEntity;
 import com.parosurvivors.serviya.profiles.infrastructure.entities.AddressEntity;
 import com.parosurvivors.serviya.profiles.infrastructure.entities.UserProfileEntity;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
@@ -82,30 +81,9 @@ public class ServiceSpecificationRepository {
                 predicates.add(cb.equal(root.get("active"), q.available()));
             }
 
-            // ── Rating via subquery (ServiceEntity no tiene mapeo JPA a ServiceMetricsEntity) ──
-            if (q.minRating() != null || q.maxRating() != null) {
-                Subquery<Long> ratingSub = query.subquery(Long.class);
-                Root<ServiceMetricsEntity> mRoot = ratingSub.from(ServiceMetricsEntity.class);
-
-                List<Predicate> ratingPredicates = new ArrayList<>();
-                ratingPredicates.add(cb.equal(mRoot.get("serviceId"), root.get("id")));
-
-                if (q.minRating() != null) {
-                    ratingPredicates.add(cb.greaterThanOrEqualTo(
-                            mRoot.get("averageRating"),
-                            BigDecimal.valueOf(q.minRating())
-                    ));
-                }
-                if (q.maxRating() != null) {
-                    ratingPredicates.add(cb.lessThanOrEqualTo(
-                            mRoot.get("averageRating"),
-                            BigDecimal.valueOf(q.maxRating())
-                    ));
-                }
-
-                ratingSub.select(mRoot.get("serviceId"))
-                        .where(ratingPredicates.toArray(new Predicate[0]));
-                predicates.add(root.get("id").in(ratingSub));
+            // ── Rating: los ids se resuelven en metrics.api y llegan ya filtrados ──
+            if (q.serviceIds() != null && !q.serviceIds().isEmpty()) {
+                predicates.add(root.get("id").in(q.serviceIds()));
             }
 
             // ── Geolocalización (Haversine) ───────────────────────────────────

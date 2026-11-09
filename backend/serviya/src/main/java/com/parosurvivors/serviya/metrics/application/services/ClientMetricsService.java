@@ -3,7 +3,7 @@ package com.parosurvivors.serviya.metrics.application.services;
 import com.parosurvivors.serviya.metrics.application.ports.input.ClientMetricsServicePort;
 import com.parosurvivors.serviya.metrics.application.ports.output.ClientMetricsPersistencePort;
 import com.parosurvivors.serviya.metrics.domain.ClientMetrics;
-import com.parosurvivors.serviya.requests.application.ports.input.ServiceRequestQueryServicePort;
+import com.parosurvivors.serviya.requests.api.RequestCountApi;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClientMetricsService implements ClientMetricsServicePort {
 
     private final ClientMetricsPersistencePort clientMetricsPersistencePort;
-    private final ServiceRequestQueryServicePort serviceRequestQueryServicePort;
+    private final RequestCountApi requestCountApi;
 
     @Override
     public ClientMetrics getAllMetrics(Long clientId) {
@@ -44,7 +44,7 @@ public class ClientMetricsService implements ClientMetricsServicePort {
      * (consulta a service_requests vía el módulo de requests). Valor de solo lectura, no persistido.
      */
     private ClientMetrics withActiveRequests(ClientMetrics metrics) {
-        metrics.setActiveRequests((int) serviceRequestQueryServicePort.countActiveClientRequests(metrics.getClientId()));
+        metrics.setActiveRequests((int) requestCountApi.countActiveClientRequests(metrics.getClientId()));
         return metrics;
     }
 

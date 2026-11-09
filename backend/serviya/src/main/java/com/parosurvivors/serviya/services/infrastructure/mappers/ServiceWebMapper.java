@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.services.infrastructure.mappers;
 
-import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
+import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.domain.FeedbackUser;
@@ -45,7 +45,7 @@ public interface ServiceWebMapper {
     @Mapping(target = "averageRating", source = "metrics.averageRating")
     @Mapping(target = "totalRatings", source = "metrics.totalRatings")
     @Mapping(target = "totalComments", source = "metrics.totalComments")
-    ServiceResponse toResponse(Service service, ServiceMetrics metrics);
+    ServiceResponse toResponse(Service service, ServiceMetricsSnapshot metrics);
 
     @Mapping(target = "id", source = "feedback.id")
     @Mapping(target = "requestId", source = "feedback.requestId")
@@ -65,7 +65,7 @@ public interface ServiceWebMapper {
     @Mapping(target = "specialty", source = "offererSummary.specialty")
     @Mapping(target = "whatsappNumber", source = "offererProfile.whatsappNumber")
     @Mapping(target = "publicDescription", source = "offererProfile.publicDescription")
-    @Mapping(target = "offererAverageRating", source = "offererSummary.averageRating")
+    @Mapping(target = "offererAverageRating", source = "offererMetrics.averageRating")
     @Mapping(target = "feedbacks", source = "feedbackUsers")
     @Mapping(target = "title", source = "service.title")
     @Mapping(target = "description", source = "service.description")

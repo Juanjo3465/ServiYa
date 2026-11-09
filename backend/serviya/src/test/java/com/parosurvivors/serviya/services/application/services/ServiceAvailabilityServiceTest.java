@@ -7,8 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.parosurvivors.serviya.profiles.application.ports.input.OffererAvailabilityServicePort;
-import com.parosurvivors.serviya.profiles.domain.OffererAvailability;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.OffererAvailabilitySnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceAvailabilityCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceAvailabilityCommand;
 import com.parosurvivors.serviya.services.application.ports.output.ServiceAvailabilityPersistencePort;
@@ -28,7 +28,7 @@ import java.util.List;
 class ServiceAvailabilityServiceTest {
 
     @Mock private ServiceAvailabilityPersistencePort persistencePort;
-    @Mock private OffererAvailabilityServicePort offererAvailabilityService;
+    @Mock private ProfileQueryApi profileQueryApi;
 
     @InjectMocks private ServiceAvailabilityService service;
 
@@ -203,13 +203,13 @@ class ServiceAvailabilityServiceTest {
         ServiceAvailability existing2 = ServiceAvailability.builder().id(2L).serviceId(SERVICE_ID).build();
         when(persistencePort.findByServiceId(SERVICE_ID)).thenReturn(List.of(existing1, existing2));
 
-        OffererAvailability slot1 = OffererAvailability.builder()
-                .weekDay(1).startTime(LocalTime.of(8, 0)).endTime(LocalTime.of(17, 0)).active(true).build();
-        OffererAvailability slot2 = OffererAvailability.builder()
-                .weekDay(3).startTime(LocalTime.of(9, 0)).endTime(LocalTime.of(18, 0)).active(true).build();
-        OffererAvailability inactiveSlot = OffererAvailability.builder()
-                .weekDay(5).startTime(LocalTime.of(10, 0)).endTime(LocalTime.of(20, 0)).active(false).build();
-        when(offererAvailabilityService.getSchedule(OFFERER_ID)).thenReturn(List.of(slot1, slot2, inactiveSlot));
+        OffererAvailabilitySnapshot slot1 = new OffererAvailabilitySnapshot(
+                1L, OFFERER_ID, 1, LocalTime.of(8, 0), LocalTime.of(17, 0), true);
+        OffererAvailabilitySnapshot slot2 = new OffererAvailabilitySnapshot(
+                2L, OFFERER_ID, 3, LocalTime.of(9, 0), LocalTime.of(18, 0), true);
+        OffererAvailabilitySnapshot inactiveSlot = new OffererAvailabilitySnapshot(
+                3L, OFFERER_ID, 5, LocalTime.of(10, 0), LocalTime.of(20, 0), false);
+        when(profileQueryApi.getAvailabilities(OFFERER_ID)).thenReturn(List.of(slot1, slot2, inactiveSlot));
 
         when(persistencePort.save(any())).thenAnswer(inv -> {
             ServiceAvailability a = inv.getArgument(0);

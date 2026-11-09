@@ -10,17 +10,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.parosurvivors.serviya.feedback.application.ports.input.ServiceFeedbackServicePort;
-import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
-import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
-import com.parosurvivors.serviya.metrics.application.ports.input.ServiceMetricsServicePort;
-import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
-import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
-import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
-import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
-import com.parosurvivors.serviya.profiles.domain.OffererProfile;
-import com.parosurvivors.serviya.profiles.domain.OffererProfileSummary;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.feedback.api.FeedbackQueryApi;
+import com.parosurvivors.serviya.metrics.api.MetricsQueryApi;
+import com.parosurvivors.serviya.metrics.api.dto.OffererMetricsSnapshot;
+import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSummarySnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
@@ -53,11 +49,9 @@ class MarketplaceServiceTest {
 
     @Mock private ServicePersistencePort persistencePort;
     @Mock private MarketplaceCategoryPort categoryPort;
-    @Mock private OffererProfileServicePort offererProfileService;
-    @Mock private OffererMetricsServicePort offererMetricsService;
-    @Mock private ServiceMetricsServicePort serviceMetricsService;
-    @Mock private ServiceFeedbackServicePort serviceFeedbackService;
-    @Mock private UserProfileServicePort userProfileService;
+    @Mock private ProfileQueryApi profileQueryApi;
+    @Mock private MetricsQueryApi metricsQueryApi;
+    @Mock private FeedbackQueryApi feedbackQueryApi;
     @Mock private ServiceAvailabilityServicePort serviceAvailabilityService;
     @Mock private ServiceCommandMapper commandMapper;
 
@@ -90,15 +84,19 @@ class MarketplaceServiceTest {
 
     private void stubDetailDependencies(com.parosurvivors.serviya.services.domain.Service svc) {
         when(categoryPort.getById(svc.getCategoryId())).thenReturn(Optional.of(sampleCategory()));
-        when(offererProfileService.getPublicProfile(svc.getOffererId()))
-                .thenReturn(OffererProfile.builder().userId(OFFERER_ID).specialty("Plomeria").build());
-        when(offererProfileService.getProfileSummary(svc.getOffererId()))
-                .thenReturn(new OffererProfileSummary(OFFERER_ID, "Juan Perez", "photo.jpg", "Plomeria", new BigDecimal("4.50")));
-        when(offererMetricsService.getMainMetrics(svc.getOffererId()))
-                .thenReturn(OffererMetrics.builder().offererId(OFFERER_ID).build());
-        when(serviceMetricsService.getMetrics(svc.getId()))
-                .thenReturn(ServiceMetrics.builder().serviceId(SERVICE_ID).build());
-        when(serviceFeedbackService.getRecentServiceFeedback(svc.getId(), 3))
+        when(profileQueryApi.findOffererProfile(svc.getOffererId()))
+                .thenReturn(Optional.of(new OffererProfileSnapshot(
+                        1L, OFFERER_ID, null, null, "Plomeria", null, null)));
+        when(profileQueryApi.getOffererSummary(svc.getOffererId()))
+                .thenReturn(Optional.of(new OffererProfileSummarySnapshot(
+                        OFFERER_ID, "Juan Perez", "photo.jpg", "Plomeria")));
+        when(metricsQueryApi.getOffererMainMetrics(svc.getOffererId()))
+                .thenReturn(new OffererMetricsSnapshot(
+                        OFFERER_ID, new BigDecimal("4.50"), 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, null));
+        when(metricsQueryApi.getServiceMetrics(svc.getId()))
+                .thenReturn(new ServiceMetricsSnapshot(
+                        SERVICE_ID, new BigDecimal("4.50"), 2, 1, 0, null));
+        when(feedbackQueryApi.getRecentServiceFeedback(svc.getId(), 3))
                 .thenReturn(List.of());
         when(serviceAvailabilityService.getByServiceId(svc.getId()))
                 .thenReturn(List.of());
@@ -277,15 +275,15 @@ class MarketplaceServiceTest {
     @Test
     void getMetricsForServicesDelegatesToMetricsService() {
         List<Long> ids = List.of(1L, 2L);
-        Map<Long, ServiceMetrics> metrics = Map.of(
-                1L, ServiceMetrics.builder().serviceId(1L).build(),
-                2L, ServiceMetrics.builder().serviceId(2L).build());
-        when(serviceMetricsService.getMetricsByServiceIds(ids)).thenReturn(metrics);
+        Map<Long, ServiceMetricsSnapshot> metrics = Map.of(
+                1L, new ServiceMetricsSnapshot(1L, BigDecimal.ZERO, 0, 0, 0, null),
+                2L, new ServiceMetricsSnapshot(2L, BigDecimal.ZERO, 0, 0, 0, null));
+        when(metricsQueryApi.getServiceMetrics(ids)).thenReturn(metrics);
 
-        Map<Long, ServiceMetrics> result = service.getMetricsForServices(ids);
+        Map<Long, ServiceMetricsSnapshot> result = service.getMetricsForServices(ids);
 
         assertThat(result).hasSize(2);
-        verify(serviceMetricsService).getMetricsByServiceIds(ids);
+        verify(metricsQueryApi).getServiceMetrics(ids);
     }
 
     // ==================== update ====================

@@ -1,9 +1,9 @@
 package com.parosurvivors.serviya.services.infrastructure.adapters.input;
 
 
-import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
-import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
+import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
+import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
 import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
@@ -50,7 +50,7 @@ public class ServiceController implements ServiceApi {
 
     private final MarketplaceServicePort marketplaceService;
     private final ServiceWebMapper mapper;
-    private final UserProfileServicePort userProfileService;
+    private final ProfileQueryApi profileQueryApi;
     private final ServicePhotoStorageService photoStorageService;
 
     @Override
@@ -158,7 +158,7 @@ public class ServiceController implements ServiceApi {
                 .maxDistanceKm(maxDistanceKm)
                 .build();
         Page<Service> servicePage = marketplaceService.search(criteria, pageable);
-        Map<Long, ServiceMetrics> metricsMap = marketplaceService.getMetricsForServices(
+        Map<Long, ServiceMetricsSnapshot> metricsMap = marketplaceService.getMetricsForServices(
                 servicePage.getContent().stream().map(Service::getId).collect(Collectors.toList()));
 
         Set<Long> offererIds = servicePage.getContent().stream()
@@ -166,7 +166,9 @@ public class ServiceController implements ServiceApi {
         Map<Long, String> offererNames = new HashMap<>();
         for (Long oid : offererIds) {
             try {
-                offererNames.put(oid, userProfileService.getProfileInfo(oid).getFullName());
+                offererNames.put(oid, profileQueryApi.findProfile(oid)
+                        .map(ProfileSnapshot::fullName)
+                        .orElse("Oferente"));
             } catch (Exception e) {
                 offererNames.put(oid, "Oferente");
             }

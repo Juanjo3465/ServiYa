@@ -1,10 +1,12 @@
 package com.parosurvivors.serviya.services.domain;
 
-import com.parosurvivors.serviya.profiles.domain.UserProfile;
-import com.parosurvivors.serviya.feedback.domain.ServiceFeedback;
+import com.parosurvivors.serviya.feedback.api.dto.ServiceFeedbackSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
 
-/** Empareja una reseña (ServiceFeedback) con el perfil de su autor, para mostrarla en el detalle del servicio. */
+/**
+ * Feedback reciente de un servicio junto con el perfil publico de su autor.
+ */
 public record FeedbackUser(
-    ServiceFeedback feedback,
-    UserProfile user
-) {}
+        ServiceFeedbackSnapshot feedback,
+        ProfileSnapshot user) {
+}

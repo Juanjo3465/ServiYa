@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.services.application.ports.input;
 
-import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
+import com.parosurvivors.serviya.metrics.api.dto.ServiceMetricsSnapshot;
 import com.parosurvivors.serviya.services.application.dto.command.CreateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.command.UpdateServiceCommand;
 import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQuery;
@@ -28,7 +28,7 @@ public interface MarketplaceServicePort {
     Optional<ServiceDetail> getDetailById(Long id);
     Service update(UpdateServiceCommand command, Long requesterId, boolean isAdmin);
     Page<Service> search(SearchServiceQuery criteria, Pageable pageable);
-    Map<Long, ServiceMetrics> getMetricsForServices(List<Long> serviceIds);
+    Map<Long, ServiceMetricsSnapshot> getMetricsForServices(List<Long> serviceIds);
     void delete(Long id, Long requesterId, boolean isAdmin);
     void softDelete(Long id, Long requesterId, boolean isAdmin);
     void activate(Long id, Long requesterId, boolean isAdmin);
