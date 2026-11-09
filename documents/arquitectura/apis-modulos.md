@@ -2,8 +2,7 @@
 
 > Estado: **Incrementos 1–4 y migración de consumidores completados** (2026-11-08). Define los
 > contratos publicos y el mecanismo para que los modulos dejen de depender de `domain`,
-> `infrastructure` y puertos de persistencia ajenos. Solo queda deuda en `admin` y en
-> `services → profiles.infrastructure`.
+> `infrastructure` y puertos de persistencia ajenos. Solo queda deuda en `admin`.
 > Ver `ESTADO-ACTUAL-Y-PLAN-FUTURO.md` §7 y `ModuleBoundaryTest`.
 
 ## Control de cambios
@@ -25,7 +24,8 @@
 | 2026-11-08 | Migración `metrics`/`notifications` → `feedback.api` y `UserContactApi`; baseline **183 → 176**. | Completado |
 | 2026-11-08 | Migración `users` → `notifications.api`, `requests.api` y `profiles.api`; baseline **176 → 160**. | Completado |
 | 2026-11-08 | Migración `profiles` → `metrics.api` y `services.api`; baseline **160 → 136**. | Completado |
-| Pendiente | Deuda restante: `admin` y `services → profiles.infrastructure`. | Pendiente |
+| 2026-11-08 | Filtros de búsqueda de `services` resueltos vía `profiles.api` (nombre y geolocalización); baseline **136 → 130**. | Completado |
+| Pendiente | Deuda restante: `admin`. | Pendiente |
 
 ## 1. Convencion
 
@@ -209,9 +209,9 @@ Las reglas con deuda existente usan `FreezingArchRule`. Baseline actual:
 |---|---:|
 | `domain` ajeno | 100 |
 | Puertos de persistencia ajenos | 8 |
-| `infrastructure` ajena | 28 |
+| `infrastructure` ajena | 22 |
 | `shared` hacia modulos | 0 |
-| **Total** | **136** |
+| **Total** | **130** |
 
 Antes del Incremento 1 eran 451 (24 shared + 326 domain + 64 persistence + 37 infrastructure).
 El Incremento 2A no cambio el baseline (**414**). El Incremento 2B lo redujo a **316**:
@@ -222,7 +222,7 @@ El Incremento 3 no cambio el baseline. Las migraciones posteriores lo redujeron 
 - `users` → `profiles.api` (`AccountController`): **294 → 287**.
 - `statistics` extraido de `shared`: **287 → 272**.
 
-La migracion de consumidores lo redujo de **272 a 136**:
+La migracion de consumidores lo redujo de **272 a 130**:
 
 - `reports` → APIs publicas (`profiles`, `requests`, `services`, `feedback`, `users`,
   `notifications`): **272 → 263**.
@@ -230,9 +230,10 @@ La migracion de consumidores lo redujo de **272 a 136**:
 - `metrics`/`notifications` → `feedback.api`/`UserContactApi`: **183 → 176**.
 - `users` → `notifications.api`/`requests.api`/`profiles.api`: **176 → 160**.
 - `profiles` → `metrics.api`/`services.api`: **160 → 136**.
+- Filtros de búsqueda de `services` resueltos vía `profiles.api` (nombre y geolocalización):
+  **136 → 130**.
 
-La deuda restante se concentra en `admin` (~131 lineas) y en
-`services → profiles.infrastructure` (~6 lineas).
+La deuda restante se concentra en `admin` (~131 lineas).
 
 La regla `shared` ya **no está congelada**: tiene 0 violaciones y es absoluta.
 
@@ -252,7 +253,7 @@ cd backend/serviya
 | 3 | `requests.api` + `feedback.api` + `metrics.api` — **completado**. |
 | 4 | `reports.api` — **completado**. |
 | — | Migrar consumidores: `reports`, `services`, `metrics`, `notifications`, `users` y `profiles` — **completado**. |
-| — | Deuda restante: `admin` y `services → profiles.infrastructure`. |
+| — | Deuda restante: `admin`. |
 
 `admin` no publica API: es consumidor/orquestador. `config` es la raiz de composicion y puede
 cablear implementaciones de cualquier modulo.
@@ -282,7 +283,7 @@ Resultados:
 - `MetricsApiFacadeTest`: 5/5.
 - `ReportApiFacadeTest`: 8/8.
 - `ModuleBoundaryTest`: 7/7.
-- **Suite completa**: **455 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+- **Suite completa**: **459 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
   Ya no se excluyen `ServiyaApplicationTests` ni `PiiAttributeConverterTest`: se añadió H2 y se
   configura `ENCRYPTION_KEY` en el test de PII.
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
@@ -298,8 +299,8 @@ Resultados:
   `reports` → APIs públicas, `services` → `metrics.api`/`profiles.api`/`feedback.api`,
   `metrics` → `feedback.api`, `notifications` → `UserContactApi` y `profiles` →
   `metrics.api`/`services.api`.
-- **Pendientes:** `admin` sigue usando puertos internos de otros módulos y
-  `services → profiles.infrastructure` conserva ~6 líneas (spec de búsqueda).
+- **Pendientes:** `admin` sigue usando puertos internos de otros módulos. Los filtros de nombre y
+  geolocalización de `services` ya se resuelven con `profiles.api`, sin importar su infraestructura.
 - **`RequestLookupApi`** es una lectura mínima de requests (solo `ServiceRequestReadPort`) para
   consumidores como feedback. Evita el ciclo de beans
   `feedback → RequestApiFacade → requests query → services.api → marketplace → feedback`.
@@ -318,7 +319,7 @@ Resultados:
 - **`metrics` ya no importa `requests.domain`.** Los estados viajan como `String` y el switch interno
   ignora estados desconocidos. Esto prepara la extraccion de metrics sin arrastrar el enum de requests.
 - **La arquitectura no esta limpia.** El baseline congelado es un ratchet: impide violaciones nuevas,
-  no certifica que las **136** existentes sean correctas.
+  no certifica que las **130** existentes sean correctas.
 
 ## 7. Archivos principales
 

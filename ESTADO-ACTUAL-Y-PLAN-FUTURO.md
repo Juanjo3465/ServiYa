@@ -856,13 +856,16 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
 - **Migración `profiles`**: `OffererProfileService` y `OffererPublicProfileService` usan
   `MetricsQueryApi` y `ServiceQueryApi` en lugar de puertos/dominio ajenos. Baseline **160 → 136**
   (domain 100, persistence 8, infrastructure 28, shared 0).
-- **Gate actual**: **455 tests, 0 fallos, 0 errores, 14 skipped**; la deuda restante se concentra
-  en `admin` (~131 líneas) y `services → profiles.infrastructure` (~6 líneas).
+- **Filtros de búsqueda de `services`**: `ProfileQueryApi` expone `findUserIdsByFullName` y
+  `findUserIdsWithinDistance`; `MarketplaceService` resuelve nombre y geolocalización a ids de
+  oferentes y `ServiceSpecificationRepository` deja de importar `profiles.infrastructure`.
+  Baseline **136 → 130** (infrastructure 28 → 22).
+- **Gate actual**: **459 tests, 0 fallos, 0 errores, 14 skipped**; la deuda restante se concentra
+  en `admin` (~131 líneas).
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: pagar la deuda restante de `admin` y el spec de búsqueda de
-`services → profiles.infrastructure`; opcionalmente, un test determinista de ciclos.
+Siguiente: pagar la deuda restante de `admin`; opcionalmente, un test determinista de ciclos.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1092,8 +1095,10 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   el filtro por rating se resuelve con `MetricsQueryApi.findServiceIdsByAverageRating`; los tags de
   metrics se enriquecen con `FeedbackQueryApi`. Baseline ArchUnit: **272 → 136** (domain 100,
   persistence 8, infrastructure 28, shared 0). Suite completa: **455 tests, 0 fallos, 0 errores,
-  14 skipped**. Commits: `fefd78a`, `e9b0e54`, `8f9e56e`, `9cb35b4`, `9e8722a`. Deuda restante:
-  `admin` (~131 líneas) y `services → profiles.infrastructure` (~6 líneas).
+  14 skipped**. Commits: `fefd78a`, `e9b0e54`, `8f9e56e`, `9cb35b4`, `9e8722a`. Después,
+  `ProfileQueryApi` expuso búsqueda por nombre y geolocalización para que `services` no importe
+  `profiles.infrastructure`: baseline **136 → 130**; suite **459 tests**. Commit: `a250185`.
+  Deuda restante: `admin` (~131 líneas).
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,
