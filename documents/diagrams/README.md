@@ -23,6 +23,7 @@ Alojados en una página web navegable e interactiva:
 
 ## Diagrama de arquitectura
 - [Architecture Diagram](./architecture-diagram.jpg)
+- [Componentes y conectores](./componentes-y-conectores.md) — contenedores, conectores, módulos, BFF, secuencias y mapa de datos (Mermaid).
 
 ## Diagrama de clases
 - [Diagrama de clases](./diagrama-clases.md)
