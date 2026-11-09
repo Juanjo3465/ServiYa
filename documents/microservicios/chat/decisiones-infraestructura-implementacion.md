@@ -7,7 +7,8 @@
 > **Fuera de alcance:** código del `chat-service` (otro equipo), frontend WebSocket y la instancia
 > Redis de caché (`redis-cache`, fase 2).
 >
-> **Estado:** decisiones cerradas. Implementación en curso.
+> **Estado:** decisiones cerradas. Infraestructura compartida implementada; la integración end-to-end
+> queda pendiente del `chat-service` y de la rama `api-gateway` (ES256/JWKS).
 
 ## 1. Decisiones cerradas
 
@@ -25,7 +26,8 @@
 | Redis C (Pub/Sub) | Propiedad del equipo del chat | Contenedor `chat-pubsub` en el compose del chat. |
 | RabbitMQ: dueño de colas | **`chat-service`** declara colas, bindings y DLQ | El servicio es dueño de su ciclo de vida; infra declara exchanges y ACL. |
 | Eventos del monolito | **En alcance** | `requests` y `users` publican al bus mediante outbox. |
-| Almacenamiento de objetos | **MinIO local en infraestructura compartida** | Fase 3. S3-compatible, sin coste cloud. |
+| Almacenamiento de objetos | **MinIO-compatible local en infraestructura compartida** | Fase 3. S3-compatible, sin coste cloud. |
+| Imagen local | **`pgsty/silo`** | Las imágenes comunitarias de MinIO desaparecieron de Docker Hub/Quay en 2026; Silo es un fork compatible que incluye `mc`/`mcli`. |
 | Subida de adjuntos | **URLs prefirmadas directas a MinIO** | Recomendación del documento. Bucket privado y expiración corta. |
 | Bucket | `chat-attachments` | Privado; sin acceso anónimo. |
 | Envelope de eventos | `event_id`, `event_type`, `event_version`, `occurred_at`, `producer`, `subject`, `correlation_id`, `causation_id`, `data` | Trazabilidad suficiente sin sobreingeniería. |
@@ -191,7 +193,7 @@ interno de Docker.
 
 ## 6. MinIO local
 
-- Servicio `minio` en `infra/minio/docker-compose.minio.yml`.
+- Servicio `minio` en el `docker-compose.yml` raíz, con profile `minio`. **Implementación actual:** usa `pgsty/silo`, un fork S3-compatible de MinIO (las imágenes oficiales de MinIO ya no están disponibles públicamente).
 - Consola en `:9001` solo para desarrollo.
 - API S3 en `:9000` para las URLs prefirmadas del navegador en local.
 - Bucket `chat-attachments` privado.
@@ -224,22 +226,35 @@ interno de Docker.
 
 ## 9. Orden de implementación
 
-1. Red compartida y variables de entorno.
-2. Redis A: ACL `chat` y presupuesto de memoria.
-3. RabbitMQ: exchanges, DLX, usuario `chat` y permisos.
-4. Gateway: rutas REST/WS, CORS, correlación y tratamiento de `Origin`.
-5. MinIO: contenedor, bucket privado, CORS y credenciales.
-6. Monolito: outbox de eventos de `requests` y `users`, envelope común y backfill.
-7. Observabilidad: correlación extremo a extremo y smoke tests.
-8. Documentación final y actualización de los documentos de requisitos.
+1. Red compartida y variables de entorno. **Hecho:** se reutiliza `serviya-redis-net`.
+2. Redis A: ACL `chat` y presupuesto de memoria. **Hecho:** usuario `chat` en
+   `infra/redis/acl/users.coord.acl.tpl`, restringido a `~chat:*`.
+3. RabbitMQ: exchanges, DLX, usuario `chat` y permisos. **Hecho:**
+   `infra/rabbitmq/setup-topology.sh`.
+4. Gateway: rutas REST/WS, CORS, correlación y tratamiento de `Origin`. **Hecho:** rutas en
+   `backend/api-gateway/src/main/resources/application.yaml` y `OriginHeaderFilter`.
+5. MinIO: contenedor, bucket privado, CORS y credenciales. **Hecho:** profile `minio` del
+   `docker-compose.yml` con `pgsty/silo`; bucket `chat-attachments`.
+6. Monolito: outbox de eventos de `requests` y `users`, envelope común y backfill. **Hecho
+   (publicación):** `domain_event_outbox`, `ChatEventPublisher` y llamadas desde requests/users/
+   profiles. **Pendiente:** endpoint/script de backfill inicial para proyecciones del chat.
+7. Observabilidad: correlación extremo a extremo y smoke tests. **Hecho en gateway y monolito:** el
+   gateway genera/propaga `X-Request-Id`, el monolito lo conserva en MDC y el envelope lo incluye. La
+   propagación al `chat-service` queda a cargo de ese servicio.
+8. Documentación final y actualización de los documentos de requisitos. **Hecho:** este documento,
+   `infra/redis/README.md`, `infra/minio/README.md`, `infra/rabbitmq/README.md` y la guía de ejecución.
 
 ## 10. Criterios de aceptación
 
-- `docker compose config` válido para la infraestructura compartida.
-- `redis-coord` sigue healthy; el usuario `chat` solo puede operar sobre `chat:*`.
-- RabbitMQ crea exchanges, DLX y permisos sin afectar `serviya.notifications`.
-- Gateway enruta REST y WebSocket del chat y no expone health/metrics.
-- MinIO arranca, el bucket es privado y una URL prefirmada funciona desde el host.
-- El monolito publica `requests`/`users` con el envelope acordado y sobrevive a RabbitMQ caído.
-- Los tests del monolito siguen verdes.
-- `redis-cache` sigue sin implementarse y la fase 2 queda documentada como pendiente.
+- [x] `docker compose config` válido.
+- [x] `redis-coord` healthy; el usuario `chat` solo opera sobre `chat:*`.
+- [x] RabbitMQ crea exchanges, DLX y permisos sin afectar `serviya.notifications`.
+- [x] Gateway enruta REST y WebSocket del chat y no expone health/metrics.
+- [x] MinIO/Silo arranca, el bucket es privado y el usuario `chat` solo accede a su bucket.
+- [x] El monolito publica `users.user.registered` con el envelope acordado y sobrevive a RabbitMQ caído
+  (outbox transaccional).
+- [x] Los tests del monolito siguen verdes.
+- [x] `redis-cache` sigue sin implementarse.
+- [ ] Prueba end-to-end REST/WS con `chat-service` real.
+- [ ] Backfill inicial de `user_directory` y `request_directory`.
+- [ ] Validación JWT ES256 real con la rama `api-gateway` desplegada.

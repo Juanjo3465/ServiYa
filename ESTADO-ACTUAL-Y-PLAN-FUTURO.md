@@ -1146,6 +1146,18 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   determinista de dependencias (Tarjan) y una regla de hojas: el grafo es acíclico. Suite completa:
   **470 tests, 0 fallos, 0 errores, 14 skipped**. Commits: `31aff3e`, `c28ade0`, `cd4a831`,
   `0143949`, `0abdfaf`.
+- **2026-11-09** — **Infraestructura compartida del chat (fase 0/1/3).** Se documentaron las
+  decisiones en `documents/microservicios/chat/decisiones-infraestructura-implementacion.md`:
+  reutilizar `redis-coord` como instancia A, vhost `/`, puerto interno 8000, rutas
+  `/api/chat/**` + WebSocket, ES256/JWKS vía gateway, topología RabbitMQ, envelope común y MinIO
+  local. Implementado: usuario ACL `chat` en `redis-coord`; exchanges `serviya.requests`,
+  `serviya.users`, `serviya.chat` y `serviya.chat.dlx` + usuario RabbitMQ `chat`; rutas y filtros
+  de correlación/`Origin` en el gateway; MinIO/Silo con bucket privado `chat-attachments` y CORS;
+  y outbox transaccional `domain_event_outbox` con publicación de eventos de `requests` y `users`
+  al bus. Verificado: ACL de Redis, topología Rabbit, evento `users.user.registered` con envelope,
+  bucket privado y arranque del gateway. Suite del monolito: **472 tests, 0 fallos, 14 skipped**.
+  Pendiente: prueba end-to-end con `chat-service` real, backfill de proyecciones y ES256 en el
+  entorno desplegado.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,
