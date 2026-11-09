@@ -35,6 +35,14 @@ spring:
           httpclient:
             connect-timeout: 2000
             response-timeout: 30s
+  # redis-coord: SOLO para leer min_iat (Fase 3, T3.5). Timeout corto (hot-path); conexión perezosa de
+  # Lettuce ⇒ el gateway arranca aunque redis-coord no esté. En prod, credenciales del usuario ACL
+  # svc-gateway-coord por SPRING_DATA_REDIS_USERNAME/PASSWORD.
+  data:
+    redis:
+      host: ${REDIS_COORD_HOST:localhost}
+      port: ${REDIS_COORD_PORT:6379}
+      timeout: ${REDIS_COORD_TIMEOUT:250ms}
 
 server:
   port: ${SERVER_PORT:8080}

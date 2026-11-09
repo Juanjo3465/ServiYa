@@ -360,7 +360,7 @@ Reglas:
 - [x] T3.2. Tolerancia de reloj de 30–60 s (`JwtTimestampValidator` con `clockSkew`). **(Slice 3A)** Configurable (`JWT_CLOCK_SKEW`, default `60s`).
 - [x] T3.3. Si P1.6 = sí: aceptar `typ: at+jwt`. Nimbus solo acepta `JWT` o ausencia de `typ` por defecto. Personalizarlo con `jwtProcessorCustomizer` y `DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("at+jwt"))` (verificar la API en la versión de Spring Security usada). **(Slice 3A)** Acepta `at+jwt`, `JWT` y ausente.
 - [x] T3.4. Convertidor de `roles` a authorities `ROLE_*` (`JwtGrantedAuthoritiesConverter` con `authoritiesClaimName("roles")` y `authorityPrefix("ROLE_")`; en reactivo, envuelto en `ReactiveJwtAuthenticationConverterAdapter`). **(Slice 3A)** `ReactiveJwtAuthenticationConverter` + adaptación síncrono→`Flux`.
-- [ ] T3.5. **Chequeo de `min_iat`:** implementarlo como **decorador del `ReactiveJwtDecoder`** (decodifica, luego `flatMap` a Redis, y si `iat < min_iat` emite `JwtValidationException`). Así el 401 sale por el flujo estándar de Spring Security. No usar `OAuth2TokenValidator` para esto, porque es síncrono. Aplicar P3.1 ante errores de Redis.
+- [x] T3.5. **Chequeo de `min_iat`:** implementarlo como **decorador del `ReactiveJwtDecoder`** (decodifica, luego `flatMap` a Redis, y si `iat < min_iat` emite `JwtValidationException`). Así el 401 sale por el flujo estándar de Spring Security. No usar `OAuth2TokenValidator` para esto, porque es síncrono. Aplicar P3.1 ante errores de Redis. **(Slice 3B)** `MinIatReactiveJwtDecoder` sobre `ReactiveStringRedisTemplate` (`redis-coord`, `spring.data.redis.*`, timeout 250ms, conexión perezosa). **Fail-open** con métrica `gateway.min_iat.check{result=...}`. El código `TOKEN_REVOKED` concreto llega con T3.7.
 - [x] T3.6. Reglas de autorización por ruta según P3.3 y P3.4. **Todo lo no listado requiere autenticación** (`anyExchange().authenticated()`). **(Slice 3A)** Públicas (auth + catálogo read-only), ADMIN (admin/reports-actions/reports-GET/categories-POST), `offerers/me/**` autenticado antes del perfil público, OPTIONS permitido.
 - [ ] T3.7. Manejo de errores 401/403 con el formato 4.4 y el header `WWW-Authenticate`.
 - [ ] T3.8. CORS global en el gateway según P3.6.
@@ -373,8 +373,8 @@ Reglas:
 
 - [ ] Tests de integración: token válido → 200. Expirado, mala firma, `iss` o `aud` incorrecto, o algoritmo distinto de ES256 → 401.
 - [ ] Test: token con `alg: HS256` o `alg: none` → 401.
-- [ ] Test: `iat < min_iat` → 401 `TOKEN_REVOKED`.
-- [ ] Test: comportamiento ante Redis caído según P3.1.
+- [x] Test: `iat < min_iat` → 401 (`MinIatReactiveJwtDecoderTest`; el código `TOKEN_REVOKED` en el cuerpo llega con T3.7).
+- [x] Test: comportamiento ante Redis caído según P3.1 (fail-open verificado en `MinIatReactiveJwtDecoderTest`).
 - [ ] Test: ruta con rol insuficiente → 403 (no 401).
 - [ ] Test: las rutas públicas funcionan sin token.
 - [ ] Test: el rate limit responde 429 al superar el límite.
@@ -383,7 +383,9 @@ Reglas:
 ### Notas de implementación
 
 - **Slice 3A implementado y verificado 2026-11-09** (rama `api-gateway`, módulo `backend/api-gateway`): **12 tests, BUILD SUCCESS**. Resource server reactivo ES256 (`GatewaySecurityConfig` + `JwtAudienceValidator`), roles→authorities, matriz de rutas (P3.3/P3.4) y arranque tolerante. Test e2e (`ApiGatewayRoutingTest`): backends stub + `MockWebServer` sirviendo el JWKS + tokens ES256 firmados (`TestJwks`); cubre token válido→enruta, sin token/HS256/expirado/`aud`/`iss` incorrectos→401, CLIENT en ruta ADMIN→403, ADMIN→200, públicas sin token→200, CORS en el borde. Deps nuevas: `spring-boot-starter-security`, `-oauth2-resource-server`, `spring-security-test` + `mockwebserver` (test).
-- **Pendiente (slices siguientes de Fase 3):** T3.5 `min_iat` (decorador `ReactiveJwtDecoder` + `redis-coord`, fail-open P3.1), T3.7 formato de error 4.4 + `WWW-Authenticate` + enum de códigos (P3.5), T3.8 CORS por entorno (globalcors ya presente; falta parametrizar prod), T3.9 rate limit global portado a `WebFilter` reactivo, T3.10 correlation ID, T3.11 verificar passthrough de `Authorization`.
+- **Slice 3B implementado y verificado 2026-11-09** (módulo `backend/api-gateway`): **19 tests, BUILD SUCCESS** (7 nuevos en `MinIatReactiveJwtDecoderTest` + los 12 e2e siguen verdes). `MinIatReactiveJwtDecoder` decora el decoder base: tras validar el token, consulta `auth:min_iat:{sub}` en `redis-coord` y rechaza con `JwtValidationException` si `iat < min_iat`. **Con esto, la revocación de la Fase 2B ya surte efecto de extremo a extremo.** Deps nuevas: `spring-boot-starter-data-redis-reactive` (+ `reactor-test`) y `spring-cloud-starter-circuitbreaker-reactor-resilience4j`. Config `spring.data.redis.*` (host/port/timeout; creds del ACL `svc-gateway-coord` por env en prod).
+- **P3.1 con circuit breaker (implementado):** la consulta a `min_iat` va envuelta en un `CircuitBreaker` Resilience4j (`redis-coord`: ventana 10, mínimo 5, 50% de fallo, 5 s abierto) con la fuente en `Mono.defer`, así al abrir **corta al instante sin intentar la conexión** (no paga el timeout por request en el hot-path). **Fail-open** tanto ante error como con el breaker abierto, con métrica de alerta `gateway.min_iat.check{result=error|breaker-open|revoked|allowed|no-key}`. Verificado que el breaker abierto no vuelve a tocar Redis.
+- **Pendiente (slices siguientes de Fase 3):** T3.7 formato de error 4.4 + `WWW-Authenticate` + enum de códigos (P3.5), T3.8 CORS por entorno (globalcors ya presente; falta parametrizar prod), T3.9 rate limit global portado a `WebFilter` reactivo, T3.10 correlation ID, T3.11 verificar passthrough de `Authorization`.
 
 ---
 

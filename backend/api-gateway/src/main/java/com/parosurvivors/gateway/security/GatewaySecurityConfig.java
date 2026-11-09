@@ -2,8 +2,12 @@ package com.parosurvivors.gateway.security;
 
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -57,8 +61,35 @@ public class GatewaySecurityConfig {
         this.clockSkew = clockSkew;
     }
 
+    /**
+     * Circuit breaker de {@code redis-coord} para el chequeo de {@code min_iat}: abre rápido ante fallos
+     * (5 llamadas, &gt;50% error) y se mantiene abierto 5 s antes de tantear media-apertura, de modo que un
+     * {@code redis-coord} caído se corta al instante en el hot-path en vez de pagar el timeout por request.
+     */
     @Bean
-    public ReactiveJwtDecoder jwtDecoder() {
+    public CircuitBreaker redisCoordCircuitBreaker() {
+        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
+                .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
+                .slidingWindowSize(10)
+                .minimumNumberOfCalls(5)
+                .failureRateThreshold(50f)
+                .waitDurationInOpenState(Duration.ofSeconds(5))
+                .build();
+        return CircuitBreaker.of("redis-coord", config);
+    }
+
+    /**
+     * Decoder efectivo: valida el token ES256 (firma + {@code iss}/{@code aud}/timestamps) y luego aplica
+     * {@code min_iat} contra {@code redis-coord} ({@link MinIatReactiveJwtDecoder}).
+     */
+    @Bean
+    public ReactiveJwtDecoder jwtDecoder(ReactiveStringRedisTemplate coordRedis, MeterRegistry meters,
+                                         CircuitBreaker redisCoordCircuitBreaker) {
+        return new MinIatReactiveJwtDecoder(nimbusDecoder(), coordRedis, meters, redisCoordCircuitBreaker);
+    }
+
+    /** Decoder base: valida firma ES256, typ, iss, aud y timestamps (sin min_iat). */
+    private ReactiveJwtDecoder nimbusDecoder() {
         NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwksUri)
                 .jwsAlgorithm(SignatureAlgorithm.ES256)
                 // Acepta el header typ=at+jwt (RFC 9068) además de JWT/ausente (robustez).
@@ -90,7 +121,9 @@ public class GatewaySecurityConfig {
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(
-            ServerHttpSecurity http, ReactiveJwtAuthenticationConverter jwtAuthenticationConverter) {
+            ServerHttpSecurity http,
+            ReactiveJwtDecoder jwtDecoder,
+            ReactiveJwtAuthenticationConverter jwtAuthenticationConverter) {
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 // CORS lo resuelve globalcors de Spring Cloud Gateway (P3.6); aquí no se duplica.
@@ -123,7 +156,7 @@ public class GatewaySecurityConfig {
                         // Todo lo demás exige autenticación.
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                        .jwtDecoder(jwtDecoder())
+                        .jwtDecoder(jwtDecoder)
                         .jwtAuthenticationConverter(jwtAuthenticationConverter)));
         return http.build();
     }
