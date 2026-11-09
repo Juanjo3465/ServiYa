@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
         "ENCRYPTION_KEY=serviya-test-pii-key-for-context-load-strong-32chars-min",
         "NOTIFICATIONS_PAYLOAD_KEY=serviya-test-payload-key-0123456789abcdef-strong",
         "serviya.notifications.outbox.relay-enabled=false",
+        "serviya.events.outbox.relay-enabled=false",
         "spring.datasource.url=jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
