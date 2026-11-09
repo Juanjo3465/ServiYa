@@ -1,7 +1,8 @@
 package com.parosurvivors.serviya.users.application.services;
 
-import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.notifications.domain.ChannelName;
+import com.parosurvivors.serviya.notifications.api.Channel;
+import com.parosurvivors.serviya.notifications.api.NotificationCommand;
+import com.parosurvivors.serviya.notifications.api.NotificationCommandApi;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
@@ -32,7 +33,7 @@ public class UserService implements UserServicePort {
     private final UserPersistencePort userPersistencePort;
     private final UserReadPort userReadPort;
     private final PasswordEncoder passwordEncoder;
-    private final NotificationServicePort notificationServicePort;
+    private final NotificationCommandApi notificationCommandApi;
 
     @Override
     public User createUser(String email, String rawPassword) {
@@ -97,7 +98,8 @@ public class UserService implements UserServicePort {
 
     /** Notifica al usuario por INTERNAL + EMAIL (la resolución nombre→id vive en NotificationService). */
     private void notifyDualChannel(Long userId, String type, String title, String message) {
-        notificationServicePort.notify(userId, type, title, message, "USER", userId,
-                Set.of(ChannelName.INTERNAL, ChannelName.EMAIL), Map.of());
+        notificationCommandApi.notify(new NotificationCommand(
+                userId, type, title, message, "USER", userId,
+                Set.of(Channel.INTERNAL, Channel.EMAIL), Map.of()));
     }
 }

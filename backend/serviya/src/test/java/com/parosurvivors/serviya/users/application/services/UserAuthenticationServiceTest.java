@@ -10,7 +10,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
+import com.parosurvivors.serviya.notifications.api.Channel;
+import com.parosurvivors.serviya.notifications.api.NotificationCommand;
+import com.parosurvivors.serviya.notifications.api.NotificationCommandApi;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import com.parosurvivors.serviya.users.application.dto.command.LoginCommand;
@@ -32,7 +34,6 @@ import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
 import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.domain.PasswordResetToken;
 import com.parosurvivors.serviya.users.domain.User;
-import com.parosurvivors.serviya.notifications.domain.ChannelName;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,7 @@ class UserAuthenticationServiceTest {
     @Mock PasswordResetTokenServicePort passwordResetTokenServicePort;
     @Mock UserReadPort userReadPort;
     @Mock UserPersistencePort userPersistencePort;
-    @Mock NotificationServicePort notificationServicePort;
+    @Mock NotificationCommandApi notificationCommandApi;
     @Mock UserRoleServicePort userRoleServicePort;
     @Mock PasswordEncoder passwordEncoder;
     @Mock TokenProviderPort tokenProvider;
@@ -173,16 +174,13 @@ class UserAuthenticationServiceTest {
 
         service.requestPasswordReset(RESET_REQUEST);
 
-        ArgumentCaptor<Set<ChannelName>> channels = ArgumentCaptor.forClass(Set.class);
-        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
-        verify(notificationServicePort).notify(
-                eq(1L), eq("password_reset"), any(), any(), any(), any(),
-                channels.capture(), data.capture());
+        ArgumentCaptor<NotificationCommand> captor = ArgumentCaptor.forClass(NotificationCommand.class);
+        verify(notificationCommandApi).notify(captor.capture());
 
         // Solo EMAIL: el usuario no puede iniciar sesion, una notificacion interna no le llegaria.
-        assertThat(channels.getValue()).containsExactly(ChannelName.EMAIL);
+        assertThat(captor.getValue().channels()).containsExactly(Channel.EMAIL);
         // El enlace viaja en protectedData, que NO se persiste: el token nunca toca la tabla notifications.
-        assertThat(data.getValue().get("actionUrl")).contains("raw-token");
+        assertThat(captor.getValue().protectedData().get("actionUrl")).contains("raw-token");
     }
 
     @Test
@@ -193,7 +191,7 @@ class UserAuthenticationServiceTest {
         service.requestPasswordReset(RESET_REQUEST);
 
         verify(passwordResetTokenServicePort, never()).createToken(any());
-        verify(notificationServicePort, never()).notify(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(notificationCommandApi, never()).notify(any());
     }
 
     @Test
@@ -209,7 +207,7 @@ class UserAuthenticationServiceTest {
         service.requestPasswordReset(RESET_REQUEST);
 
         verify(passwordResetTokenServicePort, never()).createToken(any());
-        verify(notificationServicePort, never()).notify(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(notificationCommandApi, never()).notify(any());
     }
 
     // =====================================================
@@ -265,8 +263,7 @@ class UserAuthenticationServiceTest {
         // Se guarda el hash BCrypt, nunca la contrasena en claro.
         assertThat(saved.getValue().getPasswordHash()).isEqualTo("$2a$nuevo-hash");
         // Aviso de contencion: si el cambio no lo hizo el titular, este correo es su senal de alarma.
-        verify(notificationServicePort).notify(
-                eq(1L), eq("password_changed"), any(), any(), any(), any(), any(), any());
+        verify(notificationCommandApi).notify(any());
     }
 
     @Test

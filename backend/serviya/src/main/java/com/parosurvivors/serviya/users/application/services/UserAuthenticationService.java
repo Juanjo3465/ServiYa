@@ -1,7 +1,8 @@
 package com.parosurvivors.serviya.users.application.services;
 
-import com.parosurvivors.serviya.notifications.application.ports.input.NotificationServicePort;
-import com.parosurvivors.serviya.notifications.domain.ChannelName;
+import com.parosurvivors.serviya.notifications.api.Channel;
+import com.parosurvivors.serviya.notifications.api.NotificationCommand;
+import com.parosurvivors.serviya.notifications.api.NotificationCommandApi;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import com.parosurvivors.serviya.users.application.dto.command.ConfirmPasswordResetCommand;
@@ -50,7 +51,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     private final PasswordResetTokenServicePort passwordResetTokenServicePort;
     private final UserReadPort userReadPort;
     private final UserPersistencePort userPersistencePort;
-    private final NotificationServicePort notificationServicePort;
+    private final NotificationCommandApi notificationCommandApi;
     private final UserRoleServicePort userRoleServicePort;
     private final PasswordEncoder passwordEncoder;
     private final TokenProviderPort tokenProvider;
@@ -101,15 +102,15 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
 
         User created = userCreationServicePort.createUserAccount(accountCommand);
         // Bienvenida al registro por doble canal (interno + email).
-        notificationServicePort.notify(
+        notificationCommandApi.notify(new NotificationCommand(
                 created.getId(),
                 "welcome",
                 "¡Bienvenido a ServiYa!",
                 "Tu cuenta fue creada correctamente. Completa tu perfil y empieza a usar ServiYa.",
                 "USER",
                 created.getId(),
-                Set.of(ChannelName.INTERNAL, ChannelName.EMAIL),
-                Map.of());
+                Set.of(Channel.INTERNAL, Channel.EMAIL),
+                Map.of()));
         return toAuthResult(created.getId(), created.getRoles());
     }
 
@@ -131,15 +132,15 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 .toList();
 
         // Aviso de rol recién adquirido por el propio usuario (canal interno).
-        notificationServicePort.notify(
+        notificationCommandApi.notify(new NotificationCommand(
                 userId,
                 "role_acquired",
                 "Nuevo rol activado",
                 "Ahora tienes el rol " + roleName + " activo en tu cuenta de ServiYa.",
                 "USER",
                 userId,
-                null,
-                Map.of());
+                Set.of(Channel.INTERNAL),
+                Map.of()));
 
         return toAuthResult(userId, roles);
     }
@@ -203,7 +204,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
         userPersistencePort.update(user);
 
         // Aviso de contención: si el cambio no lo hizo el titular, este correo es su señal de alarma.
-        notificationServicePort.notify(
+        notificationCommandApi.notify(new NotificationCommand(
                 user.getId(),
                 "password_changed",
                 "Tu contraseña fue actualizada",
@@ -211,8 +212,8 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                         + "restablecela de inmediato y contacta con soporte.",
                 "USER",
                 user.getId(),
-                Set.of(ChannelName.INTERNAL, ChannelName.EMAIL),
-                Map.of());
+                Set.of(Channel.INTERNAL, Channel.EMAIL),
+                Map.of()));
     }
 
     /** Emite el token, arma el enlace (URL de configuración del backend) y encola el correo. */
@@ -223,7 +224,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
 
         // Solo EMAIL: el usuario no puede iniciar sesión, así que una notificación interna no le llegaría.
         // El enlace viaja en protectedData, que NO se persiste — el token nunca toca la tabla notifications.
-        notificationServicePort.notify(
+        notificationCommandApi.notify(new NotificationCommand(
                 user.getId(),
                 "password_reset",
                 "Restablece tu contraseña",
@@ -232,8 +233,8 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                         + "Si no lo solicitaste, ignora este correo: tu contraseña no cambiará.",
                 "USER",
                 user.getId(),
-                Set.of(ChannelName.EMAIL),
-                Map.of("actionUrl", resetLink, "actionLabel", "Restablecer mi contraseña"));
+                Set.of(Channel.EMAIL),
+                Map.of("actionUrl", resetLink, "actionLabel", "Restablecer mi contraseña")));
     }
 
     /** El registro público solo permite roles CLIENT u OFFERER; ADMIN nunca por esta vía. */
