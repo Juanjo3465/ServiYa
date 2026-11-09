@@ -31,9 +31,8 @@ import org.springframework.stereotype.Component;
 /**
  * Implementacion de los contratos publicos de profiles sobre los casos de uso existentes.
  *
- * <p>Las lecturas usan los puertos de persistencia del propio modulo para no arrastrar la
- * composicion de {@code OffererPublicProfileService} (que hoy consulta metrics/services). Las
- * escrituras delegan en los puertos de entrada.</p>
+ * <p>Las lecturas usan los puertos de persistencia del propio modulo. Las vistas compuestas
+ * (perfil publico con rating, vitrina con servicios) viven en el BFF.</p>
  */
 @Component
 @RequiredArgsConstructor

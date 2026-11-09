@@ -1,15 +1,11 @@
-package com.parosurvivors.serviya.profiles.infrastructure.dto.response;
+package com.parosurvivors.serviya.bff.infrastructure.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Salida web (Response) del perfil publico COMPLETO de un oferente.
- * GET /api/v1/offerers/{id}/public-profile (RF-027).
- *
- * <p>Endpoint publico (cliente, administrador o visitante SIN sesion). Deliberadamente no incluye
- * documento ni telefono personal: son PII cifrada y no forman parte de la vitrina publica.</p>
+ * Perfil publico completo de un oferente. Misma forma JSON que el endpoint historico de profiles.
  */
 @Schema(description = "Perfil publico de un oferente: identidad, reputacion, metricas y servicios activos")
 public record OffererPublicProfileDetailResponse(
@@ -18,8 +14,8 @@ public record OffererPublicProfileDetailResponse(
         String profilePhotoUrl,
         String specialty,
         String publicDescription,
-        @Schema(description = "Canal de contacto publicado por el propio oferente") String whatsappNumber,
-        @Schema(description = "Calificacion promedio (0 si aun no tiene calificaciones)") BigDecimal averageRating,
+        String whatsappNumber,
+        BigDecimal averageRating,
         Integer totalRatings,
         Integer totalComments,
         Integer totalPositiveTags,

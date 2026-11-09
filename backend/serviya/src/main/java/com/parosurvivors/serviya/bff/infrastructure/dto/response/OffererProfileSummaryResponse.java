@@ -1,13 +1,10 @@
-package com.parosurvivors.serviya.profiles.infrastructure.dto.response;
+package com.parosurvivors.serviya.bff.infrastructure.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import java.math.BigDecimal;
 
 /**
- * Salida web (Response) del resumen del perfil de oferente. GET /api/v1/offerers/{id}/summary.
- * Mapea desde el read model de dominio OffererProfileSummary.
- * TODO: revisar campos.
+ * Resumen publico de un oferente. Misma forma JSON que el endpoint historico de profiles.
  */
 @Schema(description = "Resumen del perfil de un oferente")
 public record OffererProfileSummaryResponse(
