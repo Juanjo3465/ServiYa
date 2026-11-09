@@ -19,6 +19,5 @@ public record ClientMetricsSnapshot(
         int totalCancelledRequests,
         int totalRescheduledRequests,
         int totalNotProvidedRequests,
-        int activeRequests,
         LocalDateTime updatedAt) {
 }

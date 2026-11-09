@@ -144,7 +144,6 @@ public class MetricsApiFacade implements MetricsQueryApi {
                 valueOrZero(metrics.getTotalCancelledRequests()),
                 valueOrZero(metrics.getTotalRescheduledRequests()),
                 valueOrZero(metrics.getTotalNotProvidedRequests()),
-                valueOrZero(metrics.getActiveRequests()),
                 metrics.getUpdatedAt());
     }
 

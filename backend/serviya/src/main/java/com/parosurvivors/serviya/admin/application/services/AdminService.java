@@ -226,12 +226,13 @@ public class AdminService implements AdminServicePort {
         // Reportes: moderacion, no metricas; conteo en reports.api.
         int reportsReceived = (int) reportQueryApi.countByReportedUser(userId);
         int reportsSent = (int) reportQueryApi.countByReporter(userId);
+        int activeRequests = (int) requestQueryApi.countActiveClientRequests(userId);
         return new UserAdminDetailResult(
                 user.id(), user.email(), user.banned(), user.deletedAt(), user.createdAt(), roles,
                 profile.fullName(), profile.profilePhotoUrl(), profile.documentType(),
                 profile.documentNumber(), profile.phoneNumber(), profile.bio(),
                 profile.profileType(),
-                offererMetrics, clientMetrics, reportsReceived, reportsSent);
+                offererMetrics, clientMetrics, activeRequests, reportsReceived, reportsSent);
     }
 
     @Override

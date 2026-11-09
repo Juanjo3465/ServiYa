@@ -105,7 +105,6 @@ class MetricsApiFacadeTest {
                 .totalRatings(2).totalComments(1).totalPositiveTags(1).totalNegativeTags(2)
                 .totalRequestsSent(5).totalAcceptedRequests(4).totalCompletedRequests(3)
                 .totalCancelledRequests(1).totalRescheduledRequests(1).totalNotProvidedRequests(1)
-                .activeRequests(2)
                 .build();
         when(clientMetricsServicePort.getAllMetrics(10L)).thenReturn(metrics);
         when(clientMetricsServicePort.getMainMetrics(10L)).thenReturn(metrics);
@@ -113,7 +112,7 @@ class MetricsApiFacadeTest {
         ClientMetricsSnapshot all = facade.getClientMetrics(10L);
         ClientMetricsSnapshot main = facade.getClientMainMetrics(10L);
 
-        assertThat(all.activeRequests()).isEqualTo(2);
+        assertThat(all.totalRequestsSent()).isEqualTo(5);
         assertThat(all.totalRequestsSent()).isEqualTo(5);
         assertThat(main.clientId()).isEqualTo(10L);
     }

@@ -38,7 +38,8 @@ public interface AdminWebMapper {
     /** Fila del listado y resultado de creacion: el read-model ya trae nombre y foto (null al crear). */
     UserSummaryResponse toResponse(AdminUserSummaryResult item);
 
-    /** Detalle admin: las metricas snapshot se mapean via MetricsWebMapper (uses). */
+    /** Detalle admin: las metricas snapshot se mapean a las responses locales. */
+    @Mapping(target = "clientMetrics.activeRequests", source = "activeRequests")
     UserAdminDetailResponse toResponse(UserAdminDetailResult result);
 
     AdminRequestDetailResponse toResponse(AdminRequestDetailResult result);

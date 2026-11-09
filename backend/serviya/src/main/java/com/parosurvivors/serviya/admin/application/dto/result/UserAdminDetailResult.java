@@ -31,6 +31,7 @@ public record UserAdminDetailResult(
         // --- Metricas precalculadas (modulo 6) ---
         OffererMetricsSnapshot offererMetrics,
         ClientMetricsSnapshot clientMetrics,
+        Integer activeRequests,
         // --- Moderacion (modulo reports) ---
         Integer reportsReceived,
         Integer reportsSent) {
