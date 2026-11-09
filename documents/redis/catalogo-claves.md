@@ -24,6 +24,7 @@ máx. ~200 caracteres. La versión `v<N>` sube cuando cambia el **formato** del 
 | `lock:{sched:finalize-unconfirmed}` | coord | string | 10 min | `RequestMaintenanceScheduler` — finalizar sin confirmar | v1 |
 | `lock:{sched:notif-retry-failed}` | coord | string | 10 min | `NotificationRetryScheduler` — reintento de entregas fallidas | v1 |
 | `lock:{sched:reset-token-cleanup}` | coord | string | 5 min | `PasswordResetCleanupScheduler` — borrar tokens caducados | v1 |
+| `lock:{sched:refresh-token-cleanup}` | coord | string | 5 min | `RefreshTokenCleanupScheduler` (Fase 2A) — borrar refresh expirados/revocados | v1 |
 
 > Nota: el "recurso" de estos locks es la **tarea** (singleton), no una entidad con id; por eso el hash
 > tag envuelve `sched:<nombre-tarea>`. Sin fencing token asociado.
@@ -55,6 +56,27 @@ máx. ~200 caracteres. La versión `v<N>` sube cuando cambia el **formato** del 
 
 > Políticas definidas pero aún **sin anotar** (no crean claves todavía): `report-create`,
 > `account-security`, `search` (prioridad media, fuera del alcance 🔴 de Fase 3).
+
+## Claves en uso — revocación de sesión `min_iat` (auth centralizada, **Fase 2B** — implementada)
+
+> Umbral de revocación inmediata por usuario (contrato 4.3 de `documents/microservicios/guia-implementacion-auth.md`).
+> El **monolito** (emisor de identidad hasta la Fase 8) la **escribe** ante cada evento de corte de sesión
+> (`SessionRevocationService`: baneo, eliminación, quita de rol, cambio/reset de contraseña, logout-all); el
+> **gateway** la **lee** en cada petición autenticada (Fase 3, T3.5) y rechaza con 401 `TOKEN_REVOKED` si
+> `token.iat < min_iat`. Escritura de **mejor esfuerzo** tras el breaker `redis-coord` (si falla, la garantía
+> durable es la revocación de familias de refresh en BD; el access corto expira en ≤ `access-ttl`).
+>
+> **Sin hash tag:** no se relaciona con otras claves del mismo usuario en operaciones multi-clave, y el único
+> acceso es `GET`/`SET` por esta clave exacta (no se necesita co-localización de slot). El `userId` no es PII.
+
+| Patrón de clave | Instancia | Tipo | TTL | Valor | Versión |
+|---|---|---|---|---|---|
+| `auth:min_iat:{userId}` | coord | string | `access-ttl + revocation-clock-skew` (def. 15m + 60s = 16m) | epoch en **segundos** del corte (`ahora + 1`) | v1 |
+
+> **ACL:** el patrón `~auth:min_iat:*` se añadió a `svc-serviya-coord` (escritor) en `users.coord.acl.tpl`;
+> el usuario del gateway (lector, solo `+get` sobre `~auth:min_iat:*`) se define en la Fase 3. El `SET` con TTL
+> viaja como `SET key val PX <ms>` → cubierto por `+set`. **Re-renderizar** `users.coord.acl` al desplegar.
+> Escrita por `RedisTokenRevocationAdapter`.
 
 ## Previsto — `fence:{<entidad>}` (fencing, deuda B8)
 

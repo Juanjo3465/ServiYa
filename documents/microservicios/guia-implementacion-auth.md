@@ -325,22 +325,23 @@ Reglas:
 
 ### Pendientes bloqueantes
 
-- [ ] **P3.1. Política si Redis no responde** (chequeo de `min_iat`). *Fail-closed* (rechazar, seguro pero tumba la app) o *fail-open* (dejar pasar con alerta; ventana máxima igual a la vida del access token). Es una decisión de negocio.
-  Decisión (recomendada, alineada con el precedente del proyecto — D-07 mixto + "compensación 1a", que difiere en vez de bloquear): **fail-open con alerta**, apoyado en el TTL corto del access token (10–15 min) como ventana máxima de exposición. Reusa el circuit breaker Resilience4j que ya envuelve `redis-coord` (fila 11). *Confirmar por ser decisión de seguridad.*
+- [x] **P3.1. Política si Redis no responde** (chequeo de `min_iat`). *Fail-closed* (rechazar, seguro pero tumba la app) o *fail-open* (dejar pasar con alerta; ventana máxima igual a la vida del access token). Es una decisión de negocio.
+  Decisión (2026-11-09, confirmada): **fail-open con alerta**, apoyado en el TTL corto del access token (15 min) como ventana máxima de exposición. Reusa el circuit breaker Resilience4j que ya envuelve `redis-coord` (fila 11) y emite métrica/alerta al abrir. Fail-closed tumbaría todo el tráfico autenticado ante un parpadeo de Redis; la revocación durable (familias de refresh en BD) no depende de esto. Alineado con D-07.
 - [x] **P3.2. Variante de Spring Cloud Gateway.** `spring-cloud-starter-gateway-server-webflux` (reactiva/Netty) o `-server-webmvc` (servlet).
   Decisión: **WebFlux (reactiva)** — ya es la del gateway actual (`backend/api-gateway/pom.xml`). Decisión #13. Implica APIs reactivas (`ReactiveRedisTemplate`, `Mono`/`Flux`) en todo lo que sigue; nada bloqueante (regla #7).
-- [ ] **P3.3. Matriz de rutas públicas** (sin token). Mínimo: `/auth/login`, `/auth/register`, `/auth/refresh`, `/.well-known/jwks.json`, password reset. ¿El catálogo público del marketplace?
-  Decisión:
-- [ ] **P3.4. Matriz de rol por ruta** (autorización gruesa). Ejemplo: `/admin/** → ADMIN`, `/seller/** → SELLER`. Debe salir de un inventario de los endpoints actuales.
-  Decisión:
-- [ ] **P3.5. Catálogo de códigos de error** (`TOKEN_EXPIRED`, `TOKEN_INVALID`, `TOKEN_REVOKED`, `FORBIDDEN`, `RATE_LIMITED`, ...).
-  Decisión:
-- [ ] **P3.6. Orígenes CORS permitidos** por entorno.
-  Decisión:
+- [x] **P3.3. Matriz de rutas públicas** (sin token). Mínimo: `/auth/login`, `/auth/register`, `/auth/refresh`, `/.well-known/jwks.json`, password reset. ¿El catálogo público del marketplace?
+  Decisión (2026-11-09): se **derivan del `SecurityConfig` actual del monolito** (ya codifica público/privado), para mantener gateway y servicios en sync. **Públicas:** `POST /auth/login`, `/auth/register`, `/auth/refresh`, `/auth/password-reset`, `/auth/password-reset/validate`, `/auth/password-reset/confirm`; y el **catálogo público de solo-lectura**: `GET /services`, `GET /services/*`, `GET /categories`, `GET /offerers/*` (perfil público RF-027). Swagger/openapi **cerrado en prod**. `logout-all` es **autenticada**.
+  **Excepción (corrección 2026-11-09): `/.well-known/jwks.json` NO es pública.** El gateway **no** la expone a internet; solo la consumen el gateway y los servicios por la **red interna** (gateway↔monolito, servicio↔monolito). Va atada a P3.8 (aislamiento de red): nadie de fuera llega al emisor. El `permitAll` del monolito sobre esa ruta se mantiene (es permitAll en la red interna, no en el borde).
+- [x] **P3.4. Matriz de rol por ruta** (autorización gruesa). Ejemplo: `/admin/** → ADMIN`, `/seller/** → SELLER`. Debe salir de un inventario de los endpoints actuales.
+  Decisión (2026-11-09): **solo gates ADMIN** en el gateway (grano grueso): `/api/v1/admin/** → ADMIN`, `/api/v1/reports/*/actions/** → ADMIN`, `GET /api/v1/reports` y `GET /api/v1/reports/* → ADMIN`, `POST /api/v1/categories → ADMIN`. El resto (no público) = `authenticated()`. La autorización **fina** (propiedad/participación, bypass admin) **se queda en los servicios** (patrón `role-security-split`). No hay rutas OFFERER/SELLER-gated hoy (usan owner-check en servicio). Inventario de endpoints = primera tarea de implementación para confirmar la matriz.
+- [x] **P3.5. Catálogo de códigos de error** (`TOKEN_EXPIRED`, `TOKEN_INVALID`, `TOKEN_REVOKED`, `FORBIDDEN`, `RATE_LIMITED`, ...).
+  Decisión (2026-11-09): enum compartido alineado al contrato 4.4. **401:** `TOKEN_MISSING`, `TOKEN_EXPIRED`, `TOKEN_INVALID`, `TOKEN_REVOKED` (incluye `iat < min_iat` y familia revocada). **403:** `FORBIDDEN`. **429:** `RATE_LIMITED`. Body `{ status, error, code, message, correlationId }`. El interceptor del frontend decide refrescar (401) vs no (403) por `code`; gateway y servicios (Fase 4) comparten el enum.
+- [x] **P3.6. Orígenes CORS permitidos** por entorno.
+  Decisión (2026-11-09): **allowlist por entorno vía env** (`GATEWAY_CORS_ALLOWED_ORIGINS`, ya presente en el `application.yaml` del gateway), centralizada en el gateway, `allow-credentials: true`, **sin `*`** (la cookie de refresh con `credentials:'include'` exige eco de origen concreto). dev: `http://localhost:5173`. **Dominio de staging/prod: placeholder por ahora** (`https://TODO-prod-domain` — rellenar antes del corte de Fase 7).
 - [x] **P3.7. Rate limiting: qué sistema y qué se mueve.** Decisión (fila #10): **reutilizar el `RateLimiter`/`RedisRateLimiter` del proyecto** (Lua sobre `redis-coord`, claves `rl:*`), **no** el `RequestRateLimiter` nativo de SCG (evita dos sistemas, precedente D-04). El **techo global `api-default`** se **mueve del monolito al gateway** (se retira `GlobalRateLimitFilter` del monolito en la Fase 4). Las **cuotas por endpoint** (`@RateLimit`: endpoints que notifican, subidas multipart, geocoding) **se quedan en los servicios** (son domain-aware; el gateway no sabe que una petición dispara una notificación).
   Pendiente menor (no bloqueante): límites concretos de login/register/refresh/reset — ya existen las políticas del limiter del proyecto para auth (ventana deslizante, sujeto estandarizado D-09); reutilizarlas desde el gateway.
-- [ ] **P3.8. Exposición de red.** Confirmar que el monolito, notif e identidad **no** son accesibles desde internet; solo el gateway.
-  Decisión:
+- [x] **P3.8. Exposición de red.** Confirmar que el monolito, notif e identidad **no** son accesibles desde internet; solo el gateway.
+  Decisión (2026-11-09): **solo el gateway se expone**; monolito, notif y (futuro) identidad quedan en la red interna. Refuerza P3.3 (JWKS interno) y es la base del `min_iat` solo-en-gateway (P4.1) y del mTLS futuro (fila 14). La materialización concreta (reglas de red / compose / orquestador) se detalla en el despliegue (Fase 7); aquí se fija como invariante de arquitectura.
 
 ### Tareas
 
