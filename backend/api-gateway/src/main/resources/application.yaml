@@ -56,6 +56,13 @@ serviya:
       issuer: ${JWT_ISSUER:https://auth.serviya.local}
       audience: ${JWT_AUDIENCE:marketplace-api}
       clock-skew: ${JWT_CLOCK_SKEW:60s}
+  # Techo global api-default (T3.9): mismo token bucket que el monolito (capacidad/ráfaga, 5/s sostenido),
+  # modo OPEN (no tumba la API si redis-coord cae). Las cuotas por endpoint se quedan en los servicios.
+  ratelimit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    api-default:
+      capacity: ${RATE_LIMIT_API_DEFAULT_CAPACITY:200}
+      refill-per-second: ${RATE_LIMIT_API_DEFAULT_REFILL:5}
 
 management:
   endpoints:
