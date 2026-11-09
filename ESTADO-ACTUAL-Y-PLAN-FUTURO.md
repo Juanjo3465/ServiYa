@@ -795,7 +795,7 @@ ningún módulo toque la persistencia de otro. **Si no se llega aquí, no se emp
 Primer paso ejecutable de M8: convertir las fronteras de módulo en contratos explícitos y congelar la
 deuda actual como **ratchet** para que no crezca mientras se paga.
 
-- **`ModuleBoundaryTest`** (ArchUnit, 7 reglas): ningún módulo importa `infrastructure`,
+- **`ModuleBoundaryTest`** (ArchUnit, 9 comprobaciones): ningún módulo importa `infrastructure`,
   `application.ports.output` ni `domain` de otro; `shared` no conoce módulos de negocio; los paquetes
   `.api` son puros; `domain`/`application` respetan las capas hexagonales.
 - **Convención**: cada módulo publica `com.parosurvivors.serviya.<módulo>.api` (interfaces + DTOs
@@ -866,13 +866,20 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
   ampliaron contratos (`getAllRoles`, `patchProfile`, búsqueda de feedback, creación de reportes de
   subtipo) y se añadieron `ReportTypes`/`ReportActions` a `shared.contract`. Baseline **130 → 0**.
 - **ArchUnit sin freeze**: al llegar a 0 violaciones se eliminó `FreezingArchRule` y el
-  `archunit_store`; las siete reglas son absolutas.
-- **Gate actual**: **465 tests, 0 fallos, 0 errores, 14 skipped**. No queda deuda de acoplamiento
-  entre módulos.
+  `archunit_store`; las reglas son absolutas.
+- **BFF y módulos hoja**: se creó el módulo `bff` y se movieron allí las lecturas compuestas:
+  vitrina/resumen de oferente, búsqueda/detalle/listado de servicios, plantilla de disponibilidad,
+  tag-metrics, métricas de cliente y métricas propias. `metrics`, `notifications`, `profiles` y
+  `services` quedaron como hojas (solo `shared`); `notifications` usa un adaptador de correo en
+  `config.integration` y `services` dejó de importar `profiles`/`metrics`/`feedback`.
+- **Grafo acíclico**: `ModuleBoundaryTest` incorpora una matriz determinista de dependencias
+  (Tarjan) y una regla de módulos hoja. El grafo ya no tiene ciclos.
+- **Gate actual**: **470 tests, 0 fallos, 0 errores, 14 skipped**. No queda deuda de acoplamiento
+  ni ciclos entre módulos.
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: test determinista de ciclos entre módulos y decisión de extracción de microservicios.
+Siguiente: decidir la extracción del siguiente microservicio con fronteras y grafo ya limpios.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1115,6 +1122,15 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   eliminó `FreezingArchRule` y `archunit_store`, dejando las reglas absolutas. Suite completa:
   **465 tests, 0 fallos, 0 errores, 14 skipped**. Commits: `c8e190a`, `993de9e`. No queda deuda de
   acoplamiento entre módulos; siguiente: test determinista de ciclos.
+- **2026-11-08** — **BFF-first y grafo de módulos acíclico.** Se creó el módulo `bff` y se movieron
+  las lecturas compuestas fuera de los módulos de datos: vitrina/resumen público de oferente,
+  búsqueda/detalle/listado de servicios, plantilla de disponibilidad, tag-metrics, métricas de
+  cliente y métricas propias. `metrics`, `notifications`, `profiles` y `services` quedaron como
+  módulos hoja; el adaptador de correo de notifications vive ahora en `config.integration` y
+  `services` dejó de depender de profiles/metrics/feedback. `ModuleBoundaryTest` añade una matriz
+  determinista de dependencias (Tarjan) y una regla de hojas: el grafo es acíclico. Suite completa:
+  **470 tests, 0 fallos, 0 errores, 14 skipped**. Commits: `31aff3e`, `c28ade0`, `cd4a831`,
+  `0143949`, `0abdfaf`.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

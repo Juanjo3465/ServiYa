@@ -1,9 +1,10 @@
 # APIs entre modulos del monolito
 
-> Estado: **Incrementos 1–4, migración de consumidores y deuda ArchUnit completados**
+> Estado: **Contratos, migración de consumidores, BFF y grafo acíclico completados**
 > (2026-11-08). Define los contratos publicos y el mecanismo para que los modulos dejen de depender
-> de `domain`, `infrastructure` y puertos de persistencia ajenos. Todos los modulos consumen APIs
-> publicas; las reglas ArchUnit son absolutas y no queda baseline congelado.
+> de `domain`, `infrastructure` y puertos de persistencia ajenos. `metrics`, `notifications`,
+> `profiles` y `services` son hojas; el BFF compone las lecturas cruzadas. Las reglas ArchUnit son
+> absolutas y el grafo de modulos es aciclico.
 > Ver `ESTADO-ACTUAL-Y-PLAN-FUTURO.md` §7 y `ModuleBoundaryTest`.
 
 ## Control de cambios
@@ -28,7 +29,11 @@
 | 2026-11-08 | Filtros de búsqueda de `services` resueltos vía `profiles.api` (nombre y geolocalización); baseline **136 → 130**. | Completado |
 | 2026-11-08 | Contratos ampliados para `admin`: `getAllRoles`, `patchProfile`, búsqueda de feedback, reportes de subtipo y constantes compartidas. | Completado |
 | 2026-11-08 | Migración `admin` a las APIs públicas; baseline **130 → 0** y reglas ArchUnit absolutas (sin freeze). | Completado |
-| Pendiente | Test determinista de ciclos entre módulos. | Pendiente |
+| 2026-11-08 | Nuevo módulo `bff`: vitrina pública y resumen de oferente movidos desde `profiles`. | Completado |
+| 2026-11-08 | `bff`: búsqueda/detalle/listado de servicios movidos desde `services`; `services` queda hoja. | Completado |
+| 2026-11-08 | `bff`: tag-metrics, métricas de cliente y métricas propias; `metrics` queda hoja. | Completado |
+| 2026-11-08 | Adaptador de correo movido a `config.integration`; `notifications` queda hoja. | Completado |
+| 2026-11-08 | Test determinista de ciclos + regla de módulos hoja; grafo acíclico. | Completado |
 
 ## 1. Convencion
 
@@ -205,9 +210,13 @@ Decisiones:
   `shared.contract`; no pueden tocar `domain` ni `infrastructure` ni siquiera del mismo modulo.
 - `domain` no depende de `application`/`infrastructure`; `application` no depende de
   `infrastructure`.
+- `metrics`, `notifications`, `profiles` y `services` son **módulos hoja**: no pueden depender de
+  ningún otro módulo de negocio (solo de `shared`).
+- El **grafo de dependencias entre módulos es acíclico**. Se verifica con una matriz determinista
+  (Tarjan sobre dependencias directas de ArchUnit), sin `FreezingArchRule`.
 
 Las reglas son **absolutas**: ya no usan `FreezingArchRule` ni hay baseline congelado. Cualquier
-dependencia cruzada nueva rompe el build.
+dependencia cruzada nueva o ciclo nuevo rompe el build.
 
 | Regla | Violaciones |
 |---|---:|
@@ -251,10 +260,11 @@ La regla `shared` tambien es absoluta (0 violaciones). Ya no existe
 | 3 | `requests.api` + `feedback.api` + `metrics.api` — **completado**. |
 | 4 | `reports.api` — **completado**. |
 | — | Migrar consumidores: `reports`, `services`, `metrics`, `notifications`, `users`, `profiles` y `admin` — **completado**. |
-| — | Test determinista de ciclos entre módulos. |
+| — | BFF para lecturas compuestas y módulos hoja — **completado**. |
+| — | Test determinista de ciclos entre módulos — **completado**. |
 
-`admin` no publica API: es consumidor/orquestador. `config` es la raiz de composicion y puede
-cablear implementaciones de cualquier modulo.
+`admin` y `bff` no publican API: son consumidores/orquestadores de lectura. `config` es la raiz de
+composicion y puede cablear implementaciones de cualquier modulo.
 
 ## 5. Verificación
 
@@ -278,8 +288,10 @@ Resultados:
   `NotificationCommandApiFacadeTest` 1/1.
 - Admin migrado: `AdminServiceTest` 6/6, `ModerationServiceTest` 13/13 y
   `AdminActionGuardTest` 7/7.
-- `ModuleBoundaryTest`: 7/7.
-- **Suite completa**: **465 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
+- BFF: `PublicOffererQueryServiceTest` 4/4, `ServiceCatalogQueryServiceTest` 6/6 y
+  `MetricsReadQueryServiceTest` 3/3.
+- `ModuleBoundaryTest`: 9/9 (7 fronteras + hojas + ciclos).
+- **Suite completa**: **470 tests, 0 failures, 0 errors, 14 skipped** (`BUILD SUCCESS`).
   Ya no se excluyen `ServiyaApplicationTests` ni `PiiAttributeConverterTest`: se añadió H2 y se
   configura `ENCRYPTION_KEY` en el test de PII.
 - Los 14 skipped son `RedisDistributedLockTest` y `RedisRateLimiterTest`
@@ -292,11 +304,14 @@ Resultados:
 
 - **Migrados:** `requests` → catalog, `feedback` → `requests.api`, `users` →
   `profiles.api`/`notifications.api`/`requests.api`, `statistics` como módulo de lectura,
-  `reports` → APIs públicas, `services` → `metrics.api`/`profiles.api`/`feedback.api`,
-  `metrics` → `feedback.api`, `notifications` → `UserContactApi`, `profiles` →
-  `metrics.api`/`services.api` y `admin` → todas las APIs públicas.
-- **Pendientes:** ninguno de acoplamiento entre módulos. Queda el test determinista de ciclos y la
-  eventual extracción de microservicios.
+  `reports` → APIs públicas, `admin` → todas las APIs públicas.
+- **BFF:** las lecturas compuestas viven en `bff`: vitrina/resumen de oferente, búsqueda/detalle/
+  listado de servicios, plantilla de disponibilidad, tag-metrics, métricas de cliente y métricas
+  propias.
+- **Módulos hoja:** `metrics`, `notifications`, `profiles` y `services` solo dependen de sí mismos
+  y de `shared`.
+- **Pendientes:** ninguno de acoplamiento ni de ciclos entre módulos. Queda la eventual extracción
+  de microservicios.
 - **`RequestLookupApi`** es una lectura mínima de requests (solo `ServiceRequestReadPort`) para
   consumidores como feedback. Evita el ciclo de beans
   `feedback → RequestApiFacade → requests query → services.api → marketplace → feedback`.
@@ -314,8 +329,8 @@ Resultados:
   se publiquen por RabbitMQ/Kafka, el contrato ya es serializable a JSON, pero debera versionarse.
 - **`metrics` ya no importa `requests.domain`.** Los estados viajan como `String` y el switch interno
   ignora estados desconocidos. Esto prepara la extraccion de metrics sin arrastrar el enum de requests.
-- **La arquitectura de fronteras esta limpia.** Las reglas ArchUnit son absolutas y el baseline
-  congelado se elimino al llegar a **0** violaciones.
+- **La arquitectura de fronteras esta limpia.** Las reglas ArchUnit son absolutas, el baseline
+  congelado se elimino al llegar a **0** violaciones y el grafo de modulos es **aciclico**.
 
 ## 7. Archivos principales
 
@@ -377,6 +392,14 @@ backend/serviya/src/main/java/com/parosurvivors/serviya/
   admin/application/dto/result/AdminUserSummaryResult.java
   admin/application/dto/result/AdminRequestDetailResult.java
   admin/infrastructure/dto/response/AdminRequestDetailResponse.java
+  bff/application/services/PublicOffererQueryService.java
+  bff/application/services/ServiceCatalogQueryService.java
+  bff/application/services/MetricsReadQueryService.java
+  bff/infrastructure/adapters/input/PublicOffererController.java
+  bff/infrastructure/adapters/input/ServiceCatalogController.java
+  bff/infrastructure/adapters/input/MetricsReadController.java
+  bff/infrastructure/adapters/input/ServiceAvailabilityTemplateController.java
+  config/integration/UserRecipientEmailAdapter.java
 
 backend/serviya/src/test/java/com/parosurvivors/serviya/
   architecture/ModuleBoundaryTest.java
