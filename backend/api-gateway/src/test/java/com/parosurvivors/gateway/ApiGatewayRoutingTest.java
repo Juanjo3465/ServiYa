@@ -231,6 +231,16 @@ class ApiGatewayRoutingTest {
     }
 
     @Test
+    void cors_disallowedOrigin_getsNoAllowOriginHeader() {
+        // Origen fuera de la allowlist: la petición simple se procesa, pero SIN cabecera de permiso CORS
+        // (el navegador bloquea la respuesta). Así se verifica que la allowlist por entorno aplica (T3.8).
+        client.get().uri("/api/v1/services")
+                .header(HttpHeaders.ORIGIN, "https://evil.example")
+                .exchange()
+                .expectHeader().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN);
+    }
+
+    @Test
     void corsPreflight_isAnsweredByTheGateway_forAllowedOrigins() {
         client.options().uri("/api/v1/notifications")
                 .header(HttpHeaders.ORIGIN, "http://localhost:5173")

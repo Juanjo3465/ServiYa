@@ -22,8 +22,11 @@ spring:
             # su propia política (el monolito rechazaría con 403 un origen que solo se añadió aquí) ni duplican
             # las cabeceras Access-Control-* en la respuesta.
             - RemoveRequestHeader=Origin
-          # CORS centralizado en el borde (antes lo resolvía solo el monolito). Mismos orígenes que tenía
-          # SecurityConfig del monolito; configurables por entorno sin recompilar.
+          # CORS centralizado en el borde (T3.8): el gateway es la ÚNICA autoridad CORS; los servicios de
+          # detrás no aplican la suya (en la Fase 4 se les quita). Allowlist por entorno vía
+          # GATEWAY_CORS_ALLOWED_ORIGINS (default = orígenes de desarrollo). En prod se fija al dominio real
+          # https (P3.6, placeholder por ahora: https://TODO-prod-domain). NUNCA "*": con allow-credentials
+          # true (necesario para la cookie de refresh) el navegador exige eco de un origen concreto.
           globalcors:
             add-to-simple-url-handler-mapping: true
             cors-configurations:

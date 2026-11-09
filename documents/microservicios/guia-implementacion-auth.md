@@ -363,7 +363,7 @@ Reglas:
 - [x] T3.5. **Chequeo de `min_iat`:** implementarlo como **decorador del `ReactiveJwtDecoder`** (decodifica, luego `flatMap` a Redis, y si `iat < min_iat` emite `JwtValidationException`). Así el 401 sale por el flujo estándar de Spring Security. No usar `OAuth2TokenValidator` para esto, porque es síncrono. Aplicar P3.1 ante errores de Redis. **(Slice 3B)** `MinIatReactiveJwtDecoder` sobre `ReactiveStringRedisTemplate` (`redis-coord`, `spring.data.redis.*`, timeout 250ms, conexión perezosa). **Fail-open** con métrica `gateway.min_iat.check{result=...}`. El código `TOKEN_REVOKED` concreto llega con T3.7.
 - [x] T3.6. Reglas de autorización por ruta según P3.3 y P3.4. **Todo lo no listado requiere autenticación** (`anyExchange().authenticated()`). **(Slice 3A)** Públicas (auth + catálogo read-only), ADMIN (admin/reports-actions/reports-GET/categories-POST), `offerers/me/**` autenticado antes del perfil público, OPTIONS permitido.
 - [x] T3.7. Manejo de errores 401/403 con el formato 4.4 y el header `WWW-Authenticate`. **(Slice 3C)** `GatewayAuthenticationEntryPoint` (401) + `GatewayAccessDeniedHandler` (403) escriben el cuerpo `{status,error,code,message,correlationId}` vía `GatewayErrorWriter`; enum `GatewayErrorCode` (`TOKEN_MISSING/EXPIRED/INVALID/REVOKED`, `FORBIDDEN`, `RATE_LIMITED`). El código 401 se deduce del `OAuth2Error` (emparejado por texto: `min_iat`→REVOKED, `expired`→EXPIRED, resto→INVALID; sin token→MISSING). `WWW-Authenticate: Bearer[ error=...]`.
-- [ ] T3.8. CORS global en el gateway según P3.6.
+- [x] T3.8. CORS global en el gateway según P3.6. **(Slice 3E/cierre)** `globalcors` con allowlist por entorno (`GATEWAY_CORS_ALLOWED_ORIGINS`), `allow-credentials: true`, sin `*`. Dominio de prod = placeholder (P3.6). Verificado: origen permitido recibe `Access-Control-Allow-Origin`; origen fuera de la lista no (preflight → 403).
 - [x] T3.9. **Techo global de rate limiting en el gateway reutilizando el `RateLimiter` del proyecto** (no el `RequestRateLimiter` de SCG). Portar el `RedisRateLimiter` (Lua sobre `redis-coord`, claves `rl:*`, política `api-default`) a un `GlobalFilter`/`WebFilter` reactivo del gateway, con el mismo sujeto (usuario autenticado del JWT ya validado, o IP si es anónimo). Equivale a mover aquí el `GlobalRateLimitFilter` que hoy vive en el monolito. Usar `ReactiveRedisTemplate` (regla #7). El retiro del filtro del monolito es T4.9. **(Slice 3E)** `ReactiveRedisRateLimiter` (mismo `.lua` token bucket, misma clave `rl:v1:{...}:api-default`, capacidad 200/5s, modo OPEN) + `GlobalRateLimitWebFilter` (`@Order(0)`, tras Security). 429 con cuerpo 4.4 `RATE_LIMITED` + `Retry-After`. Reusa el breaker `redis-coord` (comparte apertura con `min_iat`). Nota: subject por IP usa `getRemoteAddress` (XFF de confianza = refinamiento).
 - [x] T3.10. Filtro de correlation ID: generar `X-Correlation-Id` si no viene, propagarlo a los servicios y devolverlo en la respuesta. **(Slice 3D)** `CorrelationIdWebFilter` (máxima precedencia, antes de Security ⇒ el cuerpo de error 4.4 lleva el mismo id). Reescribe la cabecera de la request (se reenvía a los servicios), la fija en la respuesta (`beforeCommit`) y la pone en el contexto reactivo; respeta el id del cliente si viene.
 - [x] T3.11. Verificar que el header `Authorization` se reenvía intacto a los servicios. **(Slice 3D)** Verificado en `ApiGatewayRoutingTest` (el backend stub recibe `Bearer <token>` intacto).
@@ -371,12 +371,12 @@ Reglas:
 
 ### Criterios de aceptación
 
-- [ ] Tests de integración: token válido → 200. Expirado, mala firma, `iss` o `aud` incorrecto, o algoritmo distinto de ES256 → 401.
-- [ ] Test: token con `alg: HS256` o `alg: none` → 401.
+- [x] Tests de integración: token válido → 200. Expirado, mala firma, `iss` o `aud` incorrecto, o algoritmo distinto de ES256 → 401. (`ApiGatewayRoutingTest`.)
+- [x] Test: token con `alg: HS256` o `alg: none` → 401. HS256 verificado; `none`/sin firma lo rechaza la restricción explícita `jwsAlgorithm(ES256)`.
 - [x] Test: `iat < min_iat` → 401 (`MinIatReactiveJwtDecoderTest`); el código `TOKEN_REVOKED` del cuerpo 4.4 en `GatewayAuthenticationEntryPointTest`.
 - [x] Test: comportamiento ante Redis caído según P3.1 (fail-open verificado en `MinIatReactiveJwtDecoderTest`).
-- [ ] Test: ruta con rol insuficiente → 403 (no 401).
-- [ ] Test: las rutas públicas funcionan sin token.
+- [x] Test: ruta con rol insuficiente → 403 (no 401). (`ApiGatewayRoutingTest`: CLIENT en `/reports` → 403 `FORBIDDEN`.)
+- [x] Test: las rutas públicas funcionan sin token. (`ApiGatewayRoutingTest`: `/services`, `/categories` sin token → 200.)
 - [x] Test: el rate limit responde 429 al superar el límite (`GlobalRateLimitWebFilterTest` + `ReactiveRedisRateLimiterTest`: decisión allow/reject/fail-open).
 - [ ] Los servicios no responden headers CORS propios (verificado en la Fase 4).
 
@@ -388,7 +388,7 @@ Reglas:
 - **Slice 3C implementado y verificado 2026-11-09** (módulo `backend/api-gateway`): **23 tests, BUILD SUCCESS**. Formato de error 4.4 uniforme en 401/403 con enum `GatewayErrorCode` y `WWW-Authenticate`. Tests: e2e cubre `TOKEN_MISSING`/`TOKEN_EXPIRED`/`TOKEN_INVALID`/`FORBIDDEN` con forma del cuerpo; unit (`GatewayAuthenticationEntryPointTest`) cubre `TOKEN_REVOKED` y el reto Bearer. El `correlationId` se lee de `X-Correlation-Id` si viene (lo pondrá T3.10) o se genera.
 - **Slice 3D implementado y verificado 2026-11-09** (módulo `backend/api-gateway`): **26 tests, BUILD SUCCESS**. `CorrelationIdWebFilter` (T3.10) + verificación del passthrough de `Authorization` (T3.11). El correlation id corre antes de Security, así el cuerpo de error 4.4 queda correlacionado con los logs de los servicios.
 - **Slice 3E implementado y verificado 2026-11-09** (módulo `backend/api-gateway`): **34 tests, BUILD SUCCESS**. Techo global `api-default` portado al gateway (`ReactiveRedisRateLimiter` + `GlobalRateLimitWebFilter`), mismo `.lua`/clave/política que el monolito, modo OPEN, breaker `redis-coord` compartido. 429 con cuerpo 4.4. El retiro del `GlobalRateLimitFilter` del monolito es T4.9 (Fase 4).
-- **Pendiente para cerrar Fase 3:** T3.8 CORS parametrizado por entorno (el `globalcors` ya existe en el gateway con allowlist por env; falta el dominio de prod — placeholder por P3.6). Lo demás de Fase 3 está hecho; la verificación e2e en staging va con la Fase 6.
+- **Fase 3 (código) COMPLETA 2026-11-09** (módulo `backend/api-gateway`, **35 tests, BUILD SUCCESS**): T3.1–T3.12 hechos. T3.8 cerrado con el `globalcors` por entorno (placeholder de prod pendiente de dominio real, P3.6). **Queda solo la verificación e2e en staging, que el plan agrupa en la Fase 6.** Siguiente: **Fase 4** (servicios como resource servers estándar: el monolito y notif validan el JWT con la misma config JWKS/ES256, se elimina su verificación propia y se retira el `GlobalRateLimitFilter` del monolito, T4.9).
 
 ---
 
