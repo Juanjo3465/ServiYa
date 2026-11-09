@@ -1,9 +1,7 @@
 package com.parosurvivors.serviya.notifications.infrastructure.adapters.output;
 
 import com.parosurvivors.serviya.notifications.application.ports.output.RecipientEmailPort;
-import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.users.application.ports.input.UserQueryServicePort;
-import com.parosurvivors.serviya.users.domain.User;
+import com.parosurvivors.serviya.users.api.UserContactApi;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,17 +15,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class UserRecipientEmailAdapter implements RecipientEmailPort {
 
-    private final UserQueryServicePort userQueryServicePort;
+    private final UserContactApi userContactApi;
 
     @Override
     public Optional<String> findEmail(Long userId) {
-        try {
-            return Optional.ofNullable(userQueryServicePort.getUserById(userId))
-                    .map(User::getEmail)
-                    .filter(email -> !email.isBlank());
-        } catch (ResourceNotFoundException ex) {
-            // Un destinatario inexistente no debe tumbar la operación de negocio: la entrega EMAIL quedará FAILED.
-            return Optional.empty();
-        }
+        // Un destinatario inexistente no debe tumbar la operación de negocio: la entrega EMAIL quedará FAILED.
+        return userContactApi.emailOf(userId).filter(email -> !email.isBlank());
     }
 }

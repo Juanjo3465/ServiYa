@@ -77,7 +77,6 @@ class UserApiFacadeTest {
                 .thenThrow(new ResourceNotFoundException("not found"));
 
         assertThat(facade.findById(99L)).isEmpty();
-        assertThat(facade.emailOf(99L)).isEmpty();
     }
 
     @Test
@@ -131,11 +130,4 @@ class UserApiFacadeTest {
         assertThat(snapshot.id()).isEqualTo(11L);
     }
 
-    @Test
-    void emailOfReturnsContactEmail() {
-        User user = User.builder().id(3L).email("mail@example.com").roles(List.of()).build();
-        when(userQueryServicePort.getUserById(3L)).thenReturn(user);
-
-        assertThat(facade.emailOf(3L)).contains("mail@example.com");
-    }
 }

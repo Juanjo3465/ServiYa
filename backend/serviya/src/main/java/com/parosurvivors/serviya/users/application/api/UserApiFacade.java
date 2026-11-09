@@ -43,7 +43,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @RequiredArgsConstructor
-public class UserApiFacade implements UserQueryApi, UserCommandApi, UserContactApi {
+public class UserApiFacade implements UserQueryApi, UserCommandApi {
 
     private final UserQueryServicePort userQueryServicePort;
     private final UserServicePort userServicePort;
@@ -170,15 +170,6 @@ public class UserApiFacade implements UserQueryApi, UserCommandApi, UserContactA
     @Override
     public void deleteUser(Long userId) {
         userDeletionServicePort.deleteUser(userId);
-    }
-
-    // ---------------------------------------------------------------------
-    // UserContactApi
-    // ---------------------------------------------------------------------
-
-    @Override
-    public Optional<String> emailOf(Long userId) {
-        return findById(userId).map(UserSnapshot::email);
     }
 
     // ---------------------------------------------------------------------
