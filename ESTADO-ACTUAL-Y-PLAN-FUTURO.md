@@ -860,12 +860,19 @@ deuda actual como **ratchet** para que no crezca mientras se paga.
   `findUserIdsWithinDistance`; `MarketplaceService` resuelve nombre y geolocalización a ids de
   oferentes y `ServiceSpecificationRepository` deja de importar `profiles.infrastructure`.
   Baseline **136 → 130** (infrastructure 28 → 22).
-- **Gate actual**: **459 tests, 0 fallos, 0 errores, 14 skipped**; la deuda restante se concentra
-  en `admin` (~131 líneas).
+- **Migración `admin`**: `AdminService`, `ModerationService` y `AdminActionGuard` usan las APIs
+  de users/profiles/metrics/reports/requests/services/feedback/notifications. El listado y detalle
+  de usuarios y el detalle admin de solicitudes se componen en el BFF de admin con snapshots. Se
+  ampliaron contratos (`getAllRoles`, `patchProfile`, búsqueda de feedback, creación de reportes de
+  subtipo) y se añadieron `ReportTypes`/`ReportActions` a `shared.contract`. Baseline **130 → 0**.
+- **ArchUnit sin freeze**: al llegar a 0 violaciones se eliminó `FreezingArchRule` y el
+  `archunit_store`; las siete reglas son absolutas.
+- **Gate actual**: **465 tests, 0 fallos, 0 errores, 14 skipped**. No queda deuda de acoplamiento
+  entre módulos.
 
 > Detalle, convención completa, comandos y pendientes: `documents/arquitectura/apis-modulos.md`.
 
-Siguiente: pagar la deuda restante de `admin`; opcionalmente, un test determinista de ciclos.
+Siguiente: test determinista de ciclos entre módulos y decisión de extracción de microservicios.
 
 ### 7.3 Decomposición objetivo (grano grueso)
 
@@ -1098,7 +1105,16 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   14 skipped**. Commits: `fefd78a`, `e9b0e54`, `8f9e56e`, `9cb35b4`, `9e8722a`. Después,
   `ProfileQueryApi` expuso búsqueda por nombre y geolocalización para que `services` no importe
   `profiles.infrastructure`: baseline **136 → 130**; suite **459 tests**. Commit: `a250185`.
-  Deuda restante: `admin` (~131 líneas).
+- **2026-11-08** — **Migración `admin` y fin del baseline ArchUnit.** `AdminService`,
+  `ModerationService` y `AdminActionGuard` pasan a `UserQueryApi`/`UserCommandApi`,
+  `ProfileQueryApi`/`ProfileCommandApi`, `MetricsQueryApi`, `ReportQueryApi`/`ReportCommandApi`,
+  `RequestQueryApi`/`RequestCommandApi`, `ServiceQueryApi`/`ServiceCommandApi`,
+  `FeedbackQueryApi`/`FeedbackCommandApi` y `NotificationCommandApi`. Se ampliaron los contratos
+  (`getAllRoles`, `patchProfile`, búsqueda de feedback y creación de reportes de subtipo) y se
+  añadieron `ReportTypes`/`ReportActions` a `shared.contract`. Baseline ArchUnit: **130 → 0**; se
+  eliminó `FreezingArchRule` y `archunit_store`, dejando las reglas absolutas. Suite completa:
+  **465 tests, 0 fallos, 0 errores, 14 skipped**. Commits: `c8e190a`, `993de9e`. No queda deuda de
+  acoplamiento entre módulos; siguiente: test determinista de ciclos.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,
