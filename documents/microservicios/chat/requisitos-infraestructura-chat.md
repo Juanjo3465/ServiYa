@@ -95,15 +95,17 @@ Este documento propone **recomendaciones**, no imposiciones. Los nombres de exch
 **Obligatorio**
 
 - [ ] Mecanismo de verificación accesible al chat:
-  - **Realidad actual (ServiYa, DP-03):** **HS256 con secreto compartido** (`JWT_SECRET`) entregado por variable de entorno. Es lo que ya hace `notifications-service` para verificar los tokens del monolito; el chat replica ese patrón. Riesgo: cualquier servicio con el secreto puede emitir tokens → registrado como deuda técnica.
-  - **Recomendado a futuro:** firma asimétrica (RS256/ES256) y endpoint **JWKS** (`/.well-known/jwks.json`) accesible por red interna. Así el chat solo tendría la clave pública.
+  - **Decisión vigente (ServiYa, DP-03 — actualizada 2026-11-08):** **ES256 + JWKS**. Auth firma con una clave privada EC P-256 y publica las claves **públicas** en `GET /.well-known/jwks.json` (accesible por red interna). El chat verifica con la clave pública del JWKS; **no** tiene material de firma y no puede emitir tokens. Esto reemplaza el HS256 con secreto compartido que se planteó originalmente (el monolito y `notifications-service` también migran, ver la guía de centralización de auth `documents/microservicios/guia-implementacion-auth.md`).
+  - **Config (resource server estándar):** el chat actúa como *resource server* con `jwk-set-uri` apuntando al JWKS, `jws-algorithms: ES256` (el default de las librerías suele ser RS256 → **configurarlo explícitamente**), validando `iss`, `aud` y `exp`. No escribir verificación de firma a mano.
+  - El chat **no** chequea `min_iat` (revocación): esa comprobación la hace el gateway. El chat, detrás del gateway, confía en que el token ya pasó ese filtro, y solo revalida firma/claims como defensa en profundidad.
 - [ ] Claims en el token:
 
 | Claim | Uso en el chat | Estado en ServiYa |
 |---|---|---|
 | `sub` | ID del usuario — es un **`BIGINT`** (mismo tipo que usan los eventos y las proyecciones), no UUID | ✅ Emitido (`sub` = userId) |
 | `roles` | Distinguir `CLIENT`, `OFFERER` y `ADMIN` (los administradores atienden el soporte) | ✅ Emitido como lista `["CLIENT"\|"OFFERER"\|"ADMIN"]` |
-| `iss`, `aud` | Validar emisor y audiencia | ⚠️ **No se emiten hoy**: si el chat quiere validarlos, Auth debe añadirlos primero |
+| `iss`, `aud` | Validar emisor y audiencia | ✅ **Se emiten** con el nuevo token ES256 (`aud` = `marketplace-api`; `iss` = URL lógica estable del emisor). El chat **debe** validarlos. |
+| `kid`, `typ` | Selección de clave (rotación) y tipo de token | ✅ `kid` en el header para elegir la clave del JWKS; `typ` = `at+jwt` |
 | `exp`, `iat` | Expiración | ✅ `exp`/`iat` emitidos |
 
 - [ ] Política de rotación de claves documentada (con JWKS, publicar la nueva clave antes de empezar a firmar con ella).
@@ -290,8 +292,8 @@ Cada servicio tiene su propio `docker-compose`, así que se necesita una forma d
 | `REDIS_PUBSUB_URL` | `redis://chat-pubsub:6379/0` | Instancia C, propia del chat (red interna) |
 | `REDIS_CACHE_URL` | `redis://chat:***@redis-cache:6379/0` | Instancia B (caché), requerida desde fase 2 (**aún no existe**) |
 | `RABBITMQ_URL` | `amqp://chat:***@rabbitmq:5672/dev` | Broker compartido |
-| `JWT_JWKS_URL` o `JWT_SECRET` | — | Verificación de tokens (ver §3) |
-| `JWT_ISSUER`, `JWT_AUDIENCE` | — | Validación de claims |
+| `JWT_JWKS_URL` | `http://<auth>/.well-known/jwks.json` | Verificación de tokens ES256 por clave pública (ver §3). Ya no se usa `JWT_SECRET` |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | `aud` = `marketplace-api` | Validación de claims (obligatoria con el token ES256) |
 | `ALLOWED_WS_ORIGINS` | `http://localhost:8081,http://localhost:5173` | Orígenes permitidos (mismos que el CORS del gateway) |
 | `LOG_LEVEL` | `INFO` | Nivel de log |
 

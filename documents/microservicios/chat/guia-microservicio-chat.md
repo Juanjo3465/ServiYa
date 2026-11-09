@@ -434,7 +434,7 @@ Recomendación para Python:
 | Presencia (fase 2) | **Redis de caché** del proyecto — §5.5 | — |
 | Cliente Redis | **redis-py** (modo `asyncio`) | — |
 | Cliente RabbitMQ | **aio-pika** (o **FastStream** si se quiere AsyncAPI generado) | pika (síncrono) |
-| JWT | **PyJWT** (hoy **HS256** con secreto compartido, igual que el resto de ServiYa — DP-03; soporte JWKS listo por si se migra a RS256) | python-jose |
+| JWT | **PyJWT** verificando **ES256 por JWKS** (DP-03, decisión 2026-11-08; el emisor publica la clave pública en `/.well-known/jwks.json` — el chat nunca tiene material de firma). Cachear el JWKS por `kid` | python-jose |
 | Configuración | **pydantic-settings** (variables de entorno) | dynaconf |
 | Pruebas | **pytest**, pytest-asyncio, httpx, **Testcontainers** | — |
 | Calidad | **Ruff** (lint + formato), **mypy**, **import-linter** (verifica capas hexagonales) | flake8, black, pylint |
@@ -801,7 +801,7 @@ Endpoints internos (no expuestos por el gateway): `GET /health/live`, `GET /heal
 ### 10.1 Autenticación
 
 - El chat **no emite** tokens: valida los JWT emitidos por el módulo Auth.
-- Validación de **firma** (**hoy ServiYa firma con HS256 y secreto compartido** — DP-03; preferible migrar a RS256/ES256 con JWKS, ver documento de infraestructura), `exp`, y `iss`/`aud` cuando el emisor los incluya (hoy el token solo trae `sub` y `roles`).
+- Validación de **firma ES256** con la clave pública del **JWKS** (DP-03; el emisor publica `/.well-known/jwks.json`, ver documento de infraestructura), más `exp`, `iss` y `aud` (el token ES256 ya los trae; son obligatorios de validar). Configurar `jws-algorithms: ES256` explícitamente (el default de las librerías suele ser RS256).
 - El gateway puede validar también, pero el chat **siempre valida** (defensa en profundidad; nunca confiar solo en cabeceras inyectadas).
 
 ### 10.2 Autenticación del WebSocket con ticket
@@ -1186,7 +1186,7 @@ Los ADR-001 a 013 de §13 son el punto de partida: se pasan a archivos individua
 
 | ID | Pregunta | Opciones | Responsable | Estado |
 |---|---|---|---|---|
-| DP-03 | ¿Algoritmo de firma de los JWT actuales? | HS256 (secreto compartido) / RS256 con JWKS | Equipo Auth | **Resuelto de hecho:** hoy es **HS256 con secreto compartido** (el chat replica lo que ya hace `notifications-service`). Migrar a RS256/JWKS queda como deuda técnica |
+| DP-03 | ¿Algoritmo de firma de los JWT? | HS256 (secreto compartido) / **ES256 con JWKS** | Equipo Auth | **Resuelto (2026-11-08): ES256 + JWKS.** El equipo de auth centraliza la autenticación (`guia-implementacion-auth.md`): monolito, notif y chat pasan a *resource servers* que verifican ES256 por clave pública. El chat debe apuntar a ES256/JWKS desde el inicio (no construir contra HS256). `iss`/`aud`/`kid`/`typ` pasan a estar presentes |
 | DP-07 | Política de retención de mensajes | — | PO + legal | Abierta |
 | DP-10 | Presupuesto de memoria del chat en la instancia de locks/rate limiting | Valor en MB + umbral de alerta | Infra | Abierta |
 | DP-11 | ¿Cuáles estados de la solicitud son terminales (pasan el chat a solo lectura)? | Lista según la máquina de estados de Solicitudes | Equipo Solicitudes | **Resuelto por el código:** `REJECTED`, `CANCELLED`, `COMPLETED`, `RESCHEDULED`, `NOT_PROVIDED` (`RequestStatus.isTerminal()`); `PENDING`/`ACCEPTED`/`PRESUMABLY_COMPLETED` no lo son |

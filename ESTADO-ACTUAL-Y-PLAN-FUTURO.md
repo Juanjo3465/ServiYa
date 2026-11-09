@@ -918,6 +918,21 @@ Candidatos de servicio derivados del grafo (§3.3), agrupando lo que está fuert
 **identity** se extrae temprano o se mantiene como núcleo compartido según convenga (todos dependen
 de él; una opción pragmática es que sea el primer "núcleo" detrás del gateway).
 
+> **Microservicio de chat (greenfield, en paralelo — lo construye otro equipo).** No es una extracción
+> del monolito sino un servicio nuevo (Python/FastAPI, BD MySQL propia). Diseño en `documents/microservicios/chat/`
+> (ya alineado al stack real: IDs `BIGINT`, MySQL 8.4, JWT **ES256/JWKS** (DP-03, ver `guia-implementacion-auth.md`), exchanges `serviya.*`, Notificaciones
+> como ejecutor puro). **Prerrequisitos que debemos aportar nosotros** (detalle en NOTAS.txt 2026-11-06,
+> CHAT-1..4):
+> - **CHAT-1 [BLOQUEANTE para su MVP]:** el monolito debe **publicar al bus** eventos de dominio de
+>   `requests` (`service_request.created`, `status_changed` en cada transición) y de `users`
+>   (`registered/updated/suspended/reactivated/deleted`), con `*_id` `BIGINT`, reutilizando el outbox
+>   (M3). Hoy esos eventos **no salen del proceso** (son eventos Spring in-process). + backfill inicial.
+> - **CHAT-2 [DEUDA]:** establecer un **sobre de eventos estándar** para todo ServiYa (hoy solo existe
+>   `notification.requested.v1`, con formato propio y cifrado). Encaja con el *schema registry* de §7.5.
+> - **CHAT-3 [frontend]:** cliente WebSocket (reconexión/backoff/sync/estados); no hay base hoy.
+> - **CHAT-4:** Notificaciones queda como **ejecutor puro**; el chat compone y emite
+>   `notification.requested.v1` (contrato existente), no se le añade lógica de decisión por el chat.
+
 ### 7.5 Infraestructura transversal necesaria (cuando se parta)
 
 - **API Gateway** (enrutado, TLS, agregación BFF) + **service discovery** + **config centralizada**.
