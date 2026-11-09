@@ -12,11 +12,16 @@ services:
     environment:
       MONOLITH_URI: http://backend:8080
       NOTIFICATIONS_SERVICE_URI: http://notifications-service:8082
+      CHAT_SERVICE_URI: ${CHAT_SERVICE_URI:-http://chat-service:8000}
+      CHAT_WS_URI: ${CHAT_WS_URI:-ws://chat-service:8000}
       # Mismos orígenes que tenía el CORS del monolito (incluida la IP de red local y el túnel ngrok).
       GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081,http://192.168.1.2:8081,https://nonfervently-expiational-amani.ngrok-free.dev}
     depends_on:
       - backend
       - notifications-service
+    networks:
+      - default
+      - redis-net
 
   # ---------------------------------------------------------------------------------------------------
   # Monolito (identity, catálogo, solicitudes, feedback, métricas, reportes, admin). Ya NO se publica al

@@ -7,21 +7,38 @@ spring:
         webflux:
           # ORDEN = prioridad: las rutas de servicios extraídos van ANTES del comodín del monolito.
           routes:
+            # --- chat-service (greenfield, documento documents/microservicios/chat) ---
+            # El WebSocket va ANTES que el REST y que el catch-all. Spring Cloud Gateway reenvía
+            # Upgrade/Connection con el esquema ws://.
+            - id: chat-websocket
+              uri: ${CHAT_WS_URI:ws://chat-service:8000}
+              order: -20
+              predicates:
+                - Path=/api/chat/v1/ws
+            - id: chat-service
+              uri: ${CHAT_SERVICE_URI:http://chat-service:8000}
+              order: -10
+              predicates:
+                - Path=/api/chat/**
             # --- notifications-service (extraído, ESTADO §7.4 paso 1) ---
             - id: notifications-service
               uri: ${NOTIFICATIONS_SERVICE_URI:http://localhost:8082}
+              order: 0
               predicates:
                 - Path=/api/v1/notifications,/api/v1/notifications/**,/api/v1/notification-channels
             # --- monolito (todo lo que aún no se ha extraído) ---
             - id: monolith
               uri: ${MONOLITH_URI:http://localhost:8079}
+              order: 100
               predicates:
                 - Path=/**
+          # El filtro que retira Origin para las rutas normales (evita duplicar CORS) vive en
+          # OriginHeaderFilter: debe PRESERVAR Origin en el handshake WebSocket del chat, que
+          # valida el origen. No usar el default-filter RemoveRequestHeader=Origin.
+          # El gateway es la autoridad CORS y de correlación. Deduplica X-Request-Id si el servicio
+          # de atrás también lo devuelve.
           default-filters:
-            # El gateway es la ÚNICA autoridad CORS: no reenvía Origin, así los servicios de detrás no aplican
-            # su propia política (el monolito rechazaría con 403 un origen que solo se añadió aquí) ni duplican
-            # las cabeceras Access-Control-* en la respuesta.
-            - RemoveRequestHeader=Origin
+            - DedupeResponseHeader=X-Request-Id, RETAIN_FIRST
           # CORS centralizado en el borde (antes lo resolvía solo el monolito). Mismos orígenes que tenía
           # SecurityConfig del monolito; configurables por entorno sin recompilar.
           globalcors:
