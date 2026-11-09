@@ -1,16 +1,20 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
-import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
-import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
+import com.parosurvivors.serviya.metrics.api.MetricsQueryApi;
+import com.parosurvivors.serviya.metrics.api.dto.OffererMetricsSnapshot;
 import com.parosurvivors.serviya.profiles.application.dto.result.OffererPublicProfileResult;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererPublicProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.OffererProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.UserProfilePersistencePort;
 import com.parosurvivors.serviya.profiles.domain.OffererProfile;
 import com.parosurvivors.serviya.profiles.domain.UserProfile;
-import com.parosurvivors.serviya.services.application.ports.input.MarketplaceServicePort;
+import com.parosurvivors.serviya.services.api.ServiceQueryApi;
+import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
+import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +34,8 @@ public class OffererPublicProfileService implements OffererPublicProfileServiceP
 
     private final OffererProfilePersistencePort offererProfilePersistencePort;
     private final UserProfilePersistencePort userProfilePersistencePort;
-    private final OffererMetricsServicePort offererMetricsService;
-    private final MarketplaceServicePort marketplaceServicePort;
+    private final MetricsQueryApi metricsQueryApi;
+    private final ServiceQueryApi serviceQueryApi;
 
     /**
      * Endpoint publico (visitantes sin sesion), por eso NO se expone ningun PII sensible: el documento y
@@ -50,8 +54,8 @@ public class OffererPublicProfileService implements OffererPublicProfileServiceP
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User profile not found for userId: " + userId));
 
-        // getMainMetrics devuelve ceros si aun no tiene actividad: el perfil siempre se puede pintar.
-        OffererMetrics metrics = offererMetricsService.getMainMetrics(userId);
+        // getOffererMainMetrics devuelve ceros si aun no tiene actividad: el perfil siempre se puede pintar.
+        OffererMetricsSnapshot metrics = metricsQueryApi.getOffererMainMetrics(userId);
 
         List<OffererPublicProfileResult.PublishedService> services = activeServicesOf(userId);
 
@@ -62,14 +66,14 @@ public class OffererPublicProfileService implements OffererPublicProfileServiceP
                 offererProfile.getSpecialty(),
                 offererProfile.getPublicDescription(),
                 offererProfile.getWhatsappNumber(),
-                metrics.getAverageRating(),
-                metrics.getTotalRatings(),
-                metrics.getTotalComments(),
-                metrics.getTotalPositiveTags(),
-                metrics.getTotalNegativeTags(),
-                metrics.getTotalCompletedServices(),
-                metrics.getTotalCancelledServices(),
-                metrics.getTotalNotProvidedServices(),
+                metrics.averageRating(),
+                metrics.totalRatings(),
+                metrics.totalComments(),
+                metrics.totalPositiveTags(),
+                metrics.totalNegativeTags(),
+                metrics.totalCompletedServices(),
+                metrics.totalCancelledServices(),
+                metrics.totalNotProvidedServices(),
                 services);
     }
 
@@ -82,19 +86,21 @@ public class OffererPublicProfileService implements OffererPublicProfileServiceP
      * simplemente con la vitrina vacia. Por eso se traduce a una lista vacia en lugar de un 404.</p>
      */
     private List<OffererPublicProfileResult.PublishedService> activeServicesOf(Long userId) {
-        try {
-            return marketplaceServicePort.getByOffererId(userId).stream()
-                    .filter(detail -> Boolean.TRUE.equals(detail.getService().getActive()))
-                    .map(detail -> new OffererPublicProfileResult.PublishedService(
-                            detail.getService().getId(),
-                            detail.getService().getTitle(),
-                            detail.getService().getDescription(),
-                            detail.getService().getPriceHourly(),
-                            detail.getCategory() == null ? null : detail.getCategory().getName(),
-                            detail.getService().getAverageDurationMinutes()))
-                    .toList();
-        } catch (ResourceNotFoundException ex) {
+        List<ServiceSnapshot> services = serviceQueryApi.findByOffererId(userId);
+        if (services.isEmpty()) {
             return List.of();
         }
+        Map<Long, String> categoryNames = serviceQueryApi.getCategories().stream()
+                .collect(Collectors.toMap(CategorySnapshot::id, CategorySnapshot::name));
+        return services.stream()
+                .filter(ServiceSnapshot::active)
+                .map(service -> new OffererPublicProfileResult.PublishedService(
+                        service.id(),
+                        service.title(),
+                        service.description(),
+                        service.priceHourly(),
+                        categoryNames.get(service.categoryId()),
+                        service.averageDurationMinutes()))
+                .toList();
     }
 }

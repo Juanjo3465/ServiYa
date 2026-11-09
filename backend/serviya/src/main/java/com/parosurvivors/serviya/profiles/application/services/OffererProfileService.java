@@ -1,6 +1,6 @@
 package com.parosurvivors.serviya.profiles.application.services;
 
-import com.parosurvivors.serviya.metrics.application.ports.input.OffererMetricsServicePort;
+import com.parosurvivors.serviya.metrics.api.MetricsQueryApi;
 import com.parosurvivors.serviya.profiles.application.dto.command.UpdateOffererProfileCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.output.OffererProfilePersistencePort;
@@ -19,7 +19,7 @@ public class OffererProfileService implements OffererProfileServicePort {
 
     private final OffererProfilePersistencePort offererProfilePersistencePort;
     private final UserProfilePersistencePort userProfilePersistencePort;
-    private final OffererMetricsServicePort offererMetricsService;
+    private final MetricsQueryApi metricsQueryApi;
 
     @Override
     public OffererProfile createOffererProfile(Long userId) {
@@ -57,7 +57,7 @@ public class OffererProfileService implements OffererProfileServicePort {
                 userProfile.getFullName(),
                 userProfile.getProfilePhotoUrl(),
                 offererProfile.getSpecialty(),
-                offererMetricsService.getMainMetrics(userId).getAverageRating());
+                metricsQueryApi.getOffererMainMetrics(userId).averageRating());
     }
 
     @Override
