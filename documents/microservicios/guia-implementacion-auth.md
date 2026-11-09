@@ -345,7 +345,7 @@ Reglas:
 
 ### Tareas
 
-- [ ] T3.1. Configurar el resource server (asumiendo WebFlux; adaptar según P3.2):
+- [x] T3.1. Configurar el resource server (asumiendo WebFlux; adaptar según P3.2): **(Slice 3A)** implementado **programáticamente** (`GatewaySecurityConfig.jwtDecoder`), no por las propiedades Boot de abajo, para poder fijar el `jwtProcessorCustomizer` (typ) y conservar la carga perezosa del JWKS. Valida keys (JWKS)+`iss`+`aud`+timestamps; `aud` con `JwtAudienceValidator` propio. Config en `serviya.security.jwt.*`.
   ```yaml
   spring:
     security:
@@ -357,17 +357,17 @@ Reglas:
             audiences: marketplace-api
             jws-algorithms: ES256            # OBLIGATORIO: el default es RS256
   ```
-- [ ] T3.2. Tolerancia de reloj de 30–60 s (`JwtTimestampValidator` con `clockSkew`).
-- [ ] T3.3. Si P1.6 = sí: aceptar `typ: at+jwt`. Nimbus solo acepta `JWT` o ausencia de `typ` por defecto. Personalizarlo con `jwtProcessorCustomizer` y `DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("at+jwt"))` (verificar la API en la versión de Spring Security usada).
-- [ ] T3.4. Convertidor de `roles` a authorities `ROLE_*` (`JwtGrantedAuthoritiesConverter` con `authoritiesClaimName("roles")` y `authorityPrefix("ROLE_")`; en reactivo, envuelto en `ReactiveJwtAuthenticationConverterAdapter`).
+- [x] T3.2. Tolerancia de reloj de 30–60 s (`JwtTimestampValidator` con `clockSkew`). **(Slice 3A)** Configurable (`JWT_CLOCK_SKEW`, default `60s`).
+- [x] T3.3. Si P1.6 = sí: aceptar `typ: at+jwt`. Nimbus solo acepta `JWT` o ausencia de `typ` por defecto. Personalizarlo con `jwtProcessorCustomizer` y `DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("at+jwt"))` (verificar la API en la versión de Spring Security usada). **(Slice 3A)** Acepta `at+jwt`, `JWT` y ausente.
+- [x] T3.4. Convertidor de `roles` a authorities `ROLE_*` (`JwtGrantedAuthoritiesConverter` con `authoritiesClaimName("roles")` y `authorityPrefix("ROLE_")`; en reactivo, envuelto en `ReactiveJwtAuthenticationConverterAdapter`). **(Slice 3A)** `ReactiveJwtAuthenticationConverter` + adaptación síncrono→`Flux`.
 - [ ] T3.5. **Chequeo de `min_iat`:** implementarlo como **decorador del `ReactiveJwtDecoder`** (decodifica, luego `flatMap` a Redis, y si `iat < min_iat` emite `JwtValidationException`). Así el 401 sale por el flujo estándar de Spring Security. No usar `OAuth2TokenValidator` para esto, porque es síncrono. Aplicar P3.1 ante errores de Redis.
-- [ ] T3.6. Reglas de autorización por ruta según P3.3 y P3.4. **Todo lo no listado requiere autenticación** (`anyExchange().authenticated()`).
+- [x] T3.6. Reglas de autorización por ruta según P3.3 y P3.4. **Todo lo no listado requiere autenticación** (`anyExchange().authenticated()`). **(Slice 3A)** Públicas (auth + catálogo read-only), ADMIN (admin/reports-actions/reports-GET/categories-POST), `offerers/me/**` autenticado antes del perfil público, OPTIONS permitido.
 - [ ] T3.7. Manejo de errores 401/403 con el formato 4.4 y el header `WWW-Authenticate`.
 - [ ] T3.8. CORS global en el gateway según P3.6.
 - [ ] T3.9. **Techo global de rate limiting en el gateway reutilizando el `RateLimiter` del proyecto** (no el `RequestRateLimiter` de SCG). Portar el `RedisRateLimiter` (Lua sobre `redis-coord`, claves `rl:*`, política `api-default`) a un `GlobalFilter`/`WebFilter` reactivo del gateway, con el mismo sujeto (usuario autenticado del JWT ya validado, o IP si es anónimo). Equivale a mover aquí el `GlobalRateLimitFilter` que hoy vive en el monolito. Usar `ReactiveRedisTemplate` (regla #7). El retiro del filtro del monolito es T4.9.
 - [ ] T3.10. Filtro de correlation ID: generar `X-Correlation-Id` si no viene, propagarlo a los servicios y devolverlo en la respuesta.
 - [ ] T3.11. Verificar que el header `Authorization` se reenvía intacto a los servicios.
-- [ ] T3.12. Arranque tolerante: el gateway debe arrancar aunque el JWKS no esté disponible todavía, y reintentar.
+- [x] T3.12. Arranque tolerante: el gateway debe arrancar aunque el JWKS no esté disponible todavía, y reintentar. **(Slice 3A)** `NimbusReactiveJwtDecoder.withJwkSetUri` carga las claves de forma perezosa (primer token), así el gateway arranca sin JWKS disponible. Reintento explícito/caché = refinamiento posterior.
 
 ### Criterios de aceptación
 
@@ -381,7 +381,9 @@ Reglas:
 - [ ] Los servicios no responden headers CORS propios (verificado en la Fase 4).
 
 ### Notas de implementación
-_(completar durante la implementación)_
+
+- **Slice 3A implementado y verificado 2026-11-09** (rama `api-gateway`, módulo `backend/api-gateway`): **12 tests, BUILD SUCCESS**. Resource server reactivo ES256 (`GatewaySecurityConfig` + `JwtAudienceValidator`), roles→authorities, matriz de rutas (P3.3/P3.4) y arranque tolerante. Test e2e (`ApiGatewayRoutingTest`): backends stub + `MockWebServer` sirviendo el JWKS + tokens ES256 firmados (`TestJwks`); cubre token válido→enruta, sin token/HS256/expirado/`aud`/`iss` incorrectos→401, CLIENT en ruta ADMIN→403, ADMIN→200, públicas sin token→200, CORS en el borde. Deps nuevas: `spring-boot-starter-security`, `-oauth2-resource-server`, `spring-security-test` + `mockwebserver` (test).
+- **Pendiente (slices siguientes de Fase 3):** T3.5 `min_iat` (decorador `ReactiveJwtDecoder` + `redis-coord`, fail-open P3.1), T3.7 formato de error 4.4 + `WWW-Authenticate` + enum de códigos (P3.5), T3.8 CORS por entorno (globalcors ya presente; falta parametrizar prod), T3.9 rate limit global portado a `WebFilter` reactivo, T3.10 correlation ID, T3.11 verificar passthrough de `Authorization`.
 
 ---
 

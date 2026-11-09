@@ -39,6 +39,16 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
+# Validación del access token ES256 (Fase 3). El JWKS se lee del emisor por la red interna (no público).
+# Carga perezosa de claves ⇒ el gateway arranca aunque el JWKS no esté disponible todavía (T3.12).
+serviya:
+  security:
+    jwt:
+      jwks-uri: ${JWT_JWKS_URI:http://localhost:8079/.well-known/jwks.json}
+      issuer: ${JWT_ISSUER:https://auth.serviya.local}
+      audience: ${JWT_AUDIENCE:marketplace-api}
+      clock-skew: ${JWT_CLOCK_SKEW:60s}
+
 management:
   endpoints:
     web:
