@@ -214,4 +214,20 @@ class ProfileApiFacadeTest {
         facade.updateMainAddress(7L, 5L);
         verify(userProfileServicePort).updateMainAddress(7L, 5L);
     }
+
+    @Test
+    void findUserIdsByFullNameDelegatesToProfilePersistence() {
+        when(userProfilePersistencePort.findUserIdsByFullName("ana")).thenReturn(List.of(1L, 2L));
+
+        assertThat(facade.findUserIdsByFullName("ana")).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void findUserIdsWithinDistanceDelegatesToAddressPersistence() {
+        when(addressPersistencePort.findUserIdsWithinDistance(4.6, -74.1, 10.0))
+                .thenReturn(List.of(3L));
+
+        assertThat(facade.findUserIdsWithinDistance(4.6, -74.1, 10.0))
+                .containsExactly(3L);
+    }
 }

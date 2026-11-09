@@ -12,4 +12,5 @@ public interface UserProfilePersistencePort {
     Optional<UserProfile> findById(Long id);
     Optional<UserProfile> findByUserId(Long userId);
     List<UserProfile> findByUserIdIn(Collection<Long> userIds);
+    List<Long> findUserIdsByFullName(String nameFragment);
 }

@@ -256,18 +256,51 @@ class MarketplaceServiceTest {
     // ==================== search ====================
 
     @Test
-    void searchDelegatesToPersistencePort() {
+    void searchDelegatesToPersistencePortWithResolvedNameIds() {
         SearchServiceQuery query = SearchServiceQuery.builder().name("plomeria").build();
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
         org.springframework.data.domain.Page<com.parosurvivors.serviya.services.domain.Service> page =
                 new org.springframework.data.domain.PageImpl<>(List.of(sampleService()));
-        when(persistencePort.search(query, pageable)).thenReturn(page);
+        when(profileQueryApi.findUserIdsByFullName("plomeria")).thenReturn(List.of(5L));
+        when(persistencePort.search(any(SearchServiceQuery.class), any())).thenReturn(page);
 
         org.springframework.data.domain.Page<com.parosurvivors.serviya.services.domain.Service> result =
                 service.search(query, pageable);
 
         assertThat(result.getContent()).hasSize(1);
-        verify(persistencePort).search(query, pageable);
+        ArgumentCaptor<SearchServiceQuery> captor = ArgumentCaptor.forClass(SearchServiceQuery.class);
+        verify(persistencePort).search(captor.capture(), any());
+        assertThat(captor.getValue().offererIdsByName()).containsExactly(5L);
+    }
+
+    @Test
+    void searchReturnsEmptyWhenRatingFilterHasNoMatchingServices() {
+        SearchServiceQuery query = SearchServiceQuery.builder().minRating(4.5).build();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        when(metricsQueryApi.findServiceIdsByAverageRating(4.5, null)).thenReturn(List.of());
+
+        org.springframework.data.domain.Page<com.parosurvivors.serviya.services.domain.Service> result =
+                service.search(query, pageable);
+
+        assertThat(result).isEmpty();
+        verify(persistencePort, never()).search(any(), any());
+    }
+
+    @Test
+    void searchResolvesGeoFilterThroughProfilesApi() {
+        SearchServiceQuery query = SearchServiceQuery.builder()
+                .latitude(4.6).longitude(-74.1).maxDistanceKm(10.0).build();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<com.parosurvivors.serviya.services.domain.Service> page =
+                new org.springframework.data.domain.PageImpl<>(List.of(sampleService()));
+        when(profileQueryApi.findUserIdsWithinDistance(4.6, -74.1, 10.0)).thenReturn(List.of(7L));
+        when(persistencePort.search(any(SearchServiceQuery.class), any())).thenReturn(page);
+
+        service.search(query, pageable);
+
+        ArgumentCaptor<SearchServiceQuery> captor = ArgumentCaptor.forClass(SearchServiceQuery.class);
+        verify(persistencePort).search(captor.capture(), any());
+        assertThat(captor.getValue().offererIdsWithinDistance()).containsExactly(7L);
     }
 
     // ==================== getMetricsForServices ====================

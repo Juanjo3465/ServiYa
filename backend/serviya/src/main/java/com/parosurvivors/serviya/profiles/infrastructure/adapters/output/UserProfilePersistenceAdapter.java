@@ -50,4 +50,13 @@ public class UserProfilePersistenceAdapter implements UserProfilePersistencePort
                 .map(mapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Long> findUserIdsByFullName(String nameFragment) {
+        if (nameFragment == null || nameFragment.isBlank()) {
+            return List.of();
+        }
+        return repository.findUserIdsByFullName(
+                "%" + nameFragment.toLowerCase() + "%");
+    }
 }

@@ -103,14 +103,31 @@ public class MarketplaceService implements MarketplaceServicePort {
     @Override
     public Page<Service> search(SearchServiceQuery criteria, Pageable pageable) {
         SearchServiceQuery effective = criteria;
+
         if (criteria.minRating() != null || criteria.maxRating() != null) {
             List<Long> ids = metricsQueryApi.findServiceIdsByAverageRating(
                     criteria.minRating(), criteria.maxRating());
             if (ids.isEmpty()) {
                 return Page.empty(pageable);
             }
-            effective = criteria.withServiceIds(ids);
+            effective = effective.withServiceIds(ids);
         }
+
+        if (criteria.name() != null && !criteria.name().isBlank()) {
+            effective = effective.withOffererIdsByName(
+                    profileQueryApi.findUserIdsByFullName(criteria.name()));
+        }
+
+        if (criteria.latitude() != null && criteria.longitude() != null
+                && criteria.maxDistanceKm() != null) {
+            List<Long> ids = profileQueryApi.findUserIdsWithinDistance(
+                    criteria.latitude(), criteria.longitude(), criteria.maxDistanceKm());
+            if (ids.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            effective = effective.withOffererIdsWithinDistance(ids);
+        }
+
         return persistencePort.search(effective, pageable);
     }
 

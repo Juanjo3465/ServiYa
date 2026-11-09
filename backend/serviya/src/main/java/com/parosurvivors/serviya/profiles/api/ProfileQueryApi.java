@@ -33,4 +33,17 @@ public interface ProfileQueryApi {
 
     /** Franjas de disponibilidad del oferente (weekDay 0 = lunes ... 6 = domingo). */
     List<OffererAvailabilitySnapshot> getAvailabilities(Long offererId);
+
+    /**
+     * Ids de usuarios cuyo nombre completo contiene el fragmento (sin distinguir mayusculas).
+     * Permite que consumidores como services filtren por nombre de oferente sin tocar
+     * {@code user_profiles}.
+     */
+    List<Long> findUserIdsByFullName(String nameFragment);
+
+    /**
+     * Ids de usuarios cuya direccion principal esta dentro del radio (Haversine, km).
+     * La geolocalizacion es un dato propio de profiles.
+     */
+    List<Long> findUserIdsWithinDistance(double latitude, double longitude, double maxDistanceKm);
 }

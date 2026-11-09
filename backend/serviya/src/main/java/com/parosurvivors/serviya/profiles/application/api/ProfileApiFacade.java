@@ -101,6 +101,17 @@ public class ProfileApiFacade implements ProfileQueryApi, ProfileCommandApi {
                 .toList();
     }
 
+    @Override
+    public List<Long> findUserIdsByFullName(String nameFragment) {
+        return userProfilePersistencePort.findUserIdsByFullName(nameFragment);
+    }
+
+    @Override
+    public List<Long> findUserIdsWithinDistance(double latitude, double longitude, double maxDistanceKm) {
+        return addressPersistencePort.findUserIdsWithinDistance(
+                latitude, longitude, maxDistanceKm);
+    }
+
     // ---------------------------------------------------------------------
     // ProfileCommandApi
     // ---------------------------------------------------------------------
