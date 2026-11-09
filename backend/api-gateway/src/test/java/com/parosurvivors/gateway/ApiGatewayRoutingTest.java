@@ -1,5 +1,7 @@
 package com.parosurvivors.gateway;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.parosurvivors.gateway.security.TestJwks;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -7,6 +9,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -40,12 +43,18 @@ class ApiGatewayRoutingTest {
     private static final String CLIENT_TOKEN = JWKS.validToken(ISSUER, AUDIENCE, "1", List.of("CLIENT"));
     private static final String ADMIN_TOKEN = JWKS.validToken(ISSUER, AUDIENCE, "2", List.of("ADMIN"));
 
+    // Lo que los backends recibieron del gateway (para verificar passthrough de Authorization y correlation id).
+    private static final AtomicReference<String> LAST_FORWARDED_AUTH = new AtomicReference<>();
+    private static final AtomicReference<String> LAST_FORWARDED_CORRELATION = new AtomicReference<>();
+
     @Autowired private WebTestClient client;
 
     private static HttpServer stub(String name) {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/", exchange -> {
+                LAST_FORWARDED_AUTH.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                LAST_FORWARDED_CORRELATION.set(exchange.getRequestHeaders().getFirst("X-Correlation-Id"));
                 String origin = exchange.getRequestHeaders().getFirst("Origin");
                 byte[] body = (name + " " + exchange.getRequestURI() + (origin == null ? "" : " origin=" + origin))
                         .getBytes(StandardCharsets.UTF_8);
@@ -183,6 +192,30 @@ class ApiGatewayRoutingTest {
         client.get().uri("/api/v1/categories").exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class).isEqualTo("monolith /api/v1/categories");
+    }
+
+    // --- Correlation ID (T3.10) y passthrough de Authorization (T3.11) ---
+
+    @Test
+    void authorizationHeader_isForwardedIntactToBackends() {
+        client.get().uri("/api/v1/notifications").headers(bearer(CLIENT_TOKEN)).exchange().expectStatus().isOk();
+        assertThat(LAST_FORWARDED_AUTH.get()).isEqualTo("Bearer " + CLIENT_TOKEN);
+    }
+
+    @Test
+    void correlationId_isGenerated_returned_andForwarded() {
+        client.get().uri("/api/v1/categories").exchange()
+                .expectStatus().isOk()
+                .expectHeader().exists("X-Correlation-Id");
+        assertThat(LAST_FORWARDED_CORRELATION.get()).isNotBlank();
+    }
+
+    @Test
+    void correlationId_isPreserved_whenProvidedByClient() {
+        client.get().uri("/api/v1/categories").header("X-Correlation-Id", "trace-abc-123").exchange()
+                .expectStatus().isOk()
+                .expectHeader().valueEquals("X-Correlation-Id", "trace-abc-123");
+        assertThat(LAST_FORWARDED_CORRELATION.get()).isEqualTo("trace-abc-123");
     }
 
     // --- CORS en el borde ---
