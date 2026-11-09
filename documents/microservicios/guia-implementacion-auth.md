@@ -261,53 +261,55 @@ Reglas:
 
 ### Pendientes bloqueantes
 
-- [ ] **P2.1. Dónde guarda el cliente el refresh token.** Recomendado: cookie `HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh`. Alternativa: almacenamiento en el cliente, expuesto a XSS. Si hay app móvil, puede requerir un mecanismo distinto (almacenamiento seguro del sistema operativo).
-  Decisión:
-- [ ] **P2.2. Protección CSRF** en `/auth/refresh` y `/auth/logout` si se usa cookie (`SameSite=Strict` más verificación de `Origin`, o token CSRF).
-  Decisión:
-- [ ] **P2.3. Vida del refresh token** y si tiene expiración absoluta, por ejemplo 30 días máximo aunque se rote.
-  Decisión:
-- [ ] **P2.4. Período de gracia ante reuso** (sugerido: 10–30 s) para evitar falsos positivos por varias pestañas refrescando a la vez.
-  Decisión:
-- [ ] **P2.5. Lista final de eventos que escriben `min_iat`.** Propuesta: baneo, eliminación de cuenta, quita de rol, cambio de contraseña, reset de contraseña, "cerrar sesión en todos los dispositivos". **No** al agregar un rol (acquireRole ya reemite el token).
-  Decisión:
-- [ ] **P2.6. Infraestructura de Redis.** ¿Instancia existente o nueva? ¿Alta disponibilidad (Sentinel o administrado)? Depende de P3.1.
-  Decisión:
-- [ ] **P2.7. Bloqueo de cuenta por intentos fallidos de login:** umbral, duración y desbloqueo.
-  Decisión:
+- [x] **P2.1. Dónde guarda el cliente el refresh token.**
+  Decisión (2026-11-09): **cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh`**. El access token corto sigue en el cuerpo JSON (como hoy); el refresh solo viaja en la cookie (XSS no lo lee). Sin app móvil → no hace falta otro mecanismo.
+- [x] **P2.2. Protección CSRF.**
+  Decisión: **`SameSite=Strict` + verificación de `Origin`** en `/auth/refresh` y `/auth/logout` (no hace falta token CSRF aparte con Strict + Origin). El `Path` acota la cookie a los endpoints de refresh.
+- [x] **P2.3. Vida del refresh token.**
+  Decisión: **30 días absolutos** aunque se rote (expiración absoluta por `family_id`), configurable (`JWT_REFRESH_TTL`, default `30d`).
+- [x] **P2.4. Período de gracia ante reuso.**
+  Decisión: **15 s** (`JWT_REFRESH_GRACE`, default `15s`). Un refresh recién rotado reusado dentro de la gracia no dispara la alarma (varias pestañas); fuera de la gracia = reuso → revoca la familia.
+- [x] **P2.5. Lista de eventos que escriben `min_iat`.**
+  Decisión: **baneo, eliminación de cuenta, quita de rol, cambio de contraseña, reset de contraseña, logout-all**. **No** `acquireRole` (ya reemite el token).
+- [x] **P2.6. Infraestructura de Redis.**
+  Decisión: **`redis-coord`** (instancia existente, fila 11), con ACL/ breaker ya montados. HA (Sentinel/gestionado) = deuda de prod, no bloquea.
+- [x] **P2.7. Bloqueo de cuenta por intentos fallidos de login.**
+  Decisión (2026-11-09): **NO se implementa lockout** (duro ni blando) en la Fase 2. El lockout por cuenta habilita un **DoS de bloqueo de la víctima** (contra D-09). Nos apoyamos en el **rate limit por IP** ya existente (`login-ip`). El endurecimiento real —**backoff progresivo por cuenta + MFA de admins**— se trackea en **M29** (ESTADO §6.5), fuera de esta fase. **T2.10 se omite.**
 
 ### Tareas
 
-**Refresh tokens**
-- [ ] T2.1. Migración de la tabla `refresh_tokens`: `id`, `user_id`, `family_id`, `token_hash` (único), `expires_at`, `created_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `ip`.
-- [ ] T2.2. Puerto `RefreshTokenPort` (aplicación) y adaptador JPA (infraestructura).
-- [ ] T2.3. Login, register y acquireRole devuelven también el refresh token (una nueva familia en login y register; en acquireRole se mantiene la familia actual). Ajustar `AuthResult`.
-- [ ] T2.4. `POST /auth/refresh`:
-  1. Buscar por hash. Si no existe o expiró → 401.
-  2. Si ya fue usado (está rotado) y está **fuera** del período de gracia → **reuso detectado**: revocar toda la familia, registrar un evento de auditoría y responder 401.
-  3. **Releer la cuenta:** si está baneada o eliminada → revocar la familia y responder 401.
-  4. **Releer roles** desde la base de datos (no desde el token).
-  5. Rotar: marcar el actual como reemplazado, emitir un refresh nuevo en la misma familia y un access token nuevo.
-- [ ] T2.5. `POST /auth/logout`: revoca la familia de la sesión actual.
-- [ ] T2.6. `POST /auth/logout-all`: revoca todas las familias del usuario y escribe `min_iat`.
-- [ ] T2.7. Job de limpieza de refresh tokens expirados o revocados.
+> **Implementación en dos sub-slices:** **(A) refresh tokens** ✅ y **(B) `min_iat`** ⏳. Axis A hecho y
+> verificado (2026-11-09); Axis B pendiente (el `logout-all` lo necesita).
 
-**Revocación `min_iat`**
-- [ ] T2.8. Puerto `TokenRevocationPort` con `revokeAllIssuedBefore(userId, instant)` y adaptador Redis según el contrato 4.3 (`ahora + 1 s`, TTL).
-- [ ] T2.9. Invocar el puerto en todos los casos de uso de P2.5, junto con la revocación de refresh tokens donde aplique (baneo, eliminación, cambio o reset de contraseña).
-- [ ] T2.10. Implementar el bloqueo por intentos fallidos según P2.7.
+**Refresh tokens (Axis A)**
+- [x] T2.1. Tabla `refresh_tokens` vía `RefreshTokenEntity` (`ddl-auto`): `id`, `version`, `user_id`, `family_id`, `token_hash` (único CHAR(64)), `issued_at`, `expires_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `ip`.
+- [x] T2.2. `RefreshTokenPort` + `RefreshTokenPersistenceAdapter` + repo + mapper MapStruct.
+- [x] T2.3. Login y register abren sesión (`startSession` → access + refresh, familia nueva). **acquireRole NO rota** el refresh (deja la cookie; la próxima rotación releerá el rol). `AuthResult` ampliado con `refreshToken`/`refreshExpiresAt`.
+- [x] T2.4. `POST /auth/refresh` (`RefreshTokenService.refresh`): lookup por hash; revocado/rotado → reuso ⇒ revoca familia ⇒ 401; expirado → 401; relee cuenta (baneado/eliminado ⇒ revoca familia) y **roles** de BD; dentro de la gracia reemite solo access (mismo refresh); fuera, rota (nuevo refresh en la familia, caducidad absoluta) + `markReplaced` (bulk, evita el bug @Version §8).
+- [x] T2.5. `POST /auth/logout`: revoca la familia y limpia la cookie.
+- [ ] T2.6. `POST /auth/logout-all`: revoca todas las familias del usuario y escribe `min_iat`. **(Axis B)**
+- [x] T2.7. `RefreshTokenCleanupScheduler` (`@Scheduled` + `DistributedLock`, clave `sched:refresh-token-cleanup`).
+
+**Revocación `min_iat` (Axis B)**
+- [ ] T2.8. Puerto `TokenRevocationPort` con `revokeAllIssuedBefore(userId, instant)` y adaptador Redis (`redis-coord`) según el contrato 4.3 (`ahora + 1 s`, TTL).
+- [ ] T2.9. Invocar el puerto en los casos de P2.5 (baneo, eliminación, quita de rol, cambio/reset de contraseña, logout-all), junto con la revocación de las familias de refresh donde aplique.
+- [x] ~~T2.10. Bloqueo por intentos fallidos.~~ **OMITIDO** (P2.7): se trackea en **M29** (backoff progresivo + MFA admins).
 
 ### Criterios de aceptación
 
-- [ ] Test: el refresh devuelve tokens nuevos y el refresh anterior deja de servir (fuera del período de gracia).
-- [ ] Test: reusar un refresh rotado revoca toda la familia.
-- [ ] Test: el refresh de un usuario baneado devuelve 401 y revoca la familia.
-- [ ] Test: el refresh tras quitar un rol emite un access token **sin** ese rol.
-- [ ] Test: cada caso de P2.5 escribe `min_iat` con el valor y el TTL correctos.
-- [ ] Los refresh tokens nunca se guardan en texto plano. Test que lo verifica.
+- [x] Test: el refresh rota y el anterior deja de servir; dentro de la gracia reemite access sin rotar (`RefreshTokenServiceTest`). **(A)**
+- [x] Test: reusar un refresh rotado revoca toda la familia. **(A)**
+- [x] Test: el refresh de un usuario baneado/eliminado devuelve 401 y revoca la familia. **(A)**
+- [x] Test: el refresh relee los roles desde BD (access con los roles actuales, no los del token). **(A)**
+- [ ] Test: cada caso de P2.5 escribe `min_iat` con el valor y el TTL correctos. **(B)**
+- [x] Los refresh tokens nunca se guardan en texto plano (solo SHA-256). Verificado en `RefreshTokenServiceTest`. **(A)**
 
 ### Notas de implementación
-_(completar durante la implementación)_
+
+- **Axis A implementado y verificado 2026-11-09** (rama `api-gateway`): **486 tests, BUILD SUCCESS** (8 nuevos en `RefreshTokenServiceTest` + `UserAuthenticationServiceTest` ajustado + ArchUnit y context-load en verde). Sin regresiones.
+- **Cookie (P2.1/P2.2):** el refresh viaja en cookie `HttpOnly; SameSite=Strict; Path=/api/v1/auth` (el Path cubre refresh **y** logout; se amplió respecto a `/auth/refresh` del plan para que logout reciba la cookie). `Secure` configurable (`false` en dev http). El access token sigue en el cuerpo. **Origin check** (P2.2) diferido: SameSite=Strict es la defensa CSRF en esta fase; el allowlist de orígenes lo aplicará el **gateway** (Fase 3, que ya centraliza CORS).
+- **Hexagonal/ArchUnit:** `RefreshTokenService` (application) NO importa `JwtProperties` (infra); recibe `refresh-ttl`/`refresh-grace` por `@Value`. Rotación con `@Modifying` bulk (`markReplaced`/`revokeFamily`) para no caer en el bug sistémico de `@Version` (§8).
+- **Pendiente Axis B:** `TokenRevocationPort` + adaptador `redis-coord` (`min_iat`) y su cableado en ban/delete/quita-rol/cambio-reset de contraseña + `logout-all`.
 
 ---
 

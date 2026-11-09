@@ -50,4 +50,24 @@ public class JwtProperties {
 
     /** Tipo del token en el header JOSE ({@code typ}); por defecto {@code at+jwt} (RFC 9068). */
     private String typ = "at+jwt";
+
+    // --- Refresh token (Fase 2) ---
+
+    /** Vida ABSOLUTA de la familia de refresh (no se extiende al rotar). Por defecto 30 días. */
+    private Duration refreshTtl = Duration.ofDays(30);
+
+    /** Ventana de gracia de reuso: dentro de ella no se rota (varias pestañas). Por defecto 15 s. */
+    private Duration refreshGrace = Duration.ofSeconds(15);
+
+    /** Nombre de la cookie HttpOnly que transporta el refresh. */
+    private String refreshCookieName = "serviya_refresh";
+
+    /** Path de la cookie: la acota a los endpoints de auth (refresh + logout). */
+    private String refreshCookiePath = "/api/v1/auth";
+
+    /** {@code Secure}: en dev sobre http debe ser false; en prod (https), true. */
+    private boolean refreshCookieSecure = false;
+
+    /** {@code SameSite}: Strict por defecto (defensa CSRF principal, P2.2). */
+    private String refreshCookieSameSite = "Strict";
 }

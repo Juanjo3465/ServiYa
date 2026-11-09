@@ -40,6 +40,24 @@ public interface AuthApi {
     })
     ResponseEntity<AuthResponse> login(LoginForm form);
 
+    @Operation(summary = "Rotar la sesion (refresh token)",
+            description = "Emite un access token nuevo a partir del refresh token que viaja en la cookie "
+                    + "HttpOnly (Fase 2). Fuera de la ventana de gracia rota tambien el refresh (uno nuevo "
+                    + "en la misma familia, misma caducidad absoluta) y devuelve una cookie nueva. Relee "
+                    + "cuenta y roles desde BD. Reusar un refresh ya rotado revoca la familia entera. "
+                    + "No requiere el access token.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Access token nuevo (y cookie de refresh rotada)"),
+            @ApiResponse(responseCode = "401", description = "Refresh ausente, invalido, caducado, reusado o cuenta inactiva")
+    })
+    ResponseEntity<AuthResponse> refresh(String refreshCookie, String userAgent);
+
+    @Operation(summary = "Cerrar sesion",
+            description = "Revoca la familia del refresh token presentado en la cookie y la limpia. "
+                    + "Idempotente: responde 204 aunque no haya cookie.")
+    @ApiResponse(responseCode = "204", description = "Sesion cerrada (cookie de refresh eliminada)")
+    ResponseEntity<Void> logout(String refreshCookie);
+
     @Operation(summary = "Solicitar recuperacion de contrasena",
             description = "Genera y envia el token de recuperacion por correo. RF-003.")
     @ApiResponse(responseCode = "202", description = "Solicitud aceptada (respuesta generica por seguridad)")

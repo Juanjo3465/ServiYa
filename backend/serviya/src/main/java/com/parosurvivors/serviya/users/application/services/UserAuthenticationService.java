@@ -15,6 +15,7 @@ import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
 import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.TokenSessionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
@@ -55,6 +56,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     private final UserRoleServicePort userRoleServicePort;
     private final PasswordEncoder passwordEncoder;
     private final TokenProviderPort tokenProvider;
+    private final TokenSessionServicePort tokenSessionService;
     private final ResetLinkPort resetLinkPort;
 
     @Override
@@ -78,7 +80,8 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 .map(Role::getName)
                 .toList();
 
-        return toAuthResult(user.getId(), roles);
+        // Abre una sesión nueva: access en el cuerpo + refresh (cookie) en una familia nueva (Fase 2).
+        return tokenSessionService.startSession(user.getId(), roles);
     }
 
     @Override
@@ -111,7 +114,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 created.getId(),
                 Set.of(Channel.INTERNAL, Channel.EMAIL),
                 Map.of()));
-        return toAuthResult(created.getId(), created.getRoles());
+        return tokenSessionService.startSession(created.getId(), created.getRoles());
     }
 
     /**
@@ -250,8 +253,12 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
         }
     }
 
+    /**
+     * Reemite solo el access token (sin refresh): lo usa {@code acquireRole}, que deja intacta la cookie
+     * de refresh (la familia actual sigue; el refresh releerá los roles nuevos en su próxima rotación).
+     */
     private AuthResult toAuthResult(Long userId, List<RoleName> roles) {
         IssuedToken issued = tokenProvider.issue(userId, roles);
-        return new AuthResult(issued.token(), userId, roles, issued.expiresAt());
+        return new AuthResult(issued.token(), userId, roles, issued.expiresAt(), null, null);
     }
 }

@@ -21,6 +21,7 @@ import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.TokenSessionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
@@ -62,6 +63,7 @@ class UserAuthenticationServiceTest {
     @Mock UserRoleServicePort userRoleServicePort;
     @Mock PasswordEncoder passwordEncoder;
     @Mock TokenProviderPort tokenProvider;
+    @Mock TokenSessionServicePort tokenSessionService;
     @Mock ResetLinkPort resetLinkPort;
 
     @InjectMocks UserAuthenticationService service;
@@ -77,13 +79,16 @@ class UserAuthenticationServiceTest {
         when(userReadPort.findByEmail("user@example.com")).thenReturn(Optional.of(activeUser()));
         when(passwordEncoder.matches("raw-password", "$2a$hash")).thenReturn(true);
         when(userRoleServicePort.getUserRoles(1L)).thenReturn(List.of());
-        when(tokenProvider.issue(anyLong(), anyList()))
-                .thenReturn(new IssuedToken("jwt-token", LocalDateTime.now().plusHours(1)));
+        when(tokenSessionService.startSession(eq(1L), anyList()))
+                .thenReturn(new AuthResult("jwt-token", 1L, List.of(),
+                        LocalDateTime.now().plusMinutes(15), "refresh-raw", LocalDateTime.now().plusDays(30)));
 
         AuthResult result = service.login(command);
 
         assertThat(result.token()).isEqualTo("jwt-token");
         assertThat(result.userId()).isEqualTo(1L);
+        // Login abre una sesión nueva (access + refresh), no emite el token directamente.
+        verify(tokenSessionService).startSession(eq(1L), anyList());
     }
 
     @Test
@@ -144,8 +149,9 @@ class UserAuthenticationServiceTest {
     void register_delegatesToCreation_forPublicRole() {
         User created = User.builder().id(5L).roles(List.of(RoleName.CLIENT)).build();
         when(userCreationServicePort.createUserAccount(any())).thenReturn(created);
-        when(tokenProvider.issue(anyLong(), anyList()))
-                .thenReturn(new IssuedToken("jwt", LocalDateTime.now().plusHours(1)));
+        when(tokenSessionService.startSession(eq(5L), anyList()))
+                .thenReturn(new AuthResult("jwt", 5L, List.of(RoleName.CLIENT),
+                        LocalDateTime.now().plusMinutes(15), "refresh-raw", LocalDateTime.now().plusDays(30)));
 
         AuthResult result = service.register(registerCommand("CLIENT"));
 
