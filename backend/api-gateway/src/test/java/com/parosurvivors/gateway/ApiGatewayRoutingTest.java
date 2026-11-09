@@ -23,6 +23,7 @@ class ApiGatewayRoutingTest {
 
     private static final HttpServer MONOLITH = stub("monolith");
     private static final HttpServer NOTIFICATIONS = stub("notifications-service");
+    private static final HttpServer CHAT = stub("chat-service");
 
     @Autowired private WebTestClient client;
 
@@ -49,12 +50,14 @@ class ApiGatewayRoutingTest {
     static void routes(DynamicPropertyRegistry registry) {
         registry.add("MONOLITH_URI", () -> "http://127.0.0.1:" + MONOLITH.getAddress().getPort());
         registry.add("NOTIFICATIONS_SERVICE_URI", () -> "http://127.0.0.1:" + NOTIFICATIONS.getAddress().getPort());
+        registry.add("CHAT_SERVICE_URI", () -> "http://127.0.0.1:" + CHAT.getAddress().getPort());
     }
 
     @AfterAll
     static void stop() {
         MONOLITH.stop(0);
         NOTIFICATIONS.stop(0);
+        CHAT.stop(0);
     }
 
     @Test
@@ -66,6 +69,18 @@ class ApiGatewayRoutingTest {
                 .expectBody(String.class).isEqualTo("notifications-service /api/v1/notifications/7/read");
         client.get().uri("/api/v1/notification-channels").exchange()
                 .expectBody(String.class).isEqualTo("notifications-service /api/v1/notification-channels");
+    }
+
+    @Test
+    void chatRoutes_goToChatService() {
+        client.get().uri("/api/v1/chat/conversations?status=ACTIVE").exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).isEqualTo("chat-service /api/v1/chat/conversations?status=ACTIVE");
+        client.post().uri("/api/v1/chat/ws-tickets").exchange()
+                .expectBody(String.class).isEqualTo("chat-service /api/v1/chat/ws-tickets");
+        // Prefijo parecido pero de otro recurso: NO debe caer en chat-service.
+        client.get().uri("/api/v1/chatter").exchange()
+                .expectBody(String.class).isEqualTo("monolith /api/v1/chatter");
     }
 
     @Test
