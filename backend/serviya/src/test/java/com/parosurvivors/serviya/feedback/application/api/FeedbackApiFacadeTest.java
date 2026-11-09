@@ -27,6 +27,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 class FeedbackApiFacadeTest {
@@ -150,5 +152,27 @@ class FeedbackApiFacadeTest {
 
         verify(serviceFeedbackServicePort).revertFeedbackById(1L);
         verify(clientFeedbackServicePort).revertFeedbackById(2L);
+    }
+
+    @Test
+    void searchServiceFeedbackMapsPage() {
+        ServiceFeedback feedback = ServiceFeedback.builder()
+                .id(1L).requestId(2L).serviceId(3L).clientId(4L).rating(5).build();
+        when(serviceFeedbackPersistencePort.findByServiceIdAndFilters(
+                3L, "x", 4, 5, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(feedback)));
+
+        var result = facade.searchServiceFeedback(3L, null, "x", 4, 5, 0, 10);
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).serviceId()).isEqualTo(3L);
+    }
+
+    @Test
+    void searchClientFeedbackReturnsEmptyWithoutFilters() {
+        var result = facade.searchClientFeedback(null, null, null, null, null, 0, 10);
+
+        assertThat(result.content()).isEmpty();
+        assertThat(result.totalElements()).isZero();
     }
 }

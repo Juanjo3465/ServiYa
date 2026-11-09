@@ -7,6 +7,10 @@ import com.parosurvivors.serviya.reports.api.dto.ReportSnapshot;
 import com.parosurvivors.serviya.reports.api.dto.ReportSummarySnapshot;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportActionServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ServiceFeedbackReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ClientFeedbackReportServicePort;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateServiceFeedbackReportCommand;
+import com.parosurvivors.serviya.reports.application.dto.command.CreateClientFeedbackReportCommand;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportActionPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportPersistencePort;
 import com.parosurvivors.serviya.reports.domain.Report;
@@ -33,6 +37,8 @@ public class ReportApiFacade implements ReportQueryApi, ReportCommandApi {
     private final ReportActionPersistencePort reportActionPersistencePort;
     private final ReportServicePort reportServicePort;
     private final ReportActionServicePort reportActionServicePort;
+    private final ServiceFeedbackReportServicePort serviceFeedbackReportServicePort;
+    private final ClientFeedbackReportServicePort clientFeedbackReportServicePort;
 
     // ---------------------------------------------------------------------
     // ReportQueryApi
@@ -105,6 +111,24 @@ public class ReportApiFacade implements ReportQueryApi, ReportCommandApi {
     public ReportActionSnapshot createAction(Long reportId, Long adminId, String actionType) {
         return toActionSnapshot(reportActionServicePort.createAction(
                 reportId, adminId, toActionType(actionType)));
+    }
+
+    @Override
+    public Long createServiceFeedbackReport(
+            Long reporterId, Long reportedUserId, String category, String reason, Long feedbackId) {
+        return serviceFeedbackReportServicePort.createReport(
+                new CreateServiceFeedbackReportCommand(
+                        reporterId, reportedUserId, category, reason, feedbackId))
+                .getReportId();
+    }
+
+    @Override
+    public Long createClientFeedbackReport(
+            Long reporterId, Long reportedUserId, String category, String reason, Long feedbackId) {
+        return clientFeedbackReportServicePort.createReport(
+                new CreateClientFeedbackReportCommand(
+                        reporterId, reportedUserId, category, reason, feedbackId))
+                .getReportId();
     }
 
     // ---------------------------------------------------------------------

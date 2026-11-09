@@ -216,6 +216,19 @@ class ProfileApiFacadeTest {
     }
 
     @Test
+    void patchProfileMapsAndDelegates() {
+        UserProfile updated = UserProfile.builder()
+                .id(1L).userId(7L).fullName("Nuevo Nombre").profileType(ProfileType.NATURAL).build();
+        when(userProfileServicePort.patchProfile(any())).thenReturn(updated);
+
+        ProfileSnapshot snapshot = facade.patchProfile(new com.parosurvivors.serviya.profiles.api.dto.UpdateProfileCommand(
+                7L, "Nuevo Nombre", "3001234567", "foto.png", "bio"));
+
+        assertThat(snapshot.fullName()).isEqualTo("Nuevo Nombre");
+        assertThat(snapshot.phoneNumber()).isNull();
+    }
+
+    @Test
     void findUserIdsByFullNameDelegatesToProfilePersistence() {
         when(userProfilePersistencePort.findUserIdsByFullName("ana")).thenReturn(List.of(1L, 2L));
 

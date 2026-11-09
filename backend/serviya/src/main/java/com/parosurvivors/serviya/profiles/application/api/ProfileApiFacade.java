@@ -9,6 +9,7 @@ import com.parosurvivors.serviya.profiles.api.dto.OffererAvailabilitySnapshot;
 import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSnapshot;
 import com.parosurvivors.serviya.profiles.api.dto.OffererProfileSummarySnapshot;
 import com.parosurvivors.serviya.profiles.api.dto.ProfileSnapshot;
+import com.parosurvivors.serviya.profiles.api.dto.UpdateProfileCommand;
 import com.parosurvivors.serviya.profiles.application.ports.input.AddressServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.OffererProfileServicePort;
 import com.parosurvivors.serviya.profiles.application.ports.input.UserProfileServicePort;
@@ -155,6 +156,21 @@ public class ProfileApiFacade implements ProfileQueryApi, ProfileCommandApi {
     @Override
     public void updateMainAddress(Long userId, Long addressId) {
         userProfileServicePort.updateMainAddress(userId, addressId);
+    }
+
+    @Override
+    public ProfileSnapshot patchProfile(UpdateProfileCommand command) {
+        if (command == null) {
+            throw new IllegalArgumentException("UpdateProfileCommand is required");
+        }
+        UserProfile updated = userProfileServicePort.patchProfile(
+                new com.parosurvivors.serviya.profiles.application.dto.command.UpdateProfileCommand(
+                        command.userId(),
+                        command.fullName(),
+                        command.phone(),
+                        command.photoUrl(),
+                        command.description()));
+        return toProfileSnapshot(updated);
     }
 
     // ---------------------------------------------------------------------

@@ -18,6 +18,9 @@ public interface UserQueryApi {
 
     PageResult<UserSummary> search(UserSearchCriteria criteria, int page, int size);
 
+    /** Catalogo completo de roles del sistema. */
+    List<RoleSnapshot> getAllRoles();
+
     List<RoleSnapshot> getRoles(Long userId);
 
     List<UserRoleAssignmentSnapshot> getRoleAssignments(Long userId);

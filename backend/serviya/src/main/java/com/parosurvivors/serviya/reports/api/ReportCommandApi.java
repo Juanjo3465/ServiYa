@@ -16,4 +16,12 @@ public interface ReportCommandApi {
     void closeReport(Long reportId, Long adminId);
 
     ReportActionSnapshot createAction(Long reportId, Long adminId, String actionType);
+
+    /** Crea el reporte base + el enlace al feedback de servicio reportado. */
+    Long createServiceFeedbackReport(
+            Long reporterId, Long reportedUserId, String category, String reason, Long feedbackId);
+
+    /** Crea el reporte base + el enlace al feedback de cliente reportado. */
+    Long createClientFeedbackReport(
+            Long reporterId, Long reportedUserId, String category, String reason, Long feedbackId);
 }

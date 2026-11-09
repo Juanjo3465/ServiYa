@@ -20,6 +20,7 @@ import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServi
 import com.parosurvivors.serviya.users.application.ports.input.UserQueryServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.RoleServicePort;
 import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.domain.User;
@@ -50,6 +51,7 @@ public class UserApiFacade implements UserQueryApi, UserCommandApi {
     private final UserCreationServicePort userCreationServicePort;
     private final UserRoleServicePort userRoleServicePort;
     private final UserDeletionServicePort userDeletionServicePort;
+    private final RoleServicePort roleServicePort;
 
     // ---------------------------------------------------------------------
     // UserQueryApi
@@ -80,6 +82,13 @@ public class UserApiFacade implements UserQueryApi, UserCommandApi {
                 result.getSize(),
                 result.getTotalElements(),
                 result.getTotalPages());
+    }
+
+    @Override
+    public List<RoleSnapshot> getAllRoles() {
+        return roleServicePort.getRoles().stream()
+                .map(this::toRoleSnapshot)
+                .toList();
     }
 
     @Override

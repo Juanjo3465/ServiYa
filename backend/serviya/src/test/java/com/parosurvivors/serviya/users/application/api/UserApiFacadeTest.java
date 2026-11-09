@@ -19,6 +19,8 @@ import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServi
 import com.parosurvivors.serviya.users.application.ports.input.UserQueryServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.RoleServicePort;
+import com.parosurvivors.serviya.users.domain.Role;
 import com.parosurvivors.serviya.users.domain.RoleName;
 import com.parosurvivors.serviya.users.domain.User;
 import java.math.BigDecimal;
@@ -46,6 +48,8 @@ class UserApiFacadeTest {
     private UserRoleServicePort userRoleServicePort;
     @Mock
     private UserDeletionServicePort userDeletionServicePort;
+    @Mock
+    private RoleServicePort roleServicePort;
 
     @InjectMocks
     private UserApiFacade facade;
@@ -80,8 +84,7 @@ class UserApiFacadeTest {
     }
 
     @Test
-    void searchMapsPageToContract() {
-        UserSummaryItem item = new UserSummaryItem(
+    void searchMapsPageToContract() {        UserSummaryItem item = new UserSummaryItem(
                 1L, "luis@example.com", "Luis", null, false, null,
                 LocalDateTime.of(2026, 2, 3, 4, 5));
         when(userQueryServicePort.searchUsers(any(), any(PageRequest.class)))
@@ -128,6 +131,17 @@ class UserApiFacadeTest {
         assertThat(captor.getValue().role()).isEqualTo("CLIENT");
         assertThat(captor.getValue().latitude()).isEqualByComparingTo("4.6");
         assertThat(snapshot.id()).isEqualTo(11L);
+    }
+
+    @Test
+    void getAllRolesMapsCatalog() {
+        when(roleServicePort.getRoles()).thenReturn(List.of(
+                Role.builder().id(1).name(RoleName.CLIENT).build(),
+                Role.builder().id(3).name(RoleName.ADMIN).build()));
+
+        assertThat(facade.getAllRoles())
+                .extracting(role -> role.id() + ":" + role.name())
+                .containsExactly("1:CLIENT", "3:ADMIN");
     }
 
 }

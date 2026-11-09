@@ -10,6 +10,8 @@ import com.parosurvivors.serviya.reports.api.dto.ReportActionSnapshot;
 import com.parosurvivors.serviya.reports.api.dto.ReportSnapshot;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportActionServicePort;
 import com.parosurvivors.serviya.reports.application.ports.input.ReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ServiceFeedbackReportServicePort;
+import com.parosurvivors.serviya.reports.application.ports.input.ClientFeedbackReportServicePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportActionPersistencePort;
 import com.parosurvivors.serviya.reports.application.ports.output.ReportPersistencePort;
 import com.parosurvivors.serviya.reports.domain.Report;
@@ -19,6 +21,8 @@ import com.parosurvivors.serviya.reports.domain.ReportPriority;
 import com.parosurvivors.serviya.reports.domain.ReportStatus;
 import com.parosurvivors.serviya.reports.domain.ReportSummary;
 import com.parosurvivors.serviya.reports.domain.ReportType;
+import com.parosurvivors.serviya.reports.domain.ServiceFeedbackReport;
+import com.parosurvivors.serviya.reports.domain.ClientFeedbackReport;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +42,8 @@ class ReportApiFacadeTest {
     @Mock private ReportActionPersistencePort reportActionPersistencePort;
     @Mock private ReportServicePort reportServicePort;
     @Mock private ReportActionServicePort reportActionServicePort;
+    @Mock private ServiceFeedbackReportServicePort serviceFeedbackReportServicePort;
+    @Mock private ClientFeedbackReportServicePort clientFeedbackReportServicePort;
 
     @InjectMocks private ReportApiFacade facade;
 
@@ -130,6 +136,17 @@ class ReportApiFacadeTest {
         assertThatThrownBy(() -> facade.resolveReport(1L, 9L, "UNKNOWN"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("UNKNOWN");
+    }
+
+    @Test
+    void feedbackReportCreatorsReturnReportId() {
+        when(serviceFeedbackReportServicePort.createReport(any()))
+                .thenReturn(ServiceFeedbackReport.builder().reportId(7L).build());
+        when(clientFeedbackReportServicePort.createReport(any()))
+                .thenReturn(ClientFeedbackReport.builder().reportId(8L).build());
+
+        assertThat(facade.createServiceFeedbackReport(1L, 2L, "SPAM", "x", 3L)).isEqualTo(7L);
+        assertThat(facade.createClientFeedbackReport(1L, 2L, "SPAM", "x", 4L)).isEqualTo(8L);
     }
 
     private Report report() {

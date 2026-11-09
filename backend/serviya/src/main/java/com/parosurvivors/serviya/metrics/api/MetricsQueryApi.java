@@ -14,7 +14,6 @@ import java.util.Map;
 public interface MetricsQueryApi {
 
     ServiceMetricsSnapshot getServiceMetrics(Long serviceId);
-
     Map<Long, ServiceMetricsSnapshot> getServiceMetrics(Collection<Long> serviceIds);
 
     /** Ids de servicios cuyo averageRating cae en el rango (null = sin limite en ese extremo). */

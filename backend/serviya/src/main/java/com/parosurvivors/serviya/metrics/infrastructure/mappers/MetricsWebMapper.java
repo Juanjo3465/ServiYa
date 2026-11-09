@@ -6,6 +6,8 @@ import com.parosurvivors.serviya.metrics.domain.OffererMetrics;
 import com.parosurvivors.serviya.metrics.domain.OffererTagMetrics;
 import com.parosurvivors.serviya.metrics.domain.ServiceMetrics;
 import com.parosurvivors.serviya.metrics.domain.ServiceTagMetrics;
+import com.parosurvivors.serviya.metrics.api.dto.ClientMetricsSnapshot;
+import com.parosurvivors.serviya.metrics.api.dto.OffererMetricsSnapshot;
 import com.parosurvivors.serviya.metrics.infrastructure.dto.response.ClientMetricsResponse;
 import com.parosurvivors.serviya.metrics.infrastructure.dto.response.ClientMetricsSummaryResponse;
 import com.parosurvivors.serviya.metrics.infrastructure.dto.response.ClientTagMetricsResponse;
@@ -31,9 +33,15 @@ public interface MetricsWebMapper {
 
     OffererMetricsResponse toResponse(OffererMetrics metrics);
 
+    /** Variante para consumidores que solo tienen el snapshot publico. */
+    OffererMetricsResponse toResponse(OffererMetricsSnapshot metrics);
+
     OffererMetricsSummaryResponse toSummaryResponse(OffererMetrics metrics);
 
     ClientMetricsResponse toResponse(ClientMetrics metrics);
+
+    /** Variante para consumidores que solo tienen el snapshot publico. */
+    ClientMetricsResponse toResponse(ClientMetricsSnapshot metrics);
 
     ClientMetricsSummaryResponse toSummaryResponse(ClientMetrics metrics);
 
