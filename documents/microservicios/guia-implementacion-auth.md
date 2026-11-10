@@ -440,7 +440,9 @@ Reglas:
 - [x] Todas las reglas de P4.3 tienen tests. (Migrados a `ForbiddenException`/403 en 4C.)
 - [x] Las suites de tests existentes pasan. Monolito **487**, notif **30**, gateway **35** — todo BUILD SUCCESS.
 
-> **🎉 FASE 4 COMPLETA (2026-11-09).** Monolito y notif son resource servers ES256 estándar sin verificación propia; rol-por-ruta y CORS centralizados en el gateway; ownership/participación → 403; red aislada (solo el gateway expuesto). **Pendientes menores no bloqueantes:** (a) **avisar al frontend** del cambio 401→403 — ya está contemplado en la **Fase 6, T6.7** ("distinguir 401 (refrescar) de 403 (sin permiso)"), junto con el interceptor de refresh (T6.5/T6.6); (b) retiro total de `RateLimitingFilter` del monolito cuando el gateway porte las políticas de auth (P3.7); (c) `code` 4.4 en el handler de notif (usa 404 para IDOR). **Siguiente: Fase 5** (identidad de máquina / `client_credentials` + mTLS interno) — tiene pendientes bloqueantes propios (P5.1–P5.6) a revisar antes.
+> **🎉 FASE 4 COMPLETA (2026-11-09).** Monolito y notif son resource servers ES256 estándar sin verificación propia; rol-por-ruta y CORS centralizados en el gateway; ownership/participación → 403; red aislada (solo el gateway expuesto).
+> **Pendientes menores:** (a) ✅ **frontend 401→403:** sin cambio necesario — `api.js` ya distingue (solo el **401** limpia el token y redirige; el **403** cae a un error normal sin desloguear). La Fase 6 (T6.5–T6.7) añadirá el interceptor de refresh. (c) ✅ **`code` 4.4 en notif:** `ErrorResponse`/handlers de notif alineados (`code` + `correlationId` de `X-Request-Id`). (b) ⏳ retiro total de `RateLimitingFilter` del monolito **diferido** hasta que el gateway porte las políticas de auth por IP (ventana deslizante login/registro/reset, P3.7) — no es trivial, no bloquea.
+> **Siguiente: Fase 5** (identidad de máquina / `client_credentials` + mTLS interno) — tiene pendientes bloqueantes propios (P5.1–P5.6) a revisar antes.
 
 ### Notas de implementación
 
