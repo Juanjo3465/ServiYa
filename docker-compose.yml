@@ -176,6 +176,10 @@ services:
       CHAT_REDIS_COORD_PASSWORD: ${CHAT_REDIS_COORD_PASSWORD:-}
       CHAT_PUBSUB_HOST: chat-pubsub
       CHAT_PUBSUB_PORT: "6379"
+    # Solo para desarrollo: permite que JWT_JWKS_URL apunte al emisor de prueba del host
+    # (backend/chat-service/dev/dev_auth.py serve) con http://host.docker.internal:9400/.well-known/jwks.json.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       chat-mysql:
         condition: service_healthy

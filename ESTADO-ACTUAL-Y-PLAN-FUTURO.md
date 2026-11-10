@@ -918,11 +918,14 @@ Candidatos de servicio derivados del grafo (§3.3), agrupando lo que está fuert
 **identity** se extrae temprano o se mantiene como núcleo compartido según convenga (todos dependen
 de él; una opción pragmática es que sea el primer "núcleo" detrás del gateway).
 
-> **Microservicio de chat (greenfield, en paralelo — lo construye otro equipo).** No es una extracción
-> del monolito sino un servicio nuevo (Python/FastAPI, BD MySQL propia). Diseño en `documents/microservicios/chat/`
-> (ya alineado al stack real: IDs `BIGINT`, MySQL 8.4, JWT **ES256/JWKS** (DP-03, ver `guia-implementacion-auth.md`), exchanges `serviya.*`, Notificaciones
-> como ejecutor puro). **Prerrequisitos que debemos aportar nosotros** (detalle en NOTAS.txt 2026-11-06,
-> CHAT-1..4):
+> **Microservicio de chat (greenfield).** No es una extracción del monolito sino un servicio nuevo con BD MySQL
+> propia. Diseño en `documents/microservicios/chat/` (alineado al stack real: IDs `BIGINT`, MySQL 8.4, JWT
+> **ES256/JWKS** (DP-03, ver `guia-implementacion-auth.md`), exchanges `serviya.*`, Notificaciones como ejecutor puro).
+> **Implementado (2026-11-09) en `backend/chat-service/`, en Java 21 + Spring Boot** (no Python/FastAPI como decía la
+> guía: ver `backend/chat-service/docs/adr/0002`), con la fase 1 (MVP) completa y probada de punta a punta contra
+> infraestructura real; ruta `/api/v1/chat/**` en el gateway (REST + WebSocket). Mientras falten CHAT-1 y el emisor
+> ES256 real, se prueba con `backend/chat-service/dev/` (productor stub de eventos y emisor de tokens de desarrollo).
+> **Prerrequisitos que debemos aportar nosotros** (detalle en NOTAS.txt 2026-11-06, CHAT-1..4):
 > - **CHAT-1 [BLOQUEANTE para su MVP]:** el monolito debe **publicar al bus** eventos de dominio de
 >   `requests` (`service_request.created`, `status_changed` en cada transición) y de `users`
 >   (`registered/updated/suspended/reactivated/deleted`), con `*_id` `BIGINT`, reutilizando el outbox
