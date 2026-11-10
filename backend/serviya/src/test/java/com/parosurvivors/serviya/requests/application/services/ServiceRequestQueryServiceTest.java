@@ -22,7 +22,7 @@ import com.parosurvivors.serviya.services.api.ServiceQueryApi;
 import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
 import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -130,7 +130,7 @@ class ServiceRequestQueryServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.getRequestDetailForParty(REQUEST_ID, 999L))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
@@ -240,7 +240,7 @@ class ServiceRequestQueryServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.getRequestHistory(REQUEST_ID, 999L, false))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test

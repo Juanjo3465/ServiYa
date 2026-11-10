@@ -25,7 +25,7 @@ import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.exceptions.BusinessRuleException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -251,7 +251,7 @@ class ServiceRequestCommandServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.acceptRequest(REQUEST_ID, CLIENT_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
 
         verify(serviceRequestPersistencePort, never()).update(any());
     }
@@ -287,7 +287,7 @@ class ServiceRequestCommandServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.rejectRequest(REQUEST_ID, CLIENT_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // =====================================================
@@ -326,7 +326,7 @@ class ServiceRequestCommandServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.cancelRequest(REQUEST_ID, 999L))
-                .isInstanceOf(UnauthorizedException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("no participa");
     }
 
@@ -353,7 +353,7 @@ class ServiceRequestCommandServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.markAsPresumablyCompleted(REQUEST_ID, CLIENT_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // =====================================================
@@ -378,7 +378,7 @@ class ServiceRequestCommandServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.confirmCompletion(REQUEST_ID, OFFERER_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // =====================================================
@@ -525,7 +525,7 @@ class ServiceRequestCommandServiceTest {
 
         assertThatThrownBy(() -> service.rescheduleRequest(
                 REQUEST_ID, LocalDateTime.of(2026, 9, 1, 10, 0), OFFERER_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test

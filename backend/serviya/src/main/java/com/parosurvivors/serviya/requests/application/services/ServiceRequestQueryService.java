@@ -16,7 +16,7 @@ import com.parosurvivors.serviya.services.api.ServiceQueryApi;
 import com.parosurvivors.serviya.services.api.dto.CategorySnapshot;
 import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -81,7 +81,7 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
         ServiceRequest request = loadRequest(requestId);
         // Solo cliente u oferente ven el detalle; para el resto se oculta la existencia (403).
         if (!isParticipant(request, requesterId)) {
-            throw new UnauthorizedException("El usuario no participa en la solicitud");
+            throw new ForbiddenException("El usuario no participa en la solicitud");
         }
         Enrichment e = enrich(request);
         // Solo la contraparte: si consulta el cliente, la contraparte es el oferente, y viceversa.
@@ -121,7 +121,7 @@ public class ServiceRequestQueryService implements ServiceRequestQueryServicePor
         ServiceRequest request = loadRequest(requestId);
         // Solo el cliente/oferente participante o un admin pueden ver el historial (el admin hace bypass).
         if (!isAdmin && !isParticipant(request, requesterId)) {
-            throw new UnauthorizedException("El usuario no participa en la solicitud");
+            throw new ForbiddenException("El usuario no participa en la solicitud");
         }
         // Retrocede hasta la raíz por previousRequestId y luego recorre la cadena hacia adelante,
         // de modo que el historial quede en orden cronológico (original -> reprogramaciones sucesivas).
