@@ -921,6 +921,10 @@ envsubst < "$1" > "$2"
 chmod 640 "$2"
 ```
 
+> **Nota (2026-11-09):** con el ACL montado por bind mount desde el host, `640` impide que el usuario `redis` del
+> contenedor lo lea y Redis no arranca («Error loading ACLs … Permission denied»). El script real
+> (`infra/redis/acl/render-acl.sh`) usa `644`: el archivo solo contiene hashes SHA-256.
+
 ## Anexo E — Docker Compose base
 
 ```yaml

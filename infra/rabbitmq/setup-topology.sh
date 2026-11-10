@@ -40,9 +40,16 @@ echo "Creando/actualizando usuario chat..."
 put 'users/chat' "$(jq -cn --arg password "$CHAT_RABBITMQ_PASSWORD" '{password:$password,tags:""}')"
 
 echo "Aplicando permisos (vhost /)..."
+# Lo que exige RabbitMQ para que chat-service declare SUS colas, bindings y DLQ:
+#   - declarar una cola con x-dead-letter-exchange  → write en ese DLX (serviya.chat.dlx)
+#   - queue.bind(cola, exchange)                     → write en la COLA y read en el EXCHANGE de origen
+# Por eso write incluye chat-service.* y serviya.chat.dlx, y read incluye los exchanges de origen.
+# read sobre serviya.requests/users solo permite enlazar colas a ellos; publicar exige write, que NO se concede:
+# el chat sigue sin poder publicar en serviya.requests ni serviya.users.
+# (Lo verifica chat-service: IntegrationTestBase lee estas tres expresiones de este archivo.)
 CONFIGURE='^(chat-service\..*|serviya\.chat|serviya\.chat\.dlx)$'
-WRITE='^(serviya\.chat|serviya\.notifications)$'
-READ='^chat-service\..*$'
+WRITE='^(chat-service\..*|serviya\.chat|serviya\.chat\.dlx|serviya\.notifications)$'
+READ='^(chat-service\..*|serviya\.requests|serviya\.users|serviya\.chat\.dlx)$'
 put 'permissions/%2F/chat' "$(jq -cn \
   --arg configure "$CONFIGURE" \
   --arg write "$WRITE" \

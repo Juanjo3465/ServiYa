@@ -24,5 +24,8 @@ export CHAT_COORD_HASH="$(hash "$REDIS_CHAT_PASSWORD")"
 # Por eso, tras sustituir los hashes, descartamos las líneas de comentario (^#) y las vacías; los
 # comentarios se conservan en la PLANTILLA versionada (que sí los documenta), no en el ACL generado.
 envsubst < "$1" | grep -vE '^[[:space:]]*(#|$)' > "$2"
-chmod 640 "$2"
+# 644 (no 640): el archivo se monta en el contenedor, donde Redis corre como el usuario `redis` (uid 999),
+# que no es dueño ni grupo del archivo del host; con 640 no puede leerlo y redis-coord no arranca
+# ("Error loading ACLs ... Permission denied"). Solo contiene HASHES SHA-256, nunca contraseñas en claro.
+chmod 644 "$2"
 echo "Generado $2"

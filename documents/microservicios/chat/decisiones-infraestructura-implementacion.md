@@ -4,8 +4,8 @@
 > tomadas con el equipo. Fuente de verdad para la implementación de la infraestructura compartida.
 >
 > **Alcance:** integración del `chat-service` con la infraestructura de ServiYa.
-> **Fuera de alcance:** código del `chat-service` (otro equipo), frontend WebSocket y la instancia
-> Redis de caché (`redis-cache`, fase 2).
+> **Fuera de alcance:** código del `chat-service` (vive en `backend/chat-service/`, con su README y ADRs),
+> frontend WebSocket y la instancia Redis de caché (`redis-cache`, fase 2).
 >
 > **Estado:** decisiones cerradas. Infraestructura compartida implementada; la integración end-to-end
 > queda pendiente del `chat-service` y de la rama `api-gateway` (ES256/JWKS).
@@ -99,10 +99,18 @@ Las colas y sus bindings los declara `chat-service`. Infraestructura declara los
 Permisos sobre vhost `/`:
 
 - **configure:** `^(chat-service\..*|serviya\.chat|serviya\.chat\.dlx)$`
-- **write:** `^(serviya\.chat|serviya\.notifications)$`
-- **read:** `^chat-service\..*$`
+- **write:** `^(chat-service\..*|serviya\.chat|serviya\.chat\.dlx|serviya\.notifications)$`
+- **read:** `^(chat-service\..*|serviya\.requests|serviya\.users|serviya\.chat\.dlx)$`
 
 No puede publicar en `serviya.requests` ni `serviya.users`.
+
+> **Corrección (2026-11-09, al integrar el `chat-service` real).** Los permisos originales (write
+> `^(serviya\.chat|serviya\.notifications)$`, read `^chat-service\..*$`) impedían que el chat declarara lo que
+> este documento le asigna: RabbitMQ exige **write en el DLX** para declarar una cola con `x-dead-letter-exchange`,
+> y **write en la cola + read en el exchange de origen** para cada `queue.bind`. Con ellos el chat no arrancaba
+> (`ACCESS_REFUSED - write access to exchange 'serviya.chat.dlx'`). `read` sobre `serviya.requests`/`serviya.users`
+> solo permite enlazar colas; publicar exige `write`, que sigue sin concederse. Las pruebas del chat leen estas
+> expresiones de `setup-topology.sh` y verifican ambas cosas (arranca, y no puede publicar en exchanges ajenos).
 
 ## 4. Envelope de eventos de dominio
 
@@ -142,37 +150,38 @@ Reglas:
 
 ### Chat service
 
+> El ejemplo original asumía Python (`mysql+asyncmy://`, `REDIS_URL`…). El servicio es Java/Spring
+> (`backend/chat-service/docs/adr/0002`); estas son sus variables reales en el `docker-compose.yml` raíz:
+
 ```env
 CHAT_PORT=8000
 
-CHAT_DB_URL=mysql+asyncmy://chat:${CHAT_DB_PASSWORD}@chat-db:3306/chat_db
+CHAT_DB_URL=jdbc:mysql://chat-mysql:3306/chat_db?useUnicode=true&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC
 CHAT_DB_USER=chat
 CHAT_DB_PASSWORD=
 CHAT_DB_ROOT_PASSWORD=
 
-# Redis A — compartida
-REDIS_URL=redis://chat:${REDIS_CHAT_PASSWORD}@redis-coord:6379/0
+# Redis A — compartida (usuario ACL `chat`)
+REDIS_COORD_HOST=redis-coord
+REDIS_CHAT_PASSWORD=
 
 # Redis C — propia del chat
-REDIS_PUBSUB_URL=redis://chat-pubsub:6379/0
+CHAT_PUBSUB_HOST=chat-pubsub
 
-# RabbitMQ
-RABBITMQ_URL=amqp://chat:${CHAT_RABBITMQ_PASSWORD}@rabbitmq:5672/
+# RabbitMQ (vhost /, usuario `chat`)
+RABBITMQ_HOST=rabbitmq
+CHAT_RABBITMQ_PASSWORD=
 
-# Auth
+# Auth (ES256 fijo en el código)
 JWT_JWKS_URL=http://gateway:8080/.well-known/jwks.json
 JWT_ISSUER=https://auth.serviya.local
 JWT_AUDIENCE=marketplace-api
-JWT_ALGORITHMS=ES256
 
 # Frontend
 ALLOWED_WS_ORIGINS=http://localhost:5173,http://localhost:8081
-
-# Observabilidad
-CORRELATION_HEADER=X-Request-Id
-LOG_LEVEL=INFO
 ```
 
+La correlación usa `X-Request-Id` (fijo) y el nivel de log el estándar de Spring (`LOGGING_LEVEL_ROOT`).
 `REDIS_CACHE_URL` no se define en esta entrega.
 
 ### MinIO / S3
@@ -218,7 +227,7 @@ interno de Docker.
 
 | Dependencia | Estado | Impacto |
 |---|---|---|
-| `chat-service` | No existe en este repo | No se pueden probar REST/WS reales ni adjuntos end-to-end |
+| `chat-service` | **Implementado** en `backend/chat-service/` (fase 1/MVP; adjuntos son fase 3) | — |
 | `origin/api-gateway` ES256/JWKS | Rama separada, no en `main` | Bloquea validación JWT real |
 | `redis-cache` | Excluida | Solo bloquea presencia/typing de fase 2 |
 | Frontend WS | Otro equipo | No bloquea la infraestructura |
@@ -255,6 +264,8 @@ interno de Docker.
   (outbox transaccional).
 - [x] Los tests del monolito siguen verdes.
 - [x] `redis-cache` sigue sin implementarse.
-- [ ] Prueba end-to-end REST/WS con `chat-service` real.
-- [ ] Backfill inicial de `user_directory` y `request_directory`.
+- [x] Prueba end-to-end REST/WS con `chat-service` real: `ChatEndToEndIntegrationTest` (MySQL, los dos Redis con el
+  ACL real, RabbitMQ con los permisos de `setup-topology.sh`); el paso por el gateway lo cubre `ApiGatewayWebSocketTest`.
+- [ ] Backfill inicial de `user_directory` (el chat no usa `request_directory`: la conversación guarda sus
+  participantes y el estado de la solicitud).
 - [ ] Validación JWT ES256 real con la rama `api-gateway` desplegada.
