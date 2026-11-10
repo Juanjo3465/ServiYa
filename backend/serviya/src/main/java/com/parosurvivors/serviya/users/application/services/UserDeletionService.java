@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import com.parosurvivors.serviya.services.api.ServiceCommandApi;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.ports.input.SessionRevocationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
@@ -36,6 +37,7 @@ public class UserDeletionService implements UserDeletionServicePort {
     private final NotificationCommandApi notificationCommandApi;
     /** Cierre total de sesión (familias de refresh + min_iat) al eliminar la cuenta (P2.5). */
     private final SessionRevocationServicePort sessionRevocationService;
+    private final ChatEventPublisher chatEventPublisher;
 
     @Override
     @Transactional
@@ -51,6 +53,8 @@ public class UserDeletionService implements UserDeletionServicePort {
         // Eliminar la cuenta cierra la sesión en todos los dispositivos (P2.5): revoca las familias de
         // refresh y escribe min_iat. Dentro de la misma transacción que el soft delete.
         sessionRevocationService.revokeAllSessions(userId);
+        // Evento de integración: el chat marca al usuario como eliminado.
+        chatEventPublisher.userDeleted(userId);
         // (2) Si es oferente, ocultar todos sus servicios del buscador (no-op si no tiene servicios).
         serviceCommandApi.deactivateAllByOfferer(userId);
         // (3) Cancelar las solicitudes activas donde participa (como cliente u oferente) para no dejar huérfanas.

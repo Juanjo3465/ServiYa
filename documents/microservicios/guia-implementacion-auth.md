@@ -455,6 +455,20 @@ Reglas:
 
 ---
 
+## Integración con el microservicio de chat (merge de `main`, 2026-11-09)
+
+Al traer `origin/main` (PR #56, el equipo de chat) a la rama `api-gateway` aparecieron solapes con el gateway/compose/ACL. Hallazgos y resoluciones:
+
+1. **WebSocket del chat autentica con TICKET en la query, no Bearer.** El handshake `GET /api/chat/v1/ws?ticket=...` no lleva `Authorization` (los navegadores no pueden ponerlo en WS). Nuestra cadena `anyExchange().authenticated()` lo rechazaría con 401. **Resolución:** `/api/chat/v1/ws` → `permitAll` en el gateway (el chat-service valida el ticket de un solo uso). ⚠️ *Gap:* el gateway NO aplica `min_iat` al handshake WS; la revocación en vivo de una conexión WS larga es responsabilidad del chat (TTL del ticket + ciclo de vida de la conexión).
+2. **JWKS del chat (P3.3 se mantiene).** El chat leía el JWKS en `gateway:8080/.well-known/jwks.json`, pero **P3.3 dice que el JWKS es privado y no se expone en el borde**. **Resolución (decisión del usuario):** NO se abre el JWKS en el gateway; el chat lo lee **directo del monolito** (`backend:8080/.well-known/jwks.json`) por la red interna, igual que notif. Cambiado el default en `chat-service/application.yaml`, `docker-compose.yml` y `.env.example`. ⚠️ *Alineación menor pendiente (no bloqueante, es código del chat):* el chat valida firma ES256 pero no `iss`/`aud` (los demás servicios sí); dejar como follow-up para el equipo de chat.
+3. **Correlación duplicada (dos filtros, dos cabeceras).** El chat añadió `CorrelationIdFilter` (`GlobalFilter`, `X-Request-Id`) y nosotros `CorrelationIdWebFilter` (`WebFilter`, `X-Correlation-Id`). **Resolución:** unificado en **`X-Request-Id`**; se **conserva nuestro `WebFilter`** (corre antes de Security ⇒ cubre los 401/403 del borde, que el `GlobalFilter` del chat no alcanza) renombrando su cabecera, se **elimina** el `CorrelationIdFilter` del chat, y los escritores de error (`GatewayErrorWriter`, `GlobalExceptionHandler`, `RestAccessErrorHandler`) leen `X-Request-Id`.
+4. **Origin:** se adopta el `OriginHeaderFilter` del chat (retira `Origin` salvo en el handshake WS, que valida origen) en vez del `RemoveRequestHeader=Origin`. Cubre parcialmente P2.2.
+5. **ACL / compose / env:** fusionados ambos usuarios ACL (`svc-gateway-coord` + `chat`), ambos servicios y contraseñas. `render-acl.sh` del chat ya corrige el `chmod` 640→644 (el contenedor lee el ACL como uid 999).
+6. **Monolito:** `banUser`/`deleteUser` ahora hacen **ambos** `sessionRevocationService.revokeAllSessions(...)` (nuestro) **y** `chatEventPublisher.user{Suspended,Deleted}(...)` (chat). Coexisten sin conflicto.
+7. **Alineación OK:** el chat es resource server ES256/JWKS (sus docs ya se habían alineado), consistente con la Fase 4.
+
+**Decisiones aplicadas:** (1) WS → `permitAll` en el gateway (aprobado); (2) JWKS **NO** se expone en el gateway (P3.3 se mantiene) → el chat lo lee del monolito. Falta: build + tests del merge completo y commit.
+
 ## Fase 5: Identidad de máquina (servicio a servicio)
 
 **Objetivo:** que las llamadas entre servicios sin un usuario detrás (el monolito llamando a notif, jobs, procesos internos) se autentiquen con tokens de servicio, sin endpoints internos abiertos.

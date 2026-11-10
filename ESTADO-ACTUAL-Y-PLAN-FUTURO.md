@@ -918,11 +918,15 @@ Candidatos de servicio derivados del grafo (§3.3), agrupando lo que está fuert
 **identity** se extrae temprano o se mantiene como núcleo compartido según convenga (todos dependen
 de él; una opción pragmática es que sea el primer "núcleo" detrás del gateway).
 
-> **Microservicio de chat (greenfield, en paralelo — lo construye otro equipo).** No es una extracción
-> del monolito sino un servicio nuevo (Python/FastAPI, BD MySQL propia). Diseño en `documents/microservicios/chat/`
-> (ya alineado al stack real: IDs `BIGINT`, MySQL 8.4, JWT **ES256/JWKS** (DP-03, ver `guia-implementacion-auth.md`), exchanges `serviya.*`, Notificaciones
-> como ejecutor puro). **Prerrequisitos que debemos aportar nosotros** (detalle en NOTAS.txt 2026-11-06,
-> CHAT-1..4):
+> **Microservicio de chat (greenfield).** No es una extracción del monolito sino un servicio nuevo con BD MySQL
+> propia. Diseño en `documents/microservicios/chat/` (alineado al stack real: IDs `BIGINT`, MySQL 8.4, JWT
+> **ES256/JWKS** (DP-03, ver `guia-implementacion-auth.md`), exchanges `serviya.*`, Notificaciones como ejecutor puro).
+> **Implementado (2026-11-09) en `backend/chat-service/`, en Java 21 + Spring Boot** (no Python/FastAPI como decía la
+> guía: ver `backend/chat-service/docs/adr/0002`), con la fase 1 (MVP) completa y probada de punta a punta contra
+> infraestructura real; ruta `/api/chat/**` en el gateway (REST + WebSocket `/api/chat/v1/ws`, puerto 8000). CHAT-1 ya
+> está (el monolito publica los eventos); mientras falte el emisor ES256 real, se prueba con `backend/chat-service/dev/`
+> (emisor de tokens de desarrollo y productor stub de eventos).
+> **Prerrequisitos que debemos aportar nosotros** (detalle en NOTAS.txt 2026-11-06, CHAT-1..4):
 > - **CHAT-1 [BLOQUEANTE para su MVP]:** el monolito debe **publicar al bus** eventos de dominio de
 >   `requests` (`service_request.created`, `status_changed` en cada transición) y de `users`
 >   (`registered/updated/suspended/reactivated/deleted`), con `*_id` `BIGINT`, reutilizando el outbox
@@ -1146,6 +1150,18 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   determinista de dependencias (Tarjan) y una regla de hojas: el grafo es acíclico. Suite completa:
   **470 tests, 0 fallos, 0 errores, 14 skipped**. Commits: `31aff3e`, `c28ade0`, `cd4a831`,
   `0143949`, `0abdfaf`.
+- **2026-11-09** — **Infraestructura compartida del chat (fase 0/1/3).** Se documentaron las
+  decisiones en `documents/microservicios/chat/decisiones-infraestructura-implementacion.md`:
+  reutilizar `redis-coord` como instancia A, vhost `/`, puerto interno 8000, rutas
+  `/api/chat/**` + WebSocket, ES256/JWKS vía gateway, topología RabbitMQ, envelope común y MinIO
+  local. Implementado: usuario ACL `chat` en `redis-coord`; exchanges `serviya.requests`,
+  `serviya.users`, `serviya.chat` y `serviya.chat.dlx` + usuario RabbitMQ `chat`; rutas y filtros
+  de correlación/`Origin` en el gateway; MinIO/Silo con bucket privado `chat-attachments` y CORS;
+  y outbox transaccional `domain_event_outbox` con publicación de eventos de `requests` y `users`
+  al bus. Verificado: ACL de Redis, topología Rabbit, evento `users.user.registered` con envelope,
+  bucket privado y arranque del gateway. Suite del monolito: **472 tests, 0 fallos, 14 skipped**.
+  Pendiente: prueba end-to-end con `chat-service` real, backfill de proyecciones y ES256 en el
+  entorno desplegado.
 - **2026-10-12** — **Extraído `notifications` como microservicio** (§7.4 paso 1) en la rama
   `feature/notifications-microservice`. Análisis de dependencias: hoja con una sola dependencia de negocio
   (`users`, para el correo) + kernel `shared` (CurrentUser, DistributedLock, CoordinationAvailability, eventos,

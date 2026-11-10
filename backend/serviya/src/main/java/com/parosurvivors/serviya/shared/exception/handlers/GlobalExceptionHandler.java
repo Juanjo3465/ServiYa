@@ -100,7 +100,7 @@ public class GlobalExceptionHandler {
     }
 
     private static String correlationId(HttpServletRequest request) {
-        String existing = request.getHeader("X-Correlation-Id");
+        String existing = request.getHeader("X-Request-Id");
         return (existing != null && !existing.isBlank()) ? existing : UUID.randomUUID().toString();
     }
 }

@@ -197,6 +197,13 @@ serviya:
       poll-interval-ms: ${NOTIFICATIONS_OUTBOX_POLL_MS:1000}
       batch-size: 100
       confirm-timeout-ms: 5000
+  # Outbox de eventos de dominio (requests/users -> chat) por RabbitMQ.
+  events:
+    outbox:
+      relay-enabled: ${EVENTS_OUTBOX_RELAY_ENABLED:true}
+      poll-interval-ms: ${EVENTS_OUTBOX_POLL_MS:1000}
+      batch-size: 100
+      confirm-timeout-ms: 5000
   # Por entorno: dev http://localhost:5173/reset-password | docker http://localhost:8081/reset-password
   frontend:
     reset-url: ${FRONTEND_RESET_URL:http://localhost:5173/reset-password}

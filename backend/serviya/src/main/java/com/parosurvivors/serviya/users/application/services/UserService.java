@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.users.application.services;
 import com.parosurvivors.serviya.notifications.api.Channel;
 import com.parosurvivors.serviya.notifications.api.NotificationCommand;
 import com.parosurvivors.serviya.notifications.api.NotificationCommandApi;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
@@ -37,6 +38,7 @@ public class UserService implements UserServicePort {
     private final NotificationCommandApi notificationCommandApi;
     /** Cierre total de sesión (familias de refresh + min_iat) ante baneo y cambio de contraseña (P2.5). */
     private final SessionRevocationServicePort sessionRevocationService;
+    private final ChatEventPublisher chatEventPublisher;
 
     @Override
     public User createUser(String email, String rawPassword) {
@@ -88,6 +90,8 @@ public class UserService implements UserServicePort {
         // Banear expulsa al usuario de inmediato (P2.5): revoca las familias de refresh (no puede renovar)
         // y escribe min_iat (el gateway rechaza su access actual sin esperar a que expire).
         sessionRevocationService.revokeAllSessions(userId);
+        // Evento de integración: el chat marca al usuario como suspendido.
+        chatEventPublisher.userSuspended(userId, reason);
         // sS avisa al usuario baneado por doble canal (INTERNAL + EMAIL) con el motivo.
         notifyDualChannel(userId, "account_banned", "Tu cuenta fue suspendida",
                 "Tu cuenta en ServiYa fue suspendida. Motivo: " + reason
@@ -100,6 +104,7 @@ public class UserService implements UserServicePort {
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.unban();
         userPersistencePort.update(user);
+        chatEventPublisher.userReactivated(userId);
         // RF-075: se avisa al usuario desbaneado por doble canal (INTERNAL + EMAIL).
         notifyDualChannel(userId, "account_unbanned", "Tu cuenta fue reactivada",
                 "Tu cuenta en ServiYa fue reactivada. Ya puedes iniciar sesión de nuevo.");

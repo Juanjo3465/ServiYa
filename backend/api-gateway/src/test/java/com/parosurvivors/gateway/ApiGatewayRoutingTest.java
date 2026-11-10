@@ -37,6 +37,7 @@ class ApiGatewayRoutingTest {
 
     private static final HttpServer MONOLITH = stub("monolith");
     private static final HttpServer NOTIFICATIONS = stub("notifications-service");
+    private static final HttpServer CHAT = stub("chat-service");
     private static final TestJwks JWKS = new TestJwks();
     private static final MockWebServer JWKS_SERVER = jwksServer();
 
@@ -54,7 +55,7 @@ class ApiGatewayRoutingTest {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/", exchange -> {
                 LAST_FORWARDED_AUTH.set(exchange.getRequestHeaders().getFirst("Authorization"));
-                LAST_FORWARDED_CORRELATION.set(exchange.getRequestHeaders().getFirst("X-Correlation-Id"));
+                LAST_FORWARDED_CORRELATION.set(exchange.getRequestHeaders().getFirst("X-Request-Id"));
                 String origin = exchange.getRequestHeaders().getFirst("Origin");
                 byte[] body = (name + " " + exchange.getRequestURI() + (origin == null ? "" : " origin=" + origin))
                         .getBytes(StandardCharsets.UTF_8);
@@ -92,6 +93,7 @@ class ApiGatewayRoutingTest {
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("MONOLITH_URI", () -> "http://127.0.0.1:" + MONOLITH.getAddress().getPort());
         registry.add("NOTIFICATIONS_SERVICE_URI", () -> "http://127.0.0.1:" + NOTIFICATIONS.getAddress().getPort());
+        registry.add("CHAT_SERVICE_URI", () -> "http://127.0.0.1:" + CHAT.getAddress().getPort());
         registry.add("JWT_JWKS_URI", () -> JWKS_SERVER.url("/.well-known/jwks.json").toString());
         registry.add("JWT_ISSUER", () -> ISSUER);
         registry.add("JWT_AUDIENCE", () -> AUDIENCE);
@@ -101,6 +103,7 @@ class ApiGatewayRoutingTest {
     static void stop() throws IOException {
         MONOLITH.stop(0);
         NOTIFICATIONS.stop(0);
+        CHAT.stop(0);
         JWKS_SERVER.shutdown();
     }
 
@@ -115,6 +118,20 @@ class ApiGatewayRoutingTest {
                 .expectBody(String.class).isEqualTo("notifications-service /api/v1/notifications/7/read");
         client.get().uri("/api/v1/notification-channels").headers(bearer(CLIENT_TOKEN)).exchange()
                 .expectBody(String.class).isEqualTo("notifications-service /api/v1/notification-channels");
+    }
+
+    @Test
+    void chatRoutes_goToChatService() {
+        // El REST del chat está autenticado en el gateway (Bearer), como notif: así aplica min_iat. El
+        // ticket WS se pide por REST autenticado y luego el handshake WS (permitAll) lo valida el chat.
+        client.get().uri("/api/chat/v1/conversations?status=ACTIVE").headers(bearer(CLIENT_TOKEN)).exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).isEqualTo("chat-service /api/chat/v1/conversations?status=ACTIVE");
+        client.post().uri("/api/chat/v1/ws-tickets").headers(bearer(CLIENT_TOKEN)).exchange()
+                .expectBody(String.class).isEqualTo("chat-service /api/chat/v1/ws-tickets");
+        // Prefijo parecido pero de otro recurso: NO debe caer en chat-service.
+        client.get().uri("/api/chatter").headers(bearer(CLIENT_TOKEN)).exchange()
+                .expectBody(String.class).isEqualTo("monolith /api/chatter");
     }
 
     @Test
@@ -206,15 +223,15 @@ class ApiGatewayRoutingTest {
     void correlationId_isGenerated_returned_andForwarded() {
         client.get().uri("/api/v1/categories").exchange()
                 .expectStatus().isOk()
-                .expectHeader().exists("X-Correlation-Id");
+                .expectHeader().exists("X-Request-Id");
         assertThat(LAST_FORWARDED_CORRELATION.get()).isNotBlank();
     }
 
     @Test
     void correlationId_isPreserved_whenProvidedByClient() {
-        client.get().uri("/api/v1/categories").header("X-Correlation-Id", "trace-abc-123").exchange()
+        client.get().uri("/api/v1/categories").header("X-Request-Id", "trace-abc-123").exchange()
                 .expectStatus().isOk()
-                .expectHeader().valueEquals("X-Correlation-Id", "trace-abc-123");
+                .expectHeader().valueEquals("X-Request-Id", "trace-abc-123");
         assertThat(LAST_FORWARDED_CORRELATION.get()).isEqualTo("trace-abc-123");
     }
 

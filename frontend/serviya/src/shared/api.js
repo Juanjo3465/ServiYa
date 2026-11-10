@@ -53,8 +53,9 @@ export function userIdFromToken(token = getToken()) {
 }
 
 // Llama a la API y devuelve el JSON; si la respuesta es de error, lanza con el mensaje del backend.
-// Si recibe 401 en una petición autenticada, limpia el token y redirige a login.
-async function request(path, { method = 'GET', body, auth = false, formData = false } = {}) {
+// Si recibe 401 en una petición autenticada, limpia el token y redirige a login (salvo redirectOn401: false).
+// El Error lleva `status` y, si el backend lo envía (p. ej. el chat, RFC 9457), un `code` estable.
+async function request(path, { method = 'GET', body, auth = false, formData = false, redirectOn401 = true } = {}) {
     const headers = {};
     if (!formData) {
         headers['Content-Type'] = 'application/json';
@@ -71,6 +72,11 @@ async function request(path, { method = 'GET', body, auth = false, formData = fa
     });
 
     // Interceptor de 401: si la petición era autenticada y el token expira/es inválido
+    if (res.status === 401 && auth && !redirectOn401) {
+        const err = new Error('No autorizado');
+        err.status = 401;
+        throw err;
+    }
     if (res.status === 401 && auth) {
         clearToken();
         if (typeof window !== 'undefined') {
@@ -79,12 +85,16 @@ async function request(path, { method = 'GET', body, auth = false, formData = fa
         throw new Error('Sesión expirada. Redirigiendo al login...');
     }
 
-    const isJson = res.headers.get('content-type')?.includes('application/json');
+    // 'json' y no 'application/json': los errores del chat llegan como application/problem+json.
+    const isJson = res.headers.get('content-type')?.includes('json');
     const data = isJson ? await res.json() : null;
 
     if (!res.ok) {
-        const message = data?.message || `Error ${res.status}`;
-        throw new Error(message);
+        const message = data?.message || data?.title || `Error ${res.status}`;
+        const err = new Error(message);
+        err.status = res.status;
+        if (data?.code) err.code = data.code;
+        throw err;
     }
     return data;
 }
@@ -439,6 +449,43 @@ export const adminServiceApi = {
     },
     deleteService: (id) => request(`/api/v1/admin/services/${id}`, { method: 'DELETE', auth: true }),
 };
+
+// --- Chat (chat-service, a través del gateway: REST /api/chat/v1/**, WebSocket /api/chat/v1/ws) ---
+// No redirige a login ante un 401: mientras el emisor ES256/JWKS no esté desplegado, el chat rechaza el token
+// actual y eso NO debe cerrar la sesión del resto de la app; la UI muestra «chat no disponible».
+const chatRequest = (path, opts = {}) => request(`/api/chat/v1${path}`, { auth: true, redirectOn401: false, ...opts });
+
+function chatQuery(params = {}) {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([key, val]) => {
+        if (val === undefined || val === null || val === '') return;
+        qs.append(key, Array.isArray(val) ? val.join(',') : val);
+    });
+    const q = qs.toString();
+    return q ? `?${q}` : '';
+}
+
+export const chatApi = {
+    // RF-CHAT-03/31: { status: ['ACTIVE'], request_status: ['PENDING', ...], cursor, limit } → { items, next_cursor }
+    listConversations: (params = {}) => chatRequest(`/conversations${chatQuery(params)}`),
+    getConversation: (id) => chatRequest(`/conversations/${id}`),
+    getConversationByRequest: (requestId) => chatRequest(`/conversations/by-request/${requestId}`),
+    // { before_seq } hacia atrás o { after_seq } hacia adelante; siempre en orden ascendente → { items }
+    getMessages: (id, params = {}) => chatRequest(`/conversations/${id}/messages${chatQuery(params)}`),
+    // Respaldo por REST si el WebSocket no está disponible. Idempotente por client_message_id.
+    sendMessage: (id, clientMessageId, body) =>
+        chatRequest(`/conversations/${id}/messages`, { method: 'POST', body: { client_message_id: clientMessageId, body } }),
+    markRead: (id, seq) => chatRequest(`/conversations/${id}/read`, { method: 'POST', body: { seq } }),
+    issueWsTicket: () => chatRequest('/ws-tickets', { method: 'POST' }),
+};
+
+/** URL del WebSocket del chat para un ticket. Con VITE_API_URL vacío (detrás de nginx) usa el mismo host. */
+export function chatWsUrl(ticket) {
+    const base = API_BASE
+        ? API_BASE.replace(/\/$/, '').replace(/^http/i, 'ws')
+        : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
+    return `${base}/api/chat/v1/ws?ticket=${encodeURIComponent(ticket)}`;
+}
 
 // Ruta de inicio según el rol devuelto por el backend.
 export function homePathForRoles(roles = []) {

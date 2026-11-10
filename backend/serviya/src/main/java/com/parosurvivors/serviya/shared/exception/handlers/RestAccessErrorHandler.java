@@ -42,7 +42,7 @@ public class RestAccessErrorHandler implements AuthenticationEntryPoint, AccessD
 
     private void write(HttpServletRequest request, HttpServletResponse response, HttpStatus status,
             String code, String message) throws IOException {
-        String existing = request.getHeader("X-Correlation-Id");
+        String existing = request.getHeader("X-Request-Id");
         String correlationId = (existing != null && !existing.isBlank()) ? existing : java.util.UUID.randomUUID().toString();
         ErrorResponse body = ErrorResponse.builder()
                 .status(status.value())

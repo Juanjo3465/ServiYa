@@ -12,6 +12,7 @@ import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.services.api.ServiceQueryApi;
 import com.parosurvivors.serviya.services.api.dto.ServiceAvailabilitySnapshot;
 import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.RequestCreatedEvent;
 import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
@@ -48,6 +49,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
     private final ServiceQueryApi serviceQueryApi;
     private final ProfileQueryApi profileQueryApi;
     private final DomainEventPublisherPort eventPublisher;
+    private final ChatEventPublisher chatEventPublisher;
 
     @Override
     @Transactional
@@ -70,6 +72,10 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         // Solicitud original: alimenta requests_sent (cliente) y requests_received (oferente).
         eventPublisher.publish(new RequestCreatedEvent(
                 saved.getId(), saved.getClientId(), saved.getOffererId(), saved.getServiceId()));
+        // Evento de integracion para el chat: abre la conversacion REQUEST.
+        chatEventPublisher.requestCreated(
+                saved.getId(), saved.getClientId(), saved.getOffererId(), saved.getServiceId(),
+                saved.getStatus() == null ? null : saved.getStatus().name(), saved.getCreatedAt());
         profileQueryApi.findProfile(command.clientId())
                 .ifPresent(client -> notificationServicePort.notify(
                         service.offererId(),
@@ -390,6 +396,12 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
                 request.getServiceId(),
                 previous != null ? previous.name() : null,
                 request.getStatus() != null ? request.getStatus().name() : null));
+        chatEventPublisher.requestStatusChanged(
+                request.getId(),
+                request.getUpdatedBy(),
+                previous != null ? previous.name() : null,
+                request.getStatus() != null ? request.getStatus().name() : null,
+                request.getUpdatedStatusAt());
     }
 
     private void requireOwnership(Long ownerId, Long actorId) {

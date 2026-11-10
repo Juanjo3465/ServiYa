@@ -11,13 +11,13 @@ import reactor.core.publisher.Mono;
 
 /**
  * Escribe el cuerpo de error 4.4 en la respuesta reactiva. Centraliza el serializado JSON, el
- * {@code Content-Type}, el estado y el {@code correlationId} (de la cabecera {@code X-Correlation-Id} si
+ * {@code Content-Type}, el estado y el {@code correlationId} (de la cabecera {@code X-Request-Id} si
  * viene —la pondrá el filtro de T3.10— o uno nuevo) para que el entry point (401) y el access denied
  * handler (403) produzcan exactamente el mismo formato.
  */
 public final class GatewayErrorWriter {
 
-    public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+    public static final String CORRELATION_ID_HEADER = "X-Request-Id";
 
     private final ObjectMapper objectMapper;
 

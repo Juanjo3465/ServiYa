@@ -147,6 +147,11 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(exchange -> exchange
                         // Preflight CORS sin token.
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        // WebSocket del chat: lo autentica el chat-service con un ticket de un solo uso en la
+                        // query (los navegadores no pueden poner Authorization en el handshake WS), así que el
+                        // borde lo deja pasar. Va ANTES de /api/chat/** para no exigirle Bearer. El JWKS NO se
+                        // expone aquí (P3.3): el chat lo lee directo del monolito por la red interna.
+                        .pathMatchers("/api/chat/v1/ws").permitAll()
                         // El área propia del oferente exige login; va ANTES del perfil público de abajo.
                         .pathMatchers("/api/v1/offerers/me/**").authenticated()
                         // --- Rutas públicas (P3.3) ---

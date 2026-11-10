@@ -2,6 +2,7 @@ package com.parosurvivors.serviya.users.application.services;
 
 import com.parosurvivors.serviya.profiles.api.ProfileCommandApi;
 import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
 import com.parosurvivors.serviya.users.application.ports.input.ConsentServicePort;
@@ -33,6 +34,7 @@ public class UserCreationService implements UserCreationServicePort {
     private final ConsentServicePort consentServicePort;
     /** Perfil y direccion: contrato publico de profiles. */
     private final ProfileCommandApi profileCommandApi;
+    private final ChatEventPublisher chatEventPublisher;
 
     @Override
     @Transactional
@@ -82,6 +84,7 @@ public class UserCreationService implements UserCreationServicePort {
         }
 
         user.setRoles(List.of(roleName));
+        chatEventPublisher.userRegistered(user.getId(), command.fullName(), null, roleName.name());
         return user;
     }
 

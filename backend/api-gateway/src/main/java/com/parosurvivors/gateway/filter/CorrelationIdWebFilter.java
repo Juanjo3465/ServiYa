@@ -22,7 +22,8 @@ import reactor.core.publisher.Mono;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdWebFilter implements WebFilter {
 
-    public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+    // Unificado con el chat y el envelope de eventos: X-Request-Id (no X-Correlation-Id).
+    public static final String CORRELATION_ID_HEADER = "X-Request-Id";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {

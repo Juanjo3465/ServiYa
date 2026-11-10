@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.parosurvivors.serviya.profiles.api.ProfileCommandApi;
 import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.users.application.dto.command.CreateUserAccountCommand;
 import com.parosurvivors.serviya.users.application.ports.input.ConsentServicePort;
@@ -38,6 +39,7 @@ class UserCreationServiceTest {
     @Mock UserRoleServicePort userRoleServicePort;
     @Mock ConsentServicePort consentServicePort;
     @Mock ProfileCommandApi profileCommandApi;
+    @Mock ChatEventPublisher chatEventPublisher;
 
     @InjectMocks UserCreationService service;
 
