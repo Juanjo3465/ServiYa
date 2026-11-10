@@ -9,15 +9,14 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwts;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.Authentication;
 
 /**
- * El access token (RF-001/RF-002) se firma con ES256 (clave privada) y se verifica con la pública, y lleva
- * los claims del contrato §4.1 (Fase 1, guia-implementacion-auth.md). El fail-fast de las claves vive en
- * {@link JwtKeysTest}.
+ * El access token (RF-001/RF-002) se firma con ES256 (clave privada) y lleva los claims del contrato §4.1
+ * (Fase 1). Desde la Fase 4 {@link JwtService} es solo emisor; la verificación la hace el resource server
+ * estándar (ver {@code SecurityConfig}), por eso aquí solo se prueba la emisión. El fail-fast de las claves
+ * vive en {@link JwtKeysTest}.
  */
 class JwtServiceTest {
 
@@ -29,18 +28,6 @@ class JwtServiceTest {
         JwtProperties props = JwtTestSupport.properties();
         keys = new JwtKeys(props);
         service = new JwtService(keys, props);
-    }
-
-    @Test
-    void issuesAndResolvesTokenRoundTrip() {
-        IssuedToken issued = service.issue(42L, List.of(RoleName.CLIENT, RoleName.OFFERER));
-
-        Optional<Authentication> resolved = service.resolve(issued.token());
-        assertThat(resolved).isPresent();
-        assertThat(resolved.get().getPrincipal()).isEqualTo(42L);
-        assertThat(resolved.get().getAuthorities())
-                .extracting("authority")
-                .containsExactly("ROLE_CLIENT", "ROLE_OFFERER");
     }
 
     @Test
@@ -65,21 +52,5 @@ class JwtServiceTest {
         assertThat(claims.getIssuedAt()).isNotNull();
         assertThat(claims.getExpiration()).isAfter(claims.getIssuedAt());
         assertThat((List<String>) claims.get("roles", List.class)).containsExactly("CLIENT", "OFFERER");
-    }
-
-    @Test
-    void rejectsInvalidToken() {
-        assertThat(service.resolve("not-a-jwt")).isEmpty();
-    }
-
-    @Test
-    void rejectsTokenFromAnotherIssuer() {
-        IssuedToken issued = service.issue(42L, List.of(RoleName.CLIENT));
-
-        JwtProperties otherIssuer = JwtTestSupport.properties();
-        otherIssuer.setIssuer("https://auth.evil.test");
-        JwtService resolverExpectingAnotherIssuer = new JwtService(keys, otherIssuer);
-
-        assertThat(resolverExpectingAnotherIssuer.resolve(issued.token())).isEmpty();
     }
 }

@@ -18,14 +18,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * llegue a ningun sitio. Usa el {@link RateLimiter} distribuido (redis-coord), de modo que el limite es
  * el mismo con ≥2 instancias.
  *
- * <p>Va delante del filtro JWT a proposito: frena al atacante en la puerta, sin gastar ciclos validando
- * tokens ni consultando la base de datos en peticiones que van a rechazarse igualmente. Como estos
- * endpoints son publicos y no hay usuario autenticado del que tirar, la IP es el unico sujeto disponible
- * aqui (D-09); la cuota por CORREO de recuperacion se aplica en el controlador, donde el cuerpo ya esta
- * parseado (leerlo dentro del filtro consumiria el InputStream y romperia la lectura posterior).</p>
+ * <p>Va delante de la autenticacion Bearer del resource server a proposito: frena al atacante en la puerta,
+ * sin gastar ciclos validando tokens en peticiones que van a rechazarse igualmente. Como estos endpoints
+ * son publicos y no hay usuario autenticado del que tirar, la IP es el unico sujeto disponible aqui (D-09);
+ * detras del gateway la IP real llega por {@code X-Forwarded-For} ({@code forward-headers-strategy=native}).
+ * La cuota por CORREO de recuperacion se aplica en el controlador, donde el cuerpo ya esta parseado.</p>
  *
- * <p>No es un {@code @Component}: lo instancia {@code SecurityConfig}, igual que
- * {@link JwtAuthenticationFilter}, para que no se auto-registre fuera de la cadena de Spring Security.</p>
+ * <p>No es un {@code @Component}: lo instancia {@code SecurityConfig} para que no se auto-registre fuera de
+ * la cadena de Spring Security. (Fase 4: el techo global {@code GlobalRateLimitFilter} se retiro — ya vive
+ * en el gateway; este filtro de auth por IP se conserva hasta que el gateway porte esas politicas.)</p>
  */
 @RequiredArgsConstructor
 public class RateLimitingFilter extends OncePerRequestFilter {
