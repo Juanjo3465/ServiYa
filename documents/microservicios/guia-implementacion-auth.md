@@ -518,12 +518,12 @@ _(completar durante la implementación)_
 
 ### Pendientes bloqueantes
 
-- [ ] **P6.1. Dónde se guarda la auditoría de seguridad** (tabla propia, sistema de logs centralizado, SIEM) y cuánto tiempo se retiene.
-  Decisión:
-- [ ] **P6.2. Herramienta de métricas y alertas** y umbrales de alerta (tasa de 401, fallos de Redis, errores del JWKS, reuso de refresh).
-  Decisión:
-- [ ] **P6.3. Responsable del cambio en el frontend** (web y, si existe, móvil) y fecha de entrega antes del corte.
-  Decisión:
+- [x] **P6.1. Dónde se guarda la auditoría de seguridad.**
+  Decisión (2026-11-09): **tabla propia `security_audit`** en el monolito **+ logs estructurados JSON** con `correlationId` (recogibles luego por un colector). Ligero y suficiente pre-prod; SIEM y política de retención formal se definen en prod.
+- [x] **P6.2. Herramienta de métricas y alertas** y umbrales.
+  Decisión (2026-11-09): **Micrometer → Prometheus** (actuator `/prometheus`) + **Grafana**. Umbrales: tasa de 401/403 por código, fallos de Redis (breaker `redis-coord` abierto), errores al obtener el JWKS, reusos de refresh, latencia del chequeo `min_iat`. (El gateway ya emite `gateway.min_iat.check` y `gateway.ratelimit.decision`.)
+- [x] **P6.3. Responsable del cambio en el frontend.**
+  Decisión (2026-11-09): el propio equipo (quien lleva esta migración). El slice de frontend se aborda **primero** en la Fase 6.
 
 ### Tareas
 
@@ -567,7 +567,18 @@ _(completar durante la implementación)_
 - [ ] Los contract tests (T6.18–T6.22) pasan y están integrados en CI como gate; romper el contrato del token, del JWKS o del error falla el build.
 
 ### Notas de implementación
-_(completar durante la implementación)_
+
+- **Prerrequisito matizado (2026-11-09):** aunque el plan pide "Fases 1–5", **la mayor parte de la Fase 6 NO depende de la Fase 5** (identidad de máquina). Frontend (T6.5–T6.8), observabilidad (T6.1–T6.4) y contract tests (T6.18–T6.22) dependen solo de Fases 1–4 (hechas). Solo el e2e en staging (T6.9–T6.17, en especial T6.16 servicio-a-servicio) necesita Fase 5 + un entorno de staging desplegado. **Orden acordado:** (1) frontend → (2) observabilidad → (3) contract tests → (4) e2e cuando haya staging.
+- **El chat entra en la Fase 6:** ya es parte del sistema, así que los contract tests (T6.19–T6.21: token/JWKS/error) y el e2e incluyen su auth (REST Bearer + `min_iat`; handshake WS por ticket). Pendiente menor del chat: validar `iss`/`aud` (hoy solo valida firma ES256).
+
+**Slice 6-frontend (arranque, acordado — depende solo de Fases 1–4):**
+Estado actual (`frontend/serviya/src/shared/api.js`): token en `localStorage`; en **401** hace `clearToken()`+redirect a `/login`; **no** hay refresh y **no** usa `credentials:'include'` (la cookie HttpOnly de refresh ni se envía ni se recibe). Ya lee `code` de los errores (para el chat) → compatible con el `code` 4.4 que ahora mandan monolito y notif.
+- **T6.8 (cookie):** `fetch` con `credentials:'include'` en login/register (para **recibir** el Set-Cookie del refresh) y en `/auth/refresh` y `/auth/logout` (para **enviarla**). La cookie es `SameSite=Strict; Path=/api/v1/auth`; en dev `localhost:5173→:8080` es same-site, así que viaja.
+- **T6.5 (interceptor):** ante un **401** en petición autenticada, en vez de desloguear: llamar **una vez** a `POST /api/v1/auth/refresh`; si devuelve un access nuevo → `saveToken` + **reintentar** la petición original; si el refresh falla → `clearToken` + ir a `/login`.
+- **T6.6 (refresh único compartido):** una `refreshPromise` a nivel de módulo; si hay un refresh en vuelo, los 401 concurrentes esperan la MISMA promesa (evita tormenta de refresh y rotaciones en carrera).
+- **T6.7 (401 vs 403):** el **403** NO refresca ni desloguea (ya es el comportamiento: cae a error normal con `code=FORBIDDEN`); mostrar "sin permiso". Solo el **401** dispara el refresh.
+- **logout:** `POST /api/v1/auth/logout` (envía la cookie; el backend revoca la familia y limpia la cookie) + `clearToken()` local. Opcional: `logout-all` → `POST /api/v1/users/.../logout-all`? (en realidad `/api/v1/auth/logout-all`, autenticado).
+- **Verificación:** manual en el navegador (login → esperar expiración del access 15m o forzar un 401 → ver el refresh transparente; banear al usuario → el siguiente refresh falla → login).
 
 ---
 
