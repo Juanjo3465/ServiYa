@@ -533,11 +533,11 @@ _(completar durante la implementación)_
 - [ ] T6.3. Alertas según P6.2.
 - [ ] T6.4. El correlation ID aparece en los logs de todos los servicios.
 
-**Frontend**
-- [ ] T6.5. Interceptor HTTP: ante un 401, refrescar **una sola vez** y reintentar. Si el refresh falla, ir al login.
-- [ ] T6.6. **Refresh único compartido:** si varias peticiones reciben 401 a la vez, todas esperan la misma promesa de refresh.
-- [ ] T6.7. Distinguir 401 (refrescar) de 403 (mostrar "sin permiso").
-- [ ] T6.8. Manejo del refresh según P2.1 (cookie automática o almacenamiento).
+**Frontend** — **(slice 6-frontend hecho 2026-11-09; `api.js` + sidebars; lint/build en verde)**
+- [x] T6.5. Interceptor HTTP: ante un 401, refrescar **una sola vez** y reintentar. Si el refresh falla, ir al login. **(`doRequest` con `isRetry`: 401 autenticado → `tryRefresh()` → reintento; si falla → `clearToken`+`/login`.)**
+- [x] T6.6. **Refresh único compartido:** si varias peticiones reciben 401 a la vez, todas esperan la misma promesa de refresh. **(`refreshPromise` a nivel de módulo, single-flight.)**
+- [x] T6.7. Distinguir 401 (refrescar) de 403 (mostrar "sin permiso"). **(El 403 cae al error genérico con `code=FORBIDDEN`; no refresca ni desloguea.)**
+- [x] T6.8. Manejo del refresh según P2.1 (cookie automática). **(`credentials:'include'` en `fetch`: recibe la cookie en login/register y la envía en `/auth/refresh` y `/auth/logout`.) Además: `authApi.logout()` (revoca la familia + limpia cookie) cableado en las dos sidebars.**
 
 **Pruebas end-to-end (en staging)**
 - [ ] T6.9. Login → navegación → expiración del access → refresh transparente.

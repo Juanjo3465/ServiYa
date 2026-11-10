@@ -52,10 +52,44 @@ export function userIdFromToken(token = getToken()) {
     }
 }
 
+// Refresco de la sesión (Fase 2/6): el access token caduca pronto (15 min) y se renueva con el refresh
+// token, que viaja en una cookie HttpOnly (Path=/api/v1/auth) — el JS no la ve, por eso va en cookie.
+// Refresco ÚNICO compartido (T6.6): si varias peticiones reciben 401 a la vez, todas esperan la MISMA
+// promesa; así no se dispara una tormenta de refresh ni se rotan tokens en carrera.
+let refreshPromise = null;
+async function tryRefresh() {
+    if (!refreshPromise) {
+        refreshPromise = (async () => {
+            try {
+                // Sin Authorization: la identidad del refresh sale de la cookie. credentials:'include' la envía.
+                const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+                    method: 'POST',
+                    credentials: 'include',
+                });
+                if (!res.ok) return false;
+                const data = await res.json().catch(() => null);
+                if (data?.token) {
+                    saveToken(data.token);
+                    return true;
+                }
+                return false;
+            } catch {
+                return false;
+            }
+        })().finally(() => { refreshPromise = null; });
+    }
+    return refreshPromise;
+}
+
 // Llama a la API y devuelve el JSON; si la respuesta es de error, lanza con el mensaje del backend.
-// Si recibe 401 en una petición autenticada, limpia el token y redirige a login (salvo redirectOn401: false).
-// El Error lleva `status` y, si el backend lo envía (p. ej. el chat, RFC 9457), un `code` estable.
-async function request(path, { method = 'GET', body, auth = false, formData = false, redirectOn401 = true } = {}) {
+// Interceptor de 401 (T6.5): en una petición autenticada, intenta refrescar UNA vez y reintenta; si el
+// refresh falla, limpia el token y (salvo redirectOn401:false) va a /login. El 403 (sin permiso, T6.7) NO
+// refresca ni desloguea: cae al error genérico. El Error lleva `status` y, si viene, un `code` estable.
+async function request(path, opts = {}) {
+    return doRequest(path, opts, false);
+}
+
+async function doRequest(path, { method = 'GET', body, auth = false, formData = false, redirectOn401 = true } = {}, isRetry = false) {
     const headers = {};
     if (!formData) {
         headers['Content-Type'] = 'application/json';
@@ -68,21 +102,23 @@ async function request(path, { method = 'GET', body, auth = false, formData = fa
     const res = await fetch(`${API_BASE}${path}`, {
         method,
         headers,
+        // Envía/recibe la cookie de refresh (solo viaja a Path=/api/v1/auth); el gateway permite credenciales.
+        credentials: 'include',
         body: body ? (formData ? body : JSON.stringify(body)) : undefined,
     });
 
-    // Interceptor de 401: si la petición era autenticada y el token expira/es inválido
-    if (res.status === 401 && auth && !redirectOn401) {
-        const err = new Error('No autorizado');
-        err.status = 401;
-        throw err;
-    }
+    // 401 en petición autenticada: refrescar una vez y reintentar (si no es ya el reintento).
     if (res.status === 401 && auth) {
+        if (!isRetry && await tryRefresh()) {
+            return doRequest(path, { method, body, auth, formData, redirectOn401 }, true);
+        }
         clearToken();
-        if (typeof window !== 'undefined') {
+        if (redirectOn401 && typeof window !== 'undefined') {
             window.location.href = '/login';
         }
-        throw new Error('Sesión expirada. Redirigiendo al login...');
+        const err = new Error(redirectOn401 ? 'Sesión expirada. Redirigiendo al login...' : 'No autorizado');
+        err.status = 401;
+        throw err;
     }
 
     // 'json' y no 'application/json': los errores del chat llegan como application/problem+json.
@@ -90,6 +126,7 @@ async function request(path, { method = 'GET', body, auth = false, formData = fa
     const data = isJson ? await res.json() : null;
 
     if (!res.ok) {
+        // 403 incluido: el backend manda code=FORBIDDEN; el cliente muestra "sin permiso", NO refresca.
         const message = data?.message || data?.title || `Error ${res.status}`;
         const err = new Error(message);
         err.status = res.status;
@@ -107,6 +144,17 @@ export const authApi = {
     // RF-002 / RF-004
     register: (payload) =>
         request('/api/v1/auth/register', { method: 'POST', body: payload }),
+
+    // Cierra la sesión: revoca la familia del refresh en el backend y limpia la cookie; luego borra el
+    // access local. Tolerante: aunque falle la llamada, el token local se limpia.
+    logout: async () => {
+        try {
+            await fetch(`${API_BASE}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' });
+        } catch {
+            /* red caída: igualmente limpiamos el estado local */
+        }
+        clearToken();
+    },
 
     // RF-003 — recuperación de contraseña por enlace de un solo uso.
     // 1) Pide el enlace (el backend responde 204 exista o no el correo, para no filtrar cuentas).
