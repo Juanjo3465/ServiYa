@@ -33,7 +33,9 @@ spring:
         jwt:
           # ES256 + JWKS (DP-03): el chat solo tiene la clave PÚBLICA y no puede emitir tokens.
           # El default de Spring es RS256 → se fija ES256 explícitamente.
-          jwk-set-uri: ${JWT_JWKS_URL:http://gateway:8080/.well-known/jwks.json}
+          # Lee el JWKS DIRECTO del monolito (emisor) por la red interna: el JWKS no se expone en el
+          # gateway (P3.3, es privado). Igual que notifications-service.
+          jwk-set-uri: ${JWT_JWKS_URL:http://backend:8080/.well-known/jwks.json}
           jws-algorithms: ES256
   # redis-coord (instancia A): tickets WS y rate limiting. Usuario ACL `chat`, solo claves chat:* (infra/redis).
   data:

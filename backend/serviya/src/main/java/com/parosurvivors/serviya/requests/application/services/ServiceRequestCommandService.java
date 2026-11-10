@@ -20,7 +20,7 @@ import com.parosurvivors.serviya.profiles.api.ProfileQueryApi;
 import com.parosurvivors.serviya.profiles.api.dto.AddressSnapshot;
 import com.parosurvivors.serviya.shared.exceptions.BusinessRuleException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -406,7 +406,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
 
     private void requireOwnership(Long ownerId, Long actorId) {
         if (ownerId == null || !ownerId.equals(actorId)) {
-            throw new UnauthorizedException("El usuario no es el propietario del recurso");
+            throw new ForbiddenException("El usuario no es el propietario del recurso");
         }
     }
 
@@ -415,7 +415,7 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         boolean isParticipant = actorId != null
                 && (actorId.equals(request.getClientId()) || actorId.equals(request.getOffererId()));
         if (!isParticipant) {
-            throw new UnauthorizedException("El usuario no participa en la solicitud");
+            throw new ForbiddenException("El usuario no participa en la solicitud");
         }
     }
 

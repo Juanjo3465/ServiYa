@@ -15,6 +15,8 @@ import com.parosurvivors.serviya.users.application.dto.result.IssuedResetToken;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
 import com.parosurvivors.serviya.users.application.dto.result.TokenValidationResult;
 import com.parosurvivors.serviya.users.application.ports.input.PasswordResetTokenServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.SessionRevocationServicePort;
+import com.parosurvivors.serviya.users.application.ports.input.TokenSessionServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserAuthenticationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserCreationServicePort;
 import com.parosurvivors.serviya.users.application.ports.input.UserRoleServicePort;
@@ -55,22 +57,36 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
     private final UserRoleServicePort userRoleServicePort;
     private final PasswordEncoder passwordEncoder;
     private final TokenProviderPort tokenProvider;
+    private final TokenSessionServicePort tokenSessionService;
     private final ResetLinkPort resetLinkPort;
+    /** Cierre total de sesión (familias de refresh + min_iat) al confirmar el reset de contraseña (P2.5). */
+    private final SessionRevocationServicePort sessionRevocationService;
+    private final com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
 
     @Override
     public AuthResult login(LoginCommand command) {
         // Mensaje generico para no revelar si el email existe.
         User user = userReadPort.findByEmail(command.email())
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.LOGIN_FAILURE,
+                            null, false, "unknown email");
+                    return new UnauthorizedException("Invalid email or password");
+                });
 
         if (!passwordEncoder.matches(command.password(), user.getPasswordHash())) {
+            auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.LOGIN_FAILURE,
+                    user.getId(), false, "bad password");
             throw new UnauthorizedException("Invalid email or password");
         }
         // RF-001 / RNF-007: cuentas baneadas o eliminadas no pueden iniciar sesion.
         if (user.isBanned()) {
+            auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.LOGIN_FAILURE,
+                    user.getId(), false, "banned");
             throw new UnauthorizedException("Account is banned");
         }
         if (user.isDeleted()) {
+            auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.LOGIN_FAILURE,
+                    user.getId(), false, "deleted");
             throw new UnauthorizedException("Account no longer exists");
         }
 
@@ -78,7 +94,10 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 .map(Role::getName)
                 .toList();
 
-        return toAuthResult(user.getId(), roles);
+        // Abre una sesión nueva: access en el cuerpo + refresh (cookie) en una familia nueva (Fase 2).
+        AuthResult result = tokenSessionService.startSession(user.getId(), roles);
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.LOGIN_SUCCESS, user.getId());
+        return result;
     }
 
     @Override
@@ -111,7 +130,7 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
                 created.getId(),
                 Set.of(Channel.INTERNAL, Channel.EMAIL),
                 Map.of()));
-        return toAuthResult(created.getId(), created.getRoles());
+        return tokenSessionService.startSession(created.getId(), created.getRoles());
     }
 
     /**
@@ -203,6 +222,12 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
         user.changePassword(passwordEncoder.encode(command.newPassword()));
         userPersistencePort.update(user);
 
+        // Resetear la contraseña cierra la sesión en todos los dispositivos (P2.5): revoca las familias de
+        // refresh y escribe min_iat. Si el reset lo hizo un atacante, igualmente expulsa al titular; si lo
+        // hizo el titular, cierra cualquier sesión que el atacante tuviera abierta.
+        sessionRevocationService.revokeAllSessions(user.getId());
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.PASSWORD_RESET, user.getId());
+
         // Aviso de contención: si el cambio no lo hizo el titular, este correo es su señal de alarma.
         notificationCommandApi.notify(new NotificationCommand(
                 user.getId(),
@@ -250,8 +275,12 @@ public class UserAuthenticationService implements UserAuthenticationServicePort 
         }
     }
 
+    /**
+     * Reemite solo el access token (sin refresh): lo usa {@code acquireRole}, que deja intacta la cookie
+     * de refresh (la familia actual sigue; el refresh releerá los roles nuevos en su próxima rotación).
+     */
     private AuthResult toAuthResult(Long userId, List<RoleName> roles) {
         IssuedToken issued = tokenProvider.issue(userId, roles);
-        return new AuthResult(issued.token(), userId, roles, issued.expiresAt());
+        return new AuthResult(issued.token(), userId, roles, issued.expiresAt(), null, null);
     }
 }

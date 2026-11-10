@@ -15,7 +15,7 @@ import com.parosurvivors.serviya.services.application.dto.query.SearchServiceQue
 import com.parosurvivors.serviya.services.application.mappers.ServiceCommandMapper;
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -292,7 +292,7 @@ class MarketplaceServiceTest {
 
     private void assertNotOwner(ThrowingCallable assertThrown) {
         assertThatThrownBy(assertThrown)
-                .isInstanceOf(UnauthorizedException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("propietario");
     }
 

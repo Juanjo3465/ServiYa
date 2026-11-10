@@ -18,7 +18,7 @@ import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackSubmittedEv
 import com.parosurvivors.serviya.shared.events.domain.TagRef;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +56,7 @@ public class ServiceFeedbackService implements ServiceFeedbackServicePort {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Solicitud no encontrada: " + command.requestId()));
         if (!request.clientId().equals(command.clientId())) {
-            throw new UnauthorizedException("El feedback solo lo puede dejar el cliente de la solicitud");
+            throw new ForbiddenException("El feedback solo lo puede dejar el cliente de la solicitud");
         }
         // Ventana de calificación: desde 'presuntamente prestada' en adelante (no solo 'completada').
         if (!(request.isPresumablyCompleted() || request.isCompleted())) {

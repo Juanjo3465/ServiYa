@@ -24,15 +24,17 @@ ni claves (su reintento se coordina con `SKIP LOCKED` en su propia BD); solo hac
 | `admin` | Operación humana de emergencia | `~*` | `+@all`; solo desde bastión; auditado |
 | `healthcheck` | Healthcheck del contenedor | — | Solo `+ping` |
 | `monitor` | `redis_exporter` (Fase 5) | `~*` | Solo lectura + `INFO`/`SLOWLOG`/`LATENCY`/... |
-| `svc-serviya-coord` | El backend: locks (Fase 2) + rate limit (Fase 3) | `~lock:*` `~fence:*` `~rl:*` | R/W + scripting; `-@dangerous` |
+| `svc-serviya-coord` | El backend: locks (Fase 2) + rate limit (Fase 3) + `min_iat` escritura (Fase 2B) | `~lock:*` `~fence:*` `~rl:*` `~auth:min_iat:*` | R/W + scripting; `-@dangerous` |
+| `svc-gateway-coord` *(Fase 4)* | El gateway: lee `min_iat` (revocación) + rate limiting en `rl:*` — techo global token-bucket **y** cuotas de auth por IP en ventana deslizante (portadas del monolito, T4.9) | `~auth:min_iat:*` `~rl:*` | `+@connection +ping +get +hmget +hset +pexpire +time +zadd +zcard +zrange +zremrangebyscore +eval +evalsha +script\|load +script\|exists` (sin `lock:*`) |
 | `svc-notifications-coord` | `notifications-service`: sondeo de disponibilidad (modo degradado D-07/1a) | ninguno (`resetkeys`) | Solo `+@connection +ping` |
 | `chat` | `chat-service`: rate limiting de mensajes y tickets WS de un solo uso | `~chat:*` | R/W + `EXPIRE`/`TTL`/`INCR`/`SCAN`; sin PUB/SUB, `KEYS` ni `FLUSH*` |
 
 > Comandos exactos de `svc-serviya-coord` (allowlist, deny-by-default) en `users.coord.acl.tpl`:
 > `+@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +time +zadd +zcard +zrange`
 > `+zremrangebyscore +eval +evalsha +script|load +script|exists`. Los de rate limit (`+time` y los
-> `z*` de la ventana deslizante) se añadieron en Fase 3: el ACL del slice los exige. **Al desplegar hay
-> que re-renderizar** `users.coord.acl` desde el `.tpl` y recargar (`ACL LOAD` o reiniciar el contenedor).
+> `z*` de la ventana deslizante) se añadieron en Fase 3: el ACL del slice los exige. En **Fase 2B** se añadió
+> el patrón de claves `~auth:min_iat:*` (el `SET key val PX <ms>` lo cubre `+set`, sin comando nuevo). **Al
+> desplegar hay que re-renderizar** `users.coord.acl` desde el `.tpl` y recargar (`ACL LOAD` o reiniciar).
 
 ### Instancia `redis-cache` (caché; se activa en Fase 6)
 

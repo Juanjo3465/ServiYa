@@ -1,0 +1,77 @@
+# Reglas de alerta Prometheus para la seguridad del borde (T6.3, Fase 6).
+#
+# Se AUTORAN ahora; se despliegan con el stack de observabilidad en Fase 7 (staging). Montar este fichero
+# en Prometheus vía `rule_files:` y apuntar el scrape a los puertos de management (9090, NO publicados):
+#   - gateway  :9090/actuator/prometheus
+#   - monolito :9090/actuator/prometheus
+#   - notif    :9090/actuator/prometheus
+#
+# Nombres de métrica = convención Micrometer→Prometheus (los puntos pasan a '_', los counters llevan '_total',
+# los Timer exponen _count/_sum/_max en segundos). Ajustar los umbrales con datos reales de staging.
+groups:
+  - name: serviya-auth-edge
+    rules:
+      # --- Robo de refresh token: CUALQUIER reuso detectado es señal de robo (familia revocada). Página. ---
+      - alert: RefreshTokenReuseDetected
+        expr: increase(security_audit_event_total{type="REFRESH_REUSE_DETECTED"}[5m]) > 0
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: "Reuso de refresh token detectado (posible robo)"
+          description: "{{ $value }} reuso(s) en 5m. La familia se revocó (Fase 2A); investigar la cuenta."
+
+      # --- Fuerza bruta / credential stuffing: pico de LOGIN_FAILURE. ---
+      - alert: LoginFailureSpike
+        expr: sum(rate(security_audit_event_total{type="LOGIN_FAILURE"}[5m])) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Tasa alta de fallos de login"
+          description: ">1 fallo/s sostenido 10m. Posible fuerza bruta pese al rate-limit del gateway."
+
+      # --- min_iat en fail-open: redis-coord caído/lento ⇒ la revocación inmediata NO se está aplicando. ---
+      - alert: MinIatFailOpen
+        expr: sum(rate(gateway_min_iat_check_total{result=~"error|breaker-open"}[5m])) > 0
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: "Chequeo min_iat en fail-open (redis-coord)"
+          description: "El gateway deja pasar sin verificar min_iat (result={{ $labels.result }}). Ventana de exposición = access-ttl. Revisar redis-coord."
+
+      # --- Breaker de redis-coord ABIERTO en el gateway (0=closed,1=open,2=half_open). ---
+      - alert: RedisCoordBreakerOpen
+        expr: resilience4j_circuitbreaker_state{name="redis-coord",state="open"} == 1
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "Circuit breaker de redis-coord ABIERTO"
+          description: "redis-coord falla; el gateway corta las consultas (min_iat fail-open, rate-limit en su modo de fallo)."
+
+      # --- JWKS inalcanzable / tokens inválidos en masa: pico de errores de decodificación en el gateway. ---
+      - alert: JwtDecodeErrorSpike
+        expr: sum(rate(gateway_jwt_decode_total{result="error"}[5m])) > 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Pico de errores al decodificar el JWT en el gateway"
+          description: ">1 error/s 5m. Firma/iss/aud inválidos en masa o JWKS del monolito inalcanzable."
+
+      # --- Latencia del chequeo min_iat (media de los últimos 5m) alta: redis-coord degradado. ---
+      - alert: MinIatLatencyHigh
+        expr: >
+          sum(rate(gateway_min_iat_latency_seconds_sum[5m]))
+          / sum(rate(gateway_min_iat_latency_seconds_count[5m])) > 0.1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Latencia media de min_iat > 100ms"
+          description: "El chequeo min_iat (hot-path de TODO el tráfico autenticado) está lento; redis-coord degradado."
+
+      # --- Muro de 401 en el borde: token roto/caducado masivo o un cliente mal configurado. ---
+      - alert: GatewayAuthErrorSpike
+        expr: sum(rate(gateway_auth_error_total{status="401"}[5m])) > 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Pico de 401 en el gateway"
+          description: ">5 401/s 5m. Tokens inválidos/caducados en masa o un cliente mal configurado."

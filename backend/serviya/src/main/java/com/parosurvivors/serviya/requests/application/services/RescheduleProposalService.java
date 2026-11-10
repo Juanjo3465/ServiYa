@@ -26,7 +26,7 @@ import com.parosurvivors.serviya.shared.events.domain.RequestStatusChangedEvent;
 import com.parosurvivors.serviya.shared.events.domain.RescheduleProposalCreatedEvent;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -293,7 +293,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
 
     private void requireOwnership(Long ownerId, Long actorId) {
         if (ownerId == null || !ownerId.equals(actorId)) {
-            throw new UnauthorizedException("El usuario no es el propietario del recurso");
+            throw new ForbiddenException("El usuario no es el propietario del recurso");
         }
     }
 
@@ -302,7 +302,7 @@ public class RescheduleProposalService implements RescheduleProposalServicePort 
         boolean isParticipant = actorId != null
                 && (actorId.equals(clientId) || actorId.equals(offererId));
         if (!isParticipant) {
-            throw new UnauthorizedException("El usuario no participa en la solicitud");
+            throw new ForbiddenException("El usuario no participa en la solicitud");
         }
     }
 

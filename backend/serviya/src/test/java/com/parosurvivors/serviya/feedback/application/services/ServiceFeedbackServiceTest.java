@@ -22,7 +22,7 @@ import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackRevertedEve
 import com.parosurvivors.serviya.shared.events.domain.ServiceFeedbackSubmittedEvent;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -90,7 +90,7 @@ class ServiceFeedbackServiceTest {
 
         assertThatThrownBy(() -> service.submitServiceFeedback(new SubmitServiceFeedbackCommand(
                 CLIENT_ID, REQUEST_ID, 5, "Great", List.of())))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
 
         verify(serviceFeedbackPersistencePort, never()).save(any());
     }

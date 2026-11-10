@@ -28,7 +28,7 @@ import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -104,7 +104,7 @@ class RescheduleProposalServiceTest {
                 REQUEST_ID, CLIENT_ID, "Conflicto", LocalDateTime.of(2026, 8, 15, 10, 0));
 
         assertThatThrownBy(() -> service.createProposal(command))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
@@ -171,7 +171,7 @@ class RescheduleProposalServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.acceptProposal(PROPOSAL_ID, OFFERER_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
@@ -210,7 +210,7 @@ class RescheduleProposalServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.rejectProposal(PROPOSAL_ID, OFFERER_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // =====================================================
@@ -241,7 +241,7 @@ class RescheduleProposalServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.cancelProposal(PROPOSAL_ID, CLIENT_ID))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     // =====================================================
@@ -312,7 +312,7 @@ class RescheduleProposalServiceTest {
         when(serviceRequestReadPort.findById(REQUEST_ID)).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> service.getProposalsByRequest(REQUEST_ID, 999L))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
@@ -353,7 +353,7 @@ class RescheduleProposalServiceTest {
         when(rescheduleProposalReadPort.findById(PROPOSAL_ID)).thenReturn(Optional.of(proposal));
 
         assertThatThrownBy(() -> service.getProposalDetail(PROPOSAL_ID, 999L))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test

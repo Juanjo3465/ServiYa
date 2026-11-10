@@ -8,7 +8,7 @@ import com.parosurvivors.serviya.services.application.ports.input.MarketplaceSer
 import com.parosurvivors.serviya.services.application.ports.output.ServicePersistencePort;
 import com.parosurvivors.serviya.services.domain.Service;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -122,7 +122,7 @@ public class MarketplaceService implements MarketplaceServicePort {
             return;
         }
         if (requesterId == null || !requesterId.equals(service.getOffererId())) {
-            throw new UnauthorizedException("El usuario no es el propietario del servicio");
+            throw new ForbiddenException("El usuario no es el propietario del servicio");
         }
     }
 

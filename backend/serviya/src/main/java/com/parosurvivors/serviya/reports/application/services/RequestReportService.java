@@ -14,7 +14,7 @@ import com.parosurvivors.serviya.requests.api.RequestQueryApi;
 import com.parosurvivors.serviya.requests.api.dto.RequestDetailSnapshot;
 import com.parosurvivors.serviya.shared.contract.Roles;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import com.parosurvivors.serviya.shared.textfilter.application.ports.output.WordFilterPort;
 import com.parosurvivors.serviya.users.api.UserQueryApi;
 import java.util.List;
@@ -50,7 +50,7 @@ public class RequestReportService implements RequestReportServicePort {
      * <p>Reglas aplicadas:
      * <ul>
      *   <li><b>Ownership</b>: {@code RequestQueryApi.findDetail} + comprobacion de participante
-     *       lanza UnauthorizedException si quien reporta no es el cliente ni el oferente de esa
+     *       lanza ForbiddenException si quien reporta no es el cliente ni el oferente de esa
      *       solicitud, asi que solo las partes pueden reportarla.</li>
      *   <li><b>Reportado derivado, no confiado</b>: el usuario reportado es la CONTRAPARTE que
      *       devuelve la solicitud, nunca el {@code reportedUserId} que venga del cliente (que podria
@@ -70,7 +70,7 @@ public class RequestReportService implements RequestReportServicePort {
         boolean isParticipant = command.reporterId().equals(request.clientId())
                 || command.reporterId().equals(request.offererId());
         if (!isParticipant) {
-            throw new UnauthorizedException("El usuario no participa en la solicitud");
+            throw new ForbiddenException("El usuario no participa en la solicitud");
         }
 
         Long reportedUserId = command.reporterId().equals(request.clientId())

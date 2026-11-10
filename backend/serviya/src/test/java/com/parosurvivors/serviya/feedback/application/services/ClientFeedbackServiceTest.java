@@ -20,7 +20,7 @@ import com.parosurvivors.serviya.requests.api.dto.RequestSnapshot;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.events.domain.ClientFeedbackSubmittedEvent;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -88,7 +88,7 @@ class ClientFeedbackServiceTest {
 
         assertThatThrownBy(() -> service.submitClientFeedback(new SubmitClientFeedbackCommand(
                 OFFERER_ID, REQUEST_ID, CLIENT_ID, 4, "Good", List.of())))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
 
         verify(clientFeedbackPersistencePort, never()).save(any());
     }

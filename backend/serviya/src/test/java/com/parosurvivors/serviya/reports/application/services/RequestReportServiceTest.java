@@ -19,7 +19,7 @@ import com.parosurvivors.serviya.reports.domain.RequestReport;
 import com.parosurvivors.serviya.requests.api.RequestQueryApi;
 import com.parosurvivors.serviya.requests.api.dto.RequestDetailSnapshot;
 import com.parosurvivors.serviya.shared.contract.Roles;
-import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
+import com.parosurvivors.serviya.shared.exceptions.ForbiddenException;
 import com.parosurvivors.serviya.shared.textfilter.application.ports.output.WordFilterPort;
 import com.parosurvivors.serviya.users.api.UserQueryApi;
 import java.math.BigDecimal;
@@ -90,7 +90,7 @@ class RequestReportServiceTest {
 
         assertThatThrownBy(() -> service.createReport(new CreateRequestReportCommand(
                 REPORTER_ID, "Fraude", "No asistio", REQUEST_ID)))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(ForbiddenException.class);
 
         verify(reportServicePort, never()).createBaseReport(any(), any(), any(), any(), any());
         verify(requestReportPersistencePort, never()).save(any());
