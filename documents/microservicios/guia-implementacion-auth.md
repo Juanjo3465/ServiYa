@@ -441,7 +441,12 @@ Reglas:
 - [ ] Las suites de tests existentes pasan.
 
 ### Notas de implementación
-_(completar durante la implementación)_
+
+- **Slice 4-infra hecho 2026-11-09** (P4.4 materializado, **35 tests del gateway en verde**): el `docker-compose.yml` ya tenía al gateway como **único puerto** (`8080`) y a `backend`/`notif` en `expose` (red interna); faltaba hacer **funcional** al gateway en Docker. Añadido:
+  - Gateway en `docker-compose.yml`: env de validación JWT (`JWT_JWKS_URI`→`http://backend:8080/.well-known/jwks.json`, `JWT_ISSUER`/`JWT_AUDIENCE`/`JWT_CLOCK_SKEW`) + acceso a `redis-coord` (`REDIS_COORD_*`, usuario `svc-gateway-coord`) + red `redis-net`.
+  - Gateway `application.yaml`: `spring.data.redis.username/password` desde `REDIS_COORD_USER/PASSWORD`.
+  - Redis ACL: nuevo usuario `svc-gateway-coord` (`~auth:min_iat:* ~rl:*` + comandos del token bucket; sin `z*`/`lock:*`) en `users.coord.acl.tpl` + `render-acl.sh` + `.env.example` (raíz e `infra/redis`).
+  - **Operación:** antes del `up` hay que **re-renderizar** el ACL (`infra/redis/acl/render-acl.sh`) para incluir el nuevo usuario; el frontend sigue llamando a `:8080` (el gateway heredó ese puerto del monolito, así que su config no cambia).
 
 ---
 

@@ -14,9 +14,23 @@ services:
       NOTIFICATIONS_SERVICE_URI: http://notifications-service:8082
       # Mismos orígenes que tenía el CORS del monolito (incluida la IP de red local y el túnel ngrok).
       GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081,http://192.168.1.2:8081,https://nonfervently-expiational-amani.ngrok-free.dev}
+      # Validacion del access token ES256 (Fase 3): el JWKS lo sirve el monolito en la red interna.
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://backend:8080/.well-known/jwks.json}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.serviya.local}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-marketplace-api}
+      JWT_CLOCK_SKEW: ${JWT_CLOCK_SKEW:-60s}
+      # redis-coord para min_iat (Fase 2B/3) + techo global de rate limiting (T3.9). Usuario ACL propio
+      # svc-gateway-coord (solo lee min_iat y opera las claves rl:*). Tolera redis caido (fail-open).
+      REDIS_COORD_HOST: ${REDIS_COORD_HOST:-redis-coord}
+      REDIS_COORD_PORT: ${REDIS_COORD_PORT:-6379}
+      REDIS_COORD_USER: svc-gateway-coord
+      REDIS_COORD_PASSWORD: ${REDIS_SVC_GATEWAY_COORD_PASSWORD:-}
     depends_on:
       - backend
       - notifications-service
+    networks:
+      - default
+      - redis-net
 
   # ---------------------------------------------------------------------------------------------------
   # Monolito (identity, catálogo, solicitudes, feedback, métricas, reportes, admin). Ya NO se publica al

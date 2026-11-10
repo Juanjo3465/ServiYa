@@ -45,6 +45,8 @@ spring:
     redis:
       host: ${REDIS_COORD_HOST:localhost}
       port: ${REDIS_COORD_PORT:6379}
+      username: ${REDIS_COORD_USER:}
+      password: ${REDIS_COORD_PASSWORD:}
       timeout: ${REDIS_COORD_TIMEOUT:250ms}
 
 server:

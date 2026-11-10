@@ -10,3 +10,5 @@ user svc-notifications-coord on #${SVC_NOTIFICATIONS_COORD_HASH} resetkeys reset
 # ~auth:min_iat:* lo escribe el monolito (emisor de identidad) en Fase 2B; el gateway lo LEE con su propio
 # usuario ACL (Fase 3). El SET con TTL viaja como `SET key val PX <ms>` → cubierto por +set (no hace falta +psetex).
 user svc-serviya-coord on #${SVC_SERVIYA_COORD_HASH} ~lock:* ~fence:* ~rl:* ~auth:min_iat:* +@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +time +zadd +zcard +zrange +zremrangebyscore +eval +evalsha +script|load +script|exists
+# gateway (Fase 4): LEE min_iat (~auth:min_iat:*, +get) y opera el techo global token-bucket (~rl:*: TIME/HMGET/HSET/PEXPIRE vía EVAL). NO hace locks ni ventana deslizante (sin z* ni lock:*).
+user svc-gateway-coord on #${SVC_GATEWAY_COORD_HASH} ~auth:min_iat:* ~rl:* +@connection +ping +get +hmget +hset +pexpire +time +eval +evalsha +script|load +script|exists
