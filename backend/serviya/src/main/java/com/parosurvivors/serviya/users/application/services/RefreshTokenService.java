@@ -86,8 +86,12 @@ public class RefreshTokenService implements TokenSessionServicePort {
                 rawRefresh, saved.getExpiresAt());
     }
 
+    // noRollbackFor: varios caminos REVOCAN la familia y luego lanzan UnauthorizedException (reuso detectado,
+    // cuenta baneada/eliminada). Sin esto, el @Transactional revertiría el revokeFamily al propagarse la
+    // excepción y la familia robada NO quedaría revocada. Con noRollbackFor la revocación se CONFIRMA; los
+    // caminos que lanzan ANTES de tocar la BD (token ausente/inválido/caducado) confirman una tx vacía.
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public AuthResult refresh(String rawRefreshToken, String userAgent, String ip) {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
             throw new UnauthorizedException("Missing refresh token");
