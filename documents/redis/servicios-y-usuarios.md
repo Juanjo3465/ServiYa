@@ -25,7 +25,7 @@ ni claves (su reintento se coordina con `SKIP LOCKED` en su propia BD); solo hac
 | `healthcheck` | Healthcheck del contenedor | — | Solo `+ping` |
 | `monitor` | `redis_exporter` (Fase 5) | `~*` | Solo lectura + `INFO`/`SLOWLOG`/`LATENCY`/... |
 | `svc-serviya-coord` | El backend: locks (Fase 2) + rate limit (Fase 3) + `min_iat` escritura (Fase 2B) | `~lock:*` `~fence:*` `~rl:*` `~auth:min_iat:*` | R/W + scripting; `-@dangerous` |
-| `svc-gateway-coord` *(Fase 4)* | El gateway: lee `min_iat` (revocación) + opera el techo global token-bucket (`rl:*`) | `~auth:min_iat:*` `~rl:*` | `+@connection +ping +get +hmget +hset +pexpire +time +eval +evalsha +script\|load +script\|exists` (sin `z*` ni `lock:*`) |
+| `svc-gateway-coord` *(Fase 4)* | El gateway: lee `min_iat` (revocación) + rate limiting en `rl:*` — techo global token-bucket **y** cuotas de auth por IP en ventana deslizante (portadas del monolito, T4.9) | `~auth:min_iat:*` `~rl:*` | `+@connection +ping +get +hmget +hset +pexpire +time +zadd +zcard +zrange +zremrangebyscore +eval +evalsha +script\|load +script\|exists` (sin `lock:*`) |
 | `svc-notifications-coord` | `notifications-service`: sondeo de disponibilidad (modo degradado D-07/1a) | ninguno (`resetkeys`) | Solo `+@connection +ping` |
 | `chat` | `chat-service`: rate limiting de mensajes y tickets WS de un solo uso | `~chat:*` | R/W + `EXPIRE`/`TTL`/`INCR`/`SCAN`; sin PUB/SUB, `KEYS` ni `FLUSH*` |
 

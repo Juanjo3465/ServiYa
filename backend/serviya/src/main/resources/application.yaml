@@ -86,13 +86,10 @@ app:
     policies:
       # --- Nivel 1: techo global de la API (api-default), por user/ip. OPEN: no tumbar la API si Redis cae.
       api-default:       { algorithm: TOKEN_BUCKET, capacity: 200, refill-per-second: 5, failure-mode: OPEN }
-      # --- Nivel 2 (auth públicos): login OPEN (disponibilidad del acceso); registro/reset CLOSED (abuso/Brevo).
-      login-ip:          { algorithm: SLIDING_WINDOW, capacity: 10, window: 15m, failure-mode: OPEN }
-      register-ip:       { algorithm: SLIDING_WINDOW, capacity: 5, window: 60m, failure-mode: CLOSED }
-      reset-ip:          { algorithm: SLIDING_WINDOW, capacity: 5, window: 15m, failure-mode: CLOSED }
+      # --- Nivel 2 (auth públicos por IP): login/registro/reset-*-ip MOVIDAS AL GATEWAY (T4.9/P3.7,
+      #     serviya.ratelimit.auth). Aquí solo queda reset-email (domain-aware: necesita el cuerpo parseado,
+      #     se aplica en AuthController, CLOSED por abuso/Brevo).
       reset-email:       { algorithm: SLIDING_WINDOW, capacity: 3, window: 60m, failure-mode: CLOSED }
-      reset-validate-ip: { algorithm: SLIDING_WINDOW, capacity: 20, window: 15m, failure-mode: CLOSED }
-      reset-confirm-ip:  { algorithm: SLIDING_WINDOW, capacity: 10, window: 15m, failure-mode: CLOSED }
       # --- Nivel 2 (autenticados que NOTIFICAN por correo): OPEN + modo degradado de notificaciones (D-07/1a).
       request-write:     { algorithm: SLIDING_WINDOW, capacity: 30, window: 10m, failure-mode: OPEN }
       proposal-write:    { algorithm: SLIDING_WINDOW, capacity: 20, window: 15m, failure-mode: OPEN }

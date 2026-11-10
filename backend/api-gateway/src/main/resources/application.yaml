@@ -86,6 +86,14 @@ serviya:
     api-default:
       capacity: ${RATE_LIMIT_API_DEFAULT_CAPACITY:200}
       refill-per-second: ${RATE_LIMIT_API_DEFAULT_REFILL:5}
+    # Cuotas de auth por IP (ventana deslizante) portadas del monolito (T4.9/P3.7). login OPEN (prima la
+    # disponibilidad del acceso); registro/reset CLOSED (abuso/coste/Brevo). reset-email sigue en el monolito.
+    auth:
+      login-ip:          { capacity: 10, window: 15m, fail-open: true }
+      register-ip:       { capacity: 5,  window: 60m, fail-open: false }
+      reset-ip:          { capacity: 5,  window: 15m, fail-open: false }
+      reset-validate-ip: { capacity: 20, window: 15m, fail-open: false }
+      reset-confirm-ip:  { capacity: 10, window: 15m, fail-open: false }
 
 management:
   endpoints:

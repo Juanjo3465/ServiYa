@@ -74,4 +74,47 @@ class ReactiveRedisRateLimiterTest {
 
         verifyNoInteractions(redis);
     }
+
+    // --- Ventana deslizante (cuotas de auth por IP) ---
+
+    @Test
+    void slidingWindow_allows_whenUnderCapacity() {
+        stubScript(Flux.just(List.of(1L, 9L, 0L)));
+
+        StepVerifier.create(limiter(true).tryConsumeSliding("login-ip", "ip", "1.2.3.4", 10, 900_000, true))
+                .assertNext(decision -> assertThat(decision.allowed()).isTrue())
+                .verifyComplete();
+    }
+
+    @Test
+    void slidingWindow_rejects_whenOverCapacity() {
+        stubScript(Flux.just(List.of(0L, 0L, 5000L))); // 5000 ms → 5 s
+
+        StepVerifier.create(limiter(true).tryConsumeSliding("login-ip", "ip", "1.2.3.4", 10, 900_000, true))
+                .assertNext(decision -> {
+                    assertThat(decision.allowed()).isFalse();
+                    assertThat(decision.retryAfterSeconds()).isEqualTo(5L);
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void slidingWindow_failClosed_rejectsOnRedisError() {
+        stubScript(Flux.error(new RuntimeException("redis-coord caído")));
+
+        // register/reset son CLOSED: ante fallo de Redis se rechaza (abuso/coste).
+        StepVerifier.create(limiter(true).tryConsumeSliding("register-ip", "ip", "1.2.3.4", 5, 3_600_000, false))
+                .assertNext(decision -> assertThat(decision.allowed()).isFalse())
+                .verifyComplete();
+    }
+
+    @Test
+    void slidingWindow_failOpen_allowsOnRedisError() {
+        stubScript(Flux.error(new RuntimeException("redis-coord caído")));
+
+        // login es OPEN: ante fallo de Redis se deja pasar (disponibilidad del acceso).
+        StepVerifier.create(limiter(true).tryConsumeSliding("login-ip", "ip", "1.2.3.4", 10, 900_000, true))
+                .assertNext(decision -> assertThat(decision.allowed()).isTrue())
+                .verifyComplete();
+    }
 }

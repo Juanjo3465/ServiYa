@@ -1,6 +1,5 @@
 package com.parosurvivors.serviya.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.Curve;
@@ -13,11 +12,9 @@ import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.parosurvivors.serviya.shared.exception.handlers.RestAccessErrorHandler;
-import com.parosurvivors.serviya.shared.ratelimit.RateLimiter;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtAudienceValidator;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtKeys;
 import com.parosurvivors.serviya.users.infrastructure.security.JwtProperties;
-import com.parosurvivors.serviya.users.infrastructure.security.RateLimitingFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,7 +32,6 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
-import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -46,13 +42,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * <p><b>Lo que ya NO vive aquí</b> (decisión #8, lo aplica el gateway): la autorización por rol por ruta
  * (los antiguos {@code hasRole("ADMIN")} pasan a {@code authenticated()}), la revalidación de roles/estado
  * por petición (M34: ahora la revocación es inmediata vía {@code min_iat} en el gateway), el CORS
- * (centralizado en el borde, T4.5) y el techo global de rate limiting ({@code GlobalRateLimitFilter}, ya en
- * el gateway, T3.9). Control compensatorio: los servicios solo son alcanzables a través del gateway (P3.8).</p>
+ * (centralizado en el borde, T4.5) y TODO el rate limiting del borde: el techo global {@code api-default}
+ * (T3.9) y las cuotas de auth por IP de {@code /api/v1/auth/**} (login/registro/reset) — ambos viven ahora
+ * en el gateway (T4.9/P3.7; el {@code RateLimitingFilter} propio se eliminó). Control compensatorio: los
+ * servicios solo son alcanzables a través del gateway (P3.8).</p>
  *
- * <p><b>Se conserva</b> el {@code RateLimitingFilter} por IP de {@code /api/v1/auth/**} (fuerza bruta de
- * login/registro/reset): detrás del gateway la IP real llega por {@code X-Forwarded-For}
- * ({@code server.forward-headers-strategy=native}). Su retiro completo (T4.9) espera a que el gateway porte
- * esas políticas de ventana deslizante (P3.7 pendiente).</p>
+ * <p>En el monolito queda solo el rate limiting <b>domain-aware</b>: la cuota por CORREO de recuperación
+ * ({@code reset-email}) en {@code AuthController} y el interceptor {@code @RateLimit} por endpoint.</p>
  */
 @Configuration
 @RequiredArgsConstructor
@@ -61,8 +57,6 @@ public class SecurityConfig {
     private final JwtKeys jwtKeys;
     private final JwtProperties jwtProperties;
     private final RestAccessErrorHandler restAccessErrorHandler;
-    private final RateLimiter rateLimiter;
-    private final ObjectMapper objectMapper;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -154,11 +148,7 @@ public class SecurityConfig {
             // Resource server: valida el JWT con el decoder ES256 y mapea roles->authorities.
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
                 .decoder(jwtDecoder())
-                .jwtAuthenticationConverter(jwtAuthenticationConverter())))
-            // Rate limiting por IP de /api/v1/auth/**, ANTES de la autenticacion Bearer: corta el abuso de
-            // login/registro/reset en la puerta. La IP real llega por X-Forwarded-For (tras el gateway).
-            .addFilterBefore(new RateLimitingFilter(rateLimiter, objectMapper),
-                    BearerTokenAuthenticationFilter.class);
+                .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         return http.build();
     }
