@@ -435,10 +435,12 @@ Reglas:
 
 ### Criterios de aceptación
 
-- [ ] No queda ninguna clase propia de verificación de JWT en el monolito ni en notif (búsqueda en el código: `parser().verifyWith`, `JwtTokenVerifier`, `JwtAuthenticationFilter`).
-- [ ] La configuración de seguridad JWT es **idéntica** en ambos servicios, salvo URLs.
-- [ ] Todas las reglas de P4.3 tienen tests.
-- [ ] Las suites de tests existentes pasan.
+- [x] No queda ninguna clase propia de verificación de JWT en el monolito ni en notif. **Verificado** (grep de `verifyWith`/`JwtTokenVerifier`/`JwtAuthenticationFilter` en `*/src/main` = vacío). `JwtService` solo emite.
+- [x] La configuración de seguridad JWT es **idéntica** en ambos servicios, salvo URLs. ES256 + `iss`/`aud`/`typ`/timestamps + converter `roles→ROLE_*`; difieren solo en el origen de la clave (monolito: clave pública local porque es el emisor; gateway y notif: JWKS del emisor).
+- [x] Todas las reglas de P4.3 tienen tests. (Migrados a `ForbiddenException`/403 en 4C.)
+- [x] Las suites de tests existentes pasan. Monolito **487**, notif **30**, gateway **35** — todo BUILD SUCCESS.
+
+> **🎉 FASE 4 COMPLETA (2026-11-09).** Monolito y notif son resource servers ES256 estándar sin verificación propia; rol-por-ruta y CORS centralizados en el gateway; ownership/participación → 403; red aislada (solo el gateway expuesto). **Pendientes menores no bloqueantes:** (a) **avisar al frontend** del cambio 401→403 — ya está contemplado en la **Fase 6, T6.7** ("distinguir 401 (refrescar) de 403 (sin permiso)"), junto con el interceptor de refresh (T6.5/T6.6); (b) retiro total de `RateLimitingFilter` del monolito cuando el gateway porte las políticas de auth (P3.7); (c) `code` 4.4 en el handler de notif (usa 404 para IDOR). **Siguiente: Fase 5** (identidad de máquina / `client_credentials` + mTLS interno) — tiene pendientes bloqueantes propios (P5.1–P5.6) a revisar antes.
 
 ### Notas de implementación
 
