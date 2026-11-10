@@ -28,7 +28,7 @@ class GlobalRateLimitWebFilterTest {
     @Mock private ReactiveRedisRateLimiter rateLimiter;
 
     private GlobalRateLimitWebFilter filter() {
-        return new GlobalRateLimitWebFilter(rateLimiter, new GatewayErrorWriter(new ObjectMapper()));
+        return new GlobalRateLimitWebFilter(rateLimiter, new GatewayErrorWriter(new ObjectMapper(), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
     }
 
     @Test

@@ -46,7 +46,7 @@ class AuthRateLimitWebFilterTest {
     }
 
     private AuthRateLimitWebFilter filter() {
-        return new AuthRateLimitWebFilter(rateLimiter, properties, new GatewayErrorWriter(new ObjectMapper()));
+        return new AuthRateLimitWebFilter(rateLimiter, properties, new GatewayErrorWriter(new ObjectMapper(), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
     }
 
     @Test

@@ -96,9 +96,12 @@ serviya:
       reset-confirm-ip:  { capacity: 10, window: 15m, fail-open: false }
 
 management:
+  # Puerto de gestión SEPARADO y NO publicado al host (como el monolito y notif): así /prometheus y el
+  # health detallado no se exponen por el 8080 público ni chocan con las rutas reenviadas, y solo la red
+  # interna (el futuro Prometheus) los alcanza.
+  server:
+    port: ${MANAGEMENT_PORT:9090}
   endpoints:
     web:
-      # Se sirve en /gateway-actuator para no chocar con rutas reenviadas. Solo health.
-      base-path: /gateway-actuator
       exposure:
-        include: health
+        include: health,prometheus

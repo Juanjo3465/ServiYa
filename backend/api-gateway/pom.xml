@@ -42,6 +42,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- Scrapeo de métricas por Prometheus (Fase 6, T6.2): expone /actuator/prometheus. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+			<scope>runtime</scope>
+		</dependency>
 		<!-- Resource server reactivo: valida el access token ES256 contra el JWKS del emisor (Fase 3). -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

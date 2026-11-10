@@ -20,7 +20,7 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 class GatewayAuthenticationEntryPointTest {
 
     private final GatewayAuthenticationEntryPoint entryPoint =
-            new GatewayAuthenticationEntryPoint(new GatewayErrorWriter(new ObjectMapper()));
+            new GatewayAuthenticationEntryPoint(new GatewayErrorWriter(new ObjectMapper(), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
 
     private MockServerWebExchange respondTo(AuthenticationException ex) {
         MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/x"));

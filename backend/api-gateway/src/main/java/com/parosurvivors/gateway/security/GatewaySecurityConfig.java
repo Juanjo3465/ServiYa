@@ -125,8 +125,8 @@ public class GatewaySecurityConfig {
 
     /** Cuerpo de error 4.4 compartido por el entry point (401) y el access denied handler (403). */
     @Bean
-    public GatewayErrorWriter gatewayErrorWriter(ObjectMapper objectMapper) {
-        return new GatewayErrorWriter(objectMapper);
+    public GatewayErrorWriter gatewayErrorWriter(ObjectMapper objectMapper, MeterRegistry meters) {
+        return new GatewayErrorWriter(objectMapper, meters);
     }
 
     @Bean

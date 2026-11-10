@@ -1,6 +1,7 @@
 package com.parosurvivors.gateway.error;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
@@ -18,15 +19,20 @@ import reactor.core.publisher.Mono;
 public final class GatewayErrorWriter {
 
     public static final String CORRELATION_ID_HEADER = "X-Request-Id";
+    /** Métrica T6.2: tasa de errores de auth del borde por estado y código (401/403/429). */
+    private static final String METRIC = "gateway.auth.error";
 
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meters;
 
-    public GatewayErrorWriter(ObjectMapper objectMapper) {
+    public GatewayErrorWriter(ObjectMapper objectMapper, MeterRegistry meters) {
         this.objectMapper = objectMapper;
+        this.meters = meters;
     }
 
     public Mono<Void> write(ServerWebExchange exchange, HttpStatus status, GatewayErrorCode code,
                             String message, String wwwAuthenticate) {
+        meters.counter(METRIC, "status", Integer.toString(status.value()), "code", code.name()).increment();
         String correlationId = correlationId(exchange);
         GatewayErrorResponse body = new GatewayErrorResponse(
                 status.value(), status.getReasonPhrase().toLowerCase().replace(' ', '_'),

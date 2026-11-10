@@ -529,7 +529,7 @@ _(completar durante la implementación)_
 
 **Auditoría y observabilidad**
 - [ ] T6.1. Eventos de auditoría con userId, IP, user agent, `jti`, fecha y resultado: login exitoso y fallido, bloqueo de cuenta, refresh, reuso detectado, logout, logout-all, baneo, cambio de rol y cambio o reset de contraseña.
-- [ ] T6.2. Métricas: tasa de 401 y 403 por código, latencia del chequeo `min_iat`, errores de Redis, errores al obtener el JWKS, refresh por minuto y reusos detectados.
+- [~] T6.2. Métricas: tasa de 401 y 403 por código, latencia del chequeo `min_iat`, errores de Redis, errores al obtener el JWKS, refresh por minuto y reusos detectados. **(6-obs-A parcial)** Endpoint **Prometheus** (`/actuator/prometheus`) en los 3 servicios Java, en un **puerto de gestión separado 9090 NO publicado** (solo red interna; no filtra métricas por el borde). **Tasa de 401/403/429 por código** vía `gateway.auth.error{status,code}` (en `GatewayErrorWriter`). **Errores de Redis** ya cubiertos (`gateway.min_iat.check{result=error|breaker-open}`, `gateway.ratelimit.decision`). **Pendiente (6-obs-B):** latencia de `min_iat`, errores de JWKS, refresh/minuto y reusos detectados (van con la tabla de auditoría, en las mismas rutas del monolito).
 - [ ] T6.3. Alertas según P6.2.
 - [ ] T6.4. El correlation ID aparece en los logs de todos los servicios.
 
@@ -579,6 +579,11 @@ Estado actual (`frontend/serviya/src/shared/api.js`): token en `localStorage`; e
 - **T6.7 (401 vs 403):** el **403** NO refresca ni desloguea (ya es el comportamiento: cae a error normal con `code=FORBIDDEN`); mostrar "sin permiso". Solo el **401** dispara el refresh.
 - **logout:** `POST /api/v1/auth/logout` (envía la cookie; el backend revoca la familia y limpia la cookie) + `clearToken()` local. Opcional: `logout-all` → `POST /api/v1/users/.../logout-all`? (en realidad `/api/v1/auth/logout-all`, autenticado).
 - **Verificación:** manual en el navegador (login → esperar expiración del access 15m o forzar un 401 → ver el refresh transparente; banear al usuario → el siguiente refresh falla → login).
+
+**Observabilidad en sub-slices (acordado 2026-11-09, enfoque ligero P6.1/P6.2):**
+- **6-obs-A hecho 2026-11-09** (gateway 47 · notif 30 tests): endpoint Prometheus en los 3 servicios Java (puerto de gestión 9090 no publicado) + contador `gateway.auth.error{status,code}` (tasa 401/403/429). Dep `micrometer-registry-prometheus` en notif y gateway (el monolito ya la tenía).
+- **6-obs-B (siguiente):** tabla `security_audit` + `AuditService` cableado en los eventos de P2.5/auth (login ok/fallo, baneo, rol, cambio/reset de contraseña, refresh, **reuso detectado**, logout/logout-all) **+** las métricas de auth del monolito (refresh/minuto, reusos) y la latencia de `min_iat`/errores de JWKS en el gateway.
+- **6-obs-C:** reglas de alerta Prometheus (T6.3) + correlation-id en los logs (T6.4, MDC servlet + puente reactivo). Grafana/dashboards y despliegue del stack van con staging (Fase 7).
 
 ---
 
