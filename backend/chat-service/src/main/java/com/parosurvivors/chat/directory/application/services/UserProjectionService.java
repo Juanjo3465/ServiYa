@@ -20,7 +20,11 @@ public class UserProjectionService {
         this.directory = directory;
     }
 
-    /** {@code users.user.registered} / {@code updated}: crea la fila o actualiza lo visible. */
+    /**
+     * {@code users.user.registered} / {@code updated}: crea la fila o actualiza lo visible. {@code displayName} y
+     * {@code avatarUrl} nulos significan «no cambió» (el evento updated trae solo los campos modificados); una
+     * cadena vacía en {@code avatarUrl} borra el avatar.
+     */
     public void upsertProfile(long userId, String displayName, String avatarUrl, Instant occurredAt) {
         DirectoryUser current = directory.find(userId).orElse(null);
         if (isStale(current, occurredAt)) {
@@ -30,7 +34,11 @@ public class UserProjectionService {
             return; // una cuenta eliminada no vuelve a mostrar nombre
         }
         UserStatus status = current == null ? UserStatus.ACTIVE : current.status();
-        directory.save(new DirectoryUser(userId, displayName, avatarUrl, status, occurredAt));
+        String name = displayName != null && !displayName.isBlank() ? displayName
+                : current != null ? current.displayName() : "Usuario " + userId;
+        String avatar = avatarUrl == null ? (current == null ? null : current.avatarUrl())
+                : avatarUrl.isBlank() ? null : avatarUrl;
+        directory.save(new DirectoryUser(userId, name, avatar, status, occurredAt));
     }
 
     public void suspend(long userId, Instant occurredAt) {

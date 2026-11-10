@@ -134,7 +134,7 @@ public class SendMessageService {
             if (!onlineNow.contains(recipient)) {
                 notifications.request(new NotificationRequest(recipient, "chat_message", "Nuevo mensaje",
                         "Tienes un mensaje nuevo de " + senderName, "CONVERSATION", conversation.id(),
-                        Set.of("IN_APP")));
+                        Set.of("INTERNAL")));
             }
         }
         return new Stored(resultOf(message, false), recipients);

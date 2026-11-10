@@ -5,6 +5,11 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      # El chat define a mano sus dos conexiones Redis (coord y pubsub) y no usa Redis reactivo.
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+  jackson:
+    # Contrato REST/WS/eventos del chat en snake_case (guía §8 y §9).
+    property-naming-strategy: SNAKE_CASE
   datasource:
     url: ${CHAT_DB_URL:jdbc:mysql://localhost:3309/chat_db?useUnicode=true&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC}
     username: ${CHAT_DB_USER:chat}
@@ -91,9 +96,25 @@ serviya:
     allowed-ws-origins: ${ALLOWED_WS_ORIGINS:http://localhost:5173,http://localhost:8081}
     message:
       max-length: 2000
+    # Anti-spam por usuario (RNF-CHAT-12): p. ej. 20 mensajes cada 10 s.
+    rate-limit:
+      max-messages: ${CHAT_RATE_LIMIT_MAX:20}
+      window-seconds: ${CHAT_RATE_LIMIT_WINDOW_SECONDS:10}
+    outbox:
+      relay-enabled: ${CHAT_OUTBOX_RELAY_ENABLED:true}
+      poll-interval-ms: 1000
+      batch-size: 100
+      confirm-timeout-ms: 5000
     # Estados de la solicitud que pasan la conversación a solo lectura (RequestStatus.isTerminal() del monolito).
     terminal-request-statuses: REJECTED,CANCELLED,COMPLETED,RESCHEDULED,NOT_PROVIDED
   security:
     jwt:
       issuer: ${JWT_ISSUER:}
       audience: ${JWT_AUDIENCE:marketplace-api}
+
+# Logs estructurados (RNF-CHAT-17). Vacío = formato de texto (desarrollo); LOG_STRUCTURED_FORMAT=ecs → JSON con el
+# correlationId del MDC. El contenido de los mensajes NUNCA se registra (RNF-CHAT-13).
+logging:
+  structured:
+    format:
+      console: ${LOG_STRUCTURED_FORMAT:}

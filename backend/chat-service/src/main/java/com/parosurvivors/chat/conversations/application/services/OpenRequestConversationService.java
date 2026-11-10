@@ -40,7 +40,15 @@ public class OpenRequestConversationService {
     }
 
     public Result execute(Command cmd) {
-        Result result = uow.execute(() -> create(cmd));
+        Result result;
+        try {
+            result = uow.execute(() -> create(cmd));
+        } catch (ConversationAlreadyExistsException race) {
+            // Dos eventos concurrentes para la misma solicitud: gana el índice único. La violación deja
+            // marcada para rollback la transacción en curso, así que se relee en OTRA unidad de trabajo.
+            result = uow.execute(() -> new Result(conversations.findByRequestId(cmd.requestId())
+                    .orElseThrow(() -> race), false));
+        }
         if (result.created()) {
             Conversation c = result.conversation();
             RealtimeSafely.run("conversation.created", () ->
@@ -56,17 +64,12 @@ public class OpenRequestConversationService {
         }
         Conversation fresh = Conversation.openForRequest(cmd.requestId(), cmd.clientId(), cmd.offererId(),
                 cmd.requestStatus(), cmd.occurredAt(), terminal);
-        try {
-            Conversation saved = conversations.save(fresh);
-            events.publish(ChatEvents.EXCHANGE, ChatEvents.CONVERSATION_CREATED, Map.of(
-                    "conversation_id", saved.id(),
-                    "type", saved.type().name(),
-                    "context_id", saved.contextId(),
-                    "participant_ids", List.of(cmd.clientId(), cmd.offererId())));
-            return new Result(saved, true);
-        } catch (ConversationAlreadyExistsException race) {
-            // Dos eventos concurrentes para la misma solicitud: gana el índice único, el otro reutiliza.
-            return new Result(conversations.findByRequestId(cmd.requestId()).orElseThrow(() -> race), false);
-        }
+        Conversation saved = conversations.save(fresh); // puede lanzar ConversationAlreadyExistsException
+        events.publish(ChatEvents.EXCHANGE, ChatEvents.CONVERSATION_CREATED, Map.of(
+                "conversation_id", saved.id(),
+                "type", saved.type().name(),
+                "context_id", saved.contextId(),
+                "participant_ids", List.of(cmd.clientId(), cmd.offererId())));
+        return new Result(saved, true);
     }
 }
