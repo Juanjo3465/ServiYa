@@ -54,6 +54,12 @@ spring:
           multiplier: 2
           max-interval: 10s
 
+logging:
+  # Correlation-id (X-Request-Id) en cada línea de log (T6.4): CorrelationIdMdcFilter lo pone en el MDC y
+  # aquí se inyecta en el patrón, tras el nivel, para seguir una petición de punta a punta por el mismo id.
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
 server:
   port: ${SERVER_PORT:8082}
   error:

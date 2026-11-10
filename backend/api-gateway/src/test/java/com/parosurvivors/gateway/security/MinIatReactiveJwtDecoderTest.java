@@ -40,13 +40,14 @@ class MinIatReactiveJwtDecoderTest {
     @Mock private ReactiveValueOperations<String, String> valueOps;
 
     private MinIatReactiveJwtDecoder decoder;
+    private SimpleMeterRegistry meters;
     private Instant issuedAt;
 
     @BeforeEach
     void setUp() {
         // Breaker por defecto (ventana de 100): no abre durante los casos unitarios, actúa como paso directo.
-        decoder = new MinIatReactiveJwtDecoder(delegate, redis, new SimpleMeterRegistry(),
-                CircuitBreaker.ofDefaults("test"));
+        meters = new SimpleMeterRegistry();
+        decoder = new MinIatReactiveJwtDecoder(delegate, redis, meters, CircuitBreaker.ofDefaults("test"));
         issuedAt = Instant.now();
         when(delegate.decode(TOKEN)).thenReturn(Mono.just(jwt(issuedAt, "42")));
     }
@@ -129,6 +130,28 @@ class MinIatReactiveJwtDecoderTest {
 
         // Solo 2 consultas llegaron a Redis; la 3ª la cortó el breaker (Mono.defer no llegó a construirla).
         verify(valueOps, times(2)).get(KEY);
+    }
+
+    @Test
+    void recordsMinIatLatency() {
+        when(redis.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(KEY)).thenReturn(Mono.empty());
+
+        StepVerifier.create(decoder.decode(TOKEN)).expectNextCount(1).verifyComplete();
+
+        // T6.2: la latencia del chequeo min_iat se mide (hot-path de todo el tráfico autenticado).
+        org.assertj.core.api.Assertions.assertThat(meters.timer("gateway.min_iat.latency").count()).isEqualTo(1L);
+    }
+
+    @Test
+    void countsDecodeError_whenDelegateFails() {
+        // Firma/iss/aud inválidos o JWKS inalcanzable: el decoder delegado lanza y se cuenta como error.
+        when(delegate.decode(TOKEN)).thenReturn(Mono.error(new RuntimeException("JWKS inalcanzable")));
+
+        StepVerifier.create(decoder.decode(TOKEN)).expectError(RuntimeException.class).verify();
+
+        org.assertj.core.api.Assertions.assertThat(
+                meters.counter("gateway.jwt.decode", "result", "error").count()).isEqualTo(1.0);
     }
 
     @Test

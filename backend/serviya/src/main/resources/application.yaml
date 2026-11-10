@@ -38,6 +38,13 @@ spring:
     publisher-confirm-type: simple
     connection-timeout: 5s
 
+logging:
+  # Correlation-id (X-Request-Id) en cada línea de log (T6.4): AuditContextFilter lo pone en el MDC y aquí
+  # se inyecta en el patrón, justo tras el nivel, para seguir una petición de punta a punta (gateway ->
+  # monolito) por el mismo id. ':-' = vacío si la petición no trae el header.
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
 server:
   error:
     include-stacktrace: never

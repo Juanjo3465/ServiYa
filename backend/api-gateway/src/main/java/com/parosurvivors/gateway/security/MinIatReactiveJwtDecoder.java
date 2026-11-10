@@ -4,6 +4,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.util.List;
 import org.slf4j.Logger;
@@ -37,6 +38,10 @@ public class MinIatReactiveJwtDecoder implements ReactiveJwtDecoder {
     private static final Logger log = LoggerFactory.getLogger(MinIatReactiveJwtDecoder.class);
     private static final String KEY_PREFIX = "auth:min_iat:";
     private static final String METRIC = "gateway.min_iat.check";
+    private static final String LATENCY_METRIC = "gateway.min_iat.latency";
+    // Fallos del decoder delegado (firma ES256, iss/aud/timestamps y, en especial, errores al OBTENER el
+    // JWKS del monolito): todos afloran aquí. No incluye la revocación min_iat (va aparte en METRIC).
+    private static final String DECODE_METRIC = "gateway.jwt.decode";
 
     private final ReactiveJwtDecoder delegate;
     private final ReactiveStringRedisTemplate redis;
@@ -55,7 +60,10 @@ public class MinIatReactiveJwtDecoder implements ReactiveJwtDecoder {
 
     @Override
     public Mono<Jwt> decode(String token) {
-        return delegate.decode(token).flatMap(this::enforceMinIat);
+        return delegate.decode(token)
+                // Firma/iss/aud/timestamps inválidos o JWKS inalcanzable: se cuenta como error de decodificación.
+                .doOnError(ex -> meters.counter(DECODE_METRIC, "result", "error").increment())
+                .flatMap(this::enforceMinIat);
     }
 
     private Mono<Jwt> enforceMinIat(Jwt jwt) {
@@ -65,6 +73,8 @@ public class MinIatReactiveJwtDecoder implements ReactiveJwtDecoder {
             // Sin iat/sub no se puede evaluar; los validadores estándar ya cubren los tokens malformados.
             return Mono.just(jwt);
         }
+        // Latencia del chequeo min_iat (consulta a redis-coord, incluido el corte inmediato por breaker abierto).
+        Timer.Sample sample = Timer.start(meters);
         // defer: si el breaker está ABIERTO, corta antes de construir/suscribir la consulta a Redis.
         return Mono.defer(() -> redis.opsForValue().get(KEY_PREFIX + subject))
                 .transformDeferred(CircuitBreakerOperator.of(breaker))
@@ -95,7 +105,8 @@ public class MinIatReactiveJwtDecoder implements ReactiveJwtDecoder {
                         log.warn("min_iat no disponible (redis-coord); fail-open para el usuario {}", subject, ex);
                     }
                     return Mono.just(jwt);
-                });
+                })
+                .doFinally(signal -> sample.stop(meters.timer(LATENCY_METRIC)));
     }
 
     private JwtValidationException revoked() {
