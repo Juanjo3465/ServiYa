@@ -42,12 +42,13 @@ class RefreshTokenServiceTest {
     @Mock private RefreshTokenPort refreshTokenPort;
     @Mock private TokenProviderPort tokenProvider;
     @Mock private UserReadPort userReadPort;
+    @Mock private com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
 
     private RefreshTokenService service;
 
     @BeforeEach
     void setUp() {
-        service = new RefreshTokenService(refreshTokenPort, tokenProvider, userReadPort,
+        service = new RefreshTokenService(refreshTokenPort, tokenProvider, userReadPort, auditService,
                 Duration.ofDays(30), Duration.ofSeconds(15));
     }
 
@@ -144,6 +145,10 @@ class RefreshTokenServiceTest {
         assertThatThrownBy(() -> service.refresh("rawA", "ua", null))
                 .isInstanceOf(UnauthorizedException.class);
         verify(refreshTokenPort).revokeFamily(eq("F"), any());
+        // El reuso (robo) se audita.
+        verify(auditService).record(
+                eq(com.parosurvivors.serviya.shared.audit.AuditEventType.REFRESH_REUSE_DETECTED),
+                eq(42L), eq(false), anyString());
     }
 
     @Test

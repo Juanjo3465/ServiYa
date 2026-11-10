@@ -32,6 +32,7 @@ public class UserRoleService implements UserRoleServicePort {
     private final DomainEventPublisherPort domainEventPublisher;
     /** Cierre total de sesión (familias de refresh + min_iat) al quitar un rol (P2.5). */
     private final SessionRevocationServicePort sessionRevocationService;
+    private final com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
 
     @Override
     public List<Role> getUserRoles(Long userId) {
@@ -78,6 +79,8 @@ public class UserRoleService implements UserRoleServicePort {
         // que se invalida vía min_iat y se fuerza re-login (el nuevo token ya no tendrá el rol). Revoca
         // también las familias de refresh para que no renueve con el rol viejo.
         sessionRevocationService.revokeAllSessions(userId);
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.ROLE_REVOKE, userId, true,
+                roleName.name());
     }
 
     /** RF-067: roles del usuario con la fecha en que se le concedio cada uno. */

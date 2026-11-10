@@ -32,6 +32,7 @@ class UserServiceTest {
     @Mock UserPersistencePort userPersistencePort;
     @Mock PasswordEncoder passwordEncoder;
     @Mock SessionRevocationServicePort sessionRevocationService;
+    @Mock com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
 
     @InjectMocks UserService service;
 

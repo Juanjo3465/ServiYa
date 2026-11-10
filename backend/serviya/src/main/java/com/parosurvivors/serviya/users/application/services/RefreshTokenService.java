@@ -1,5 +1,7 @@
 package com.parosurvivors.serviya.users.application.services;
 
+import com.parosurvivors.serviya.shared.audit.AuditEventType;
+import com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort;
 import com.parosurvivors.serviya.shared.exceptions.UnauthorizedException;
 import com.parosurvivors.serviya.users.application.dto.result.AuthResult;
 import com.parosurvivors.serviya.users.application.dto.result.IssuedToken;
@@ -49,15 +51,18 @@ public class RefreshTokenService implements TokenSessionServicePort {
     /** Vida absoluta de la familia y ventana de gracia (de config; no se importa infraestructura). */
     private final Duration refreshTtl;
     private final Duration refreshGrace;
+    private final SecurityAuditServicePort auditService;
 
     public RefreshTokenService(RefreshTokenPort refreshTokenPort,
                                TokenProviderPort tokenProvider,
                                UserReadPort userReadPort,
+                               SecurityAuditServicePort auditService,
                                @Value("${serviya.security.jwt.refresh-ttl:30d}") Duration refreshTtl,
                                @Value("${serviya.security.jwt.refresh-grace:15s}") Duration refreshGrace) {
         this.refreshTokenPort = refreshTokenPort;
         this.tokenProvider = tokenProvider;
         this.userReadPort = userReadPort;
+        this.auditService = auditService;
         this.refreshTtl = refreshTtl;
         this.refreshGrace = refreshGrace;
     }
@@ -98,6 +103,8 @@ public class RefreshTokenService implements TokenSessionServicePort {
             // Reuso de un token ya rotado: señal de robo. Se revoca la familia entera.
             refreshTokenPort.revokeFamily(token.getFamilyId(), now);
             log.warn("Refresh token reuse detected for family {}; family revoked", token.getFamilyId());
+            auditService.record(AuditEventType.REFRESH_REUSE_DETECTED, token.getUserId(), false,
+                    "family " + token.getFamilyId());
             throw new UnauthorizedException("Refresh token reuse detected");
         }
         if (token.isExpired(now)) {
@@ -116,6 +123,7 @@ public class RefreshTokenService implements TokenSessionServicePort {
         }
         List<RoleName> roles = user.getRoles();
         IssuedToken access = tokenProvider.issue(user.getId(), roles);
+        auditService.record(AuditEventType.REFRESH, user.getId());
 
         // Dentro de la gracia (varias pestañas refrescando casi a la vez): reemite solo el access y
         // conserva el mismo refresh, para no revocar a un cliente legítimo por una carrera benigna.
@@ -152,7 +160,10 @@ public class RefreshTokenService implements TokenSessionServicePort {
             return; // nada que revocar; el controller limpia la cookie igualmente
         }
         Optional<RefreshToken> token = refreshTokenPort.findByTokenHash(sha256Hex(rawRefreshToken));
-        token.ifPresent(t -> refreshTokenPort.revokeFamily(t.getFamilyId(), LocalDateTime.now()));
+        token.ifPresent(t -> {
+            refreshTokenPort.revokeFamily(t.getFamilyId(), LocalDateTime.now());
+            auditService.record(AuditEventType.LOGOUT, t.getUserId());
+        });
     }
 
     @Override

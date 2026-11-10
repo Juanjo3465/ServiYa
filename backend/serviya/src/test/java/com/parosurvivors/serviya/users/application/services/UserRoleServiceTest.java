@@ -33,6 +33,7 @@ class UserRoleServiceTest {
     @Mock RolePersistencePort rolePersistencePort;
     @Mock DomainEventPublisherPort domainEventPublisher;
     @Mock SessionRevocationServicePort sessionRevocationService;
+    @Mock com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
 
     @InjectMocks UserRoleService service;
 

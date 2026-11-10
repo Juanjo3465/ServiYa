@@ -67,6 +67,7 @@ class UserAuthenticationServiceTest {
     @Mock TokenSessionServicePort tokenSessionService;
     @Mock ResetLinkPort resetLinkPort;
     @Mock SessionRevocationServicePort sessionRevocationService;
+    @Mock com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
 
     @InjectMocks UserAuthenticationService service;
 

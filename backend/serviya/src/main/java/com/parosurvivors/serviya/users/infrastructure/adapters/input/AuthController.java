@@ -46,6 +46,7 @@ public class AuthController implements AuthApi {
     private final UserAuthenticationServicePort authService;
     private final TokenSessionServicePort tokenSessionService;
     private final SessionRevocationServicePort sessionRevocationService;
+    private final com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
     private final UserWebMapper mapper;
     private final RateLimiter rateLimiter;
     private final JwtProperties jwtProperties;
@@ -147,6 +148,7 @@ public class AuthController implements AuthApi {
         // La identidad sale del access token (CurrentUser.id()), nunca de la cookie: cerrar TODAS las
         // sesiones es una accion autenticada. Revoca todas las familias de refresh + escribe min_iat.
         sessionRevocationService.revokeAllSessions(CurrentUser.id());
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.LOGOUT_ALL, CurrentUser.id());
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, clearedRefreshCookie().toString())
                 .build();

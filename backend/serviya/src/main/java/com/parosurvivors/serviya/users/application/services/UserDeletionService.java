@@ -37,6 +37,7 @@ public class UserDeletionService implements UserDeletionServicePort {
     private final NotificationCommandApi notificationCommandApi;
     /** Cierre total de sesión (familias de refresh + min_iat) al eliminar la cuenta (P2.5). */
     private final SessionRevocationServicePort sessionRevocationService;
+    private final com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
     private final ChatEventPublisher chatEventPublisher;
 
     @Override
@@ -53,6 +54,7 @@ public class UserDeletionService implements UserDeletionServicePort {
         // Eliminar la cuenta cierra la sesión en todos los dispositivos (P2.5): revoca las familias de
         // refresh y escribe min_iat. Dentro de la misma transacción que el soft delete.
         sessionRevocationService.revokeAllSessions(userId);
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.ACCOUNT_DELETE, userId, true, null);
         // Evento de integración: el chat marca al usuario como eliminado.
         chatEventPublisher.userDeleted(userId);
         // (2) Si es oferente, ocultar todos sus servicios del buscador (no-op si no tiene servicios).

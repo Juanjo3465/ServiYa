@@ -38,6 +38,7 @@ public class UserService implements UserServicePort {
     private final NotificationCommandApi notificationCommandApi;
     /** Cierre total de sesión (familias de refresh + min_iat) ante baneo y cambio de contraseña (P2.5). */
     private final SessionRevocationServicePort sessionRevocationService;
+    private final com.parosurvivors.serviya.shared.audit.SecurityAuditServicePort auditService;
     private final ChatEventPublisher chatEventPublisher;
 
     @Override
@@ -67,6 +68,7 @@ public class UserService implements UserServicePort {
         // Cambiar la contraseña cierra la sesión en todos los dispositivos (P2.5): revoca las familias de
         // refresh y escribe min_iat para invalidar de inmediato los access tokens ya emitidos.
         sessionRevocationService.revokeAllSessions(command.userId());
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.PASSWORD_CHANGE, command.userId());
     }
 
     @Override
@@ -90,6 +92,7 @@ public class UserService implements UserServicePort {
         // Banear expulsa al usuario de inmediato (P2.5): revoca las familias de refresh (no puede renovar)
         // y escribe min_iat (el gateway rechaza su access actual sin esperar a que expire).
         sessionRevocationService.revokeAllSessions(userId);
+        auditService.record(com.parosurvivors.serviya.shared.audit.AuditEventType.BAN, userId, true, null);
         // Evento de integración: el chat marca al usuario como suspendido.
         chatEventPublisher.userSuspended(userId, reason);
         // sS avisa al usuario baneado por doble canal (INTERNAL + EMAIL) con el motivo.
