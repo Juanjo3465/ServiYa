@@ -78,8 +78,14 @@ management:
 
 serviya:
   security:
-    # Mismo JWT_SECRET que el monolito (solo se VERIFICA). Sin default: fail-fast si falta o es débil.
-    jwt-secret: ${JWT_SECRET:}
+    # Resource server ES256 (Fase 4): verifica los access tokens leyendo el JWKS del emisor (monolito) por
+    # la red interna. Carga perezosa ⇒ arranca aunque el JWKS no esté todavía. Ya NO usa JWT_SECRET (HS256).
+    jwt:
+      jwks-uri: ${JWT_JWKS_URI:http://localhost:8079/.well-known/jwks.json}
+      issuer: ${JWT_ISSUER:https://auth.serviya.local}
+      audience: ${JWT_AUDIENCE:marketplace-api}
+      clock-skew: ${JWT_CLOCK_SKEW:60s}
+      typ: ${JWT_TYP:at+jwt}
     # Clave PROPIA del servicio para el correo del destinatario en reposo (no la del monolito).
     encryption-key: ${ENCRYPTION_KEY:}
   messaging:
