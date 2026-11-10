@@ -16,7 +16,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Adaptadores sobre redis-coord con el ACL REAL de {@code svc-chat-coord} (guía §5.5 y §14: «toda clave del chat
+ * Adaptadores sobre redis-coord con el ACL REAL del usuario {@code chat} (guía §5.5 y §14: «toda clave del chat
  * tiene prefijo chat: y TTL», degradación con Redis caído).
  */
 class RedisAdaptersIntegrationTest extends IntegrationTestBase {
@@ -40,6 +40,29 @@ class RedisAdaptersIntegrationTest extends IntegrationTestBase {
         assertThat(tickets.consume(ticket)).contains(42L);
         assertThat(tickets.consume(ticket)).isEmpty();
         assertThat(tickets.consume("inexistente")).isEmpty();
+    }
+
+    @Test
+    void consumir_el_mismo_ticket_a_la_vez_desde_varias_conexiones_deja_un_solo_ganador() throws Exception {
+        String ticket = tickets.issue(42);
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(10);
+        var go = new java.util.concurrent.CountDownLatch(1);
+        var results = new java.util.ArrayList<java.util.concurrent.Future<java.util.Optional<Long>>>();
+        for (int i = 0; i < 10; i++) {
+            results.add(pool.submit(() -> {
+                go.await();
+                return tickets.consume(ticket);
+            }));
+        }
+        go.countDown();
+        long winners = 0;
+        for (var f : results) {
+            if (f.get(10, java.util.concurrent.TimeUnit.SECONDS).isPresent()) {
+                winners++;
+            }
+        }
+        pool.shutdown();
+        assertThat(winners).isEqualTo(1);
     }
 
     @Test

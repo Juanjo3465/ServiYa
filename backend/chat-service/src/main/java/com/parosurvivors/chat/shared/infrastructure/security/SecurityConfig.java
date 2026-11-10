@@ -34,7 +34,7 @@ class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         // Handshake WS: se autentica con el ticket en el propio handler.
-                        .requestMatchers("/api/v1/chat/ws").permitAll()
+                        .requestMatchers("/api/chat/v1/ws").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtAuthenticationConverter())));
         return http.build();

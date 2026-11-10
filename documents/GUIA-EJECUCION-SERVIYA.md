@@ -71,6 +71,24 @@ docker compose up -d --build
 
 > El flag `-d` (detached) deja los contenedores corriendo en segundo plano y te devuelve la terminal. El `--build` reconstruye las imágenes; puedes omitirlo si no cambiaste nada que requiera reconstrucción.
 
+### Infraestructura del chat (opcional)
+
+```bash
+# 1. Redis ACL del chat (usuario chat, claves chat:*)
+set -a; . ./.env; set +a
+(cd infra/redis/acl && sh ./render-acl.sh users.coord.acl.tpl users.coord.acl)
+docker compose -f docker-compose.yml -f infra/redis/docker-compose.redis.yml up -d redis-coord
+
+# 2. Exchanges y usuario RabbitMQ del chat (vhost /)
+./infra/rabbitmq/setup-topology.sh
+
+# 3. MinIO/Silo local para adjuntos (fase 3), solo cuando se necesite
+docker compose --profile minio up -d minio minio-init
+```
+
+El bucket `chat-attachments` queda privado; API S3 en `:9000` y consola en `:9001` solo para
+desarrollo. Ver `documents/microservicios/chat/decisiones-infraestructura-implementacion.md`.
+
 ---
 
 ## Acceso a los servicios

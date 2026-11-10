@@ -73,14 +73,14 @@ class ApiGatewayRoutingTest {
 
     @Test
     void chatRoutes_goToChatService() {
-        client.get().uri("/api/v1/chat/conversations?status=ACTIVE").exchange()
+        client.get().uri("/api/chat/v1/conversations?status=ACTIVE").exchange()
                 .expectStatus().isOk()
-                .expectBody(String.class).isEqualTo("chat-service /api/v1/chat/conversations?status=ACTIVE");
-        client.post().uri("/api/v1/chat/ws-tickets").exchange()
-                .expectBody(String.class).isEqualTo("chat-service /api/v1/chat/ws-tickets");
+                .expectBody(String.class).isEqualTo("chat-service /api/chat/v1/conversations?status=ACTIVE");
+        client.post().uri("/api/chat/v1/ws-tickets").exchange()
+                .expectBody(String.class).isEqualTo("chat-service /api/chat/v1/ws-tickets");
         // Prefijo parecido pero de otro recurso: NO debe caer en chat-service.
-        client.get().uri("/api/v1/chatter").exchange()
-                .expectBody(String.class).isEqualTo("monolith /api/v1/chatter");
+        client.get().uri("/api/chatter").exchange()
+                .expectBody(String.class).isEqualTo("monolith /api/chatter");
     }
 
     @Test

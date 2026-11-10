@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cliente WebSocket mínimo (stdlib) para probar el chat a mano, sin instalar websocat.
 
-    python3 ws_client.py "ws://localhost:8080/api/v1/chat/ws?ticket=<ticket>"
+    python3 ws_client.py "ws://localhost:8080/api/chat/v1/ws?ticket=<ticket>"
 
 Escribe un frame JSON por línea, p. ej.:
     {"type":"message.send","id":"f-1","payload":{"conversation_id":1,"client_message_id":"c-1","body":"Hola"}}

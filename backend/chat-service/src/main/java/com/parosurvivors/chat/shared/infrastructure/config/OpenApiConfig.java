@@ -28,7 +28,7 @@ class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info().title("ServiYa chat-service").version("v1")
                         .description("Chat 1 a 1 cliente–oferente. Errores en formato RFC 9457 con un campo `code` estable. "
-                                + "El tiempo real va por WebSocket en /api/v1/chat/ws (ver docs/asyncapi.yaml)."))
+                                + "El tiempo real va por WebSocket en /api/chat/v1/ws (ver docs/asyncapi.yaml)."))
                 .components(new Components().addSecuritySchemes("bearer", new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT (ES256)")))
                 .addSecurityItem(new SecurityRequirement().addList("bearer"));

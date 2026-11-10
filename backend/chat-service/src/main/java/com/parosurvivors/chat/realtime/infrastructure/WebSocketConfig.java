@@ -12,7 +12,7 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 @EnableWebSocket
 class WebSocketConfig implements WebSocketConfigurer {
 
-    static final String PATH = "/api/v1/chat/ws";
+    static final String PATH = "/api/chat/v1/ws";
     /** Tamaño máximo de un frame entrante (8 KB): evita abusos; al superarlo el contenedor cierra con 1009. */
     static final int MAX_FRAME_BYTES = 8 * 1024;
 

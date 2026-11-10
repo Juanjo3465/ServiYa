@@ -5,7 +5,7 @@ info:
   description: |
     Contrato asíncrono del chat (RNF-CHAT-21). El REST está en `openapi.json`.
 
-    - **WebSocket** `/api/v1/chat/ws?ticket=<ticket>`: una conexión por cliente que multiplexa todas sus
+    - **WebSocket** `/api/chat/v1/ws?ticket=<ticket>`: una conexión por cliente que multiplexa todas sus
       conversaciones. Frames JSON `{"type", "id"?, "payload"}`; `id` es opcional y el servidor lo devuelve en la
       respuesta (`message.ack`, `sync.result`, `pong`, `error`) para correlacionar.
       Cierres: `4401` ticket inválido/usado/vencido, `4403` usuario suspendido o eliminado, `1013` servicio de
@@ -23,10 +23,11 @@ servers:
   broker:
     host: rabbitmq:5672
     protocol: amqp
+    description: Vhost `/`. El chat conecta como el usuario `chat` (infra/rabbitmq/setup-topology.sh).
 
 channels:
   chatSocket:
-    address: /api/v1/chat/ws
+    address: /api/chat/v1/ws
     servers: [{ $ref: '#/servers/gateway' }]
     bindings:
       ws:
@@ -34,7 +35,7 @@ channels:
           type: object
           required: [ticket]
           properties:
-            ticket: { type: string, description: 'De POST /api/v1/chat/ws-tickets; un solo uso, ~30 s.' }
+            ticket: { type: string, description: 'De POST /api/chat/v1/ws-tickets; un solo uso, ~30 s.' }
     messages:
       messageSend: { $ref: '#/components/messages/messageSend' }
       conversationRead: { $ref: '#/components/messages/conversationRead' }
@@ -52,7 +53,7 @@ channels:
   requestEvents:
     address: serviya.requests
     servers: [{ $ref: '#/servers/broker' }]
-    description: Exchange topic del módulo de Solicitudes. El chat lo lee con la cola `chat-service.requests` (DLQ `chat-service.requests.dlq`).
+    description: Exchange topic del módulo de Solicitudes. El chat lo lee con la cola `chat-service.requests` (binding `requests.service_request.*`, DLQ `chat-service.requests.dlq`); los tipos que no usa se confirman y se ignoran.
     messages:
       serviceRequestCreated: { $ref: '#/components/messages/serviceRequestCreated' }
       serviceRequestStatusChanged: { $ref: '#/components/messages/serviceRequestStatusChanged' }
@@ -139,14 +140,19 @@ components:
     Envelope:
       type: object
       required: [event_id, event_type, event_version, occurred_at, producer, data]
-      description: Sobre común (guía §9.1). `occurred_at` es el instante real del hecho; se usa para descartar eventos fuera de orden.
+      description: |
+        Sobre común acordado (decisiones-infraestructura-implementacion.md §4). `occurred_at` (UTC) es el instante real
+        del hecho; el chat lo usa para descartar eventos fuera de orden. Los consumidores ignoran campos desconocidos y
+        son idempotentes por `event_id` (que también va como `message_id` de RabbitMQ).
       properties:
         event_id: { type: string, format: uuid }
         event_type: { type: string }
         event_version: { type: integer, const: 1 }
         occurred_at: { type: string, format: date-time }
-        producer: { type: string }
+        producer: { type: string, examples: [serviya-monolith, chat-service] }
+        subject: { type: string, examples: ['service_request/123', 'user/45', 'conversation/9'] }
         correlation_id: { type: string }
+        causation_id: { type: [string, 'null'], description: 'event_id del evento que provocó este, si lo hubo.' }
         data: { type: object }
 
   messages:
@@ -302,7 +308,7 @@ components:
     # ---------- RabbitMQ: consumidos ----------
     serviceRequestCreated:
       name: requests.service_request.created
-      summary: Abre la conversación de la solicitud (DP-01). AÚN NO lo publica el monolito (ESTADO CHAT-1).
+      summary: Abre la conversación de la solicitud (DP-01). Lo publica el monolito por su outbox (`ChatEventPublisher`).
       payload:
         allOf:
           - $ref: '#/components/schemas/Envelope'

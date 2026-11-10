@@ -226,13 +226,13 @@
     }
   },
   "info" : {
-    "description" : "Chat 1 a 1 cliente–oferente. Errores en formato RFC 9457 con un campo `code` estable. El tiempo real va por WebSocket en /api/v1/chat/ws (ver docs/asyncapi.yaml).",
+    "description" : "Chat 1 a 1 cliente–oferente. Errores en formato RFC 9457 con un campo `code` estable. El tiempo real va por WebSocket en /api/chat/v1/ws (ver docs/asyncapi.yaml).",
     "title" : "ServiYa chat-service",
     "version" : "v1"
   },
   "openapi" : "3.1.0",
   "paths" : {
-    "/api/v1/chat/conversations" : {
+    "/api/chat/v1/conversations" : {
       "get" : {
         "operationId" : "list",
         "parameters" : [ {
@@ -296,7 +296,7 @@
         "tags" : [ "conversation-controller" ]
       }
     },
-    "/api/v1/chat/conversations/by-request/{requestId}" : {
+    "/api/chat/v1/conversations/by-request/{requestId}" : {
       "get" : {
         "operationId" : "byRequest",
         "parameters" : [ {
@@ -323,7 +323,7 @@
         "tags" : [ "conversation-controller" ]
       }
     },
-    "/api/v1/chat/conversations/{conversationId}/messages" : {
+    "/api/chat/v1/conversations/{conversationId}/messages" : {
       "get" : {
         "operationId" : "history",
         "parameters" : [ {
@@ -409,7 +409,7 @@
         "tags" : [ "message-controller" ]
       }
     },
-    "/api/v1/chat/conversations/{id}" : {
+    "/api/chat/v1/conversations/{id}" : {
       "get" : {
         "operationId" : "detail",
         "parameters" : [ {
@@ -436,7 +436,7 @@
         "tags" : [ "conversation-controller" ]
       }
     },
-    "/api/v1/chat/conversations/{id}/read" : {
+    "/api/chat/v1/conversations/{id}/read" : {
       "post" : {
         "operationId" : "read",
         "parameters" : [ {
@@ -474,7 +474,7 @@
         "tags" : [ "conversation-controller" ]
       }
     },
-    "/api/v1/chat/ws-tickets" : {
+    "/api/chat/v1/ws-tickets" : {
       "post" : {
         "operationId" : "issue",
         "responses" : {

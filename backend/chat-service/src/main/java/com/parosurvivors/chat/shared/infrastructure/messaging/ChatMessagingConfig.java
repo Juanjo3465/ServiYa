@@ -15,8 +15,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 
 /**
- * Topología RabbitMQ del chat (guía §9, requisitos §8). Los exchanges de otros dominios los declaran ambos
- * lados (idempotente); las colas, sus bindings y las dead-letter son del chat, que es su dueño.
+ * Topología RabbitMQ del chat (documents/microservicios/chat/decisiones-infraestructura-implementacion.md §3).
+ * Infraestructura ({@code infra/rabbitmq/setup-topology.sh}) declara los exchanges y el usuario {@code chat}; el
+ * chat declara SUS colas, bindings y DLQ. Con los permisos del usuario {@code chat} solo puede (re)declarar
+ * {@code serviya.chat} y {@code serviya.chat.dlx}: los exchanges ajenos se referencian por nombre, sin declararlos.
  *
  * <pre>
  *  serviya.requests ──requests.service_request.*──▶ [chat-service.requests] ──▶ DLX ──▶ [...requests.dlq]
@@ -44,13 +46,7 @@ public class ChatMessagingConfig {
     public static final String USER_REACTIVATED = "users.user.reactivated";
     public static final String USER_DELETED = "users.user.deleted";
 
-    @Bean TopicExchange requestsExchange() { return new TopicExchange(REQUESTS_EXCHANGE, true, false); }
-
-    @Bean TopicExchange usersExchange() { return new TopicExchange(USERS_EXCHANGE, true, false); }
-
     @Bean TopicExchange chatExchange() { return new TopicExchange(CHAT_EXCHANGE, true, false); }
-
-    @Bean TopicExchange notificationsExchange() { return new TopicExchange(NOTIFICATIONS_EXCHANGE, true, false); }
 
     @Bean DirectExchange chatDeadLetterExchange() { return new DirectExchange(DEAD_LETTER_EXCHANGE, true, false); }
 
@@ -76,19 +72,16 @@ public class ChatMessagingConfig {
         return QueueBuilder.durable(USERS_QUEUE + ".dlq").build();
     }
 
+    /** Comodín acordado (§3.3): los tipos que el chat no usa llegan y se ignoran sin ir a la DLQ. */
     @Bean
-    Binding requestCreatedBinding() {
-        return BindingBuilder.bind(requestsQueue()).to(requestsExchange()).with(REQUEST_CREATED);
-    }
-
-    @Bean
-    Binding requestStatusChangedBinding() {
-        return BindingBuilder.bind(requestsQueue()).to(requestsExchange()).with(REQUEST_STATUS_CHANGED);
+    Binding requestsBinding() {
+        return new Binding(REQUESTS_QUEUE, Binding.DestinationType.QUEUE, REQUESTS_EXCHANGE, "requests.service_request.*",
+                null);
     }
 
     @Bean
     Binding usersBinding() {
-        return BindingBuilder.bind(usersQueue()).to(usersExchange()).with("users.user.*");
+        return new Binding(USERS_QUEUE, Binding.DestinationType.QUEUE, USERS_EXCHANGE, "users.user.*", null);
     }
 
     @Bean

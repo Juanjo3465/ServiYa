@@ -6,6 +6,7 @@ API gateway (REST + WebSocket) y RabbitMQ.
 
 - Diseño y requisitos: [`documents/microservicios/chat/guia-microservicio-chat.md`](../../documents/microservicios/chat/guia-microservicio-chat.md)
   y [`requisitos-infraestructura-chat.md`](../../documents/microservicios/chat/requisitos-infraestructura-chat.md).
+- Contrato de infraestructura compartida (red, puertos, usuarios, topología, envelope): [`decisiones-infraestructura-implementacion.md`](../../documents/microservicios/chat/decisiones-infraestructura-implementacion.md).
 - Decisiones tomadas al implementar (incluido el cambio a Java/Spring): [`docs/adr/`](docs/adr/README.md).
 - Contratos: REST [`docs/openapi.json`](docs/openapi.json) · WebSocket y eventos [`docs/asyncapi.yaml`](docs/asyncapi.yaml).
 
@@ -35,27 +36,43 @@ instancian en `shared/infrastructure/config/UseCaseConfig`.
 | Dependencia | Para qué | Si cae |
 |---|---|---|
 | MySQL 8.4 propio (`chat-mysql`) | Fuente de verdad | El servicio no funciona |
-| `redis-coord` (compartido, usuario ACL `svc-chat-coord`, claves `chat:*` con TTL) | Tickets WS, rate limiting | Tickets → 503 (usar REST); rate limiting en memoria por instancia |
+| `redis-coord` (compartido, usuario ACL `chat`, claves `chat:*` con TTL) | Tickets WS, rate limiting | Tickets → 503 (usar REST); rate limiting en memoria por instancia |
 | Redis Pub/Sub propio (`chat-pubsub`) | Difusión entre instancias, «¿está en línea?» | Los mensajes se guardan; el destinatario los recupera con `sync`; se notifica por si acaso |
-| RabbitMQ (`serviya.*`) | Eventos entrantes y salientes | Los salientes esperan en el outbox; los entrantes esperan en la cola |
+| RabbitMQ (vhost `/`, usuario `chat`) | Eventos entrantes y salientes | Los salientes esperan en el outbox; los entrantes esperan en la cola |
 | JWKS del emisor | Verificar JWT ES256 | Tokens ya cacheados por `kid` siguen validando |
 
 ## Requisitos previos
 
 - Docker y Docker Compose. JDK 21 + Maven solo para desarrollar fuera de Docker.
-- El ACL de `redis-coord` generado (incluye el usuario del chat):
+- El ACL de `redis-coord` generado (incluye el usuario `chat`):
   ```bash
-  cd infra/redis/acl && set -a && . ../../../.env && set +a && sh ./render-acl.sh users.coord.acl.tpl users.coord.acl
-  chmod 644 users.coord.acl   # ⚠ el script deja 640 y el usuario redis del contenedor no puede leerlo
+  (cd infra/redis/acl && set -a && . ../../../.env && set +a && ./render-acl.sh users.coord.acl.tpl users.coord.acl)
   ```
-- Un emisor de JWT con JWKS. Mientras Auth no lo publique, usar el de desarrollo (abajo).
+- La topología compartida de RabbitMQ y el usuario `chat`, con el broker arriba (necesita `curl` y `jq`):
+  ```bash
+  set -a; . ./.env; set +a; ./infra/rabbitmq/setup-topology.sh
+  ```
+  El chat declara después **sus** colas, bindings y DLQ al arrancar. Sin este paso el usuario `chat` no existe.
+- Un emisor de JWT con JWKS (ver abajo; Auth lo publicará detrás del gateway).
 
 ## Levantarlo
 
-Variables (ver [`.env.example`](../../.env.example)): `CHAT_DB_PASSWORD`, `CHAT_MYSQL_ROOT_PASSWORD`,
-`CHAT_REDIS_COORD_PASSWORD` (= `REDIS_SVC_CHAT_COORD_PASSWORD` del ACL), `RABBITMQ_PASSWORD`, `JWT_JWKS_URL`,
-**`JWT_ISSUER` (obligatorio: el servicio no arranca sin él)**, `JWT_AUDIENCE`, `ALLOWED_WS_ORIGINS`.
-Opcionales: `CHAT_RATE_LIMIT_MAX` / `CHAT_RATE_LIMIT_WINDOW_SECONDS` (20 / 10), `LOG_STRUCTURED_FORMAT=ecs` (logs JSON).
+Contrato de despliegue ([`decisiones-infraestructura-implementacion.md`](../../documents/microservicios/chat/decisiones-infraestructura-implementacion.md)):
+puerto interno **8000**, red `serviya-redis-net`, REST por el gateway en **`/api/chat/v1/...`** y WebSocket en
+**`/api/chat/v1/ws`**.
+
+Variables (ver [`.env.example`](../../.env.example)):
+
+| Variable | Para qué |
+|---|---|
+| `CHAT_DB_USER`, `CHAT_DB_PASSWORD`, `CHAT_DB_ROOT_PASSWORD` | MySQL propio (`chat-mysql`) |
+| `CHAT_RABBITMQ_PASSWORD` | Usuario RabbitMQ `chat` (el mismo que crea `setup-topology.sh`) |
+| `REDIS_CHAT_PASSWORD` | Usuario ACL `chat` de `redis-coord` (el mismo que usa `render-acl.sh`) |
+| `JWT_JWKS_URL` | Por defecto `http://gateway:8080/.well-known/jwks.json` |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | Por defecto `https://auth.serviya.local` y `marketplace-api`; se validan siempre |
+| `ALLOWED_WS_ORIGINS` | Orígenes permitidos en el handshake WebSocket |
+| `CHAT_RATE_LIMIT_MAX` / `CHAT_RATE_LIMIT_WINDOW_SECONDS` | Opcional: 20 mensajes / 10 s |
+| `LOG_STRUCTURED_FORMAT=ecs` | Opcional: logs JSON con `correlationId` |
 
 ```bash
 # Desde la raíz del repo. Las migraciones (Flyway) corren solas al arrancar.
@@ -71,19 +88,20 @@ Herramientas en [`dev/`](dev/), solo stdlib de Python + `openssl`:
 ```bash
 cd backend/chat-service/dev
 python3 dev_auth.py init && python3 dev_auth.py serve --port 9400 &   # JWKS de desarrollo
-# El chat debe arrancar con:
-#   JWT_JWKS_URL=http://host.docker.internal:9400/.well-known/jwks.json   JWT_ISSUER=http://dev-auth.serviya.local
+# El chat debe arrancar con JWT_JWKS_URL=http://host.docker.internal:9400/.well-known/jwks.json
+# (el issuer por defecto de dev_auth ya es el acordado, https://auth.serviya.local)
 TC=$(python3 dev_auth.py token --user 1001 --roles CLIENT)
 TO=$(python3 dev_auth.py token --user 1002 --roles OFFERER)
 
-# Lo que haría el monolito (CHAT-1): RABBITMQ_PASSWORD en el entorno; usa la consola de RabbitMQ (:15672)
+# El monolito ya publica estos eventos (ChatEventPublisher); el stub sirve para probar el chat aislado.
+# RABBITMQ_USER/RABBITMQ_PASSWORD = administrador del broker; usa la API de la consola (:15672)
 python3 stub_producer.py user-registered --user 1001 --name "Ana Cliente"
 python3 stub_producer.py request-created --request 77 --client 1001 --offerer 1002
 
-API=http://localhost:8080/api/v1/chat
+API=http://localhost:8080/api/chat/v1
 curl -H "Authorization: Bearer $TO" $API/conversations
 TICKET=$(curl -s -X POST -H "Authorization: Bearer $TC" $API/ws-tickets | python3 -c 'import sys,json;print(json.load(sys.stdin)["ticket"])')
-WS_ORIGIN=http://localhost:5173 python3 ws_client.py "ws://localhost:8080/api/v1/chat/ws?ticket=$TICKET"
+WS_ORIGIN=http://localhost:5173 python3 ws_client.py "ws://localhost:8080/api/chat/v1/ws?ticket=$TICKET"
 # y escribir, por ejemplo:
 # {"type":"message.send","id":"f-1","payload":{"conversation_id":1,"client_message_id":"c-1","body":"Hola"}}
 
@@ -123,8 +141,10 @@ mvn test -DargLine="-Dapi.version=1.44"
 
 ## Pendiente
 
-- **Bloqueante del MVP real:** el monolito no publica `requests.service_request.*` ni `users.user.*`, ni hay carga
-  inicial de usuarios (ESTADO CHAT-1). Mientras tanto, `dev/stub_producer.py`.
-- Emisor ES256/JWKS real y su `iss` definitivo (guía de auth).
+- **Auth (otro desarrollador):** emisor ES256/JWKS real publicado en el gateway con `iss = https://auth.serviya.local`.
+  Hasta entonces el chat solo acepta tokens de `dev/dev_auth.py`.
+- **Carga inicial de `user_directory`:** el monolito publica los eventos de usuarios desde ahora, pero los usuarios que
+  ya existían no tienen proyección (el chat muestra «Usuario {id}» y los deja escribir). Falta el backfill.
+- Frontend del chat (cliente WebSocket y pantallas).
 - Limpieza de `outbox_events` publicados; métricas (`/metrics`); prueba de carga (RNF-CHAT-01/03); reglas de
   arquitectura automatizadas (ArchUnit); política de retención (DP-07) y presupuesto de memoria en `redis-coord` (DP-10).

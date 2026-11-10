@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import com.parosurvivors.serviya.services.api.ServiceCommandApi;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.ports.input.UserDeletionServicePort;
 import com.parosurvivors.serviya.users.application.ports.output.UserPersistencePort;
@@ -33,6 +34,7 @@ public class UserDeletionService implements UserDeletionServicePort {
     private final ServiceCommandApi serviceCommandApi;
     private final RequestCommandApi requestCommandApi;
     private final NotificationCommandApi notificationCommandApi;
+    private final ChatEventPublisher chatEventPublisher;
 
     @Override
     @Transactional
@@ -45,6 +47,7 @@ public class UserDeletionService implements UserDeletionServicePort {
         // (1) Soft delete de la cuenta.
         user.softDelete();
         userPersistencePort.update(user);
+        chatEventPublisher.userDeleted(userId);
         // (2) Si es oferente, ocultar todos sus servicios del buscador (no-op si no tiene servicios).
         serviceCommandApi.deactivateAllByOfferer(userId);
         // (3) Cancelar las solicitudes activas donde participa (como cliente u oferente) para no dejar huérfanas.

@@ -41,7 +41,7 @@ import org.testcontainers.images.builder.Transferable;
  * REAL y efímera, un único juego de contenedores por ejecución:
  * <ul>
  *   <li>MySQL 8.4 — Flyway + Hibernate {@code validate}.</li>
- *   <li>Redis «coord» con el ACL REAL del usuario {@code svc-chat-coord} tomado de {@code infra/redis}: si el chat
+ *   <li>Redis «coord» con el ACL REAL del usuario {@code chat} tomado de {@code infra/redis}: si el chat
  *       usara un comando que el ACL no permite, las pruebas fallarían.</li>
  *   <li>Redis «pubsub» (instancia propia del chat) y RabbitMQ.</li>
  *   <li>Un JWKS servido por un stub HTTP con una clave EC P-256: la verificación ES256 por JWKS es la real.</li>
@@ -63,6 +63,7 @@ public abstract class IntegrationTestBase {
     protected static final String ISSUER = "https://auth.test";
     protected static final String AUDIENCE = "marketplace-api";
     protected static final String CHAT_REDIS_PASSWORD = "chat-test-password-0000000000000000";
+    protected static final String CHAT_RABBIT_PASSWORD = "chat-rabbit-test-password-000000000";
 
     protected static MySQLContainer<?> mysql;
     protected static GenericContainer<?> redisCoord;
@@ -89,6 +90,7 @@ public abstract class IntegrationTestBase {
             redisCoord.start();
             redisPubSub.start();
             rabbit.start();
+            prepareBrokerLikeInfra();
 
             signingKey = new ECKeyGenerator(Curve.P_256).keyID("test-key-1").generate();
             String jwksJson = new JWKSet(signingKey.toPublicJWK()).toString();
@@ -104,18 +106,73 @@ public abstract class IntegrationTestBase {
         }
     }
 
-    /** ACL de redis-coord: la línea REAL de svc-chat-coord de la plantilla del proyecto + un admin para inspeccionar. */
+    /** ACL de redis-coord: la línea REAL del usuario {@code chat} de la plantilla del proyecto + un admin para inspeccionar. */
     private static String coordAcl() throws IOException {
         String template = Files.readString(Path.of("../../infra/redis/acl/users.coord.acl.tpl"));
-        String line = template.lines().filter(l -> l.startsWith("user svc-chat-coord ")).findFirst().orElseThrow();
+        String line = template.lines().filter(l -> l.startsWith("user chat ")).findFirst().orElseThrow();
         try {
             String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(CHAT_REDIS_PASSWORD.getBytes(StandardCharsets.UTF_8)));
-            return "user default off\n" + line.replace("${SVC_CHAT_COORD_HASH}", hash) + "\n"
+            return "user default off\n" + line.replace("${CHAT_COORD_HASH}", hash) + "\n"
                     + "user admin on nopass ~* &* +@all\n";
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /**
+     * Reproduce {@code infra/rabbitmq/setup-topology.sh}: exchanges compartidos, usuario {@code chat} y sus permisos.
+     * Las expresiones de permisos se LEEN del script, así que un cambio allí se prueba aquí. {@code serviya.notifications}
+     * lo declara notifications-service en producción; aquí lo declara el admin.
+     */
+    private static void prepareBrokerLikeInfra() throws Exception {
+        String script = Files.readString(Path.of("../../infra/rabbitmq/setup-topology.sh"));
+        String configure = shellVar(script, "CONFIGURE");
+        String write = shellVar(script, "WRITE");
+        String read = shellVar(script, "READ");
+        exec("rabbitmqctl", "add_user", "chat", CHAT_RABBIT_PASSWORD);
+        exec("rabbitmqctl", "set_permissions", "-p", "/", "chat", configure, write, read);
+        org.springframework.amqp.rabbit.core.RabbitAdmin admin = adminAmqp();
+        for (String topic : new String[] {"serviya.requests", "serviya.users", "serviya.chat", "serviya.notifications"}) {
+            admin.declareExchange(new org.springframework.amqp.core.TopicExchange(topic, true, false));
+        }
+        admin.declareExchange(new org.springframework.amqp.core.DirectExchange("serviya.chat.dlx", true, false));
+    }
+
+    private static String shellVar(String script, String name) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?m)^" + name + "='([^']*)'").matcher(script);
+        if (!m.find()) {
+            throw new IllegalStateException("No se encontró " + name + " en setup-topology.sh");
+        }
+        return m.group(1);
+    }
+
+    private static void exec(String... command) throws Exception {
+        var result = rabbit.execInContainer(command);
+        if (result.getExitCode() != 0) {
+            throw new IllegalStateException(String.join(" ", command) + " falló: " + result.getStderr());
+        }
+    }
+
+    private static org.springframework.amqp.rabbit.connection.CachingConnectionFactory adminConnections;
+
+    /** Conexión de ADMINISTRADOR, para lo que en la vida real hacen otros (monolito, infra, inspección de colas). */
+    protected static synchronized org.springframework.amqp.rabbit.connection.CachingConnectionFactory adminConnectionFactory() {
+        if (adminConnections == null) {
+            adminConnections = new org.springframework.amqp.rabbit.connection.CachingConnectionFactory(
+                    rabbit.getHost(), rabbit.getAmqpPort());
+            adminConnections.setUsername(rabbit.getAdminUsername());
+            adminConnections.setPassword(rabbit.getAdminPassword());
+        }
+        return adminConnections;
+    }
+
+    protected static org.springframework.amqp.rabbit.core.RabbitAdmin adminAmqp() {
+        return new org.springframework.amqp.rabbit.core.RabbitAdmin(adminConnectionFactory());
+    }
+
+    protected static org.springframework.amqp.rabbit.core.RabbitTemplate adminRabbitTemplate() {
+        return new org.springframework.amqp.rabbit.core.RabbitTemplate(adminConnectionFactory());
     }
 
     @DynamicPropertySource
@@ -125,14 +182,15 @@ public abstract class IntegrationTestBase {
         registry.add("spring.datasource.password", mysql::getPassword);
         registry.add("spring.data.redis.host", redisCoord::getHost);
         registry.add("spring.data.redis.port", () -> redisCoord.getMappedPort(6379));
-        registry.add("spring.data.redis.username", () -> "svc-chat-coord");
+        registry.add("spring.data.redis.username", () -> "chat");
         registry.add("spring.data.redis.password", () -> CHAT_REDIS_PASSWORD);
         registry.add("serviya.chat.pubsub.host", redisPubSub::getHost);
         registry.add("serviya.chat.pubsub.port", () -> redisPubSub.getMappedPort(6379));
         registry.add("spring.rabbitmq.host", rabbit::getHost);
         registry.add("spring.rabbitmq.port", rabbit::getAmqpPort);
-        registry.add("spring.rabbitmq.username", rabbit::getAdminUsername);
-        registry.add("spring.rabbitmq.password", rabbit::getAdminPassword);
+        // La aplicación corre como el usuario `chat` de infra, con sus permisos reales.
+        registry.add("spring.rabbitmq.username", () -> "chat");
+        registry.add("spring.rabbitmq.password", () -> CHAT_RABBIT_PASSWORD);
         registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
                 () -> "http://127.0.0.1:" + jwks.getAddress().getPort() + "/.well-known/jwks.json");
     }

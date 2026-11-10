@@ -8,6 +8,6 @@ user monitor on #${MONITOR_HASH} ~* +@connection +ping +info +client|list +slowl
 # notifications-service: SOLO comprueba que redis-coord responde (modo degradado D-07/1a). Sin acceso a claves.
 user svc-notifications-coord on #${SVC_NOTIFICATIONS_COORD_HASH} resetkeys resetchannels +@connection +ping
 user svc-serviya-coord on #${SVC_SERVIYA_COORD_HASH} ~lock:* ~fence:* ~rl:* +@connection +ping +get +set +del +incr +pexpire +pttl +hmget +hset +time +zadd +zcard +zrange +zremrangebyscore +eval +evalsha +script|load +script|exists
-# chat-service (guía del chat §5.5): tickets WS de un solo uso y rate limiting. SOLO claves chat:* (TTL obligatorio
-# en cada clave). Sin PUBLISH/SUBSCRIBE (el Pub/Sub del chat vive en su propia instancia chat-pubsub), ni KEYS/FLUSH*.
-user svc-chat-coord on #${SVC_CHAT_COORD_HASH} resetkeys resetchannels ~chat:* +@connection +ping +get +set +getdel +del +incr +expire +pexpire +ttl +pttl
+# chat-service: rate limiting de mensajes y tickets WebSocket de un solo uso (fase 0 del chat).
+# Solo claves chat:*; sin PUB/SUB (la difusión usa su propia instancia), sin KEYS/FLUSH/ADMIN.
+user chat on #${CHAT_COORD_HASH} ~chat:* +@connection +ping +get +set +del +unlink +exists +expire +pexpire +ttl +pttl +mget +scan +incr +decr

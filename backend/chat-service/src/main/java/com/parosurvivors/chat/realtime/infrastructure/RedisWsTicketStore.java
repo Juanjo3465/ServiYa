@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-/** Tickets en redis-coord (instancia A): {@code chat:wsticket:{ticket}} con TTL de ~30 s, consumo con GETDEL. */
+/** Tickets en redis-coord (instancia A): {@code chat:wsticket:{ticket}} con TTL de ~30 s; consumo de un solo uso. */
 @Component
 class RedisWsTicketStore implements WsTicketStore {
 
@@ -40,8 +40,14 @@ class RedisWsTicketStore implements WsTicketStore {
     @Override
     public Optional<Long> consume(String ticket) {
         try {
-            String value = redis.opsForValue().getAndDelete(PREFIX + ticket);
-            return value == null ? Optional.empty() : Optional.of(Long.parseLong(value));
+            // El usuario ACL `chat` no tiene GETDEL: GET y luego DEL. Sigue siendo de un solo uso porque SOLO gana
+            // quien consigue borrar la clave (DEL devuelve true una única vez aunque dos conexiones lean a la vez).
+            String key = PREFIX + ticket;
+            String value = redis.opsForValue().get(key);
+            if (value == null || !Boolean.TRUE.equals(redis.delete(key))) {
+                return Optional.empty();
+            }
+            return Optional.of(Long.parseLong(value));
         } catch (RuntimeException e) {
             throw new TicketStoreUnavailableException(e);
         }

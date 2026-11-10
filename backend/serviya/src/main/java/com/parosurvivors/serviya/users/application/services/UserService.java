@@ -3,6 +3,7 @@ package com.parosurvivors.serviya.users.application.services;
 import com.parosurvivors.serviya.notifications.api.Channel;
 import com.parosurvivors.serviya.notifications.api.NotificationCommand;
 import com.parosurvivors.serviya.notifications.api.NotificationCommandApi;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
 import com.parosurvivors.serviya.users.application.dto.command.ChangeEmailCommand;
@@ -34,6 +35,7 @@ public class UserService implements UserServicePort {
     private final UserReadPort userReadPort;
     private final PasswordEncoder passwordEncoder;
     private final NotificationCommandApi notificationCommandApi;
+    private final ChatEventPublisher chatEventPublisher;
 
     @Override
     public User createUser(String email, String rawPassword) {
@@ -79,6 +81,7 @@ public class UserService implements UserServicePort {
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.ban();
         userPersistencePort.update(user);
+        chatEventPublisher.userSuspended(userId, reason);
         // sS avisa al usuario baneado por doble canal (INTERNAL + EMAIL) con el motivo.
         notifyDualChannel(userId, "account_banned", "Tu cuenta fue suspendida",
                 "Tu cuenta en ServiYa fue suspendida. Motivo: " + reason
@@ -91,6 +94,7 @@ public class UserService implements UserServicePort {
             .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.unban();
         userPersistencePort.update(user);
+        chatEventPublisher.userReactivated(userId);
         // RF-075: se avisa al usuario desbaneado por doble canal (INTERNAL + EMAIL).
         notifyDualChannel(userId, "account_unbanned", "Tu cuenta fue reactivada",
                 "Tu cuenta en ServiYa fue reactivada. Ya puedes iniciar sesión de nuevo.");

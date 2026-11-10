@@ -12,13 +12,17 @@ services:
     environment:
       MONOLITH_URI: http://backend:8080
       NOTIFICATIONS_SERVICE_URI: http://notifications-service:8082
-      CHAT_SERVICE_URI: http://chat-service:8083
+      CHAT_SERVICE_URI: ${CHAT_SERVICE_URI:-http://chat-service:8000}
+      CHAT_WS_URI: ${CHAT_WS_URI:-ws://chat-service:8000}
       # Mismos orígenes que tenía el CORS del monolito (incluida la IP de red local y el túnel ngrok).
       GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081,http://192.168.1.2:8081,https://nonfervently-expiational-amani.ngrok-free.dev}
     depends_on:
       - backend
       - notifications-service
       - chat-service
+    networks:
+      - default
+      - redis-net
 
   # ---------------------------------------------------------------------------------------------------
   # Monolito (identity, catálogo, solicitudes, feedback, métricas, reportes, admin). Ya NO se publica al
@@ -158,22 +162,25 @@ services:
     container_name: serviya-chat
     restart: on-failure
     expose:
-      - "8083"
+      - "8000"
     environment:
+      CHAT_PORT: "8000"
       CHAT_DB_URL: jdbc:mysql://chat-mysql:3306/chat_db?useUnicode=true&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC
       CHAT_DB_USER: ${CHAT_DB_USER:-chat}
       CHAT_DB_PASSWORD: ${CHAT_DB_PASSWORD}
       JWT_JWKS_URL: ${JWT_JWKS_URL:-http://gateway:8080/.well-known/jwks.json}
-      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.serviya.local}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-marketplace-api}
       ALLOWED_WS_ORIGINS: ${ALLOWED_WS_ORIGINS:-http://localhost:5173,http://localhost:8081}
+      # Usuario RabbitMQ propio `chat` (infra/rabbitmq/setup-topology.sh), vhost "/".
       RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: ${RABBITMQ_USER:-serviya}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_USER: chat
+      RABBITMQ_PASSWORD: ${CHAT_RABBITMQ_PASSWORD}
+      # redis-coord (instancia A) con el usuario ACL `chat` (solo claves chat:*).
       REDIS_COORD_HOST: ${REDIS_COORD_HOST:-redis-coord}
       REDIS_COORD_PORT: ${REDIS_COORD_PORT:-6379}
-      CHAT_REDIS_COORD_USER: svc-chat-coord
-      CHAT_REDIS_COORD_PASSWORD: ${CHAT_REDIS_COORD_PASSWORD:-}
+      CHAT_REDIS_COORD_USER: chat
+      CHAT_REDIS_COORD_PASSWORD: ${REDIS_CHAT_PASSWORD:-}
       CHAT_PUBSUB_HOST: chat-pubsub
       CHAT_PUBSUB_PORT: "6379"
     # Solo para desarrollo: permite que JWT_JWKS_URL apunte al emisor de prueba del host
@@ -196,7 +203,7 @@ services:
     container_name: serviya-chat-mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
-      MYSQL_ROOT_PASSWORD: ${CHAT_MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${CHAT_DB_ROOT_PASSWORD}
       MYSQL_DATABASE: chat_db
       MYSQL_USER: ${CHAT_DB_USER:-chat}
       MYSQL_PASSWORD: ${CHAT_DB_PASSWORD}
@@ -249,6 +256,66 @@ services:
       interval: 5s
       start_period: 20s
 
+  # ---------------------------------------------------------------------------------------------------
+  # MinIO: almacenamiento de objetos para adjuntos del chat (fase 3). Perfil opcional:
+  #   docker compose --profile minio up -d minio minio-init
+  # El bucket se crea privado y el usuario chat solo puede operar sobre él.
+  # ---------------------------------------------------------------------------------------------------
+  minio:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    container_name: serviya-minio
+    profiles: ["minio"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL:-http://localhost:9001}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - redis-net
+      - default
+    restart: on-failure
+
+  minio-init:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    container_name: serviya-minio-init
+    profiles: ["minio"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_CHAT_ACCESS_KEY: ${MINIO_CHAT_ACCESS_KEY}
+      MINIO_CHAT_SECRET_KEY: ${MINIO_CHAT_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET:-chat-attachments}
+    volumes:
+      - ./infra/minio/cors.xml:/config/cors.xml:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set local "http://minio:9000" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 1; done
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        mc anonymous set none "local/$$MINIO_BUCKET"
+        mc cors set "local/$$MINIO_BUCKET" /config/cors.xml
+        mc admin user add local "$$MINIO_CHAT_ACCESS_KEY" "$$MINIO_CHAT_SECRET_KEY" || true
+        printf '%s' "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\"],\"Resource\":[\"arn:aws:s3:::$$MINIO_BUCKET/*\"]},{\"Effect\":\"Allow\",\"Action\":[\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::$$MINIO_BUCKET\"]}]}" > /tmp/chat-policy.json
+        mc admin policy create local chat-attachments-rw /tmp/chat-policy.json || true
+        mc admin policy attach local chat-attachments-rw --user "$$MINIO_CHAT_ACCESS_KEY" || true
+        echo "MinIO listo: bucket $$MINIO_BUCKET privado, usuario chat con politica chat-attachments-rw"
+    networks:
+      - redis-net
+    restart: "no"
+
   frontend:
     build:
       context: ./frontend/serviya
@@ -265,6 +332,7 @@ volumes:
   notifications_mysql_data:
   chat_mysql_data:
   rabbitmq_data:
+  minio_data:
 
 networks:
   # Red compartida con infra/redis/docker-compose.redis.yml. Declarada aquí también para que el compose

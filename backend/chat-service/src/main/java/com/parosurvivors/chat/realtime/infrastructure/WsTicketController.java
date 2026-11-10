@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/chat")
+@RequestMapping("/api/chat/v1")
 class WsTicketController {
 
     private final WsTicketService tickets;
@@ -19,7 +19,7 @@ class WsTicketController {
         this.tickets = tickets;
     }
 
-    /** Ticket de un solo uso (~30 s) para abrir {@code /api/v1/chat/ws?ticket=...} sin poner el JWT en la URL. */
+    /** Ticket de un solo uso (~30 s) para abrir {@code /api/chat/v1/ws?ticket=...} sin poner el JWT en la URL. */
     @PostMapping("/ws-tickets")
     Map<String, Object> issue(@AuthenticationPrincipal Jwt jwt) {
         var issued = tickets.issue(CurrentUser.id(jwt));

@@ -4,6 +4,10 @@
 > **Documento:** Qué debe tener o implementar el resto del sistema para que el `chat-service` funcione según lo planeado, 
 > **Estado:** Borrador v0.1 — documento vivo
 > **Documento principal:** `guia-microservicio-chat.md`
+>
+> **Decisiones de implementación:** `decisiones-infraestructura-implementacion.md`. Ese documento
+> fija la red real (`serviya-redis-net`), el vhost `/`, el envelope de eventos y la topología
+> RabbitMQ. Este documento conserva los requisitos originales.
 
 ---
 
@@ -210,7 +214,7 @@ Este documento propone **recomendaciones**, no imposiciones. Los nombres de exch
 
 **Recomendado**
 
-- [ ] Un vhost por entorno (`dev`, `test`, `prod`).
+- [ ] Un vhost por entorno (`dev`, `test`, `prod`). **Implementación actual: vhost `/` por compatibilidad con el monolito y `notifications-service`; la separación por entorno queda como deuda.**
 - [ ] Política de reintentos con retardo (cola de espera con TTL que devuelve a la principal) antes de enviar a DLQ.
 - [ ] Documentar todos los eventos del sistema en un **catálogo de eventos** común (AsyncAPI por servicio + índice central).
 - [ ] Panel de administración solo en red interna.
@@ -237,7 +241,7 @@ La instancia C la despliega y opera el equipo del chat; **no requiere nada de la
 
 - [ ] **Usuario ACL `chat`** con acceso solo a claves `~chat:*` y a los comandos necesarios (strings y contadores con TTL, `EXPIRE`, `GETDEL`/`DEL`, `PING`). Sin `PUBLISH`/`SUBSCRIBE`, `KEYS`, `FLUSH*` ni comandos de administración.
 - [ ] **Presupuesto de memoria** para el prefijo `chat:` y umbral de alerta (DP-10). Estimación MVP: del orden de cientos de KB.
-- [ ] **Accesible desde la red compartida** (`marketplace-shared` o la que use el proyecto), con autenticación y sin puerto expuesto al host.
+- [ ] **Accesible desde la red compartida** (`serviya-redis-net`), con autenticación y sin puerto expuesto al host.
 - [ ] **Monitoreo de memoria usada** (debería existir ya, por ser crítica para los locks).
 
 **Obligatorio en la instancia B (antes de la Fase 2)**
@@ -277,10 +281,7 @@ Cada servicio tiene su propio `docker-compose`, así que se necesita una forma d
 
 **Obligatorio**
 
-- [ ] Una **red Docker externa compartida** (p. ej. `marketplace-shared`) creada una vez:
-  ```bash
-  docker network create marketplace-shared
-  ```
+- [ ] Una **red Docker externa compartida**. Implementación actual: reutilizar la red existente `serviya-redis-net`; no crear `marketplace-shared`.
 - [ ] Gateway, RabbitMQ, Redis compartido (instancias A y B; la C es interna del chat), backend principal y `chat-service` conectados a esa red. Las bases de datos de cada servicio quedan en sus redes internas.
 - [ ] Nombres de host estables (nombre del servicio o `container_name`) documentados. Nombres reales hoy en ServiYa: `rabbitmq` (`serviya-rabbitmq`), `redis-coord` (= instancia A, ya existe; red `serviya-redis-net`), la instancia B de caché **aún no existe**, `gateway` (`serviya-gateway`), `backend` (`serviya-backend`), y el nuevo `chat-service`.
 - [ ] Variables de entorno del chat documentadas en `.env.example`:
@@ -291,7 +292,7 @@ Cada servicio tiene su propio `docker-compose`, así que se necesita una forma d
 | `REDIS_URL` | `redis://chat:***@redis-coord:6379/0` | Instancia A (locks/rate limiting) = `redis-coord` (ya existe), usuario ACL `chat` |
 | `REDIS_PUBSUB_URL` | `redis://chat-pubsub:6379/0` | Instancia C, propia del chat (red interna) |
 | `REDIS_CACHE_URL` | `redis://chat:***@redis-cache:6379/0` | Instancia B (caché), requerida desde fase 2 (**aún no existe**) |
-| `RABBITMQ_URL` | `amqp://chat:***@rabbitmq:5672/dev` | Broker compartido |
+| `RABBITMQ_URL` | `amqp://chat:***@rabbitmq:5672/` | Broker compartido, vhost `/` |
 | `JWT_JWKS_URL` | `http://<auth>/.well-known/jwks.json` | Verificación de tokens ES256 por clave pública (ver §3). Ya no se usa `JWT_SECRET` |
 | `JWT_ISSUER`, `JWT_AUDIENCE` | `aud` = `marketplace-api` | Validación de claims (obligatoria con el token ES256) |
 | `ALLOWED_WS_ORIGINS` | `http://localhost:8081,http://localhost:5173` | Orígenes permitidos (mismos que el CORS del gateway) |

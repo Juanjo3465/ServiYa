@@ -22,7 +22,7 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 KEY = HERE / ".dev-auth" / "es256-key.pem"
 KID = "dev-1"
-DEFAULT_ISSUER = "http://dev-auth.serviya.local"
+DEFAULT_ISSUER = "https://auth.serviya.local"  # el acordado (decisiones-infraestructura-implementacion.md §5)
 DEFAULT_AUDIENCE = "marketplace-api"
 
 

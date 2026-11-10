@@ -22,6 +22,7 @@ import com.parosurvivors.serviya.requests.domain.ServiceRequest;
 import com.parosurvivors.serviya.services.api.ServiceQueryApi;
 import com.parosurvivors.serviya.services.api.dto.ServiceAvailabilitySnapshot;
 import com.parosurvivors.serviya.services.api.dto.ServiceSnapshot;
+import com.parosurvivors.serviya.shared.events.application.ChatEventPublisher;
 import com.parosurvivors.serviya.shared.events.application.ports.output.DomainEventPublisherPort;
 import com.parosurvivors.serviya.shared.exceptions.BusinessRuleException;
 import com.parosurvivors.serviya.shared.exceptions.ResourceNotFoundException;
@@ -50,6 +51,7 @@ class ServiceRequestCommandServiceTest {
     @Mock ServiceQueryApi serviceQueryApi;
     @Mock ProfileQueryApi profileQueryApi;
     @Mock DomainEventPublisherPort eventPublisher;
+    @Mock ChatEventPublisher chatEventPublisher;
 
     @InjectMocks ServiceRequestCommandService service;
 

@@ -33,14 +33,14 @@ spring:
         jwt:
           # ES256 + JWKS (DP-03): el chat solo tiene la clave PÚBLICA y no puede emitir tokens.
           # El default de Spring es RS256 → se fija ES256 explícitamente.
-          jwk-set-uri: ${JWT_JWKS_URL:http://localhost:8080/.well-known/jwks.json}
+          jwk-set-uri: ${JWT_JWKS_URL:http://gateway:8080/.well-known/jwks.json}
           jws-algorithms: ES256
-  # redis-coord (instancia A): tickets WS y rate limiting. Usuario ACL propio, solo claves chat:*.
+  # redis-coord (instancia A): tickets WS y rate limiting. Usuario ACL `chat`, solo claves chat:* (infra/redis).
   data:
     redis:
       host: ${REDIS_COORD_HOST:localhost}
       port: ${REDIS_COORD_PORT:6379}
-      username: ${CHAT_REDIS_COORD_USER:svc-chat-coord}
+      username: ${CHAT_REDIS_COORD_USER:chat}
       password: ${CHAT_REDIS_COORD_PASSWORD:}
       ssl:
         enabled: ${REDIS_COORD_SSL:false}
@@ -49,7 +49,7 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:serviya}
+    username: ${RABBITMQ_USER:chat}
     password: ${RABBITMQ_PASSWORD:}
     virtual-host: ${RABBITMQ_VHOST:/}
     publisher-confirm-type: correlated
@@ -65,7 +65,7 @@ spring:
           max-interval: 10s
 
 server:
-  port: ${SERVER_PORT:8083}
+  port: ${CHAT_PORT:8000}
   error:
     include-stacktrace: never
     include-message: never
@@ -109,7 +109,7 @@ serviya:
     terminal-request-statuses: REJECTED,CANCELLED,COMPLETED,RESCHEDULED,NOT_PROVIDED
   security:
     jwt:
-      issuer: ${JWT_ISSUER:}
+      issuer: ${JWT_ISSUER:https://auth.serviya.local}
       audience: ${JWT_AUDIENCE:marketplace-api}
 
 # Logs estructurados (RNF-CHAT-17). Vacío = formato de texto (desarrollo); LOG_STRUCTURED_FORMAT=ecs → JSON con el

@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/chat/conversations/{conversationId}/messages")
+@RequestMapping("/api/chat/v1/conversations/{conversationId}/messages")
 class MessageController {
 
     private final GetConversationHistoryService history;

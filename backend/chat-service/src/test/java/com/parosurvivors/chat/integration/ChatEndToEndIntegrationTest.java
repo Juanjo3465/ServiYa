@@ -57,9 +57,12 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
 
     @LocalServerPort int port;
     @Autowired TestRestTemplate http;
-    @Autowired RabbitTemplate amqp;
-    @Autowired AmqpAdmin amqpAdmin;
+    /** Admin: hace de monolito (publica en serviya.requests/users) e inspecciona colas; el chat corre como `chat`. */
+    private final RabbitTemplate amqp = adminRabbitTemplate();
+    private final AmqpAdmin amqpAdmin = adminAmqp();
     @Autowired OnlineUsers onlineUsers;
+    /** El RabbitTemplate de la APLICACIÓN: conecta como el usuario `chat` con los permisos de infra. */
+    @Autowired RabbitTemplate chatRabbit;
     @Autowired OutboxBatchPublisher outbox;
     @Value("${serviya.chat.allowed-ws-origins}") String allowedOrigin;
 
@@ -130,14 +133,14 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         publishEvent("serviya.requests", "requests.service_request.created", UUID.randomUUID().toString(), Instant.now(),
                 Map.of("request_id", requestId, "client_id", client, "offerer_id", offerer, "status", "PENDING"));
         await().atMost(Duration.ofSeconds(15)).until(() ->
-                get("/api/v1/chat/conversations/by-request/" + requestId, client).getStatusCode() == HttpStatus.OK);
-        return get("/api/v1/chat/conversations/by-request/" + requestId, client).getBody().path("id").asLong();
+                get("/api/chat/v1/conversations/by-request/" + requestId, client).getStatusCode() == HttpStatus.OK);
+        return get("/api/chat/v1/conversations/by-request/" + requestId, client).getBody().path("id").asLong();
     }
 
     private WsTestClient connectWs(long userId) {
-        ResponseEntity<JsonNode> ticket = call(HttpMethod.POST, "/api/v1/chat/ws-tickets", token(userId), null);
+        ResponseEntity<JsonNode> ticket = call(HttpMethod.POST, "/api/chat/v1/ws-tickets", token(userId), null);
         assertThat(ticket.getStatusCode()).isEqualTo(HttpStatus.OK);
-        WsTestClient client = WsTestClient.connect("ws://localhost:" + port + "/api/v1/chat/ws?ticket="
+        WsTestClient client = WsTestClient.connect("ws://localhost:" + port + "/api/chat/v1/ws?ticket="
                 + ticket.getBody().path("ticket").asText());
         clients.add(client);
         // La instancia se suscribe al canal del usuario de forma asíncrona: se espera a que cuente como «en línea».
@@ -169,35 +172,35 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         ECKey otherKey = new ECKeyGenerator(Curve.P_256).keyID("test-key-1").generate(); // mismo kid, otra clave
         Instant future = Instant.now().plusSeconds(600);
 
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations", null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations", "garbage.token.here", null).getStatusCode())
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations", null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations", "garbage.token.here", null).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
         // firmado con otra clave
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations",
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations",
                 tokenWith(otherKey, CLIENT, ISSUER, List.of(AUDIENCE), future, "at+jwt"), null).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
         // emisor, audiencia, vencimiento y typ incorrectos
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations",
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations",
                 tokenWith(signingKey, CLIENT, "https://otro", List.of(AUDIENCE), future, "at+jwt"), null).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations",
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations",
                 tokenWith(signingKey, CLIENT, ISSUER, List.of("otra-api"), future, "at+jwt"), null).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations",
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations",
                 tokenWith(signingKey, CLIENT, ISSUER, List.of(AUDIENCE), Instant.now().minusSeconds(600), "at+jwt"), null)
                 .getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(call(HttpMethod.GET, "/api/v1/chat/conversations",
+        assertThat(call(HttpMethod.GET, "/api/chat/v1/conversations",
                 tokenWith(signingKey, CLIENT, ISSUER, List.of(AUDIENCE), future, "JWT"), null).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
         // y el válido sí entra
-        assertThat(get("/api/v1/chat/conversations", CLIENT).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(get("/api/chat/v1/conversations", CLIENT).getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
     void el_health_es_publico_y_el_resto_exige_autenticacion() {
         assertThat(http.getForEntity(url("/actuator/health"), String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(http.getForEntity(url("/actuator/info"), String.class).getStatusCode()).isIn(HttpStatus.UNAUTHORIZED, HttpStatus.NOT_FOUND);
-        assertThat(call(HttpMethod.POST, "/api/v1/chat/ws-tickets", null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(call(HttpMethod.POST, "/api/chat/v1/ws-tickets", null, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     // ================= criterio 1: la conversación aparece sola =================
@@ -208,7 +211,7 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         long id = openConversation(requestId, CLIENT, OFFERER);
 
         for (long user : new long[] {CLIENT, OFFERER}) {
-            JsonNode list = get("/api/v1/chat/conversations", user).getBody();
+            JsonNode list = get("/api/chat/v1/conversations", user).getBody();
             assertThat(list.path("items")).hasSize(1);
             JsonNode item = list.path("items").get(0);
             assertThat(item.path("id").asLong()).isEqualTo(id);
@@ -217,7 +220,7 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
             assertThat(item.path("context_status").asText()).isEqualTo("PENDING");
             assertThat(item.path("unread_count").asInt()).isZero();
         }
-        assertThat(get("/api/v1/chat/conversations", STRANGER).getBody().path("items")).isEmpty();
+        assertThat(get("/api/chat/v1/conversations", STRANGER).getBody().path("items")).isEmpty();
     }
 
     // ================= criterios 2 y 3: tiempo real, orden, lectura =================
@@ -245,12 +248,12 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         assertThat(elapsedMs).as("entrega de punta a punta (criterio 2: < 1 s)").isLessThan(1000);
 
         // el oferente lo ve como no leído y luego lo marca leído → el cliente recibe la confirmación
-        assertThat(get("/api/v1/chat/conversations", OFFERER).getBody().path("items").get(0).path("unread_count").asInt()).isEqualTo(1);
+        assertThat(get("/api/chat/v1/conversations", OFFERER).getBody().path("items").get(0).path("unread_count").asInt()).isEqualTo(1);
         offerer.send("conversation.read", null, Map.of("conversation_id", id, "seq", 1));
         JsonNode read = client.await("conversation.read_updated", Duration.ofSeconds(10));
         assertThat(read.path("payload").path("user_id").asLong()).isEqualTo(OFFERER);
         assertThat(read.path("payload").path("seq").asLong()).isEqualTo(1);
-        assertThat(get("/api/v1/chat/conversations", OFFERER).getBody().path("items").get(0).path("unread_count").asInt()).isZero();
+        assertThat(get("/api/chat/v1/conversations", OFFERER).getBody().path("items").get(0).path("unread_count").asInt()).isZero();
     }
 
     @Test
@@ -266,9 +269,9 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         }
 
         for (long user : new long[] {CLIENT, OFFERER}) {
-            JsonNode page = get("/api/v1/chat/conversations/" + id + "/messages?limit=3", user).getBody();
+            JsonNode page = get("/api/chat/v1/conversations/" + id + "/messages?limit=3", user).getBody();
             assertThat(page.path("items")).extracting(n -> n.path("seq").asLong()).containsExactly(3L, 4L, 5L);
-            JsonNode older = get("/api/v1/chat/conversations/" + id + "/messages?before_seq=3&limit=3", user).getBody();
+            JsonNode older = get("/api/chat/v1/conversations/" + id + "/messages?before_seq=3&limit=3", user).getBody();
             assertThat(older.path("items")).extracting(n -> n.path("body").asText()).containsExactly("mensaje 1", "mensaje 2");
         }
     }
@@ -306,7 +309,7 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         offerer.await("message.new", Duration.ofSeconds(10));
         client.send("message.send", "f-2", send(id, "same-id", "Hola"));      // reintento por corte de red
         JsonNode retry = client.await("message.ack", Duration.ofSeconds(10));
-        ResponseEntity<JsonNode> viaRest = call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/messages",
+        ResponseEntity<JsonNode> viaRest = call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/messages",
                 token(CLIENT), Map.of("client_message_id", "same-id", "body", "Hola"));
 
         assertThat(retry.path("payload").path("message_id").asLong()).isEqualTo(first.path("payload").path("message_id").asLong());
@@ -324,14 +327,14 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         long id = openConversation(REQUEST_IDS.incrementAndGet(), CLIENT, OFFERER);
         WsTestClient stranger = connectWs(STRANGER);
 
-        assertThat(get("/api/v1/chat/conversations/" + id, STRANGER).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(get("/api/v1/chat/conversations/" + id + "/messages", STRANGER).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        ResponseEntity<JsonNode> write = call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/messages",
+        assertThat(get("/api/chat/v1/conversations/" + id, STRANGER).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get("/api/chat/v1/conversations/" + id + "/messages", STRANGER).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        ResponseEntity<JsonNode> write = call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/messages",
                 token(STRANGER), Map.of("client_message_id", "x", "body", "intruso"));
         assertThat(write.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(write.getHeaders().getContentType().toString()).startsWith("application/problem+json");
         assertThat(write.getBody().path("code").asText()).isEqualTo("CHAT_NOT_PARTICIPANT");
-        assertThat(call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/read", token(STRANGER), Map.of("seq", 1))
+        assertThat(call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/read", token(STRANGER), Map.of("seq", 1))
                 .getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         stranger.send("message.send", "f-1", send(id, "x", "intruso"));
@@ -343,18 +346,18 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
 
     @Test
     void el_ticket_es_de_un_solo_uso_y_uno_invalido_cierra_con_4401() {
-        ResponseEntity<JsonNode> ticket = call(HttpMethod.POST, "/api/v1/chat/ws-tickets", token(CLIENT), null);
+        ResponseEntity<JsonNode> ticket = call(HttpMethod.POST, "/api/chat/v1/ws-tickets", token(CLIENT), null);
         String value = ticket.getBody().path("ticket").asText();
         assertThat(ticket.getBody().path("expires_in").asInt()).isEqualTo(30);
 
-        WsTestClient first = WsTestClient.connect("ws://localhost:" + port + "/api/v1/chat/ws?ticket=" + value);
+        WsTestClient first = WsTestClient.connect("ws://localhost:" + port + "/api/chat/v1/ws?ticket=" + value);
         clients.add(first);
         await().atMost(Duration.ofSeconds(10)).until(() -> onlineUsers.onlineAmong(List.of(CLIENT)).contains(CLIENT));
-        WsTestClient reused = WsTestClient.connect("ws://localhost:" + port + "/api/v1/chat/ws?ticket=" + value);
+        WsTestClient reused = WsTestClient.connect("ws://localhost:" + port + "/api/chat/v1/ws?ticket=" + value);
         clients.add(reused);
-        WsTestClient bogus = WsTestClient.connect("ws://localhost:" + port + "/api/v1/chat/ws?ticket=nope");
+        WsTestClient bogus = WsTestClient.connect("ws://localhost:" + port + "/api/chat/v1/ws?ticket=nope");
         clients.add(bogus);
-        WsTestClient none = WsTestClient.connect("ws://localhost:" + port + "/api/v1/chat/ws");
+        WsTestClient none = WsTestClient.connect("ws://localhost:" + port + "/api/chat/v1/ws");
         clients.add(none);
 
         assertThat(reused.awaitClose(Duration.ofSeconds(10))).isEqualTo(4401);
@@ -391,7 +394,7 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
         java.net.http.WebSocket.Builder builder = client.newWebSocketBuilder().header("Origin", "http://evil.example");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> builder.buildAsync(
-                java.net.URI.create("ws://localhost:" + port + "/api/v1/chat/ws?ticket=x"),
+                java.net.URI.create("ws://localhost:" + port + "/api/chat/v1/ws?ticket=x"),
                 new java.net.http.WebSocket.Listener() { }).join()).hasStackTraceContaining("403");
     }
 
@@ -412,14 +415,14 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         assertThat(changed.path("payload").path("status").asText()).isEqualTo("READ_ONLY");
         assertThat(changed.path("payload").path("context_status").asText()).isEqualTo("CANCELLED");
 
-        ResponseEntity<JsonNode> write = call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/messages", token(OFFERER),
+        ResponseEntity<JsonNode> write = call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/messages", token(OFFERER),
                 Map.of("client_message_id", "late", "body", "¿sigues ahí?"));
         assertThat(write.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(write.getBody().path("code").asText()).isEqualTo("CHAT_CONVERSATION_READ_ONLY");
         client.send("message.send", "f-2", send(id, "cid-late", "tarde"));
         assertThat(client.await("error", Duration.ofSeconds(10)).path("payload").path("code").asText())
                 .isEqualTo("CHAT_CONVERSATION_READ_ONLY");
-        assertThat(get("/api/v1/chat/conversations/" + id + "/messages", OFFERER).getBody().path("items")).hasSize(1);
+        assertThat(get("/api/chat/v1/conversations/" + id + "/messages", OFFERER).getBody().path("items")).hasSize(1);
     }
 
     @Test
@@ -430,15 +433,15 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         publishEvent("serviya.requests", "requests.service_request.status_changed", UUID.randomUUID().toString(),
                 Instant.now().plusSeconds(5), Map.of("request_id", cancelledRequest, "status", "CANCELLED"));
         await().atMost(Duration.ofSeconds(15)).until(() ->
-                get("/api/v1/chat/conversations/" + cancelled, CLIENT).getBody().path("status").asText().equals("READ_ONLY"));
+                get("/api/chat/v1/conversations/" + cancelled, CLIENT).getBody().path("status").asText().equals("READ_ONLY"));
 
-        assertThat(ids(get("/api/v1/chat/conversations?status=ACTIVE", CLIENT))).containsExactly(open);
-        assertThat(ids(get("/api/v1/chat/conversations?status=READ_ONLY", CLIENT))).containsExactly(cancelled);
-        assertThat(ids(get("/api/v1/chat/conversations?request_status=CANCELLED", CLIENT))).containsExactly(cancelled);
-        assertThat(ids(get("/api/v1/chat/conversations?request_status=PENDING,CANCELLED", CLIENT))).containsExactlyInAnyOrder(open, cancelled);
-        assertThat(ids(get("/api/v1/chat/conversations?status=ACTIVE&request_status=CANCELLED", CLIENT))).isEmpty();
-        assertThat(get("/api/v1/chat/conversations?status=NOPE", CLIENT).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(get("/api/v1/chat/conversations?cursor=%%%", CLIENT).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(ids(get("/api/chat/v1/conversations?status=ACTIVE", CLIENT))).containsExactly(open);
+        assertThat(ids(get("/api/chat/v1/conversations?status=READ_ONLY", CLIENT))).containsExactly(cancelled);
+        assertThat(ids(get("/api/chat/v1/conversations?request_status=CANCELLED", CLIENT))).containsExactly(cancelled);
+        assertThat(ids(get("/api/chat/v1/conversations?request_status=PENDING,CANCELLED", CLIENT))).containsExactlyInAnyOrder(open, cancelled);
+        assertThat(ids(get("/api/chat/v1/conversations?status=ACTIVE&request_status=CANCELLED", CLIENT))).isEmpty();
+        assertThat(get("/api/chat/v1/conversations?status=NOPE", CLIENT).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(get("/api/chat/v1/conversations?cursor=%%%", CLIENT).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     private static List<Long> ids(ResponseEntity<JsonNode> response) {
@@ -455,7 +458,7 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         List<Long> seen = new ArrayList<>();
         String cursor = null;
         for (int page = 0; page < 10; page++) {
-            JsonNode body = get("/api/v1/chat/conversations?limit=2" + (cursor == null ? "" : "&cursor=" + cursor), CLIENT).getBody();
+            JsonNode body = get("/api/chat/v1/conversations?limit=2" + (cursor == null ? "" : "&cursor=" + cursor), CLIENT).getBody();
             body.path("items").forEach(n -> seen.add(n.path("id").asLong()));
             if (body.path("next_cursor").isNull()) {
                 break;
@@ -506,6 +509,67 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         assertThat(amqp.receive("chat-service.requests.dlq", 20_000)).isNotNull();
     }
 
+    // ================= contrato con el productor real (monolito: ChatEventPublisher) =================
+
+    /** JSON con la forma EXACTA que serializa DomainEventOutboxPersistenceAdapter del monolito. */
+    private void publishLikeMonolith(String exchange, String type, String subject, String dataJson) {
+        String body = "{\"event_id\":\"" + UUID.randomUUID() + "\",\"event_type\":\"" + type + "\",\"event_version\":1,"
+                + "\"occurred_at\":\"" + Instant.now() + "\",\"producer\":\"serviya-monolith\",\"subject\":\"" + subject + "\","
+                + "\"correlation_id\":null,\"causation_id\":null,\"data\":" + dataJson + "}";
+        amqp.send(exchange, type, MessageBuilder.withBody(body.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .setContentType(MessageProperties.CONTENT_TYPE_JSON).build());
+    }
+
+    @Test
+    void los_eventos_con_la_forma_exacta_del_monolito_se_consumen_y_los_tipos_desconocidos_se_ignoran() throws Exception {
+        long requestId = REQUEST_IDS.incrementAndGet();
+        publishLikeMonolith("serviya.users", "users.user.registered", "user/" + OFFERER,
+                "{\"user_id\":" + OFFERER + ",\"display_name\":\"Beto Oferente\",\"avatar_url\":null,\"roles\":[\"OFFERER\"],\"status\":\"ACTIVE\"}");
+        publishLikeMonolith("serviya.requests", "requests.service_request.created", "service_request/" + requestId,
+                "{\"request_id\":" + requestId + ",\"client_id\":" + CLIENT + ",\"offerer_id\":" + OFFERER
+                        + ",\"service_id\":3,\"status\":\"PENDING\",\"created_at\":\"2026-11-09T12:00:00\"}");
+        // display_name null en updated = «no cambió»
+        publishLikeMonolith("serviya.users", "users.user.updated", "user/" + OFFERER,
+                "{\"user_id\":" + OFFERER + ",\"display_name\":null,\"avatar_url\":\"http://img/beto.png\"}");
+        // un tipo que el chat no usa llega por el comodín y NO debe ir a la DLQ
+        publishLikeMonolith("serviya.requests", "requests.service_request.accepted", "service_request/" + requestId,
+                "{\"request_id\":" + requestId + "}");
+
+        await().atMost(Duration.ofSeconds(15)).until(() ->
+                get("/api/chat/v1/conversations/by-request/" + requestId, CLIENT).getStatusCode() == HttpStatus.OK);
+        await().atMost(Duration.ofSeconds(15)).until(() -> "http://img/beto.png".equals(jdbc.queryForList(
+                "SELECT avatar_url FROM user_directory WHERE user_id = ?", String.class, OFFERER).stream().findFirst().orElse(null)));
+        JsonNode item = get("/api/chat/v1/conversations", CLIENT).getBody().path("items").get(0);
+        assertThat(item.path("counterpart").path("display_name").asText()).isEqualTo("Beto Oferente");
+
+        publishLikeMonolith("serviya.requests", "requests.service_request.status_changed", "service_request/" + requestId,
+                "{\"request_id\":" + requestId + ",\"previous_status\":\"PENDING\",\"status\":\"REJECTED\",\"changed_by\":"
+                        + OFFERER + ",\"changed_at\":\"2026-11-09T12:05:00\"}");
+        await().atMost(Duration.ofSeconds(15)).until(() -> "READ_ONLY".equals(
+                get("/api/chat/v1/conversations/by-request/" + requestId, CLIENT).getBody().path("status").asText()));
+        assertThat(amqp.receive("chat-service.requests.dlq", 1000)).as("nada a la DLQ").isNull();
+        assertThat(amqp.receive("chat-service.users.dlq", 1000)).isNull();
+    }
+
+    @Test
+    void los_eventos_que_publica_el_chat_llevan_el_sobre_acordado_con_subject_y_causalidad() throws Exception {
+        String causingEvent = UUID.randomUUID().toString();
+        long requestId = REQUEST_IDS.incrementAndGet();
+        publishEvent("serviya.requests", "requests.service_request.created", causingEvent, Instant.now(),
+                Map.of("request_id", requestId, "client_id", CLIENT, "offerer_id", OFFERER, "status", "PENDING"));
+        await().atMost(Duration.ofSeconds(15)).until(() ->
+                get("/api/chat/v1/conversations/by-request/" + requestId, CLIENT).getStatusCode() == HttpStatus.OK);
+        long id = get("/api/chat/v1/conversations/by-request/" + requestId, CLIENT).getBody().path("id").asLong();
+
+        JsonNode created = relayAndCapture().stream()
+                .filter(n -> "chat.conversation.created".equals(n.path("event_type").asText())).findFirst().orElseThrow();
+        assertThat(created.path("producer").asText()).isEqualTo("chat-service");
+        assertThat(created.path("subject").asText()).isEqualTo("conversation/" + id);
+        assertThat(created.path("causation_id").asText()).isEqualTo(causingEvent);
+        assertThat(created.path("event_version").asInt()).isEqualTo(1);
+        assertThat(created.path("correlation_id").asText()).isNotBlank();
+    }
+
     // ================= usuarios (RF-CHAT-30) =================
 
     @Test
@@ -518,20 +582,40 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         await().atMost(Duration.ofSeconds(15)).until(() -> "SUSPENDED".equals(
                 jdbc.queryForList("SELECT status FROM user_directory WHERE user_id = ?", String.class, CLIENT).stream().findFirst().orElse("")));
 
-        ResponseEntity<JsonNode> blocked = call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/messages", token(CLIENT),
+        ResponseEntity<JsonNode> blocked = call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/messages", token(CLIENT),
                 Map.of("client_message_id", "a", "body", "hola"));
         assertThat(blocked.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(blocked.getBody().path("code").asText()).isEqualTo("CHAT_USER_SUSPENDED");
         // la conexión WebSocket de un suspendido se cierra con 4403
-        ResponseEntity<JsonNode> ticket = call(HttpMethod.POST, "/api/v1/chat/ws-tickets", token(CLIENT), null);
-        WsTestClient ws = WsTestClient.connect("ws://localhost:" + port + "/api/v1/chat/ws?ticket=" + ticket.getBody().path("ticket").asText());
+        ResponseEntity<JsonNode> ticket = call(HttpMethod.POST, "/api/chat/v1/ws-tickets", token(CLIENT), null);
+        WsTestClient ws = WsTestClient.connect("ws://localhost:" + port + "/api/chat/v1/ws?ticket=" + ticket.getBody().path("ticket").asText());
         clients.add(ws);
         assertThat(ws.awaitClose(Duration.ofSeconds(10))).isEqualTo(4403);
 
         publishEvent("serviya.users", "users.user.reactivated", UUID.randomUUID().toString(), Instant.now().plusSeconds(2),
                 Map.of("user_id", CLIENT));
-        await().atMost(Duration.ofSeconds(15)).until(() -> call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/messages",
+        await().atMost(Duration.ofSeconds(15)).until(() -> call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/messages",
                 token(CLIENT), Map.of("client_message_id", "b", "body", "hola")).getStatusCode() == HttpStatus.CREATED);
+    }
+
+    // ================= permisos del usuario RabbitMQ `chat` (infra/rabbitmq/setup-topology.sh) =================
+
+    @Test
+    void el_usuario_chat_no_puede_publicar_en_los_exchanges_de_otros_dominios_pero_si_en_los_suyos() {
+        for (String foreign : new String[] {"serviya.requests", "serviya.users"}) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> chatRabbit.invoke(ops -> {
+                ops.convertAndSend(foreign, "requests.service_request.created", "{}");
+                ops.waitForConfirmsOrDie(3000);
+                return null;
+            })).as("publicar en " + foreign).hasStackTraceContaining("ACCESS_REFUSED");
+        }
+        for (String own : new String[] {"serviya.chat", "serviya.notifications"}) {
+            chatRabbit.invoke(ops -> {
+                ops.convertAndSend(own, "test.permissions", "{}");
+                ops.waitForConfirmsOrDie(3000);
+                return null;
+            });
+        }
     }
 
     // ================= eventos salientes: outbox → RabbitMQ =================
@@ -593,7 +677,7 @@ class ChatEndToEndIntegrationTest extends IntegrationTestBase {
         var docker = org.testcontainers.DockerClientFactory.instance().client();
         docker.pauseContainerCmd(rabbit.getContainerId()).exec();
         try {
-            ResponseEntity<JsonNode> sent = call(HttpMethod.POST, "/api/v1/chat/conversations/" + id + "/messages", token(CLIENT),
+            ResponseEntity<JsonNode> sent = call(HttpMethod.POST, "/api/chat/v1/conversations/" + id + "/messages", token(CLIENT),
                     Map.of("client_message_id", "durante-la-caida", "body", "Hola"));
             assertThat(sent.getStatusCode()).isEqualTo(HttpStatus.CREATED);     // el negocio no se entera de la caída
             assertThat(outbox.publishPendingBatch()).isZero();                  // el relay falla…

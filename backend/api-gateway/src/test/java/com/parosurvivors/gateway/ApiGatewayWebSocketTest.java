@@ -19,8 +19,8 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
 /**
- * El gateway debe reenviar el upgrade WebSocket de {@code /api/v1/chat/ws} al chat, con su query string (el ticket
- * de un solo uso viaja ahí). Un servidor WebSocket mínimo hace de chat-service y responde con eco.
+ * El gateway debe reenviar el upgrade WebSocket de {@code /api/chat/v1/ws} al chat, con su query string (el ticket
+ * de un solo uso viaja ahí) y conservando {@code Origin} (el chat lo valida en el handshake). Un servidor WebSocket mínimo hace de chat-service y responde con eco.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ApiGatewayWebSocketTest {
@@ -28,7 +28,8 @@ class ApiGatewayWebSocketTest {
     /** Eco que antepone la URI recibida: así se comprueba que el ticket de la query llega al chat. */
     private static final DisposableServer CHAT = HttpServer.create().host("127.0.0.1").port(0)
             .handle((req, res) -> res.sendWebsocket((in, out) ->
-                    out.sendString(in.receive().asString().map(text -> "echo " + req.uri() + " " + text))))
+                    out.sendString(in.receive().asString().map(text -> "echo " + req.uri()
+                            + " origin=" + req.requestHeaders().get("Origin") + " " + text))))
             .bindNow();
 
     @LocalServerPort int port;
@@ -36,6 +37,7 @@ class ApiGatewayWebSocketTest {
     @DynamicPropertySource
     static void routes(DynamicPropertyRegistry registry) {
         registry.add("CHAT_SERVICE_URI", () -> "http://127.0.0.1:" + CHAT.port());
+        registry.add("CHAT_WS_URI", () -> "ws://127.0.0.1:" + CHAT.port());
     }
 
     @AfterAll
@@ -46,13 +48,15 @@ class ApiGatewayWebSocketTest {
     @Test
     void el_upgrade_websocket_del_chat_atraviesa_el_gateway_en_ambos_sentidos() {
         List<String> received = new ArrayList<>();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setOrigin("http://localhost:5173");
         new ReactorNettyWebSocketClient().execute(
-                URI.create("ws://localhost:" + port + "/api/v1/chat/ws?ticket=abc123"),
+                URI.create("ws://localhost:" + port + "/api/chat/v1/ws?ticket=abc123"), headers,
                 session -> session.send(Mono.just(session.textMessage("hola")))
                         .thenMany(session.receive().map(WebSocketMessage::getPayloadAsText).take(1).doOnNext(received::add))
                         .then())
                 .block(Duration.ofSeconds(10));
 
-        assertThat(received).containsExactly("echo /api/v1/chat/ws?ticket=abc123 hola");
+        assertThat(received).containsExactly("echo /api/chat/v1/ws?ticket=abc123 origin=http://localhost:5173 hola");
     }
 }

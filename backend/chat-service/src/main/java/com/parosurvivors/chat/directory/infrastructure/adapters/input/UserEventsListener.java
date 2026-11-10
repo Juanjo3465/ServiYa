@@ -7,8 +7,6 @@ import com.parosurvivors.chat.shared.infrastructure.messaging.EventEnvelope;
 import com.parosurvivors.chat.shared.infrastructure.messaging.ProcessedEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -32,7 +30,7 @@ class UserEventsListener {
     @RabbitListener(queues = ChatMessagingConfig.USERS_QUEUE)
     void onMessage(Message amqp) {
         EventEnvelope event = EventEnvelope.parse(mapper, amqp.getBody());
-        MDC.put("correlationId", event.eventId());
+        EventEnvelope.bindTracing(event);
         try {
             if (processed.alreadyProcessed(event.eventId())) {
                 log.info("Evento {} ya procesado: se ignora", event.eventId());
@@ -47,11 +45,15 @@ class UserEventsListener {
                 case ChatMessagingConfig.USER_SUSPENDED -> projection.suspend(userId, event.occurredAt());
                 case ChatMessagingConfig.USER_REACTIVATED -> projection.reactivate(userId, event.occurredAt());
                 case ChatMessagingConfig.USER_DELETED -> projection.delete(userId, event.occurredAt());
-                default -> throw new AmqpRejectAndDontRequeueException("Tipo de evento no soportado: " + event.eventType());
+                default -> {
+                    // Tipo nuevo del productor que el chat no usa: se confirma y se ignora (contrato §4).
+                    log.debug("Evento {} de tipo {} ignorado", event.eventId(), event.eventType());
+                    return;
+                }
             }
             processed.markProcessed(event.eventId(), event.eventType());
         } finally {
-            MDC.remove("correlationId");
+            EventEnvelope.clearTracing();
         }
     }
 }
