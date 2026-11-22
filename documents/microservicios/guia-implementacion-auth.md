@@ -92,7 +92,7 @@ Este plan **no es greenfield**: se apoya en infraestructura y decisiones ya toma
 
 - **`min_iat` resuelve M34 de paso.** Hoy el monolito **relee roles + `isActive` de BD en cada request** (fix B15, `JwtAuthenticationFilter.revalidateRoles`). Con access tokens cortos + `min_iat`, esa consulta por-request desaparece: la revocación es inmediata vía `min_iat` y los roles se refrescan en el refresh. La Fase 4 **elimina** esa relectura.
 - **Divergencia de `notifications-service` resuelta.** Hoy notif no puede mirar `isActive` (no es su tabla) → un baneado conserva su bandeja hasta expirar el token. Con `min_iat` en el gateway, eso se cierra sin que notif consulte nada.
-- **Bug sistémico de `@Version` (ESTADO §8, CRÍTICO abierto).** `acquireRole` y los nuevos writes de `refresh_tokens` tocan el módulo `users`: cuidado con el `version = null` en `save(mapper.toEntity(dominio))`. No lo resuelve este plan, pero las tareas de Fase 1/2 que escriban en `users` deben contemplarlo.
+- **Bug sistémico de `@Version` (ESTADO §8 / B16) — RESUELTO 2026-11-22.** Era un hazard para los writes de `users` (`acquireRole`, `refresh_tokens`): `save(mapper.toEntity(dominio))` con `version = null`. Se arregló con la opción (a): `version` llevado al dominio (29 agregados) + round-trip en mappers. Las Fases 1/2 lo habían esquivado con `@Modifying` bulk (sigue válido). **Ya no bloquea Fase 8A Slices 2–3**, que mueven esos writes a identity.
 - **JDK (P1.7):** el repo tiene una situación conocida de JDK (target 21, `java` del PATH es JDK 20); los contenedores usan `eclipse-temurin:21`. Como el CVE-2022-21449 afecta JDK 15–18, el runtime (21) está a salvo; solo confirmar que ningún entorno firme/verifique con un JDK 15–18.
 
 ---
