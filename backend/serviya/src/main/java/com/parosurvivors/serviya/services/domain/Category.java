@@ -15,6 +15,9 @@ import lombok.Setter;
 public class Category {
     
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private String name;
 
 }

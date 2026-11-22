@@ -21,6 +21,9 @@ import java.time.LocalDateTime;
 @Builder
 public class RescheduleProposal {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Long version;
     private Long requestId;
     /** Denormalizados desde la solicitud (inmutables): la parte cliente y oferente de la propuesta. */
     private Long clientId;

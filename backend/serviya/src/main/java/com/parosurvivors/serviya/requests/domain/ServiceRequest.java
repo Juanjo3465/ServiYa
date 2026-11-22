@@ -26,6 +26,9 @@ import java.time.LocalDateTime;
 @Builder(toBuilder = true)
 public class ServiceRequest {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long serviceId;
     private Long previousRequestId;
     private Long clientId;

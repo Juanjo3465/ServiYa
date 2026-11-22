@@ -76,6 +76,29 @@ class CategoryPersistenceAdapterTest {
     }
 
     @Test
+    void versionRoundTripsForOptimisticLock_B16() {
+        // B16 (regresión de B10): en un UPDATE la version de la fila debe viajar
+        // entidad -> dominio -> entidad. Si se perdiera (version=null), Spring Data
+        // trataría el save como INSERT y Hibernate lanzaría "detached entity ...
+        // uninitialized version value 'null'". Este adapter es hecho a mano.
+        CategoryEntity existing = entityCategory();
+        existing.setVersion(3);
+        when(repository.findById(CATEGORY_ID)).thenReturn(Optional.of(existing));
+
+        Category loaded = adapter.findById(CATEGORY_ID).orElseThrow();
+        assertThat(loaded.getVersion()).isEqualTo(3);
+
+        when(repository.save(any(CategoryEntity.class))).thenReturn(existing);
+        adapter.save(loaded);
+
+        ArgumentCaptor<CategoryEntity> captor = ArgumentCaptor.forClass(CategoryEntity.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getVersion())
+                .as("la version debe preservarse para que el save sea un merge, no un insert")
+                .isEqualTo(3);
+    }
+
+    @Test
     void saveConvertsAndPersists() {
         Category domain = domainCategory();
         CategoryEntity saved = entityCategory();

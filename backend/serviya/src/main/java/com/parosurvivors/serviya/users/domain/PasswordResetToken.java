@@ -20,6 +20,9 @@ import java.time.LocalDateTime;
 @Builder
 public class PasswordResetToken {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long userId;
     private String tokenHash;
     private LocalDateTime expiresAt;

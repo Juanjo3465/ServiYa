@@ -23,6 +23,9 @@ import java.time.LocalDateTime;
 @Builder
 public class Report {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long reporterId;
     private Long reportedUserId;
     private ReportType reportType;

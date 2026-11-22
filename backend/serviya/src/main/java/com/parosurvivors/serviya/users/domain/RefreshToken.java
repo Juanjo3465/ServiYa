@@ -24,6 +24,9 @@ import lombok.NoArgsConstructor;
 public class RefreshToken {
 
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long userId;
     /** Identifica la cadena de rotaciones de una sesión; se conserva al rotar. */
     private String familyId;

@@ -18,6 +18,9 @@ import java.time.LocalDateTime;
 @Builder
 public class OffererProfile {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long userId;
     private String whatsappNumber;
     private String publicDescription;

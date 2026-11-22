@@ -44,15 +44,17 @@ public class CategoryPersistenceAdapter implements CategoryPersistencePort {
     private CategoryEntity toDomainEntity(Category domain) {
         CategoryEntity entity = new CategoryEntity();
         entity.setId(domain.getId());
+        entity.setVersion(domain.getVersion());
         entity.setName(domain.getName());
         return entity;
     }
 
     private Category toDomainModel(CategoryEntity entity) {
-        return new Category(
-                entity.getId(),
-                entity.getName()
-        );
+        return Category.builder()
+                .id(entity.getId())
+                .version(entity.getVersion())
+                .name(entity.getName())
+                .build();
     }
 
     

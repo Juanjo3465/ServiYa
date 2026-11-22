@@ -17,6 +17,9 @@ import java.util.List;
 @Builder
 public class Service {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long offererId;
     private String title;
     private String description;

@@ -17,5 +17,8 @@ import lombok.Setter;
 @Builder
 public class Role {
     private Integer id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private RoleName name;
 }

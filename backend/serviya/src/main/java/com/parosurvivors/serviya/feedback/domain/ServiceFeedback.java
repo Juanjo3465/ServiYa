@@ -24,6 +24,9 @@ import java.util.List;
 @Builder
 public class ServiceFeedback {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long requestId;
     private Long clientId;
     /** Servicio reseñado, denormalizado desde la solicitud para listar reseñas por servicio sin JOIN. */

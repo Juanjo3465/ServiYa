@@ -17,6 +17,9 @@ import lombok.Setter;
 @Builder
 public class RequestReport {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long reportId;
     private Long requestId;
 }

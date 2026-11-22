@@ -21,6 +21,9 @@ import java.time.LocalDateTime;
 @Builder
 public class OffererMetrics {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Long version;
     private Long offererId;
     @Builder.Default
     private BigDecimal averageRating = BigDecimal.ZERO;

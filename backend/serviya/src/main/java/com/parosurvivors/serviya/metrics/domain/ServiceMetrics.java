@@ -22,6 +22,9 @@ import java.time.LocalDateTime;
 @Builder
 public class ServiceMetrics {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Long version;
     private Long serviceId;
     @Builder.Default
     private BigDecimal averageRating = BigDecimal.ZERO;

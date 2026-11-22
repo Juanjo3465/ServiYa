@@ -21,6 +21,9 @@ import java.time.LocalDateTime;
 @Builder
 public class Address {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long userId;
     private String addressLine;
     private String city;

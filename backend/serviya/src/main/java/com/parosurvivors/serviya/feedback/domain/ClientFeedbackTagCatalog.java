@@ -17,6 +17,9 @@ import lombok.Setter;
 @Builder
 public class ClientFeedbackTagCatalog {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private String tagName;
     private TagSentiment sentiment;
 

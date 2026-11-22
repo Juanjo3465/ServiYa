@@ -16,6 +16,9 @@ import lombok.Builder;
 @Builder
 public class ServiceAvailability {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long serviceId;
     private byte weekDay;        // Cambio 1
     private LocalTime startTime;

@@ -16,6 +16,9 @@ import lombok.Setter;
 @Builder
 public class ServiceTagMetrics {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Long version;
     private Long tagId;
     private Long serviceId;
     @Builder.Default

@@ -25,6 +25,9 @@ import com.parosurvivors.serviya.shared.exceptions.InvalidStateException;
 @Builder
 public class User {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private String email;
     private String passwordHash;
     @Builder.Default

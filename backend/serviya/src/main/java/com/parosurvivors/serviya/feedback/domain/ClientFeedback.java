@@ -25,6 +25,9 @@ import java.util.List;
 @Builder
 public class ClientFeedback {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long requestId;
     private Long offererId;
     private Long clientId;

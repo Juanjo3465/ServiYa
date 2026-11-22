@@ -19,6 +19,9 @@ import java.time.LocalTime;
 @Builder
 public class OffererAvailability {
     private Long id;
+
+    // Bloqueo optimista (B16): round-trip de @Version entidad<->dominio.
+    private Integer version;
     private Long offererId;
     // Weekday is an integer with an ID for day, 0 for monday 6 for sunday
     private Integer weekDay;
