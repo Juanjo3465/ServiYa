@@ -635,6 +635,52 @@ _(completar durante la implementación)_
 
 **Prerrequisitos:** Fase 7 estable en producción. **Release separado.**
 
+---
+
+### Fase 8A — separación SIN separar BD (primer corte, en curso desde 2026-11-10)
+
+**Decisión del usuario (2026-11-10):** empezar la separación de identidad **antes** de Fase 7 y **sin separar
+la base de datos**. Es un corte incremental que levanta el servicio de identidad como deployable propio
+**compartiendo el MySQL del monolito**, difiriendo toda la separación de datos (FKs, réplica por eventos,
+migración = los bloqueantes P8.1–P8.8) a una **Fase 8B** posterior.
+
+**Habilitador:** el acoplamiento de `users` con el resto del monolito ya está **detrás de una fachada limpia**
+`users.api` (`UserQueryApi`, `UserCommandApi`, `UserContactApi` + DTOs); el javadoc ya la llama "de identity".
+Solo dos usos la saltan: `config/SecurityConfig` (clases JWT de `users` para verificar → se desacopla) y
+`JwtService` (vive dentro de `users` → se va con identity).
+
+**Estrategia de lecturas (decisión 2026-11-10): B — lecturas por BD compartida, escrituras/auth remotas.**
+El monolito **conserva `UserQueryApi`/`UserContactApi` leyendo las tablas `users`/`roles` compartidas** (sin
+salto de red en reports/stats/admin). Solo **auth + escrituras** se mueven a identity; `UserCommandApi` del
+monolito pasa a **cliente HTTP** → identity. Identity es el **único ESCRITOR** de la identidad; mapea las
+tablas con `ddl-auto: validate` (el esquema lo sigue gobernando `create_database.sql` + el `update` del
+monolito; **sin Flyway**, a diferencia de notif, porque la BD es compartida).
+
+**Slicing:**
+- [x] **Slice 0 — andamiaje** (2026-11-10). `backend/identity-service/` arranca: pom (web, data-jpa, security,
+  oauth2-resource-server, data-redis, actuator+prometheus, resilience4j, jjwt+nimbus, mysql, springdoc,
+  mapstruct/lombok), `IdentityServiceApplication`, `application.yaml` (BD compartida, puerto 8083, management
+  9090 no publicado), `SecurityConfig` placeholder (`permitAll`), Dockerfile. **No mueve código ni toca el
+  sistema corriendo.** Compila (BUILD SUCCESS).
+- [ ] **Slice 1 — emisor + JWKS.** Mover `JwtService` (emisor ES256), `JwtKeys`/`JwtProperties`,
+  `JwksController` (`/.well-known/jwks.json`) a identity. Repuntar `JWT_JWKS_URI` del **gateway** y del **chat**
+  del monolito (`:8079`) a identity. El monolito deja de ser emisor/JWKS (ya es resource server desde 4A).
+- [ ] **Slice 2 — auth.** Mover `AuthController` (`/api/v1/auth/**`), `RefreshTokenService`, el **escritor de
+  `min_iat`** (`RedisTokenRevocationAdapter`), reset de contraseña y los schedulers de limpieza. Añadir la ruta
+  `/api/v1/auth/**` → identity en el gateway. Identity pasa a emisor **+ resource server** (verifica su propio
+  access token con su clave pública) con la matriz de autorización que traía el monolito.
+- [ ] **Slice 3 — admin de usuarios + escrituras.** Mover la gestión admin de usuarios y la impl de
+  `UserCommandApi`; en el monolito, `UserCommandApi` se vuelve **cliente HTTP** → identity (admin/moderation).
+  `UserQueryApi`/`UserContactApi` se quedan leyendo la BD compartida (Estrategia B).
+- [ ] **Slice 4 — monolito resource server puro.** Desacoplar `config/SecurityConfig` de
+  `users.infrastructure.security.*` (copia propia de verificación en el monolito). `compose` + gateway
+  cableados; e2e desde cero.
+
+**Lo que NO hace 8A (queda para 8B = la Fase 8 "clásica" de abajo):** BD propia de identidad, quitar FKs,
+réplica de lectura por eventos, outbox de eventos de identidad, migración de datos y los bloqueantes P8.1–P8.8.
+
+---
+
 ### Pendientes bloqueantes
 
 - [ ] **P8.1. Efectos de dominio del baneo.** ¿Qué pasa con las publicaciones activas, los pedidos en curso y los pagos pendientes de un vendedor baneado? ¿Y de un comprador?

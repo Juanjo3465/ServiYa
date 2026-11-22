@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: identity
+  # Redis: RedisTemplate directo (no repos Redis) con usuario de servicio de mínimo privilegio (como el
+  # monolito). Se excluyen los autoconfigs que asumen lo contrario. (Se cablea en el Slice del min_iat writer.)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisHealthContributorAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.data.redis.RedisReactiveHealthContributorAutoConfiguration
+  # BD COMPARTIDA con el monolito (Fase 8A: "sin separar BD"). Mismas credenciales/URL que el monolito
+  # (jdbc:mysql://.../marketplace_services). Identity es el ESCRITOR de la identidad.
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      # validate (NO update): el esquema de las tablas de usuario lo gobierna create_database.sql + el
+      # ddl-auto del monolito. Identity solo valida que sus entidades casen; no modifica el esquema compartido.
+      ddl-auto: ${DDL_AUTO:validate}
+    show-sql: false
+
+server:
+  port: ${SERVER_PORT:8083}
+  error:
+    include-stacktrace: never
+    include-message: never
+  forward-headers-strategy: native
+
+logging:
+  # Correlation-id (X-Request-Id) en cada línea de log (T6.4), como los demás servicios servlet. El filtro
+  # MDC se añade cuando identity reciba tráfico propio (Slice 1+).
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
+management:
+  # Puerto de gestión SEPARADO y NO publicado al host (como monolito/notif): /prometheus solo alcanzable por
+  # la red interna.
+  server:
+    port: ${MANAGEMENT_PORT:9090}
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  packages-to-scan: com.parosurvivors.identity
