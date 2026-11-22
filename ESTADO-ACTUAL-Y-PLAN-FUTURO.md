@@ -41,9 +41,13 @@
 - **Riesgo #1 — autorización**: el modelo es solo URL-matchers con `anyRequest().permitAll()` por
   defecto y **cero `@PreAuthorize`**. Hay **IDOR explotables, varios sin autenticar**, en escrituras de
   `services`, `addresses` y `categories` (§3.1/§4). Es el hallazgo más grave.
-- **Riesgo #2 — concurrencia**: **sin `@Version` en ninguna entidad**; métricas con lost-update;
-  propuestas de reprogramación duplicables por carrera; `@Scheduled` sin lock distribuido (bloquea el
-  escalado horizontal).
+- **Riesgo #2 — concurrencia** (ACTUALIZADO 2026-11-22): el diagnóstico original (sin `@Version`;
+  lost-update en métricas; propuestas duplicables; `@Scheduled` sin lock) fue **resuelto** por los fixes
+  `fix/B7/B8/B9/B10` (mergeados en `main` **y** `api-gateway`; veredictos en §4.1). **`@Version` está hoy
+  en ~32 entidades** (todas las de dominio mutables). ⚠️ Pero B10 **introdujo una regresión CRÍTICA aún
+  abierta** → **B16 / §8**: el dominio no carga la versión, así que los `update` hacen
+  `save(toEntity(dominio))` con `version = null` y Hibernate lanza 500 en escrituras (p. ej.
+  `PATCH /users/me/profile`). Verificado en código el 2026-11-22.
 - **Riesgo #3 — pruebas**: cobertura de **integración casi nula** (1 `@SpringBootTest` de contexto, 1
   controller probado de ~15); **`feedback` y `metrics` con 0 tests**. Nada detectaría las regresiones de
   los dos riesgos anteriores (§3.7).
@@ -261,16 +265,23 @@ oferente/admin cableados a API. Ver §3.6 para lo arquitectónico y §4/§5 para
 
 ### 3.2 Concurrencia y consistencia
 
-- **[ALTO] Sin `@Version` (bloqueo optimista) en NINGUNA entidad.** Lost-update en métricas y en
-  las transiciones de solicitudes bajo concurrencia.
-- **[ALTO] Métricas con read-modify-write no atómico** (`metrics` §2.3/M6). `registerRating`
-  (media acumulada) es el caso más frágil.
-- **[ALTO] Propuestas de reprogramación PENDING duplicadas por carrera** (`createProposal` sin
-  índice único parcial ni lock pesimista).
-- **[ALTO] `@Scheduled` sin lock distribuido** (requests: 4 tareas; notifications: reintento) →
-  **doble ejecución al escalar a >1 instancia**. Bloquea el escalado horizontal y la migración.
-- **[MEDIO] Eventos in-process sin outbox/idempotencia** → al pasar a broker, riesgo de doble
-  procesamiento (métricas infladas).
+> **ACTUALIZADO 2026-11-22:** los cuatro primeros hallazgos (diagnóstico original) se **resolvieron** con
+> `fix/B7/B8/B9/B10` (mergeados en `main` y `api-gateway`; §4.1). Se conservan tachados abajo con su estado
+> real. El único derivado abierto es la **regresión de `@Version`** que B10 introdujo (**B16 / §8**).
+
+- ~~**[ALTO] Sin `@Version` en NINGUNA entidad.**~~ **RESUELTO (B10)**: `@Version` en ~32 entidades de
+  dominio (faltan solo outbox/auditoría, donde es innecesario). ⚠️ **Pero** quedó la regresión **B16/§8**
+  (`save(toEntity)` con `version=null` → 500 en los `update`).
+- ~~**[ALTO] Métricas con read-modify-write no atómico.**~~ **RESUELTO parcial (B7)**: `@Version` evita la
+  corrupción silenciosa (lanza `OptimisticLockException`); falta *retry*/contador atómico SQL → **M2/M40**.
+- ~~**[ALTO] Propuestas de reprogramación PENDING duplicadas por carrera.**~~ **RESUELTO (B8)**: índice
+  único parcial (columna generada `VIRTUAL`) + `@Version` + retry ante `DataIntegrityViolationException`.
+- ~~**[ALTO] `@Scheduled` sin lock distribuido.**~~ **RESUELTO (B9)**: lock propio sobre `redis-coord`
+  (ShedLock descartado, D-04; §6.6). Ya no bloquea el escalado horizontal.
+- **[MEDIO, ABIERTO] Eventos in-process sin outbox/idempotencia** → al pasar a broker, riesgo de doble
+  procesamiento (métricas infladas). *(Nota 2026-11-22: ya existe `DomainEventOutboxEntity` (outbox de
+  eventos de dominio, usado por la integración de chat); la idempotencia de los listeners de `metrics`
+  sigue pendiente.)*
 
 ### 3.3 Acoplamiento y cohesión (grafo de dependencias)
 
@@ -375,6 +386,10 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 > `main`). Auditados **uno por uno** (código real verificado en el árbol mergeado, no solo los docs de
 > `documents/fixes/`) + smoke test e2e. Veredicto por fix y salvedades en **§4.1**. La tabla se conserva
 > como referencia histórica del problema original.
+>
+> **⚠️ ACTUALIZADO 2026-11-22:** las 14 ramas `fix/*` están mergeadas en `main` **y** `api-gateway`
+> (verificado por `merge-base`). **Excepción abierta:** **B16** (abajo), la **regresión de `@Version`**
+> que el fix B10 introdujo — reconfirmada en código el 2026-11-22; es hoy el bug más grave abierto.
 |---|-----|--------|-----|-------|
 | B1 | CRÍTICO | services | Escrituras IDOR sin autenticar (update/delete/activate/deactivate/soft-delete) | `ServiceController` + `SecurityConfig` + `MarketplaceService` (sin check de dueño) |
 | B2 | CRÍTICO | profiles | IDOR sin autenticar en `PATCH/DELETE /addresses/{id}` | `AddressController` + `SecurityConfig` |
@@ -391,6 +406,7 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 | B13 | MEDIO | reports/admin | Listados cargan tabla completa y paginan en memoria | `ReportService.getReports`, `AdminService.searchFeedback` |
 | B14 | BAJO | notifications | IDOR leve en `markAsRead` | `NotificationController` |
 | B15 | BAJO | security | Roles del JWT no se revalidan por request | `JwtAuthenticationFilter` |
+| **B16** | **CRÍTICO (ABIERTO)** | global | **Regresión de B10:** `update` hace `save(toEntity(dominio))` con `version=null` (el dominio no lleva la versión) → 500 "detached entity … uninitialized version" en escrituras. Verificado 2026-11-22; bloquea Fase 8A Slices 2–3 | `*PersistenceAdapter.update()` (ej. `UserProfilePersistenceAdapter:30`), `*PersistenceMapper`, dominios sin `version`. Ver §8 |
 
 **Frontend:**
 
@@ -983,12 +999,19 @@ síncronas (los N+1 de §3.4 se vuelven N+1 de red); sagas sin compensación; so
 
 ## 8. Decisiones abiertas
 
-- **[NUEVO 2026-10-12, CRÍTICO] Bug sistémico de `@Version` (regresión de B10), confirmado en runtime**: 31
-  entidades tienen `@Version` pero ningún dominio lleva la versión; los `update` hacen
-  `repository.save(mapper.toEntity(dominio))` con `version = null` y Hibernate lo rechaza
-  (`PATCH /api/v1/users/me/profile` → 500, "Detached entity … uninitialized version value 'null'"). Ver
-  `documents/microservicios/notifications-service.md` §9.5. Decidir el arreglo (llevar `version` al dominio, o
-  actualizar cargando la entidad gestionada). Además, `GlobalExceptionHandler` no registra las excepciones genéricas.
+- **[2026-10-12 · RECONFIRMADO 2026-11-22 · CRÍTICO ABIERTO · = B16] Bug sistémico de `@Version` (regresión
+  de B10)**: las entidades tienen `@Version` pero **ningún dominio lleva la versión**; los `update` hacen
+  `repository.save(mapper.toEntity(dominio))` con `version = null` y Hibernate lo trata como entidad nueva →
+  500 ("Detached entity … uninitialized version value 'null'", p. ej. `PATCH /api/v1/users/me/profile`).
+  **Verificado en código el 2026-11-22** (rama `api-gateway`): el patrón sigue intacto en
+  `UserProfilePersistenceAdapter.update()` (línea 30) — dominio `UserProfile` sin `version`, mapper plano —
+  y aplica a todos los `*PersistenceAdapter.update()` análogos. **Ninguna de las 14 ramas `fix/*` lo tocó**
+  (B10 fue la que lo introdujo). El equipo de auth lo **esquivó** en Fases 1/2 usando `@Modifying` bulk para
+  `refresh_tokens`; **no** se arregló de raíz. **Bloquea Fase 8A (Slices 2–3)**, que mueven justo los paths
+  de escritura de usuario/perfil a identity. **Arreglo a decidir:** (a) llevar `version` al dominio y mapearla
+  (round-trip completo), o (b) `update` cargando la entidad gestionada (`findById` + copiar campos) en vez de
+  `save(toEntity)`. Además, `GlobalExceptionHandler` no registra las excepciones genéricas. Ref:
+  `documents/microservicios/notifications-service.md` §9.5.
 
 - Ubicación/nombre definitivo de este documento (hoy en la raíz del repo).
 - ¿`CLAUDE.md` se reescribe conciso apuntando aquí (recomendado) o se elimina? — pendiente de tu
