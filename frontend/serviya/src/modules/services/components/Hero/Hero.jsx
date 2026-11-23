@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useToast } from '../../../../shared/hooks/useToast';
 import { useNavigate } from 'react-router-dom';
 
 import "./Hero.css";
 
 
 export function Hero({ categories = [] }) {
-    const { showToast } = useToast();
     const [activeChip, setActiveChip] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState('');

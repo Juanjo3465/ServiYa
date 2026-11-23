@@ -741,8 +741,14 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   frontend corre `lint` como **advisory (no bloquea)** y gatea con **`build`** (que pasa). **Arreglado de paso:**
   el `no-undef 'process'` (3 ocurrencias en `App`/`ErrorPage`/`ErrorBoundary`) — `process.env.NODE_ENV` no
   existe en el navegador con Vite y estaba justo en los componentes de error (riesgo de doble fallo/pantalla en
-  blanco); migrado a `import.meta.env.DEV`. **Pendiente:** limpiar los `set-state-in-effect` (refactor de
-  efectos; ojo, puede cambiar comportamiento). Backlog frontend consolidado en §2.4.1.
+  blanco); migrado a `import.meta.env.DEV`. **Progreso 2026-11-23 (Fase A, quick wins):** eliminados todos los
+  `no-unused-vars` (`Hero`, `ProfilePage` catch + estado `offererProfile` write-only) y el
+  `react-hooks/immutability` de `ProfilePage` (se movió `reverseGeocode` antes de su efecto → se resolvió el
+  "accessed before declared"; como ese efecto hace `setGeoLoading` síncrono, quedó reclasificado como un
+  `set-state-in-effect` normal, que se limpiará con M46). Lint: **19→16 errores** (los 16 restantes son TODOS
+  `react-hooks/set-state-in-effect`) + 13 warnings `exhaustive-deps`. **Pendiente = M46:** migrar el
+  data-fetching a un hook/TanStack Query elimina los 16 `set-state-in-effect` + los `exhaustive-deps` por
+  construcción. Backlog frontend consolidado en §2.4.1.
 
 - **M46 — Abstracción de data-fetching del frontend (raíz de la deuda de lint M45).** La mayoría de los
   errores/warnings de lint vienen de un mismo patrón: **cada página hace el `fetch` directamente dentro de un

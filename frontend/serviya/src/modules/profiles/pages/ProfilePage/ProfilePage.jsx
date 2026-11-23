@@ -44,15 +44,7 @@ function AddressModal({
         }
     }, [editedAddress, reset]);
 
-    useEffect(() => {
-        if (!location) return;
-
-        reverseGeocode(
-            location.latitude,
-            location.longitude
-        );
-    }, [location]);
-
+    // Declarada ANTES del efecto que la usa (evita react-hooks/immutability "accessed before declared").
     const reverseGeocode = async (lat, lng) => {
         setGeoLoading(true);
         try {
@@ -69,12 +61,21 @@ function AddressModal({
                 data.address?.village ||
                 ""
             );
-        } catch (error) {
+        } catch {
             showToast('No fue posible obtener la dirección', 'danger');
         } finally {
             setGeoLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (!location) return;
+
+        reverseGeocode(
+            location.latitude,
+            location.longitude
+        );
+    }, [location]);
 
     const useMyLocation = () => {
         if (!navigator.geolocation) {
@@ -244,7 +245,6 @@ export function ProfilePage() {
     const [editAddressOpen, setEditAddressOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [profile, setProfile] = useState(null);
-    const [offererProfile, setOffererProfile] = useState(null);
     const [addresses, setAddresses] = useState([]);
     const [editedAddress, setEditedAddress] = useState(null);
     const [isOfferer, setIsOfferer] = useState(false);
@@ -381,7 +381,6 @@ export function ProfilePage() {
         if (!isOfferer) return;
         profileApi.getOffererProfile()
             .then((data) => {
-                setOffererProfile(data);
                 setOffererForm({
                     whatsappNumber: data?.whatsappNumber || '',
                     publicDescription: data?.publicDescription || '',
@@ -579,7 +578,6 @@ export function ProfilePage() {
         setSavingOffererProfile(true);
         profileApi.updateOffererProfile(offererForm)
             .then((data) => {
-                setOffererProfile(data);
                 setOffererForm({
                     whatsappNumber: data?.whatsappNumber || '',
                     publicDescription: data?.publicDescription || '',
