@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, reportApi, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice, isTerminal } from '../../utils';
@@ -16,10 +17,7 @@ export function ClientRequestsPage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
     const [filter, setFilter] = useState(0);
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
+    const [page, setPage] = useState(0);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [reschedOpen, setReschedOpen] = useState(false);
     const [reportOpen, setReportOpen] = useState(false);
@@ -35,42 +33,31 @@ export function ClientRequestsPage() {
     const [reschedDate, setReschedDate] = useState('');
     const [reschedTime, setReschedTime] = useState('09:00');
 
-    const fetchRequests = (page = 0) => {
-        setLoading(true);
-        const params = { page, size: 10 };
-        const statusKey = FILTERS[filter].key;
-        if (statusKey) {
-            params.statuses = statusKey;
-        }
-        requestApi.getMyClientRequests(params)
-            .then(data => {
-                setRequests(data.content || []);
-                setTotalPages(data.totalPages || 1);
-                setCurrentPage(data.number || 0);
-            })
-            .catch(err => showToast('Error al cargar solicitudes: ' + err.message, 'error'))
-            .finally(() => setLoading(false));
-    };
+    // Solicitudes del cliente (M46: React Query; refetch() refresca tras acciones).
+    const requestsQuery = useQuery({
+        queryKey: ['client-requests-list', filter, page],
+        queryFn: () => {
+            const params = { page, size: 10 };
+            if (FILTERS[filter].key) params.statuses = FILTERS[filter].key;
+            return requestApi.getMyClientRequests(params);
+        },
+    });
+    const requests = requestsQuery.data?.content ?? [];
+    const loading = requestsQuery.isPending;
+    const totalPages = requestsQuery.data?.totalPages ?? 1;
+    const currentPage = requestsQuery.data?.number ?? page;
 
     const handleCancel = () => {
         if (!cancelTarget) return;
         requestApi.cancelRequest(cancelTarget.requestId)
             .then(() => {
-                setRequests(prev => prev.map(r =>
-                    r.requestId === cancelTarget.requestId
-                        ? { ...r, status: 'CANCELLED' }
-                        : r
-                ));
+                requestsQuery.refetch();
                 setCancelOpen(false);
                 setCancelTarget(null);
                 showToast('Solicitud cancelada. Oferente notificado', 'success');
             })
             .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
     };
-
-    useEffect(() => {
-        fetchRequests(0);
-    }, [filter]);
 
     return (
         <DashboardLayout sections={CLIENT_NAV} avatar="JP">
@@ -81,12 +68,14 @@ export function ClientRequestsPage() {
 
             <div className="filter-chips">
                 {FILTERS.map((f, i) => (
-                    <div key={f.label} className={`chip ${filter === i ? 'active' : ''}`} onClick={() => setFilter(i)}>{f.label}</div>
+                    <div key={f.label} className={`chip ${filter === i ? 'active' : ''}`} onClick={() => { setFilter(i); setPage(0); }}>{f.label}</div>
                 ))}
             </div>
 
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--c-soft)' }}>Cargando solicitudes...</div>
+            ) : requestsQuery.isError ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--c-soft)' }}>No se pudieron cargar las solicitudes</div>
             ) : requests.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--c-soft)' }}>
                     <p>No tienes solicitudes activas</p>
@@ -136,7 +125,7 @@ export function ClientRequestsPage() {
                                 <button
                                     key={i}
                                     className={`btn ${currentPage === i ? 'btn-primary' : 'btn-ghost'} btn-sm`}
-                                    onClick={() => fetchRequests(i)}
+                                    onClick={() => setPage(i)}
                                 >
                                     {i + 1}
                                 </button>
@@ -161,9 +150,7 @@ export function ClientRequestsPage() {
                         if (rating > 0 || comment) {
                             await feedbackApi.submitServiceFeedback(confirmTarget.requestId, { rating: rating || null, comment: comment || null });
                         }
-                        setRequests(prev => prev.map(r =>
-                            r.requestId === confirmTarget.requestId ? { ...r, status: 'COMPLETED' } : r
-                        ));
+                        requestsQuery.refetch();
                         setConfirmOpen(false);
                         setConfirmTarget(null);
                         showToast('Servicio confirmado y reseña enviada', 'success');
@@ -184,13 +171,8 @@ export function ClientRequestsPage() {
                         if (!reschedTarget || !reschedDate) return;
                         try {
                             const newDate = `${reschedDate}T${reschedTime}:00`;
-                            const result = await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
-                            setRequests(prev => prev.map(r =>
-                                r.requestId === reschedTarget.requestId ? { ...r, status: 'RESCHEDULED' } : r
-                            ));
-                            if (result && result.requestId) {
-                                setRequests(prev => [result, ...prev]);
-                            }
+                            await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
+                            requestsQuery.refetch();
                             setReschedOpen(false);
                             setReschedTarget(null);
                             setReschedDate('');

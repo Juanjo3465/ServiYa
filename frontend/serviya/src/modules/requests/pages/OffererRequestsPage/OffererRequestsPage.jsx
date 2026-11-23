@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, OFFERER_NAV, requestApi } from '../../../../shared';
 import { STATUS_MAP, formatDate, getInitials, formatPrice } from '../../utils';
 
@@ -15,26 +16,18 @@ const FILTERS = [
 export function OffererRequestsPage() {
     const navigate = useNavigate();
     const [tab, setTab] = useState(0);
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
-    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(0);
 
-    const fetchRequests = (page = 0) => {
-        setLoading(true);
-        requestApi.getOffererRequests({ statuses: FILTERS[tab].key, page, size: 10 })
-            .then(data => {
-                setRequests(data.content || []);
-                setTotalPages(data.totalPages || 1);
-                setCurrentPage(data.number || 0);
-                setTotal(data.totalElements ?? (data.content || []).length);
-            })
-            .catch(() => { })
-            .finally(() => setLoading(false));
-    };
-
-    useEffect(() => { fetchRequests(0); }, [tab]);
+    // Solicitudes recibidas (M46: React Query; refetch vía queryKey al cambiar pestaña/página).
+    const requestsQuery = useQuery({
+        queryKey: ['offerer-requests', tab, page],
+        queryFn: () => requestApi.getOffererRequests({ statuses: FILTERS[tab].key, page, size: 10 }),
+    });
+    const requests = requestsQuery.data?.content ?? [];
+    const loading = requestsQuery.isPending;
+    const totalPages = requestsQuery.data?.totalPages ?? 1;
+    const currentPage = requestsQuery.data?.number ?? page;
+    const total = requestsQuery.data?.totalElements ?? requests.length;
 
     return (
         <DashboardLayout sections={OFFERER_NAV}>
@@ -45,7 +38,7 @@ export function OffererRequestsPage() {
 
             <div className="filter-chips">
                 {FILTERS.map((f, i) => (
-                    <div key={f.label} className={`chip ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>
+                    <div key={f.label} className={`chip ${tab === i ? 'active' : ''}`} onClick={() => { setTab(i); setPage(0); }}>
                         {f.label}
                     </div>
                 ))}
@@ -91,9 +84,9 @@ export function OffererRequestsPage() {
                     </div>
                     {totalPages > 1 && (
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
-                            <button className="btn btn-ghost btn-sm" disabled={currentPage === 0} onClick={() => fetchRequests(currentPage - 1)}>Anterior</button>
+                            <button className="btn btn-ghost btn-sm" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
                             <span style={{ fontSize: '13px', color: 'var(--c-mid)', alignSelf: 'center' }}>Página {currentPage + 1} de {totalPages}</span>
-                            <button className="btn btn-ghost btn-sm" disabled={currentPage >= totalPages - 1} onClick={() => fetchRequests(currentPage + 1)}>Siguiente</button>
+                            <button className="btn btn-ghost btn-sm" disabled={currentPage >= totalPages - 1} onClick={() => setPage(currentPage + 1)}>Siguiente</button>
                         </div>
                     )}
                 </>
