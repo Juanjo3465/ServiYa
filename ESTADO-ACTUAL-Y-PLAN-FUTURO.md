@@ -653,6 +653,58 @@ Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuer
 > Roadmap inmediato sugerido tras la Fase 0: **pagos** (define el modelo de negocio) y **tiempo real**
 > (chat + notificaciones). El resto, incremental.
 
+**6.5.d — Observabilidad y consistencia transversal entre servicios (auditoría 2026-11-22)**
+
+Hallazgo (verificado en código): la observabilidad de la Fase 6 (auth) se construyó **auth-first** — monolito
+y gateway completos; notif con métricas+correlación; **el chat quedó corto** y **no hay servidor que consuma
+las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), con 107 clases Java. Matriz:
+
+| Capacidad | monolito | notif | gateway | chat | identity (Slice 0) |
+|---|---|---|---|---|---|
+| Resource server ES256/JWKS | ✅ | ✅ | ✅ | ✅ (`JwtDecoderConfig`) | ❌ placeholder `permitAll` |
+| Error 4.4 (`code`+`correlationId`) | ✅ | ✅ | ✅ | ⚠️ `code` propio `CHAT_*`; verificar `correlationId` en el cuerpo | n/a |
+| Métricas `/actuator/prometheus` | ✅ | ✅ | ✅ | ❌ sin `micrometer-registry-prometheus`; expone solo `health` | pom listo, sin endpoints |
+| Correlation-id en MDC/logs | ✅ (`requestId`) | ✅ (`requestId`) | ⚠️ solo cabecera (reactor→MDC pendiente) | ✅ (clave `correlationId`, distinta) | patrón sí, filtro no |
+| Auditoría de seguridad | ✅ `security_audit` | ❌ | n/a | ❌ | n/a |
+
+- **M41 — Observabilidad de los microservicios (más allá de auth/gateway).** Fallas por servicio en la matriz
+  de arriba. Acciones:
+  - (a) **chat sin métricas**: añadir `micrometer-registry-prometheus` + exponer `/prometheus` (como notif,
+    6-obs-A) e instrumentar sus flujos (WS, mensajes, eventos).
+  - (b) **Servidor Prometheus + Grafana en `docker-compose`** (hoy solo hay endpoints, nada los *scrapea*).
+    **Decisión del usuario (2026-11-22): se adelanta a la Fase 6** (ya no Fase 7): añadir servicios
+    `prometheus` + `grafana` al compose + un `prometheus.yml` con los 3 targets (monolito, gateway, notif) y
+    el chat cuando tenga el endpoint (a).
+  - (c) **Clave de MDC inconsistente** (`requestId` en monolito/notif vs `correlationId` en el chat) →
+    unificar para que una consulta de logs agregados sirva para todos.
+  - (d) **Auditoría de seguridad solo en el monolito.** El `monolito` queda **excluido** de esta deuda (se
+    está descomponiendo). **Requisito registrado:** todo microservicio que se separe (identity el primero)
+    debe incorporar auditoría/observabilidad equivalentes — **se asegura en la Fase 8 y posteriores** (parte
+    de la definición de "listo" de cada extracción). Opciones de almacenamiento de auditoría evaluadas (P6.1),
+    para elegir en prod: **1)** tabla en BD (lo actual) + retención/particionado por fecha; **2)** logs
+    estructurados → colector/SIEM (ELK, Grafana Loki, Wazuh, Splunk); **3)** evento de auditoría al bus
+    (RabbitMQ/Kafka) + consumidor dedicado que persiste (desacopla del path de la petición, escala, varios
+    consumidores); **4)** almacenamiento inmutable/WORM (write-once) si la auditoría necesita valor
+    legal/forense. Hoy = tabla + logs JSON en paralelo (suficiente pre-prod).
+
+- **M42 — Consistencia transversal de decisiones y mejoras entre servicios.** Riesgo sistémico: decisiones ya
+  tomadas (error 4.4, ES256/JWKS, correlación, métricas, rate-limit) no se aplican de forma uniforme. El chat
+  (equipo distinto) es el caso más visible: **(i) códigos de error divergentes** — usa su propio namespace
+  `CHAT_*` en vez de los del contrato 4.4 (`TOKEN_MISSING/EXPIRED/INVALID/REVOKED`, `FORBIDDEN`,
+  `RATE_LIMITED`); **(ii) clave de MDC divergente** (`correlationId` vs `requestId`); **(iii) sin métricas**.
+  Acción: **checklist transversal por servicio** (resource server ES256, error 4.4 con códigos estándar,
+  métricas, correlación con clave unificada, auditoría si aplica) atado a los **contract tests (M24 /
+  T6.19–21)** y a la definición de "listo" de cada servicio nuevo. Los contract tests son la red que evita
+  que esto se repita.
+
+- **M43 — Endurecimiento de la sesión/refresh contra robo de cookie (mejora futura).** La cookie de refresh
+  ya es `HttpOnly; SameSite=Strict; Secure(prod); Path=/api/v1/auth` + rotación + detección de reuso
+  (revoca la familia) — inmune a robo por XSS; el riesgo residual es malware/acceso local y la **ventana de
+  reuso** (mientras el ladrón usa el refresh y el legítimo no refresca). Opciones a evaluar: **token binding**
+  (atar el refresh a huella de dispositivo/IP), **DPoP / mTLS de cliente** (prueba criptográfica de posesión),
+  **alertas por geolocalización/cambio de dispositivo**, **rotación más agresiva**. Complementa M29 (backoff
+  por cuenta + MFA de admins). No urgente pre-prod; el modelo actual es estándar.
+
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
 > **Fuente de verdad detallada:** `documents/redis/guia-redis-implementacion.md` (guía dedicada, 9 fases,
