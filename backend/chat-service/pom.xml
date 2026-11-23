@@ -50,6 +50,13 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
+		<!-- Micrometer -> Prometheus (M41(a) / T6.2): expone /actuator/prometheus en el puerto de gestion
+		     (9090, no publicado) para que lo scrapee Prometheus, como monolito/notif/gateway. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+			<scope>runtime</scope>
+		</dependency>
 
 		<!-- BD propia del servicio, versionada con Flyway (M25: cada servicio versiona su esquema). -->
 		<dependency>
