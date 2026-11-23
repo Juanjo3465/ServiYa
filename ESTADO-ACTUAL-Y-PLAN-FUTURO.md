@@ -744,6 +744,19 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   blanco); migrado a `import.meta.env.DEV`. **Pendiente:** limpiar los `set-state-in-effect` (refactor de
   efectos; ojo, puede cambiar comportamiento). Backlog frontend consolidado en §2.4.1.
 
+- **M46 — Abstracción de data-fetching del frontend (raíz de la deuda de lint M45).** La mayoría de los
+  errores/warnings de lint vienen de un mismo patrón: **cada página hace el `fetch` directamente dentro de un
+  `useEffect` y llama `setState`** (el stack es `fetch` plano, sin axios ni React Query). La regla nueva
+  `react-hooks/set-state-in-effect` marca ~15 casos y `exhaustive-deps` ~13 (en ~13 páginas: dashboards,
+  history, requests, search, profile, availability, reports…). Suprimir la regla línea a línea **no** es
+  arreglo. **Fix escalable (recomendado):** un **hook compartido de fetching** —`useApi`/`useResource` que
+  devuelva `{data, loading, error, reload}` y encapsule loading/error/`setState` **fuera** del componente— o
+  adoptar **SWR/React Query** (ligero). Resuelve ambas reglas **por construcción** y unifica el manejo de
+  carga/error/reintento en todas las páginas (mejora de mantenibilidad y escalado, no solo "callar el lint").
+  Refactor mediano → hacerlo deliberadamente página por página. **Fuera de esta deuda (se arregla ya):**
+  `no-unused-vars`, el `react-hooks/immutability` puntual de `ProfilePage`, y los sync de estado simples. Los
+  `no-unused-vars` de `RequestServicePage` van con **F4** (página muerta: borrar o cablear).
+
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
 > **Fuente de verdad detallada:** `documents/redis/guia-redis-implementacion.md` (guía dedicada, 9 fases,
