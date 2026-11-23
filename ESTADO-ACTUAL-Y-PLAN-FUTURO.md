@@ -671,14 +671,20 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   de arriba. Acciones:
   - (a) **chat sin métricas → HECHO 2026-11-22 (endpoint):** añadido `micrometer-registry-prometheus` +
     expuesto `/actuator/prometheus` en el puerto de gestión `9090` (no publicado), como notif/monolito. Da ya
-    las métricas estándar (JVM, `http.server.requests`, …). **Follow-up:** instrumentar los flujos de dominio
-    propios (conexiones WS, mensajes enviados/leídos, eventos) con contadores/timers.
+    las métricas estándar (JVM, `http.server.requests`, …). **Métricas de dominio → HECHO 2026-11-22:** gauge
+    `chat.ws.connected_users` (usuarios con sesión WS activa) + contador `chat.outbox.events.published{routing_key}`
+    (throughput de eventos al bus; los **mensajes** se observan por el tag `routing_key="chat.message.sent"`).
   - (b) **Servidor Prometheus + Grafana en `docker-compose`** (hoy solo hay endpoints, nada los *scrapea*).
     **Decisión del usuario (2026-11-22): se adelanta a la Fase 6** (ya no Fase 7): añadir servicios
     `prometheus` + `grafana` al compose + un `prometheus.yml` con los 3 targets (monolito, gateway, notif) y
     el chat cuando tenga el endpoint (a).
-  - (c) **Clave de MDC inconsistente** (`requestId` en monolito/notif vs `correlationId` en el chat) →
-    unificar para que una consulta de logs agregados sirva para todos.
+  - (c) **Clave de MDC → RESUELTO 2026-11-22: unificada a `correlationId` en todo el sistema.** Se cambió el
+    monolito (`AuditContextFilter` + patrón de log) y notif (`CorrelationIdMdcFilter` + patrón) de
+    `requestId`→`correlationId`; el chat **ya la usaba** y además la tiene **ligada a su correlation/causation
+    ID de eventos** (`OutboxEventPublisher`/`EventEnvelope`), por eso se convergió a **su** término (estándar
+    de tracing) y no al revés. De paso se corrigió una inconsistencia **interna** del monolito
+    (`AuditContextFilter`=`requestId` vs `CorrelationContext`=`correlationId`). Ya coincide con el campo
+    `correlationId` del cuerpo de error 4.4. Una consulta de logs agregados por `correlationId` sirve para todos.
   - (d) **Auditoría de seguridad solo en el monolito.** El `monolito` queda **excluido** de esta deuda (se
     está descomponiendo). **Requisito registrado:** todo microservicio que se separe (identity el primero)
     debe incorporar auditoría/observabilidad equivalentes — **se asegura en la Fase 8 y posteriores** (parte
