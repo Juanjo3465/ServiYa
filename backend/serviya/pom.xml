@@ -28,7 +28,27 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Spring Cloud Contract (T6.18, contract tests M24). SCC 4.3.0 ↔ Boot 3.5.5 (misma release train
+		     que el gateway, 2025.0.0). IMPORTANTE: se importa SOLO el BOM de Contract
+		     (spring-cloud-contract-dependencies), NO el spring-cloud-dependencies completo. Este último
+		     sobreescribe las versiones TRANSITIVAS de resilience4j y, como el monolito fija
+		     resilience4j-spring-boot3 2.3.0, descuadra la autoconfig → NoClassDefFoundError
+		     RxJava3FallbackDecorator al cargar el contexto. El BOM de Contract no toca resilience4j. -->
+		<spring-cloud-contract.version>4.3.0</spring-cloud-contract.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-contract-dependencies</artifactId>
+				<version>${spring-cloud-contract.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -101,6 +121,14 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- Spring Cloud Contract (T6.18): verificación de contratos productor↔consumidor. El monolito es el
+		     PRODUCTOR del JWKS/token y del formato de error 4.4 que consumen gateway, notif y chat. Versión
+		     gestionada por el BOM spring-cloud-dependencies. -->
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-contract-verifier</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<!-- H2 en memoria: lo usa ServiyaApplicationTests para levantar el contexto sin MySQL. -->
@@ -220,6 +248,20 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+				</configuration>
+			</plugin>
+			<!-- Spring Cloud Contract (T6.18): genera, a partir de los contratos en
+			     src/test/resources/contracts/, (a) tests que verifican que este PRODUCTOR (monolito) honra el
+			     contrato y (b) stubs para que los consumidores (gateway/notif/chat) prueben contra ellos.
+			     testMode MOCKMVC (default): usa RestAssuredMockMvc sobre la clase base. -->
+			<plugin>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-contract-maven-plugin</artifactId>
+				<version>${spring-cloud-contract.version}</version>
+				<extensions>true</extensions>
+				<configuration>
+					<testFramework>JUNIT5</testFramework>
+					<baseClassForTests>com.parosurvivors.serviya.contract.ContractVerifierBase</baseClassForTests>
 				</configuration>
 			</plugin>
 			<plugin>
