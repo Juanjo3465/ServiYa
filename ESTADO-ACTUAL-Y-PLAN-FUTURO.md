@@ -414,7 +414,7 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 | F1 | ALTO | routing | Sin route guards: toda ruta protegida se renderiza sin sesión/rol | `app/routes.jsx` |
 | F2 | MEDIO | api | Sin interceptor de 401 (no hay logout+redirect centralizado) | `shared/api.js` `request()` |
 | F3 | MEDIO | admin | `AdminServicesPage`: filtro de categoría por input numérico (no dropdown); IDs crudos en vez de nombres (`AdminFeedbackPage`/`AdminServicesPage`) | páginas admin |
-| F4 | BAJO | routing | `RequestServicePage` = maqueta 100% (0 llamadas API) en ruta muerta `/request-service` | `RequestServicePage`, `routes.jsx:37` |
+| F4 | BAJO | requests | `RequestServicePage` (wizard de 4 pasos para contratar un servicio; `/request-service/:serviceId`, guard `['CLIENT']`): **ACTUALIZADO 2026-11-23**, ya NO es maqueta (hace `createRequest` + carga servicio/disponibilidad/direcciones), pero **sigue SIN enlazar** desde la UI (ningún `navigate` la alcanza) **y con payload ROTO** (manda `scheduledAt`; `CreateServiceRequestForm` espera `scheduledDate` `@NotNull` → 400). **Redundante**: `ServiceDetailPage` ya crea la solicitud inline y **correctamente** (`scheduledDate`). Decisión: **borrar** (recomendado) o arreglar+enlazar | `RequestServicePage`, `routes.jsx:47`, `ServiceDetailPage` |
 | F5 | BAJO | ux | Sin error boundaries / `errorElement` → error de render = app en blanco | `app/routes.jsx`, `App.jsx` |
 
 > Nota: F1 agrava los IDOR del backend (§3.1) solo en lectura de UI; las escrituras IDOR son del
