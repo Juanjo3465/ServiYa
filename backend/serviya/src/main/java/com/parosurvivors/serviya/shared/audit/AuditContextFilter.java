@@ -26,7 +26,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class AuditContextFilter extends OncePerRequestFilter {
 
-    private static final String MDC_KEY = "requestId";
+    // Clave de MDC unificada en todo el sistema: "correlationId" (igual que shared/security/CorrelationContext,
+    // el campo de error 4.4 y el chat). Antes era "requestId" (M41(c), 2026-11-22).
+    private static final String MDC_KEY = "correlationId";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,

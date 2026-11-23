@@ -43,7 +43,7 @@ logging:
   # se inyecta en el patrón, justo tras el nivel, para seguir una petición de punta a punta (gateway ->
   # monolito) por el mismo id. ':-' = vacío si la petición no trae el header.
   pattern:
-    level: "%5p [%X{requestId:-}]"
+    level: "%5p [%X{correlationId:-}]"
 
 server:
   error:
