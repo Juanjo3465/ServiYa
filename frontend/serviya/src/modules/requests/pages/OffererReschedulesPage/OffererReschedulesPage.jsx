@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { proposalApi } from '../../../../shared/api';
 import { formatDate, getInitials } from '../../utils';
@@ -21,32 +22,29 @@ const PROPOSAL_STATUS_MAP = {
 export function OffererReschedulesPage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
-    const [pending, setPending] = useState([]);
-    const [history, setHistory] = useState([]);
-    const [loading, setLoading] = useState(true);
     // Detalle de propuesta (modal): misma lógica que el cliente, con las acciones del oferente
     // (cancelar la propuesta pendiente + ver la solicitud).
     const [detail, setDetail] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
     const [acting, setActing] = useState(false);
 
-    const fetchProposals = useCallback(async () => {
-        setLoading(true);
-        try {
+    // Propuestas enviadas (M46: React Query; una query hace el Promise.all, refetch() refresca).
+    const proposalsQuery = useQuery({
+        queryKey: ['offerer-proposals'],
+        queryFn: async () => {
             const [pendingRes, historyRes] = await Promise.all([
                 proposalApi.getSent({ page: 0, size: 20, statuses: 'PENDING' }),
                 proposalApi.getSent({ page: 0, size: 50 }),
             ]);
-            setPending(pendingRes.content ?? []);
-            setHistory((historyRes.content ?? []).filter(p => p.status !== 'PENDING'));
-        } catch {
-            showToast('No se pudieron cargar las propuestas', 'danger');
-        } finally {
-            setLoading(false);
-        }
-    }, [showToast]);
-
-    useEffect(() => { fetchProposals(); }, [fetchProposals]);
+            return {
+                pending: pendingRes.content ?? [],
+                history: (historyRes.content ?? []).filter(p => p.status !== 'PENDING'),
+            };
+        },
+    });
+    const pending = proposalsQuery.data?.pending ?? [];
+    const history = proposalsQuery.data?.history ?? [];
+    const loading = proposalsQuery.isPending;
 
     const handleCancel = async (proposal) => {
         if (!window.confirm('¿Cancelar esta propuesta de reprogramación?')) return;
@@ -55,7 +53,7 @@ export function OffererReschedulesPage() {
             await proposalApi.cancelProposal(proposal.proposalId);
             showToast('Propuesta cancelada', 'success');
             setDetailOpen(false);
-            fetchProposals();
+            proposalsQuery.refetch();
         } catch (err) {
             showToast(err.message || 'No se pudo cancelar la propuesta', 'danger');
         } finally {

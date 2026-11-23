@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
 import { proposalApi, requestApi } from '../../../../shared/api';
 import { formatDate, getInitials } from '../../utils';
@@ -22,9 +23,6 @@ const PROPOSAL_STATUS_MAP = {
 export function ReschedulesPage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
-    const [pending, setPending] = useState([]);
-    const [history, setHistory] = useState([]);
-    const [loading, setLoading] = useState(true);
     // Detalle de propuesta (modal) + tercera acción del cliente: elegir nueva fecha (supera la propuesta).
     const [detail, setDetail] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
@@ -33,30 +31,30 @@ export function ReschedulesPage() {
     const [freeDate, setFreeDate] = useState('');
     const [freeTime, setFreeTime] = useState('09:00');
 
-    const fetchProposals = useCallback(async () => {
-        setLoading(true);
-        try {
+    // Propuestas recibidas (M46: React Query; una query hace el Promise.all, refetch() refresca).
+    const proposalsQuery = useQuery({
+        queryKey: ['client-proposals'],
+        queryFn: async () => {
             const [pendingRes, historyRes] = await Promise.all([
                 proposalApi.getReceived({ page: 0, size: 20, statuses: 'PENDING' }),
                 proposalApi.getReceived({ page: 0, size: 50 }),
             ]);
-            setPending(pendingRes.content ?? []);
-            setHistory((historyRes.content ?? []).filter(p => p.status !== 'PENDING'));
-        } catch {
-            showToast('No se pudieron cargar las propuestas', 'danger');
-        } finally {
-            setLoading(false);
-        }
-    }, [showToast]);
-
-    useEffect(() => { fetchProposals(); }, [fetchProposals]);
+            return {
+                pending: pendingRes.content ?? [],
+                history: (historyRes.content ?? []).filter(p => p.status !== 'PENDING'),
+            };
+        },
+    });
+    const pending = proposalsQuery.data?.pending ?? [];
+    const history = proposalsQuery.data?.history ?? [];
+    const loading = proposalsQuery.isPending;
 
     const handleAccept = async (proposal) => {
         try {
             await proposalApi.acceptProposal(proposal.proposalId);
             showToast('Propuesta aceptada. Servicio reprogramado', 'success');
             setDetailOpen(false);
-            fetchProposals();
+            proposalsQuery.refetch();
         } catch (err) {
             showToast(err.message || 'No se pudo aceptar la propuesta', 'danger');
         }
@@ -67,7 +65,7 @@ export function ReschedulesPage() {
             await proposalApi.rejectProposal(proposal.proposalId);
             showToast('Propuesta rechazada', 'success');
             setDetailOpen(false);
-            fetchProposals();
+            proposalsQuery.refetch();
         } catch (err) {
             showToast(err.message || 'No se pudo rechazar la propuesta', 'danger');
         }
@@ -93,7 +91,7 @@ export function ReschedulesPage() {
             await requestApi.rescheduleRequest(detail.requestId, { newDate: `${freeDate}T${freeTime}:00` });
             showToast('Elegiste una nueva fecha; la propuesta fue superada', 'success');
             setDetailOpen(false);
-            fetchProposals();
+            proposalsQuery.refetch();
         } catch (err) {
             showToast(err.message || 'No se pudo reprogramar', 'danger');
         } finally {
