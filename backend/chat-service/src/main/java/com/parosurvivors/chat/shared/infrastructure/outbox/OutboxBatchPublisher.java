@@ -1,5 +1,6 @@
 package com.parosurvivors.chat.shared.infrastructure.outbox;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ public class OutboxBatchPublisher {
     private final JdbcTemplate jdbc;
     private final RabbitTemplate rabbit;
     private final Clock clock;
+    private final MeterRegistry meterRegistry;
 
     @Value("${serviya.chat.outbox.batch-size:100}")
     private int batchSize;
@@ -42,10 +44,11 @@ public class OutboxBatchPublisher {
     @Value("${serviya.chat.outbox.confirm-timeout-ms:5000}")
     private long confirmTimeoutMs;
 
-    OutboxBatchPublisher(JdbcTemplate jdbc, RabbitTemplate rabbit, Clock clock) {
+    OutboxBatchPublisher(JdbcTemplate jdbc, RabbitTemplate rabbit, Clock clock, MeterRegistry meterRegistry) {
         this.jdbc = jdbc;
         this.rabbit = rabbit;
         this.clock = clock;
+        this.meterRegistry = meterRegistry;
     }
 
     private record Row(long id, String eventId, String exchange, String routingKey, String payload, int attempts) {
@@ -88,6 +91,9 @@ public class OutboxBatchPublisher {
         LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         for (Row row : batch) {
             jdbc.update("UPDATE outbox_events SET published_at = ? WHERE id = ?", now, row.id());
+            // chat.outbox.events.published{routing_key=...}: throughput de eventos al bus. Incluye los eventos
+            // de mensaje (routing_key "chat.message.sent"), así "mensajes enviados" se observa por ese tag.
+            meterRegistry.counter("chat.outbox.events.published", "routing_key", row.routingKey()).increment();
         }
         return batch.size();
     }
