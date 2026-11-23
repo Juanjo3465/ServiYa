@@ -774,8 +774,26 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   de `SearchPage` **también se resolvió** (2026-11-23): `nameQuery`/`activeCatId`/`offererIdFilter` se
   **derivan de `searchParams`** en render (URL = fuente única; sin estado ni efecto de sync; `setPage(0)` en
   los handlers), eliminando el último `set-state-in-effect`. **`SearchPage` queda en 0 problemas de lint.**
-  Siguiente: migrar el resto de páginas (dashboards, history, requests, profile, availability, reports) con el
-  mismo patrón `useQuery`.
+  **Migración en lote (2026-11-23), mismo patrón `useQuery`:** `ClientDashboardPage`, `ClientHistoryPage`,
+  `OffererHistoryPage`, `MyReportsPage` (`enabled:!!userId` + `select`), `ClientRequestsPage` +
+  `OffererRequestsPage` (filtro+paginación; optimistas de cancel/confirm/reschedule → `refetch()`),
+  `ReschedulesPage` + `OffererReschedulesPage` (el `Promise.all` de pending+history → **una** `useQuery` que
+  devuelve ambos; accept/reject/cancel → `refetch()`), `OffererDashboardPage` (solicitudes activas; acciones →
+  `refetch()`), `AdminUsersPage` (queryKey = filtros+page; ban/baja/crear/editar → `refetch()`), y
+  `OffererProfilePage` (su sync de estado del avatar del navbar pasó a **derivarse en render**, no efecto).
+  **Lint: 19 → 3 errores, 9 → 7 warnings; build verde** en cada lote (verificado por build+lint; **falta smoke
+  test manual** de cada página migrada). Commits `3e13966`…`149d0de` en `api-gateway`.
+  **Restan 3 errores `set-state-in-effect` — NO son data-fetching de lista, sino *seed/sync de estado editable*
+  donde `useQuery` NO elimina el `setState` en efecto:** `ProfilePage:40` (RHF `reset()` + `setLocation` al
+  cambiar la dirección editada), `ProfilePage:74` (efecto de *reverse-geocoding* que actualiza el form), y
+  `AvailabilityPage:164` (siembra `serviceSchedule` **editable** + `initialServiceSlots` desde el fetch de
+  disponibilidad del servicio seleccionado). Son usos legítimos de efecto (sincronizar dato externo → estado
+  **editable** local) que la regla marca de forma conservadora. **Decisión pendiente del usuario:** (a)
+  `eslint-disable-next-line` puntual con justificación en cada uno (rápido, documenta la excepción; permite
+  volver el lint **bloqueante** ya), (b) refactor más profundo (gestionar las ediciones como overlay/diff
+  sobre el dato de la query — riesgoso sin poder probar en runtime), o (c) dejarlos como deuda documentada y
+  mantener el lint **advisory**. Cuando los 3 se resuelvan → volver el `lint` **bloqueante** en CI (hoy
+  `continue-on-error: true`, ver M45/§6.5.d).
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
