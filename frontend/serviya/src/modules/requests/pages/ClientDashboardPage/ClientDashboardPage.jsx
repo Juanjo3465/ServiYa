@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
@@ -41,8 +42,6 @@ export function ClientDashboardPage() {
     const [reschedTime, setReschedTime] = useState('09:00');
     const [clientMetrics, setClientMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [requests, setRequests] = useState([]);
-    const [loadingRequests, setLoadingRequests] = useState(true);
     const [notifications, setNotifications] = useState([]);
     const [loadingNotifications, setLoadingNotifications] = useState(true);
     const [profile, setProfile] = useState(null);
@@ -54,15 +53,13 @@ export function ClientDashboardPage() {
             .finally(() => setLoading(false));
     }, [showToast]);
 
-    const loadRequests = useCallback(() => {
-        setLoadingRequests(true);
-        requestApi.getMyClientRequests({ page: 0, size: 5 })
-            .then(data => setRequests(data.content || []))
-            .catch(() => showToast('Error al cargar solicitudes', 'danger'))
-            .finally(() => setLoadingRequests(false));
-    }, [showToast]);
-
-    useEffect(() => { loadRequests(); }, [loadRequests]);
+    // Solicitudes del cliente (M46: React Query; refetch() refresca tras acciones).
+    const requestsQuery = useQuery({
+        queryKey: ['client-requests', { page: 0, size: 5 }],
+        queryFn: () => requestApi.getMyClientRequests({ page: 0, size: 5 }),
+    });
+    const requests = requestsQuery.data?.content ?? [];
+    const loadingRequests = requestsQuery.isPending;
 
     useEffect(() => {
         notificationApi.getNotifications({ page: 0, size: 3 })
@@ -91,7 +88,7 @@ export function ClientDashboardPage() {
         if (!cancelTarget) return;
         requestApi.cancelRequest(cancelTarget.requestId)
             .then(() => {
-                loadRequests();
+                requestsQuery.refetch();
                 setCancelOpen(false);
                 setCancelTarget(null);
                 showToast('Solicitud cancelada. Oferente notificado', 'success');
@@ -106,13 +103,10 @@ export function ClientDashboardPage() {
             if (rating > 0 || comment) {
                 await feedbackApi.submitServiceFeedback(selectedRequest.requestId, { rating: rating || null, comment: comment || null });
             }
-            setRequests(prev => prev.map(r =>
-                r.requestId === selectedRequest.requestId ? { ...r, status: 'COMPLETED' } : r
-            ));
             setConfirmOpen(false);
             setSelectedRequest(null);
             showToast('Servicio confirmado y reseña enviada', 'success');
-            loadRequests();
+            requestsQuery.refetch();
         } catch (e) {
             showToast(e.message || 'Error al confirmar servicio', 'danger');
         }
@@ -125,11 +119,9 @@ export function ClientDashboardPage() {
 
     const handleAcceptProposal = async (proposal) => {
         try {
-            const newRequest = await proposalApi.acceptProposal(proposal.proposalId);
+            await proposalApi.acceptProposal(proposal.proposalId);
             setProposals(prev => prev.filter(p => p.proposalId !== proposal.proposalId));
-            if (newRequest && newRequest.requestId) {
-                setRequests(prev => [newRequest, ...prev]);
-            }
+            requestsQuery.refetch();
             showToast('Propuesta aceptada. Servicio reprogramado', 'success');
         } catch (err) {
             showToast(err.message || 'No se pudo aceptar la propuesta', 'danger');
@@ -198,6 +190,8 @@ export function ClientDashboardPage() {
                     </div>
                     {loadingRequests ? (
                         <div style={{ padding: '20px 0', color: 'var(--c-soft)', fontSize: '13px' }}>Cargando solicitudes...</div>
+                    ) : requestsQuery.isError ? (
+                        <div style={{ padding: '20px 0', color: 'var(--c-soft)', fontSize: '13px' }}>No se pudieron cargar las solicitudes</div>
                     ) : requests.length === 0 ? (
                         <div style={{ padding: '20px 0', color: 'var(--c-soft)', fontSize: '13px' }}>No tienes solicitudes activas</div>
                     ) : (
@@ -276,13 +270,8 @@ export function ClientDashboardPage() {
                         if (!reschedTarget || !reschedDate) return;
                         try {
                             const newDate = `${reschedDate}T${reschedTime}:00`;
-                            const result = await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
-                            setRequests(prev => prev.map(r =>
-                                r.requestId === reschedTarget.requestId ? { ...r, status: 'RESCHEDULED' } : r
-                            ));
-                            if (result && result.requestId) {
-                                setRequests(prev => [result, ...prev]);
-                            }
+                            await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
+                            requestsQuery.refetch();
                             setReschedOpen(false);
                             setReschedTarget(null);
                             setReschedDate('');
