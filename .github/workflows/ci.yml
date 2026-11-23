@@ -1,0 +1,66 @@
+name: CI
+
+# Gate de integración (T6.22 / contract tests M24): corre `mvn test` en cada módulo backend en cada push y
+# PR. Los contract tests de Spring Cloud Contract (JwksTest, AuthTest en el monolito) y los tests de rechazo
+# de token por servicio se ejecutan como parte de `mvn test`, así que romper un contrato FALLA el build.
+# Nota: el gate productor↔consumidor completo (stub-runner) depende de T6.20 consumer-side (diferido).
+
+on:
+  push:
+    branches: [main, api-gateway]
+  pull_request:
+    branches: [main, api-gateway]
+
+# Cancela ejecuciones viejas del mismo ref si llega una nueva.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-test:
+    name: backend test (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - backend/serviya
+          - backend/api-gateway
+          - backend/notifications-service
+          - backend/chat-service
+          - backend/identity-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: mvn test (incluye contract tests SCC)
+        working-directory: ${{ matrix.module }}
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B --no-transfer-progress test
+
+  frontend-build:
+    name: frontend lint + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/serviya/package-lock.json
+
+      - name: install, lint y build
+        working-directory: frontend/serviya
+        run: |
+          npm ci
+          npm run lint
+          npm run build
