@@ -18,16 +18,11 @@ export function SearchPage() {
         queryFn: categoryApi.getCategories,
     });
 
-    // Filtros aplicados reales, inicializados desde query params
-    const [nameQuery, setNameQuery] = useState(() => searchParams.get('q') || "");
-    const [activeCatId, setActiveCatId] = useState(() => {
-        const catId = searchParams.get('categoryId');
-        return catId ? Number(catId) : null;
-    });
-    const [offererIdFilter, setOffererIdFilter] = useState(() => {
-        const oid = searchParams.get('offererId');
-        return oid ? Number(oid) : null;
-    });
+    // Filtros APLICADOS: la URL es la fuente única. Se derivan de searchParams en cada render (sin estado ni
+    // efecto de sincronización). Los inputs editables (topSearch/sidebarName) sí son estado local (abajo).
+    const nameQuery = searchParams.get('q') || "";
+    const activeCatId = searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : null;
+    const offererIdFilter = searchParams.get('offererId') ? Number(searchParams.get('offererId')) : null;
 
     // Paginación (M46: los resultados/estado de carga vienen de React Query, ver más abajo)
     const [page, setPage] = useState(0);
@@ -60,20 +55,6 @@ export function SearchPage() {
             () => setUserLocation(null)
         );
     }, []);
-
-    // Sincronizar URL query params con estados locales
-    useEffect(() => {
-        const q = searchParams.get('q') || "";
-        const catId = searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : null;
-        const oid = searchParams.get('offererId') ? Number(searchParams.get('offererId')) : null;
-
-        setNameQuery(q);
-        setTopSearch(q);
-        setSidebarName(q);
-        setActiveCatId(catId);
-        setOffererIdFilter(oid);
-        setPage(0); // cambio de filtros por URL ⇒ volver a la primera página
-    }, [searchParams]);
 
     // Parámetros de búsqueda para una página (M46)
     const buildSearchParams = (p) => {
@@ -110,6 +91,7 @@ export function SearchPage() {
 
     // Manejar selección de categoría y actualizar URL params
     const handleCategorySelect = (catId) => {
+        setPage(0);
         const params = new URLSearchParams(searchParams);
         if (catId) {
             params.set('categoryId', catId);
@@ -123,6 +105,7 @@ export function SearchPage() {
     // Manejar submit del buscador superior
     const handleTopSearchSubmit = (e) => {
         if (e) e.preventDefault();
+        setPage(0);
         const params = new URLSearchParams(searchParams);
         if (topSearch.trim()) {
             params.set('q', topSearch.trim());
@@ -135,7 +118,6 @@ export function SearchPage() {
 
     // Aplicar filtros de la barra lateral
     const handleApplyFilters = () => {
-        setNameQuery(sidebarName);
         setTopSearch(sidebarName);
         setMinPrice(sidebarMinPrice);
         setMaxPrice(sidebarMaxPrice);
@@ -164,13 +146,11 @@ export function SearchPage() {
         setSidebarMinRating(null);
         setSidebarDistance(null);
 
-        setNameQuery("");
         setMinPrice("");
         setMaxPrice("");
         setMinRating(null);
         setMaxDistanceKm(null);
-        setActiveCatId(null);
-        setOffererIdFilter(null);
+        setPage(0);
 
         setSearchParams({});
         showToast("Filtros limpiados", "info");
@@ -198,17 +178,14 @@ export function SearchPage() {
         if (item.key === 'name') {
             params.delete('q');
             setSearchParams(params);
-            setNameQuery("");
             setTopSearch("");
             setSidebarName("");
         } else if (item.key === 'cat') {
             params.delete('categoryId');
             setSearchParams(params);
-            setActiveCatId(null);
         } else if (item.key === 'offerer') {
             params.delete('offererId');
             setSearchParams(params);
-            setOffererIdFilter(null);
         } else if (item.key === 'price') {
             setMinPrice("");
             setMaxPrice("");

@@ -769,11 +769,13 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   (`app/queryClient.js`, `retry` 401/403 off, `staleTime` 30s). (2) **`SearchPage` migrada como referencia:**
   categorías + búsqueda/paginación pasan a `useQuery` (queryKey = filtros + página ⇒ refetch automático;
   `setPage` en la paginación; reset a página 0 al cambiar filtros; rama de error en el render). Elimina su
-  `set-state-in-effect` de fetch + 2 `exhaustive-deps`. **Lint 16→15 errores, 13→11 warnings; build verde**
-  (verificado por build+lint, **falta smoke test manual** de búsqueda/paginación/filtros). **Queda en
-  SearchPage** 1 `set-state-in-effect` (`:70`): es un **sync URL↔estado** (no data-fetching) → ítem aparte
-  (rediseñar con `searchParams` como fuente única). Siguiente: migrar el resto de páginas (dashboards,
-  history, requests, profile, availability, reports) con el mismo patrón.
+  `set-state-in-effect` de fetch + 2 `exhaustive-deps`. **Lint 16→14 errores, 13→11 warnings; build verde**
+  (verificado por build+lint, **falta smoke test manual** de búsqueda/paginación/filtros). El sync URL↔estado
+  de `SearchPage` **también se resolvió** (2026-11-23): `nameQuery`/`activeCatId`/`offererIdFilter` se
+  **derivan de `searchParams`** en render (URL = fuente única; sin estado ni efecto de sync; `setPage(0)` en
+  los handlers), eliminando el último `set-state-in-effect`. **`SearchPage` queda en 0 problemas de lint.**
+  Siguiente: migrar el resto de páginas (dashboards, history, requests, profile, availability, reports) con el
+  mismo patrón `useQuery`.
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
