@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
@@ -63,20 +64,18 @@ export function OffererDashboardPage() {
     const [proposalSubmitting, setProposalSubmitting] = useState(false);
     const [offererMetrics, setOffererMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [requests, setRequests] = useState([]);
-    const [loadingRequests, setLoadingRequests] = useState(true);
     const [notifications, setNotifications] = useState([]);
     const [loadingNotifications, setLoadingNotifications] = useState(true);
     const [profile, setProfile] = useState(null);
     const [acting, setActing] = useState(null);
 
-    const loadRequests = useCallback(() => {
-        setLoadingRequests(true);
-        requestApi.getOffererRequests({ statuses: ['PENDING', 'ACCEPTED', 'PRESUMABLY_COMPLETED'], size: 20 })
-            .then(data => setRequests(data.content || []))
-            .catch(() => showToast('Error al cargar solicitudes', 'danger'))
-            .finally(() => setLoadingRequests(false));
-    }, [showToast]);
+    // Solicitudes activas del oferente (M46: React Query; refetch() refresca tras acciones).
+    const requestsQuery = useQuery({
+        queryKey: ['offerer-dashboard-requests'],
+        queryFn: () => requestApi.getOffererRequests({ statuses: ['PENDING', 'ACCEPTED', 'PRESUMABLY_COMPLETED'], size: 20 }),
+    });
+    const requests = requestsQuery.data?.content ?? [];
+    const loadingRequests = requestsQuery.isPending;
 
     useEffect(() => {
         metricsApi.getMyMetrics()
@@ -85,7 +84,6 @@ export function OffererDashboardPage() {
             .finally(() => setLoading(false));
     }, [showToast]);
 
-    useEffect(() => { loadRequests(); }, [loadRequests]);
 
     useEffect(() => {
         notificationApi.getNotifications({ page: 0, size: 3 })
@@ -120,7 +118,7 @@ export function OffererDashboardPage() {
         try {
             await requestApi.acceptRequest(req.requestId);
             showToast('Solicitud aceptada. Cliente notificado', 'success');
-            loadRequests();
+            requestsQuery.refetch();
         } catch (e) {
             showToast(e.message || 'Error al aceptar solicitud', 'danger');
         } finally {
@@ -133,7 +131,7 @@ export function OffererDashboardPage() {
         try {
             await requestApi.rejectRequest(req.requestId);
             showToast('Solicitud rechazada. Cliente notificado', 'success');
-            loadRequests();
+            requestsQuery.refetch();
         } catch (e) {
             showToast(e.message || 'Error al rechazar solicitud', 'danger');
         } finally {
@@ -156,7 +154,7 @@ export function OffererDashboardPage() {
             setCompleteOpen(false);
             setSelectedRequest(null);
             showToast('Servicio marcado como realizado. Reseña enviada', 'success');
-            loadRequests();
+            requestsQuery.refetch();
         } catch (e) {
             showToast(e.message || 'Error al marcar servicio', 'danger');
         } finally {

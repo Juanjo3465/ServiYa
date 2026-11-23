@@ -28,7 +28,6 @@ export function OffererProfilePage() {
     const [metrics, setMetrics] = useState(null);
     const [loadingMetrics, setLoadingMetrics] = useState(true);
     const [offererPhotoSrc, setOffererPhotoSrc] = useState(null);
-    const [navbarAvatarSrc, setNavbarAvatarSrc] = useState(null);
 
     useEffect(() => {
         Promise.all([
@@ -56,9 +55,8 @@ export function OffererProfilePage() {
             .finally(() => setLoadingMetrics(false));
     }, [id, showToast]);
 
-    useEffect(() => {
-        setNavbarAvatarSrc(getApiImageUrl(userProfile?.profilePhotoUrl || null));
-    }, [userProfile]);
+    // Derivado (no efecto): el avatar del navbar sale directamente del perfil del usuario actual.
+    const navbarAvatarSrc = getApiImageUrl(userProfile?.profilePhotoUrl || null);
 
     const openWhatsApp = () => {
         const whatsappNumber = profile?.whatsappNumber || profile?.phoneNumber;

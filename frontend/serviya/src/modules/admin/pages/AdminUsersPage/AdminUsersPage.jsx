@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Modal, ToastContainer, useToast, adminApi } from '../../../../shared';
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
 import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
@@ -23,10 +24,6 @@ const formatDate = (value) => (value ? new Date(value).toLocaleDateString('es-CO
 export function AdminUsersPage() {
     const { toasts, showToast } = useToast();
 
-    const [users, setUsers] = useState([]);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
-
     // Filtros (RF-068)
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
@@ -50,28 +47,25 @@ export function AdminUsersPage() {
     const [creating, setCreating] = useState(false);
     const [createForm, setCreateForm] = useState(EMPTY_CREATE_USER);
 
-    const loadUsers = useCallback(() => {
-        setLoading(true);
-        // El backend filtra por email/fullName/role/banned (no por "search"/"status").
-        const params = { page, size: 20 };
-        if (roleFilter) params.role = roleFilter;
-        if (statusFilter === 'BANNED') params.banned = true;
-        else if (statusFilter === 'ACTIVE') params.banned = false;
-        if (search.trim()) {
-            if (search.includes('@')) params.email = search.trim();
-            else params.fullName = search.trim();
-        }
-        adminApi.searchUsers(params)
-            .then((data) => {
-                // El backend pagina: Page<UserSummaryResponse>
-                setUsers(data.content ?? data ?? []);
-                setTotal(data.totalElements ?? (data.content ?? data ?? []).length);
-            })
-            .catch((e) => showToast(e.message || 'No se pudieron cargar los usuarios', 'danger'))
-            .finally(() => setLoading(false));
-    }, [search, roleFilter, statusFilter, page, showToast]);
-
-    useEffect(() => { loadUsers(); }, [loadUsers]);
+    // Usuarios (M46: React Query; queryKey = filtros+page ⇒ refetch automático; refetch() tras ban/baja/crear/editar).
+    const usersQuery = useQuery({
+        queryKey: ['admin-users', search, roleFilter, statusFilter, page],
+        queryFn: () => {
+            // El backend filtra por email/fullName/role/banned (no por "search"/"status").
+            const params = { page, size: 20 };
+            if (roleFilter) params.role = roleFilter;
+            if (statusFilter === 'BANNED') params.banned = true;
+            else if (statusFilter === 'ACTIVE') params.banned = false;
+            if (search.trim()) {
+                if (search.includes('@')) params.email = search.trim();
+                else params.fullName = search.trim();
+            }
+            return adminApi.searchUsers(params);
+        },
+    });
+    const users = usersQuery.data?.content ?? usersQuery.data ?? [];
+    const total = usersQuery.data?.totalElements ?? users.length;
+    const loading = usersQuery.isPending;
 
     /** RF-067: al abrir el detalle se cargan los roles CON su fecha de concesión. */
     const openUser = (user) => {
@@ -111,7 +105,7 @@ export function AdminUsersPage() {
                 showToast(`Rol ${role} asignado`, 'success');
                 return adminApi.getUserRoles(selected.id).then(setSelectedRoles);
             })
-            .then(loadUsers)
+            .then(() => usersQuery.refetch())
             .catch((e) => showToast(e.message || 'No se pudo asignar el rol', 'danger'));
     };
 
@@ -129,7 +123,7 @@ export function AdminUsersPage() {
                 showToast(`Rol ${role} retirado`, 'success');
                 return adminApi.getUserRoles(selected.id).then(setSelectedRoles);
             })
-            .then(loadUsers)
+            .then(() => usersQuery.refetch())
             .catch((e) => showToast(e.message || 'No se pudo retirar el rol', 'danger'));
     };
 
@@ -153,7 +147,7 @@ export function AdminUsersPage() {
             .then(() => {
                 showToast('Usuario actualizado', 'success');
                 setMgmtOpen(false);
-                loadUsers();
+                usersQuery.refetch();
             })
             .catch((e) => showToast(e.message || 'No se pudo actualizar', 'danger'))
             .finally(() => setSaving(false));
@@ -166,7 +160,7 @@ export function AdminUsersPage() {
                 showToast('Usuario eliminado', 'success');
                 setDeleteOpen(false);
                 setMgmtOpen(false);
-                loadUsers();
+                usersQuery.refetch();
             })
             .catch((e) => showToast(e.message || 'No se pudo eliminar', 'danger'));
     };
@@ -180,7 +174,7 @@ export function AdminUsersPage() {
                 setBanOpen(false);
                 setBanReason('');
                 setMgmtOpen(false);
-                loadUsers();
+                usersQuery.refetch();
             })
             .catch((e) => showToast(e.message || 'No se pudo banear al usuario', 'danger'))
             .finally(() => setBanLoading(false));
@@ -195,7 +189,7 @@ export function AdminUsersPage() {
                 setBanOpen(false);
                 setBanReason('');
                 setMgmtOpen(false);
-                loadUsers();
+                usersQuery.refetch();
             })
             .catch((e) => showToast(e.message || 'No se pudo desbanear al usuario', 'danger'))
             .finally(() => setBanLoading(false));
@@ -222,7 +216,7 @@ export function AdminUsersPage() {
                 showToast('Usuario creado', 'success');
                 setCreateOpen(false);
                 setCreateForm(EMPTY_CREATE_USER);
-                loadUsers();
+                usersQuery.refetch();
             })
             .catch((e) => showToast(e.message || 'No se pudo crear el usuario', 'danger'))
             .finally(() => setCreating(false));
