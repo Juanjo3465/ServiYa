@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { AppNavbar, Icon, Stars, ToastContainer, useToast, serviceApi, categoryApi, getApiImageUrl, ServiceImage } from '../../../../shared';
 
 import './SearchPage.css';
@@ -11,8 +12,11 @@ export function SearchPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { toasts, showToast } = useToast();
 
-    // Categorías reales de la API
-    const [categories, setCategories] = useState([]);
+    // Categorías reales de la API (M46: React Query; fetcher = api.js, conserva el refresh de 401)
+    const { data: categories = [] } = useQuery({
+        queryKey: ['categories'],
+        queryFn: categoryApi.getCategories,
+    });
 
     // Filtros aplicados reales, inicializados desde query params
     const [nameQuery, setNameQuery] = useState(() => searchParams.get('q') || "");
@@ -25,12 +29,8 @@ export function SearchPage() {
         return oid ? Number(oid) : null;
     });
 
-    // Estado de la búsqueda y paginación
-    const [results, setResults] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalElements, setTotalElements] = useState(0);
+    // Paginación (M46: los resultados/estado de carga vienen de React Query, ver más abajo)
+    const [page, setPage] = useState(0);
 
     const [minPrice, setMinPrice] = useState("");
     const [maxPrice, setMaxPrice] = useState("");
@@ -48,19 +48,6 @@ export function SearchPage() {
 
     // Ubicación real del usuario (geolocalización del navegador)
     const [userLocation, setUserLocation] = useState(null);
-
-    // Cargar categorías al montar
-    useEffect(() => {
-        const loadCategories = async () => {
-            try {
-                const data = await categoryApi.getCategories();
-                setCategories(data || []);
-            } catch (err) {
-                showToast("Error al cargar categorías: " + err.message, "error");
-            }
-        };
-        loadCategories();
-    }, []);
 
     // Obtener ubicación real del usuario
     useEffect(() => {
@@ -85,47 +72,41 @@ export function SearchPage() {
         setSidebarName(q);
         setActiveCatId(catId);
         setOffererIdFilter(oid);
+        setPage(0); // cambio de filtros por URL ⇒ volver a la primera página
     }, [searchParams]);
 
-    // Función de búsqueda
-    const fetchServices = async (page = 0, currentCatId = activeCatId, currentSort = sort) => {
-        setLoading(true);
-        try {
-            const params = {
-                page: page,
-                size: 20,
-            };
-            if (nameQuery.trim()) params.name = nameQuery.trim();
-            if (currentCatId) params.categoryId = currentCatId;
-            if (offererIdFilter) params.offererId = offererIdFilter;
-            if (minPrice) params.minPrice = minPrice;
-            if (maxPrice) params.maxPrice = maxPrice;
-            if (minRating) params.minRating = minRating;
-            if (maxDistanceKm && userLocation) {
-                params.maxDistanceKm = maxDistanceKm;
-                params.latitude = userLocation.latitude;
-                params.longitude = userLocation.longitude;
-            }
-            if (currentSort) {
-                params.sort = currentSort;
-            }
-
-            const data = await serviceApi.searchServices(params);
-            setResults(data.content || []);
-            setTotalPages(data.totalPages || 1);
-            setTotalElements(data.totalElements || 0);
-            setCurrentPage(data.number || 0);
-        } catch (err) {
-            showToast("Error al buscar servicios: " + err.message, "error");
-        } finally {
-            setLoading(false);
+    // Parámetros de búsqueda para una página (M46)
+    const buildSearchParams = (p) => {
+        const params = { page: p, size: 20 };
+        if (nameQuery.trim()) params.name = nameQuery.trim();
+        if (activeCatId) params.categoryId = activeCatId;
+        if (offererIdFilter) params.offererId = offererIdFilter;
+        if (minPrice) params.minPrice = minPrice;
+        if (maxPrice) params.maxPrice = maxPrice;
+        if (minRating) params.minRating = minRating;
+        if (maxDistanceKm && userLocation) {
+            params.maxDistanceKm = maxDistanceKm;
+            params.latitude = userLocation.latitude;
+            params.longitude = userLocation.longitude;
         }
+        if (sort) params.sort = sort;
+        return params;
     };
 
-    // Recargar cuando cambian los filtros principales o ordenación
-    useEffect(() => {
-        fetchServices(0, activeCatId, sort);
-    }, [nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, minRating, maxDistanceKm, sort, userLocation]);
+    // React Query: refetch automático cuando cambia cualquier filtro/orden o la página (el queryKey).
+    // Sustituye el fetch-en-useEffect + setState (M46): elimina los set-state-in-effect y exhaustive-deps.
+    const servicesQuery = useQuery({
+        queryKey: ['services', {
+            nameQuery, activeCatId, offererIdFilter, minPrice, maxPrice, minRating, maxDistanceKm, sort, userLocation, page,
+        }],
+        queryFn: () => serviceApi.searchServices(buildSearchParams(page)),
+    });
+
+    const results = servicesQuery.data?.content ?? [];
+    const loading = servicesQuery.isPending;
+    const totalPages = servicesQuery.data?.totalPages ?? 1;
+    const totalElements = servicesQuery.data?.totalElements ?? 0;
+    const currentPage = servicesQuery.data?.number ?? page;
 
     // Manejar selección de categoría y actualizar URL params
     const handleCategorySelect = (catId) => {
@@ -160,6 +141,7 @@ export function SearchPage() {
         setMaxPrice(sidebarMaxPrice);
         setMinRating(sidebarMinRating);
         setMaxDistanceKm(sidebarDistance);
+        setPage(0);
 
         const params = new URLSearchParams(searchParams);
         if (sidebarName.trim()) {
@@ -211,6 +193,7 @@ export function SearchPage() {
     };
 
     const handleRemoveActiveFilter = (item) => {
+        setPage(0);
         const params = new URLSearchParams(searchParams);
         if (item.key === 'name') {
             params.delete('q');
@@ -419,6 +402,10 @@ export function SearchPage() {
                                 <div className="loading-spinner" style={{ margin: '0 auto 10px', width: '30px', height: '30px', border: '3px solid var(--c-border)', borderTop: '3px solid var(--c-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                                 Cargando servicios...
                             </div>
+                        ) : servicesQuery.isError ? (
+                            <div style={{ padding: '40px', gridColumn: '1 / -1', textAlign: 'center', color: 'var(--c-soft)' }}>
+                                No se pudieron cargar los servicios. Intenta de nuevo.
+                            </div>
                         ) : results.length === 0 ? (
                             <div style={{ padding: '40px', gridColumn: '1 / -1', textAlign: 'center', color: 'var(--c-soft)' }}>
                                 No se encontraron servicios que coincidan con la búsqueda.
@@ -475,7 +462,7 @@ export function SearchPage() {
                                 <button 
                                     key={i} 
                                     className={`btn ${currentPage === i ? 'btn-primary' : 'btn-ghost'} btn-sm`}
-                                    onClick={() => fetchServices(i)}
+                                    onClick={() => setPage(i)}
                                 >
                                     {i + 1}
                                 </button>

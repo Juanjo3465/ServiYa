@@ -762,6 +762,18 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   Refactor mediano → hacerlo deliberadamente página por página. **Fuera de esta deuda (se arregla ya):**
   `no-unused-vars`, el `react-hooks/immutability` puntual de `ProfilePage`, y los sync de estado simples. Los
   `no-unused-vars` de `RequestServicePage` se resolvieron **borrando** la página (F4, 2026-11-23).
+  **Decisión 2026-11-23: TanStack Query (React Query v5)** — es *estado de servidor*, NO una lib de estado de
+  cliente (no contradice "sin Redux/Context"); da caché, dedup y revalidación. Se monta sobre `api.js` (los
+  fetchers), así el **refresh de 401 se conserva** (el fetcher lo hace); su `retry` se configura para saltar
+  401/403. **Progreso:** (1) instalado `@tanstack/react-query@5.108.3` + `QueryClientProvider` en `main.jsx`
+  (`app/queryClient.js`, `retry` 401/403 off, `staleTime` 30s). (2) **`SearchPage` migrada como referencia:**
+  categorías + búsqueda/paginación pasan a `useQuery` (queryKey = filtros + página ⇒ refetch automático;
+  `setPage` en la paginación; reset a página 0 al cambiar filtros; rama de error en el render). Elimina su
+  `set-state-in-effect` de fetch + 2 `exhaustive-deps`. **Lint 16→15 errores, 13→11 warnings; build verde**
+  (verificado por build+lint, **falta smoke test manual** de búsqueda/paginación/filtros). **Queda en
+  SearchPage** 1 `set-state-in-effect` (`:70`): es un **sync URL↔estado** (no data-fetching) → ítem aparte
+  (rediseñar con `searchParams` como fuente única). Siguiente: migrar el resto de páginas (dashboards,
+  history, requests, profile, availability, reports) con el mismo patrón.
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
