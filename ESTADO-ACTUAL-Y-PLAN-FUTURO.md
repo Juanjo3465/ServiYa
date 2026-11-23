@@ -709,6 +709,17 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   **alertas por geolocalización/cambio de dispositivo**, **rotación más agresiva**. Complementa M29 (backoff
   por cuenta + MFA de admins). No urgente pre-prod; el modelo actual es estándar.
 
+- **M44 — Unificar el formato de error del sistema hacia RFC 9457 (Problem Details), el estándar que ya
+  sigue el chat.** Hoy conviven dos formas (ambas aceptadas, guía §4.4): el **shape 4.4 custom**
+  (`{status, error, code, message, correlationId}`, `application/json`) en monolito/gateway/notif, y
+  **RFC 9457** (`{type, title, status, code, trace_id}`, `application/problem+json`) en el chat. RFC 9457 es
+  un **estándar IETF**; el 4.4 es bespoke. Deuda (dirección preferida del usuario, 2026-11-22): **converger
+  todo el sistema a RFC 9457** y retirar el shape custom, para tener **un solo estándar** en vez de dos.
+  Alcance: migrar `ErrorResponse` (monolito/notif) y los escritores de error del gateway
+  (`GatewayErrorWriter`/entry-point/handlers) a Problem Details; actualizar el contrato §4.4, los contract
+  tests (T6.21) y el frontend (`api.js` ya maneja ambas formas, así que el cambio es de backend). Mantener
+  el `code` estable como invariante. Complementa el ajuste blando de valores de `code` transversales (M42).
+
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
 > **Fuente de verdad detallada:** `documents/redis/guia-redis-implementacion.md` (guía dedicada, 9 fases,
