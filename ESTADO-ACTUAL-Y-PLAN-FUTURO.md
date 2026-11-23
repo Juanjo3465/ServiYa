@@ -734,6 +734,16 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   tests (T6.21) y el frontend (`api.js` ya maneja ambas formas, así que el cambio es de backend). Mantener
   el `code` estable como invariante. Complementa el ajuste blando de valores de `code` transversales (M42).
 
+- **M45 — Deuda de lint del frontend (~22 errores).** `npm run lint` (eslint flat config) falla con ~22
+  errores pre-existentes, sobre todo **`react-hooks/set-state-in-effect`** (15: `setState` síncrono dentro de
+  `useEffect`, patrón usado en varias páginas) + `react-hooks/immutability`, más ~13 warnings
+  (`exhaustive-deps`). **No son regresión**; los destapó el gate de CI (T6.22). **CI (2026-11-23):** el job del
+  frontend corre `lint` como **advisory (no bloquea)** y gatea con **`build`** (que pasa). **Arreglado de paso:**
+  el `no-undef 'process'` (3 ocurrencias en `App`/`ErrorPage`/`ErrorBoundary`) — `process.env.NODE_ENV` no
+  existe en el navegador con Vite y estaba justo en los componentes de error (riesgo de doble fallo/pantalla en
+  blanco); migrado a `import.meta.env.DEV`. **Pendiente:** limpiar los `set-state-in-effect` (refactor de
+  efectos; ojo, puede cambiar comportamiento). Backlog frontend consolidado en §2.4.1.
+
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
 > **Fuente de verdad detallada:** `documents/redis/guia-redis-implementacion.md` (guía dedicada, 9 fases,

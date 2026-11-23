@@ -48,7 +48,7 @@ export function ErrorPage() {
                     <Icon name="chevronLeft" size={15} /> Volver
                 </button>
             </div>
-            {process.env.NODE_ENV === 'development' && (
+            {import.meta.env.DEV && (
                 <details style={{ marginTop: '24px', textAlign: 'left', maxWidth: '600px' }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--c-soft)' }}>Detalles técnicos (desarrollo)</summary>
                     <pre style={{

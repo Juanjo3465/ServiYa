@@ -48,7 +48,7 @@ class ErrorBoundary extends React.Component {
                             <Icon name="refreshCw" size={15} /> Recargar página
                         </button>
                     </div>
-                    {process.env.NODE_ENV === 'development' && this.state.error && (
+                    {import.meta.env.DEV && this.state.error && (
                         <details style={{ marginTop: '24px', textAlign: 'left', maxWidth: '600px' }}>
                             <summary style={{ cursor: 'pointer', color: 'var(--c-soft)' }}>Detalles técnicos (desarrollo)</summary>
                             <pre style={{
