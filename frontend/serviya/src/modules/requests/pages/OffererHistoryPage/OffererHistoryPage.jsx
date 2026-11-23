@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, OFFERER_NAV, requestApi } from '../../../../shared';
 import { STATUS_MAP, formatDate, getInitials, formatPrice } from '../../utils';
 
@@ -15,31 +16,21 @@ const TABS = [
 export function OffererHistoryPage() {
     const navigate = useNavigate();
     const [tab, setTab] = useState(0);
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
+    const [page, setPage] = useState(0);
 
-    const fetchHistory = (page = 0) => {
-        setLoading(true);
-        const statusKey = TABS[tab].key;
-        const params = { page, size: 20 };
-        if (statusKey) {
-            params.statuses = statusKey;
-        }
-        requestApi.getOffererRequests(params)
-            .then(data => {
-                setRequests(data.content || []);
-                setTotalPages(data.totalPages || 1);
-                setCurrentPage(data.number || 0);
-            })
-            .catch(() => {})
-            .finally(() => setLoading(false));
-    };
-
-    useEffect(() => {
-        fetchHistory(0);
-    }, [tab]);
+    // Historial del oferente (M46: React Query; refetch al cambiar pestaña o página vía queryKey).
+    const historyQuery = useQuery({
+        queryKey: ['offerer-history', tab, page],
+        queryFn: () => {
+            const params = { page, size: 20 };
+            if (TABS[tab].key) params.statuses = TABS[tab].key;
+            return requestApi.getOffererRequests(params);
+        },
+    });
+    const requests = historyQuery.data?.content ?? [];
+    const loading = historyQuery.isPending;
+    const totalPages = historyQuery.data?.totalPages ?? 1;
+    const currentPage = historyQuery.data?.number ?? page;
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
@@ -47,7 +38,7 @@ export function OffererHistoryPage() {
 
             <div className="filter-chips">
                 {TABS.map((t, i) => (
-                    <div key={t.key} className={`chip ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>
+                    <div key={t.key} className={`chip ${tab === i ? 'active' : ''}`} onClick={() => { setTab(i); setPage(0); }}>
                         {t.label}
                     </div>
                 ))}
@@ -93,9 +84,9 @@ export function OffererHistoryPage() {
                     </div>
                     {totalPages > 1 && (
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
-                            <button className="btn btn-ghost btn-sm" disabled={currentPage === 0} onClick={() => fetchHistory(currentPage - 1)}>Anterior</button>
+                            <button className="btn btn-ghost btn-sm" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
                             <span style={{ fontSize: '13px', color: 'var(--c-mid)', alignSelf: 'center' }}>Página {currentPage + 1} de {totalPages}</span>
-                            <button className="btn btn-ghost btn-sm" disabled={currentPage >= totalPages - 1} onClick={() => fetchHistory(currentPage + 1)}>Siguiente</button>
+                            <button className="btn btn-ghost btn-sm" disabled={currentPage >= totalPages - 1} onClick={() => setPage(currentPage + 1)}>Siguiente</button>
                         </div>
                     )}
                 </>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, CLIENT_NAV, OFFERER_NAV, reportApi, userIdFromToken, rolesFromToken } from '../../../../shared';
 
 const TYPE_LABELS = {
@@ -17,17 +17,17 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('es-CO', { day: 'nume
 
 export function MyReportsPage() {
     const sections = rolesFromToken().includes('OFFERER') ? OFFERER_NAV : CLIENT_NAV;
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const userId = userIdFromToken();
 
-    useEffect(() => {
-        const userId = userIdFromToken();
-        if (!userId) { setLoading(false); return; }
-        reportApi.getSentByUser(userId)
-            .then((data) => setReports(Array.isArray(data) ? data : (data.content ?? [])))
-            .catch(() => { })
-            .finally(() => setLoading(false));
-    }, []);
+    // Mis reportes (M46: React Query). `enabled` gatea cuando no hay userId (sin spinner infinito).
+    const reportsQuery = useQuery({
+        queryKey: ['my-reports', userId],
+        queryFn: () => reportApi.getSentByUser(userId),
+        enabled: !!userId,
+        select: (data) => (Array.isArray(data) ? data : (data.content ?? [])),
+    });
+    const reports = reportsQuery.data ?? [];
+    const loading = reportsQuery.isLoading;
 
     return (
         <DashboardLayout sections={sections}>
