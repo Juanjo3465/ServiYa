@@ -689,9 +689,13 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
 
 - **M42 — Consistencia transversal de decisiones y mejoras entre servicios.** Riesgo sistémico: decisiones ya
   tomadas (error 4.4, ES256/JWKS, correlación, métricas, rate-limit) no se aplican de forma uniforme. El chat
-  (equipo distinto) es el caso más visible: **(i) códigos de error divergentes** — usa su propio namespace
-  `CHAT_*` en vez de los del contrato 4.4 (`TOKEN_MISSING/EXPIRED/INVALID/REVOKED`, `FORBIDDEN`,
-  `RATE_LIMITED`); **(ii) clave de MDC divergente** (`correlationId` vs `requestId`); **(iii) sin métricas**.
+  (equipo distinto) es el caso más visible: **(i) formato de error** — RECONCILIADO 2026-11-22: el chat usa
+  **RFC 9457 (Problem Details)**, una elección de estándar documentada (su `openapi.json`/guía) y probada, y
+  se **acepta como variante equivalente** del contrato 4.4 (invariante: `code` estable + mensaje +
+  correlation-id; `api.js` ya maneja ambas formas; ver guía §4.4). Queda un **ajuste blando**: alinear con el
+  equipo de chat los **valores** de `code` transversales (`CHAT_RATE_LIMITED`→`RATE_LIMITED`, los 403 de
+  dominio→`FORBIDDEN`) para que un cliente que ramifica por `code` vea los mismos valores en todos los
+  servicios. **(ii) clave de MDC divergente** (`correlationId` vs `requestId`); **(iii) sin métricas**.
   Acción: **checklist transversal por servicio** (resource server ES256, error 4.4 con códigos estándar,
   métricas, correlación con clave unificada, auditoría si aplica) atado a los **contract tests (M24 /
   T6.19–21)** y a la definición de "listo" de cada servicio nuevo. Los contract tests son la red que evita
