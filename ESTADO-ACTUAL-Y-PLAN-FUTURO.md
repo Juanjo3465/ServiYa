@@ -669,8 +669,10 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
 
 - **M41 — Observabilidad de los microservicios (más allá de auth/gateway).** Fallas por servicio en la matriz
   de arriba. Acciones:
-  - (a) **chat sin métricas**: añadir `micrometer-registry-prometheus` + exponer `/prometheus` (como notif,
-    6-obs-A) e instrumentar sus flujos (WS, mensajes, eventos).
+  - (a) **chat sin métricas → HECHO 2026-11-22 (endpoint):** añadido `micrometer-registry-prometheus` +
+    expuesto `/actuator/prometheus` en el puerto de gestión `9090` (no publicado), como notif/monolito. Da ya
+    las métricas estándar (JVM, `http.server.requests`, …). **Follow-up:** instrumentar los flujos de dominio
+    propios (conexiones WS, mensajes enviados/leídos, eventos) con contadores/timers.
   - (b) **Servidor Prometheus + Grafana en `docker-compose`** (hoy solo hay endpoints, nada los *scrapea*).
     **Decisión del usuario (2026-11-22): se adelanta a la Fase 6** (ya no Fase 7): añadir servicios
     `prometheus` + `grafana` al compose + un `prometheus.yml` con los 3 targets (monolito, gateway, notif) y
@@ -696,10 +698,16 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   equipo de chat los **valores** de `code` transversales (`CHAT_RATE_LIMITED`→`RATE_LIMITED`, los 403 de
   dominio→`FORBIDDEN`) para que un cliente que ramifica por `code` vea los mismos valores en todos los
   servicios. **(ii) clave de MDC divergente** (`correlationId` vs `requestId`); **(iii) sin métricas**.
-  Acción: **checklist transversal por servicio** (resource server ES256, error 4.4 con códigos estándar,
-  métricas, correlación con clave unificada, auditoría si aplica) atado a los **contract tests (M24 /
-  T6.19–21)** y a la definición de "listo" de cada servicio nuevo. Los contract tests son la red que evita
-  que esto se repita.
+  Acción: **checklist transversal por servicio** (resource server ES256, error 4.4 con `code` estándar,
+  métricas `/prometheus`, correlación con clave unificada, auditoría si aplica, **y alta en la rutina de CI**)
+  atado a los **contract tests (M24 / T6.19–21)** y a la definición de "listo" de cada servicio nuevo. Los
+  contract tests son la red que evita que esto se repita.
+
+  > **⚙️ REGLA DE CI (2026-11-22):** **todo microservicio nuevo debe añadirse a la matriz de la rutina de CI**
+  > (`.github/workflows/ci.yml`, job `backend-test`, lista `matrix.module`), para que sus tests —incluidos los
+  > contract tests (T6.22)— corran como gate en cada push/PR. Hoy la matriz cubre `serviya`, `api-gateway`,
+  > `notifications-service`, `chat-service`, `identity-service`; al extraer un servicio nuevo (p. ej. en
+  > Fase 8) hay que **sumarlo ahí**.
 
 - **M43 — Endurecimiento de la sesión/refresh contra robo de cookie (mejora futura).** La cookie de refresh
   ya es `HttpOnly; SameSite=Strict; Secure(prod); Path=/api/v1/auth` + rotación + detección de reuso
