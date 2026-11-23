@@ -414,7 +414,7 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 | F1 | ALTO | routing | Sin route guards: toda ruta protegida se renderiza sin sesión/rol | `app/routes.jsx` |
 | F2 | MEDIO | api | Sin interceptor de 401 (no hay logout+redirect centralizado) | `shared/api.js` `request()` |
 | F3 | MEDIO | admin | `AdminServicesPage`: filtro de categoría por input numérico (no dropdown); IDs crudos en vez de nombres (`AdminFeedbackPage`/`AdminServicesPage`) | páginas admin |
-| F4 | BAJO | requests | `RequestServicePage` (wizard de 4 pasos para contratar un servicio; `/request-service/:serviceId`, guard `['CLIENT']`): **ACTUALIZADO 2026-11-23**, ya NO es maqueta (hace `createRequest` + carga servicio/disponibilidad/direcciones), pero **sigue SIN enlazar** desde la UI (ningún `navigate` la alcanza) **y con payload ROTO** (manda `scheduledAt`; `CreateServiceRequestForm` espera `scheduledDate` `@NotNull` → 400). **Redundante**: `ServiceDetailPage` ya crea la solicitud inline y **correctamente** (`scheduledDate`). Decisión: **borrar** (recomendado) o arreglar+enlazar | `RequestServicePage`, `routes.jsx:47`, `ServiceDetailPage` |
+| F4 | BAJO | requests | `RequestServicePage` (wizard de 4 pasos para contratar un servicio; `/request-service/:serviceId`, guard `['CLIENT']`): **ACTUALIZADO 2026-11-23**, ya NO es maqueta (hace `createRequest` + carga servicio/disponibilidad/direcciones), pero **sigue SIN enlazar** desde la UI (ningún `navigate` la alcanza) **y con payload ROTO** (manda `scheduledAt`; `CreateServiceRequestForm` espera `scheduledDate` `@NotNull` → 400). **Redundante**: `ServiceDetailPage` ya crea la solicitud inline y **correctamente** (`scheduledDate`). **RESUELTO 2026-11-23: BORRADA** (página + ruta + export del barrel + import en `routes.jsx`); la función la cubre `ServiceDetailPage`. Build verde; 3 `no-unused-vars` menos | ~~`RequestServicePage`~~ (eliminado) |
 | F5 | BAJO | ux | Sin error boundaries / `errorElement` → error de render = app en blanco | `app/routes.jsx`, `App.jsx` |
 
 > Nota: F1 agrava los IDOR del backend (§3.1) solo en lectura de UI; las escrituras IDOR son del
@@ -755,7 +755,7 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   carga/error/reintento en todas las páginas (mejora de mantenibilidad y escalado, no solo "callar el lint").
   Refactor mediano → hacerlo deliberadamente página por página. **Fuera de esta deuda (se arregla ya):**
   `no-unused-vars`, el `react-hooks/immutability` puntual de `ProfilePage`, y los sync de estado simples. Los
-  `no-unused-vars` de `RequestServicePage` van con **F4** (página muerta: borrar o cablear).
+  `no-unused-vars` de `RequestServicePage` se resolvieron **borrando** la página (F4, 2026-11-23).
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
@@ -1128,7 +1128,7 @@ síncronas (los N+1 de §3.4 se vuelven N+1 de red); sagas sin compensación; so
 - **Frontend — decisiones de diseño pendientes** (de la doc de julio, siguen vigentes):
   - Destino de `AdminFeedbackPage` (`/admin/feedback`): se quitó del menú pero la ruta/página existen
     → reintegrar, fusionar o eliminar.
-  - `RequestServicePage`: cablear el wizard o borrar la ruta muerta `/request-service`.
+  - ~~`RequestServicePage`: cablear el wizard o borrar la ruta muerta~~ **RESUELTO 2026-11-23: borrada** (redundante con `ServiceDetailPage`; ver F4).
   - Comportamiento de las pestañas de rol del login (multi-rol) y destino del logo con sesión activa.
 
 ---

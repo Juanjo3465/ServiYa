@@ -17,7 +17,6 @@ import {
     OffererHistoryPage,
     OffererRequestsPage,
     OffererReschedulesPage,
-    RequestServicePage,
     RequestDetailPage,
 } from "../modules/requests";
 import { NotificationsPage } from "../modules/notifications";
@@ -42,9 +41,6 @@ export const router = createBrowserRouter([
             { path: "services", ...page(<SearchPage />) },
             { path: "services/:id", ...page(<ServiceDetailPage />) },
             { path: "offerers/:id", ...page(<OffererProfilePage />) },
-
-            // Client (requires CLIENT role) - Request service wizard
-            { path: "request-service/:serviceId", ...protectedPage(<RequestServicePage />, ['CLIENT']) },
 
             // Account (shared by roles - requires authentication)
             { path: "profile", ...protectedPage(<ProfilePage />) },
