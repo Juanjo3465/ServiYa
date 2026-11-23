@@ -103,6 +103,14 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- MockWebServer: publica un JWKS de prueba para verificar que el resource server (jwtDecoder) acepta
+		     un ES256 valido y rechaza alg!=ES256 / firma invalida (T6.19). -->
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>mockwebserver</artifactId>
+			<version>4.12.0</version>
+			<scope>test</scope>
+		</dependency>
 		<!-- Prueba de integracion de punta a punta (MySQL + RabbitMQ reales y efimeros). Se SALTA sin Docker. -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
