@@ -62,12 +62,12 @@ jobs:
         working-directory: frontend/serviya
         run: npm ci
 
-      # Lint ADVISORY: no bloquea el gate. El frontend arrastra ~25 errores de lint pre-existentes
-      # (react-hooks/set-state-in-effect, no-undef 'process', …) que NO son regresión de este trabajo;
-      # se limpian aparte (estado-frontend-pendientes.md / ESTADO M45). El gate real del frontend es el build.
-      - name: lint (advisory)
+      # Lint BLOQUEANTE (M46 cerrado, 2026-11-23): los errores de lint del frontend están en 0 tras migrar
+      # el data-fetching a TanStack Query y cerrar los set-state-in-effect. eslint falla el gate ante
+      # cualquier ERROR nuevo; las ~5 warnings exhaustive-deps restantes siguen siendo advisory (eslint no
+      # falla por warnings por defecto) y se limpiarán aparte (ESTADO M45/M46).
+      - name: lint (gate)
         working-directory: frontend/serviya
-        continue-on-error: true
         run: npm run lint
 
       - name: build (gate)

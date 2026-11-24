@@ -783,17 +783,29 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   `OffererProfilePage` (su sync de estado del avatar del navbar pasó a **derivarse en render**, no efecto).
   **Lint: 19 → 3 errores, 9 → 7 warnings; build verde** en cada lote (verificado por build+lint; **falta smoke
   test manual** de cada página migrada). Commits `3e13966`…`149d0de` en `api-gateway`.
-  **Restan 3 errores `set-state-in-effect` — NO son data-fetching de lista, sino *seed/sync de estado editable*
-  donde `useQuery` NO elimina el `setState` en efecto:** `ProfilePage:40` (RHF `reset()` + `setLocation` al
-  cambiar la dirección editada), `ProfilePage:74` (efecto de *reverse-geocoding* que actualiza el form), y
-  `AvailabilityPage:164` (siembra `serviceSchedule` **editable** + `initialServiceSlots` desde el fetch de
-  disponibilidad del servicio seleccionado). Son usos legítimos de efecto (sincronizar dato externo → estado
-  **editable** local) que la regla marca de forma conservadora. **Decisión pendiente del usuario:** (a)
-  `eslint-disable-next-line` puntual con justificación en cada uno (rápido, documenta la excepción; permite
-  volver el lint **bloqueante** ya), (b) refactor más profundo (gestionar las ediciones como overlay/diff
-  sobre el dato de la query — riesgoso sin poder probar en runtime), o (c) dejarlos como deuda documentada y
-  mantener el lint **advisory**. Cuando los 3 se resuelvan → volver el `lint` **bloqueante** en CI (hoy
-  `continue-on-error: true`, ver M45/§6.5.d).
+  **Los 3 errores restantes (seed/sync de estado editable) — CERRADOS (2026-11-23, opción (b) refactor,
+  elegida por el usuario).** No eran data-fetching de lista sino *estado editable sembrado desde un dato
+  externo*, donde `useQuery` no elimina el `setState` en efecto; se resolvieron sin suprimir la regla:
+  • **`AvailabilityPage` (era :164):** disponibilidad por servicio → **overlay/diff sobre `useQuery`**. El dato
+  del servidor vive en la query (`['service-availability', selectedServiceId]`, `enabled`); `serviceEdits`
+  (`{serviceId, schedule}`) guarda **sólo** la copia en edición y a qué servicio pertenece; `serviceSchedule`
+  (y `initialServiceSlots`) se **derivan** (overlay si hay ediciones del servicio activo, si no el dato del
+  servidor). Guardar/aplicar-plantilla → `setServiceEdits(null)` + `refetch()`. Las ediciones se descartan al
+  cambiar de servicio por construcción (el `serviceId` del overlay deja de coincidir). *Nota de comportamiento:*
+  volver a un servicio con ediciones sin guardar ahora las conserva (antes re-leía del backend); aceptable.
+  • **`ProfilePage` / `AddressModal` (eran :40 y :74):** patrón *"no necesitas un efecto"*. El seed del form
+  desde `editedAddress` pasó a **`defaultValues` de react-hook-form + inicializador perezoso de `useState`**
+  (el modal se re-monta por apertura, así que el montaje ya trae los valores correctos; se eliminó `reset()`
+  del efecto). El *reverse-geocoding* se dispara **desde el evento** (clic en el mapa / arrastre del marcador /
+  "usar mi ubicación"), no desde un efecto que observa `location`. *Nota de comportamiento:* al **editar** una
+  dirección ya guardada ya **no** se re-geocodifica en el montaje (conserva su texto; probablemente mejor).
+  **Lint: 0 errores** (quedan **5 warnings `react-hooks/exhaustive-deps`** preexistentes: `ProfilePage:371/384`,
+  `ClientSchedulePage:75`, `OffererServicesPage:247`, `ServiceDetailPage:98` — advisory, cleanup aparte).
+  **CI: el step `lint` se volvió BLOQUEANTE** (se quitó `continue-on-error`; `eslint` falla el gate ante
+  cualquier ERROR nuevo, las warnings siguen advisory). Commits `149d0de`…(este lote) en `api-gateway`.
+  **PENDIENTE (bloqueante antes de cerrar M46):** smoke test manual en runtime de TODAS las páginas migradas —
+  en especial las dos con cambio de comportamiento (editar disponibilidad por servicio; editar/crear dirección
+  con el mapa). Verificado sólo por build+lint.
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
