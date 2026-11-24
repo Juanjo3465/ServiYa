@@ -18,31 +18,24 @@ function AddressModal({
     showToast,
     profile
 }) {
-    const [location, setLocation] = useState(null);
+    // Estado inicial derivado del prop EN EL MONTAJE (el modal se re-monta en cada apertura, así que no
+    // hace falta un efecto de "sembrado"): `location` desde las coords y `main` desde el perfil, vía el
+    // inicializador perezoso de useState y los defaultValues de react-hook-form.
+    const [location, setLocation] = useState(
+        editedAddress?.latitude != null && editedAddress?.longitude != null
+            ? { latitude: editedAddress.latitude, longitude: editedAddress.longitude }
+            : null
+    );
     const [geoLoading, setGeoLoading] = useState(false);
     const {
         register,
         handleSubmit,
-        reset,
         setValue
     } = useForm({
-        defaultValues: editedAddress || {}
-    })
-
-    useEffect(() => {
-        if (!editedAddress) return;
-
-        reset(editedAddress);
-
-        setValue("main", profile?.primaryAddressId === editedAddress.id);
-
-        if (editedAddress.latitude != null && editedAddress.longitude != null) {
-            setLocation({
-                latitude: editedAddress.latitude,
-                longitude: editedAddress.longitude
-            });
-        }
-    }, [editedAddress, reset]);
+        defaultValues: editedAddress
+            ? { ...editedAddress, main: profile?.primaryAddressId === editedAddress.id }
+            : {}
+    });
 
     // Declarada ANTES del efecto que la usa (evita react-hooks/immutability "accessed before declared").
     const reverseGeocode = async (lat, lng) => {
@@ -68,14 +61,14 @@ function AddressModal({
         }
     };
 
-    useEffect(() => {
-        if (!location) return;
-
-        reverseGeocode(
-            location.latitude,
-            location.longitude
-        );
-    }, [location]);
+    // Selección de un punto (clic en el mapa, arrastre del marcador o "usar mi ubicación"): actualiza la
+    // ubicación y dispara el reverse-geocoding DESDE el evento, no desde un efecto. El montaje con una
+    // dirección ya guardada NO re-geocodifica (conserva su texto). (Antes el efecto lo sobrescribía;
+    // verificar en smoke test de editar dirección.)
+    const selectLocation = ({ latitude, longitude }) => {
+        setLocation({ latitude, longitude });
+        reverseGeocode(latitude, longitude);
+    };
 
     const useMyLocation = () => {
         if (!navigator.geolocation) {
@@ -83,7 +76,7 @@ function AddressModal({
             return;
         }
         navigator.geolocation.getCurrentPosition(
-            (pos) => setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            (pos) => selectLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
             () => showToast('No se pudo obtener tu ubicación', 'danger')
         );
     };
@@ -118,7 +111,7 @@ function AddressModal({
                             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
                         <RecenterMap location={location} />
-                        <LocationMarker location={location} onLocationSelect={setLocation} />
+                        <LocationMarker location={location} onLocationSelect={selectLocation} />
                     </MapContainer>
 
                     <button

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout, Icon, ToastContainer, useToast, OFFERER_NAV, profileApi, serviceApi, availabilityApi, isAuthenticated } from '../../../../shared';
 
 import './AvailabilityPage.css';
@@ -119,9 +120,27 @@ export function AvailabilityPage() {
     const [loading, setLoading] = useState(true);
     const [services, setServices] = useState([]);
     const [selectedServiceId, setSelectedServiceId] = useState('');
-    const [serviceSchedule, setServiceSchedule] = useState(EMPTY_SCHEDULE);
-    const [serviceLoading, setServiceLoading] = useState(false);
-    const [initialServiceSlots, setInitialServiceSlots] = useState([]);
+    // Edición por servicio (M46 overlay/diff): el dato del servidor vive en la query; `serviceEdits`
+    // guarda SOLO la copia en edición y a qué servicio pertenece. Así no se "siembra" estado en efecto.
+    const [serviceEdits, setServiceEdits] = useState(null); // { serviceId, schedule } | null
+    const serviceAvailQuery = useQuery({
+        queryKey: ['service-availability', selectedServiceId],
+        queryFn: () => serviceApi.getServiceAvailability(selectedServiceId),
+        enabled: !!selectedServiceId,
+    });
+    const serviceLoading = serviceAvailQuery.isFetching;
+    const serverServiceSchedule = useMemo(
+        () => normalizeSchedule(serviceAvailQuery.data ?? []),
+        [serviceAvailQuery.data]
+    );
+    // Si hay ediciones del servicio seleccionado se muestran; si no, el horario del servidor.
+    const serviceSchedule = (serviceEdits && serviceEdits.serviceId === selectedServiceId)
+        ? serviceEdits.schedule
+        : serverServiceSchedule;
+    const initialServiceSlots = useMemo(
+        () => (serviceAvailQuery.data ?? []).map((slot) => ({ ...slot, active: slot.active ?? slot.activeStatus ?? true })),
+        [serviceAvailQuery.data]
+    );
 
     useEffect(() => {
         if (!isAuthenticated()) {
@@ -159,22 +178,6 @@ export function AvailabilityPage() {
             .finally(() => setLoading(false));
     }, []);
 
-    useEffect(() => {
-        if (!selectedServiceId) return;
-        setServiceLoading(true);
-        serviceApi.getServiceAvailability(selectedServiceId)
-            .then((data) => {
-                const normalized = normalizeSchedule(data);
-                setServiceSchedule(normalized);
-                setInitialServiceSlots((data || []).map((slot) => ({
-                    ...slot,
-                    active: slot.active ?? slot.activeStatus ?? true,
-                })));
-            })
-            .catch(() => showToast('No se pudo cargar la disponibilidad del servicio', 'danger'))
-            .finally(() => setServiceLoading(false));
-    }, [selectedServiceId, showToast]);
-
     const selectedServiceLabel = useMemo(
         () => services.find((service) => String(service.id) === String(selectedServiceId))?.title || 'Selecciona un servicio',
         [services, selectedServiceId]
@@ -203,27 +206,28 @@ export function AvailabilityPage() {
         }));
     }
 
+    // Los handlers escriben sobre la copia en edición (overlay), nunca sobre el dato del servidor.
     function handleAddServiceSlot(weekDay) {
-        setServiceSchedule((prev) => ({
-            ...prev,
-            [weekDay]: [...prev[weekDay], { id: nextTempId--, startTime: '08:00', endTime: '10:00', active: true }],
-        }));
+        setServiceEdits({ serviceId: selectedServiceId, schedule: {
+            ...serviceSchedule,
+            [weekDay]: [...(serviceSchedule[weekDay] || []), { id: nextTempId--, startTime: '08:00', endTime: '10:00', active: true }],
+        } });
     }
 
     function handleRemoveServiceSlot(weekDay, slotId) {
-        setServiceSchedule((prev) => ({
-            ...prev,
-            [weekDay]: prev[weekDay].filter((s) => s.id !== slotId),
-        }));
+        setServiceEdits({ serviceId: selectedServiceId, schedule: {
+            ...serviceSchedule,
+            [weekDay]: (serviceSchedule[weekDay] || []).filter((s) => s.id !== slotId),
+        } });
     }
 
     function handleChangeServiceSlot(weekDay, slotId, field, value) {
-        setServiceSchedule((prev) => ({
-            ...prev,
-            [weekDay]: prev[weekDay].map((s) =>
+        setServiceEdits({ serviceId: selectedServiceId, schedule: {
+            ...serviceSchedule,
+            [weekDay]: (serviceSchedule[weekDay] || []).map((s) =>
                 s.id === slotId ? { ...s, [field]: value } : s
             ),
-        }));
+        } });
     }
 
     function handleSaveGeneralSchedule() {
@@ -290,13 +294,9 @@ export function AvailabilityPage() {
             // Create all new slots
             await Promise.all(allSlots.map((slot) => serviceApi.createServiceAvailability(selectedServiceId, slot)));
             
-            // Refresh the list
-            const refreshed = await serviceApi.getServiceAvailability(selectedServiceId);
-            setServiceSchedule(normalizeSchedule(refreshed));
-            setInitialServiceSlots((refreshed || []).map((slot) => ({
-                ...slot,
-                active: slot.activeStatus ?? slot.active ?? true,
-            })));
+            // Descarta las ediciones locales y refresca el dato del servidor (la query vuelve a leer).
+            setServiceEdits(null);
+            await serviceAvailQuery.refetch();
             showToast('Disponibilidad del servicio guardada', 'success');
         } catch (err) {
             console.error('Error saving service availability:', err);
@@ -312,13 +312,8 @@ export function AvailabilityPage() {
 
         try {
             await serviceApi.applyGeneralTemplateToService(selectedServiceId);
-            const refreshed = await serviceApi.getServiceAvailability(selectedServiceId);
-            const normalized = normalizeSchedule(refreshed);
-            setServiceSchedule(normalized);
-            setInitialServiceSlots((refreshed || []).map((slot) => ({
-                ...slot,
-                active: slot.activeStatus ?? slot.active ?? true,
-            })));
+            setServiceEdits(null);
+            await serviceAvailQuery.refetch();
             showToast('Plantilla general aplicada al servicio', 'success');
         } catch (err) {
             console.error('Error applying template:', err);
