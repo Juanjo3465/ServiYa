@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AppNavbar } from '../AppNavbar/AppNavbar';
 import { Sidebar } from '../Sidebar/Sidebar';
 import { notificationApi, chatApi } from '../../api';
@@ -6,53 +7,48 @@ import { useToast } from '../../hooks/useToast';
 
 export function DashboardLayout({ sections, avatar, avatarSrc, navLinks = [], children }) {
     const { showToast } = useToast();
-    const [unreadCount, setUnreadCount] = useState(0);
+
+    // M49: notificaciones sin leer como query cacheada + polling (refetchInterval) en lugar de un
+    // setInterval manual. Al compartir queryKey, todas las páginas del shell ven el mismo contador sin
+    // duplicar temporizadores.
+    const unreadQuery = useQuery({
+        queryKey: ['unread-notifications'],
+        queryFn: async () => (await notificationApi.getNotifications({ read: false, size: 1 })).totalElements ?? 0,
+        refetchInterval: 30000,
+    });
+    const unreadCount = unreadQuery.data ?? 0;
+
+    // Aviso (toast) cuando SUBE el número de no leídas. Efecto sin setState propio (showToast es externo).
     const prevCountRef = useRef(0);
-
     useEffect(() => {
-        const check = () => {
-            notificationApi.getNotifications({ read: false, size: 1 })
-                .then(page => {
-                    const total = page.totalElements;
-                    setUnreadCount(total);
-                    if (total > prevCountRef.current) {
-                        const diff = total - prevCountRef.current;
-                        showToast(
-                            `Tienes ${diff} notificación${diff > 1 ? 'es' : ''} nueva${diff > 1 ? 's' : ''}`,
-                            'info',
-                            '/notifications'
-                        );
-                    }
-                    prevCountRef.current = total;
-                })
-                .catch(() => {});
-        };
-        check();
-        const id = setInterval(check, 30000);
-        return () => clearInterval(id);
-    }, [showToast]);
+        const total = unreadQuery.data;
+        if (total == null) return;
+        if (total > prevCountRef.current) {
+            const diff = total - prevCountRef.current;
+            showToast(
+                `Tienes ${diff} notificación${diff > 1 ? 'es' : ''} nueva${diff > 1 ? 's' : ''}`,
+                'info',
+                '/notifications',
+            );
+        }
+        prevCountRef.current = total;
+    }, [unreadQuery.data, showToast]);
 
-    // Mensajes sin leer del chat, para el contador de «Mensajes» en el menú. Si el chat responde 401 (aún sin
-    // el emisor de tokens que acepta) se deja de consultar en vez de insistir cada 30 s.
-    const [chatUnread, setChatUnread] = useState(0);
+    // M49: mensajes de chat sin leer, solo si el menú tiene entrada «Mensajes». Si el chat responde 401
+    // (aún sin el emisor de tokens que acepta), refetchInterval devuelve false y deja de consultar en vez
+    // de insistir cada 30 s.
     const hasChatEntry = sections.some((s) => s.items.some((it) => it.to === '/messages'));
-    useEffect(() => {
-        if (!hasChatEntry) return undefined;
-        let stopped = false;
-        const check = () => {
-            chatApi.listConversations({ limit: 50 })
-                .then((page) => setChatUnread((page.items || []).reduce((n, c) => n + (c.unread_count || 0), 0)))
-                .catch((e) => {
-                    if (e.status === 401) {
-                        stopped = true;
-                        clearInterval(id);
-                    }
-                });
-        };
-        check();
-        const id = setInterval(() => !stopped && check(), 30000);
-        return () => clearInterval(id);
-    }, [hasChatEntry]);
+    const chatUnreadQuery = useQuery({
+        queryKey: ['unread-chat'],
+        queryFn: async () => {
+            const page = await chatApi.listConversations({ limit: 50 });
+            return (page.items || []).reduce((n, c) => n + (c.unread_count || 0), 0);
+        },
+        enabled: hasChatEntry,
+        retry: false,
+        refetchInterval: (query) => (query.state.error?.status === 401 ? false : 30000),
+    });
+    const chatUnread = chatUnreadQuery.data ?? 0;
 
     const sectionsWithBadges = chatUnread > 0
         ? sections.map((s) => ({
