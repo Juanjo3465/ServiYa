@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Icon, ToastContainer, useToast, authApi } from '../../../../shared';
+import { Icon, PasswordInput, ToastContainer, useToast, authApi } from '../../../../shared';
 
 import '../RecoverPasswordPage/RecoverPasswordPage.css';
 
@@ -101,14 +101,14 @@ export function ResetPasswordPage() {
                 <label className="label">Nueva contraseña</label>
                 <div className="input-wrap">
                     <div className="input-ico"><Icon name="lock" size={15} /></div>
-                    <input className="input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <PasswordInput placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
             </div>
             <div className="input-group" style={{ textAlign: 'left' }}>
                 <label className="label">Confirmar contraseña</label>
                 <div className="input-wrap">
                     <div className="input-ico"><Icon name="lock" size={15} /></div>
-                    <input className="input" type="password" placeholder="••••••••" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+                    <PasswordInput placeholder="••••••••" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
                 </div>
             </div>
             <button className="btn btn-primary btn-full btn-lg" onClick={handleConfirm} disabled={submitting}>

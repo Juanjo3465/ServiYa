@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV, requestApi, feedbackApi } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV, setActiveRole, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
 import { timeAgo } from '../../utils';
@@ -68,6 +68,9 @@ export function OffererDashboardPage() {
     const [loadingNotifications, setLoadingNotifications] = useState(true);
     const [profile, setProfile] = useState(null);
     const [acting, setActing] = useState(null);
+
+    // Entrar al panel de oferente fija el "rol activo" en OFERENTE (coherencia del menú compartido).
+    useEffect(() => { setActiveRole('OFFERER'); }, []);
 
     // Solicitudes activas del oferente (M46: React Query; refetch() refresca tras acciones).
     const requestsQuery = useQuery({

@@ -2,6 +2,7 @@
  * Sidebar navigation definitions per role. Shared across the dashboard pages
  * so the menu stays consistent. Icon names map to <Icon name="..." />.
  */
+import { getActiveRole } from './api';
 
 export const CLIENT_NAV = [
     {
@@ -59,3 +60,8 @@ export const OFFERER_NAV = [
         ],
     },
 ];
+
+/** Menú de la página COMPARTIDA según el rol activo (perfil, notificaciones, reportes, mensajes). */
+export function navForActiveRole() {
+    return getActiveRole() === 'OFFERER' ? OFFERER_NAV : CLIENT_NAV;
+}

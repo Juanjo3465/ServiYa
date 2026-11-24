@@ -4,21 +4,18 @@ import { AppNavbar, Avatar, ServiceImage, Icon, Modal, Stars, WhatsAppButton, To
 
 import './ServiceDetailPage.css';
 
-const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+// Convención del backend/AvailabilityPage: 0 = Domingo, 1 = Lunes, … 6 = Sábado.
+const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-const TIME_OPTIONS = [
-    { label: '9:00 AM',  value: '09:00:00' },
-    { label: '10:00 AM', value: '10:00:00' },
-    { label: '11:00 AM', value: '11:00:00' },
-    { label: '2:00 PM',  value: '14:00:00' },
-    { label: '3:00 PM',  value: '15:00:00' },
-    { label: '4:00 PM',  value: '16:00:00' },
-    { label: '5:00 PM',  value: '17:00:00' },
-];
+const getWeekDayName = (dayNum) => DAYS[((dayNum % 7) + 7) % 7] || 'Día';
 
-const getWeekDayName = (dayNum) => {
-    const idx = (dayNum - 1) % 7;
-    return DAYS[idx] || 'Día';
+// "09:00" -> "9:00 AM" / "17:30" -> "5:30 PM"
+const to12h = (hhmm) => {
+    const [h, m] = (hhmm || '').split(':').map(Number);
+    if (Number.isNaN(h)) return hhmm;
+    const period = h < 12 ? 'AM' : 'PM';
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${hour12}:${String(m ?? 0).padStart(2, '0')} ${period}`;
 };
 
 export function ServiceDetailPage() {
@@ -69,7 +66,7 @@ export function ServiceDetailPage() {
 
     // Estados para el formulario de solicitud
     const [date, setDate] = useState('');
-    const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[0].value);
+    const [selectedTime, setSelectedTime] = useState('09:00');
     const [selectedAddressId, setSelectedAddressId] = useState('');
     const [addresses, setAddresses] = useState([]);
     const [submitting, setSubmitting] = useState(false);
@@ -115,7 +112,7 @@ export function ServiceDetailPage() {
             await requestApi.createRequest({
                 serviceId: parseInt(id),
                 addressId: parseInt(selectedAddressId),
-                scheduledDate: `${date}T${selectedTime}`,
+                scheduledDate: `${date}T${selectedTime}:00`,
             });
             setSuccessOpen(true);
         } catch (err) {
@@ -293,8 +290,8 @@ export function ServiceDetailPage() {
                             <div className="avail-grid">
                                 {service.availability.map((avail, i) => {
                                     const dayName = getWeekDayName(avail.weekDay);
-                                    const start = avail.startTime.substring(0, 5);
-                                    const end = avail.endTime.substring(0, 5);
+                                    const start = to12h(avail.startTime.substring(0, 5));
+                                    const end = to12h(avail.endTime.substring(0, 5));
                                     return (
                                         <div
                                             key={avail.id || i}
@@ -302,7 +299,6 @@ export function ServiceDetailPage() {
                                             onClick={() => setActiveSlot(i)}
                                         >
                                             <div className="avail-lbl">{dayName}</div>
-                                            <div className="avail-day">Día {avail.weekDay}</div>
                                             <div className="avail-hr">{start}–{end}</div>
                                         </div>
                                     );
@@ -371,11 +367,7 @@ export function ServiceDetailPage() {
                         </div>
                         <div className="input-group">
                             <label className="label">Hora</label>
-                            <select className="input" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)}>
-                                {TIME_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
+                            <input type="time" className="input" value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} />
                         </div>
                         <div className="input-group">
                             <label className="label">Dirección</label>

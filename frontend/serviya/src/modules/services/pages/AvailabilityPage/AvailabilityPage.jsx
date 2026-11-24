@@ -55,7 +55,7 @@ function GeneralDayRow({ weekDay, label, slots, onAddSlot, onRemoveSlot, onChang
                                 onClick={() => onRemoveSlot(weekDay, slot.id)}
                                 aria-label="Eliminar franja"
                             >
-                                <Icon name="x" size={13} />
+                                <Icon name="trash" size={13} />
                             </button>
                         </div>
                     ))}

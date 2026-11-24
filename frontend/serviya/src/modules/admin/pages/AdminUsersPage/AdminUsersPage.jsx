@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from '@tanstack/react-query';
-import { Icon, Modal, ToastContainer, useToast, adminApi } from '../../../../shared';
+import { Icon, Modal, PasswordInput, ToastContainer, useToast, adminApi } from '../../../../shared';
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
 import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
 
@@ -456,7 +456,7 @@ export function AdminUsersPage() {
                 </div>
                 <div className="input-group">
                     <label className="label">Contraseña * (mín. 8)</label>
-                    <input className="input" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="••••••••" />
+                    <PasswordInput value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="••••••••" />
                 </div>
                 <div className="input-group">
                     <label className="label">Rol inicial *</label>

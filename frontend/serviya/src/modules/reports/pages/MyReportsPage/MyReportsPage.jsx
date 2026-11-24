@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { DashboardLayout, Icon, CLIENT_NAV, OFFERER_NAV, reportApi, userIdFromToken, rolesFromToken } from '../../../../shared';
+import { DashboardLayout, Icon, navForActiveRole, reportApi, userIdFromToken } from '../../../../shared';
 
 const TYPE_LABELS = {
     REQUEST: 'Solicitud',
@@ -16,7 +16,7 @@ const STATUS_MAP = {
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
 export function MyReportsPage() {
-    const sections = rolesFromToken().includes('OFFERER') ? OFFERER_NAV : CLIENT_NAV;
+    const sections = navForActiveRole();
     const userId = userIdFromToken();
 
     // Mis reportes (M46: React Query). `enabled` gatea cuando no hay userId (sin spinner infinito).

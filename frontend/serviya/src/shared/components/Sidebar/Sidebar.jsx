@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Icon } from '../Icon/Icon';
-import { authApi } from '../../api';
+import { authApi, getActiveRole } from '../../api';
+import { RoleSwitcher } from '../RoleSwitcher/RoleSwitcher';
 import { useSidebarOpen, sidebarStore } from '../../hooks/useSidebar';
 
 /**
@@ -26,6 +27,7 @@ export function Sidebar({ sections = [] }) {
         <>
             {open && <div className="sidebar-backdrop" onClick={() => sidebarStore.close()} />}
             <aside className={`sidebar ${open ? 'open' : ''}`}>
+                <RoleSwitcher current={getActiveRole()} />
                 {sections.map((section, i) => (
                     <React.Fragment key={i}>
                         {section.title && <div className="sb-sep">{section.title}</div>}

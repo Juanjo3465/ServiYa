@@ -541,3 +541,27 @@ export function homePathForRoles(roles = []) {
     if (roles.includes('OFFERER')) return '/offerer/dashboard';
     return '/dashboard';
 }
+
+// --- Rol activo (modo de navegación) para usuarios con varios roles ----------------------------------
+// Un usuario puede tener CLIENT y OFFERER a la vez. El "rol activo" decide qué menú muestran las páginas
+// COMPARTIDAS (perfil, notificaciones, reportes, mensajes). Se persiste por navegador y el usuario lo
+// cambia con el switcher del sidebar; los dashboards de cada rol lo fijan al entrar.
+const ACTIVE_ROLE_KEY = 'serviya.activeRole';
+
+/** Rol activo efectivo, siempre acotado a un rol que el usuario realmente tiene. */
+export function getActiveRole(token = getToken()) {
+    const roles = rolesFromToken(token);
+    let stored = null;
+    try { stored = localStorage.getItem(ACTIVE_ROLE_KEY); } catch { /* storage no disponible */ }
+    if (stored && roles.includes(stored)) return stored;
+    return roles.includes('OFFERER') ? 'OFFERER' : 'CLIENT';
+}
+
+export function setActiveRole(role) {
+    try { localStorage.setItem(ACTIVE_ROLE_KEY, role); } catch { /* storage no disponible */ }
+}
+
+/** Ruta del panel principal de un rol. */
+export function dashboardPathForRole(role) {
+    return role === 'OFFERER' ? '/offerer/dashboard' : '/dashboard';
+}

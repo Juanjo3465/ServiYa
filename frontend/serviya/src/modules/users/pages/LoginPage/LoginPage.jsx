@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { Icon, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
+import { Icon, PasswordInput, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
 
 import './auth.css';
 import './LoginPage.css';
@@ -112,10 +112,13 @@ export function LoginPage() {
                     </div>
                     <div className="input-group">
                         <label className="label">Contraseña</label>
-                        <div className="input-wrap">
-                            <div className="input-ico"><Icon name="lock" size={15} /></div>
-                            <input className="input" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-                        </div>
+                        <PasswordInput
+                            withIcon
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }}
+                        />
                     </div>
 
                     <div className="remember-row" style={{ justifyContent: 'flex-end' }}>

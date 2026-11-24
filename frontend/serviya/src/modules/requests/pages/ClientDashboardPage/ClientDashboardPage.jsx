@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, requestApi, feedbackApi } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, CLIENT_NAV, setActiveRole, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
 import { STATUS_MAP, formatDate, timeAgo, categoryIcon } from '../../utils';
@@ -45,6 +45,10 @@ export function ClientDashboardPage() {
     const [notifications, setNotifications] = useState([]);
     const [loadingNotifications, setLoadingNotifications] = useState(true);
     const [profile, setProfile] = useState(null);
+
+    // Entrar al panel de cliente fija el "rol activo" en CLIENTE, para que las páginas compartidas
+    // (perfil, notificaciones…) muestren el menú de cliente de forma coherente.
+    useEffect(() => { setActiveRole('CLIENT'); }, []);
 
     useEffect(() => {
         metricsApi.getMyMetrics()

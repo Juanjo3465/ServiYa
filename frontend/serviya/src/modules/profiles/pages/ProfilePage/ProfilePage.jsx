@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Avatar, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, OFFERER_NAV, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
+import { DashboardLayout, Avatar, Icon, Modal, PasswordInput, ToastContainer, useToast, navForActiveRole, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 
 import './ProfilePage.css';
 import 'leaflet/dist/leaflet.css';
+import '../../../../shared/leafletIcon';
 import { useForm } from "react-hook-form";
 
 const TABS = ['Información personal', 'Mis direcciones', 'Credenciales', 'Mis métricas', 'Roles'];
@@ -215,16 +216,17 @@ function RecenterMap({ location }) {
     const map = useMap();
 
     useEffect(() => {
-        if (location) {
-            map.flyTo(
-                [location.latitude, location.longitude],
-                16,
-                {
-                    animate: true,
-                    duration: 1
-                }
-            );
-        }
+        if (!location) return;
+        // El mapa dentro del modal puede montarse con tamaño 0 (al EDITAR, `location` ya viene puesto en
+        // el primer render): diferir un tick, recalcular el tamaño y centrar SIN animación, todo protegido
+        // para que un fallo del mapa no escale al Error Boundary (los errores de useEffect lo alcanzan).
+        const id = setTimeout(() => {
+            try {
+                map.invalidateSize();
+                map.setView([location.latitude, location.longitude], 16, { animate: false });
+            } catch { /* el mapa aún no está listo: se ignora */ }
+        }, 0);
+        return () => clearTimeout(id);
     }, [location, map]);
 
     return null;
@@ -621,17 +623,22 @@ export function ProfilePage() {
         setChangingPassword(true);
         profileApi.changePassword(currentPassword, newPassword)
             .then(() => {
-                showToast('Contraseña actualizada', 'success');
+                // Cambiar la contraseña REVOCA la sesión actual (min_iat, seguridad): en vez de dejar al
+                // usuario en la pestaña hasta que una petición falle con 401 y lo saque de golpe, cerramos
+                // sesión y lo llevamos a /login con aviso.
                 setCurrentPassword('');
                 setNewPassword('');
                 setConfirmNewPassword('');
+                showToast('Contraseña actualizada. Vuelve a iniciar sesión.', 'success');
+                clearToken();
+                setTimeout(() => navigate('/login'), 1200);
             })
             .catch((e) => showToast(e.message || 'No se pudo cambiar la contraseña', 'danger'))
             .finally(() => setChangingPassword(false));
     }
 
     return (
-        <DashboardLayout sections={isOfferer ? OFFERER_NAV : CLIENT_NAV} avatar={initials} avatarSrc={profilePhotoSrc}>
+        <DashboardLayout sections={navForActiveRole()} avatar={initials} avatarSrc={profilePhotoSrc}>
             <div className="ph"><h1>Mi perfil</h1><p>Gestiona tu información personal y configuración de cuenta</p></div>
 
             <div className="tabs">
@@ -741,16 +748,14 @@ export function ProfilePage() {
                         <div className="card-title">Cambiar correo electrónico</div>
                         <div className="input-group"><label className="label">Correo actual</label><input className="input" defaultValue="jp@email.com" disabled /></div>
                         <div className="input-group"><label className="label">Nuevo correo</label><input className="input" type="email" placeholder="nuevocorreo@ejemplo.com" /></div>
-                        <div className="input-group"><label className="label">Confirmar contraseña actual</label><input className="input" type="password" placeholder="••••••••" /></div>
+                        <div className="input-group"><label className="label">Confirmar contraseña actual</label><PasswordInput placeholder="••••••••" /></div>
                         <button className="btn btn-primary" onClick={() => showToast('Correo actualizado', 'success')}>Cambiar correo</button>
                     </div>
                     <div className="card">
                         <div className="card-title">Cambiar contraseña</div>
                         <div className="input-group">
                             <label className="label">Contraseña actual</label>
-                            <input
-                                className="input"
-                                type="password"
+                            <PasswordInput
                                 placeholder="••••••••"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -758,9 +763,7 @@ export function ProfilePage() {
                         </div>
                         <div className="input-group">
                             <label className="label">Nueva contraseña</label>
-                            <input
-                                className="input"
-                                type="password"
+                            <PasswordInput
                                 placeholder="Mínimo 8 caracteres"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
@@ -768,9 +771,7 @@ export function ProfilePage() {
                         </div>
                         <div className="input-group">
                             <label className="label">Confirmar nueva contraseña</label>
-                            <input
-                                className="input"
-                                type="password"
+                            <PasswordInput
                                 placeholder="Repite la contraseña"
                                 value={confirmNewPassword}
                                 onChange={(e) => setConfirmNewPassword(e.target.value)}

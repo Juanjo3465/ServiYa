@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import { Icon, ToastContainer, useToast, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
+import { Icon, PasswordInput, ToastContainer, useToast, authApi, saveToken, rolesFromToken, homePathForRoles } from '../../../../shared';
 
 import './RegisterPage.css';
 import 'leaflet/dist/leaflet.css';
+import '../../../../shared/leafletIcon';
 
 /** Documentos aceptados. El tipo/número quedan FIJOS al registrarse: después son inmutables (RF-006). */
 const DOCUMENT_TYPES = ['CC', 'CE', 'NIT', 'PASAPORTE'];
@@ -220,11 +221,11 @@ export function RegisterPage() {
                             </p>
                             <div className="input-group">
                                 <label className="label">Contraseña</label>
-                                <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                                <PasswordInput withIcon placeholder="Mínimo 8 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} />
                             </div>
                             <div className="input-group" style={{ marginBottom: '20px' }}>
                                 <label className="label">Confirmar contraseña</label>
-                                <div className="input-wrap"><div className="input-ico"><Icon name="lock" size={15} /></div><input className="input" type="password" placeholder="Repite tu contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>
+                                <PasswordInput withIcon placeholder="Repite tu contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button className="btn btn-ghost btn-full" onClick={() => setStep(1)}><Icon name="chevronLeft" size={15} />Atrás</button>

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authApi } from '../../../../shared/api';
+import { RoleSwitcher } from '../../../../shared';
 import { useSidebarOpen, sidebarStore } from '../../../../shared/hooks/useSidebar';
 import './AdminSidebar.css';
 
@@ -25,6 +26,7 @@ export function AdminSidebar() {
         <>
             {open && <div className="sidebar-backdrop" onClick={() => sidebarStore.close()} />}
             <aside className={`sidebar ${open ? 'open' : ''}`}>
+                <RoleSwitcher current="ADMIN" />
                 <div className="sb-sep">Administración</div>
 
                 {ITEMS.map((it) => (

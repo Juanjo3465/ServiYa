@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { DashboardLayout, Icon, CLIENT_NAV, OFFERER_NAV, chatApi, rolesFromToken, userIdFromToken } from '../../../../shared';
+import { DashboardLayout, Icon, CLIENT_NAV, OFFERER_NAV, navForActiveRole, chatApi, userIdFromToken } from '../../../../shared';
 import { ConversationList } from '../../components/ConversationList/ConversationList';
 import { ConversationView } from '../../components/ConversationView/ConversationView';
 import { useChatConnection, useChatEvent } from '../../hooks/useChatSocket';
@@ -28,7 +28,7 @@ export function MessagesPage() {
 
     // Mismo criterio que el resto de páginas compartidas: el rol desde el que se llegó, o el del token.
     const as = location.state?.as;
-    const sections = as === 'offerer' || (!as && rolesFromToken().includes('OFFERER')) ? OFFERER_NAV : CLIENT_NAV;
+    const sections = as === 'offerer' ? OFFERER_NAV : as === 'client' ? CLIENT_NAV : navForActiveRole();
 
     const [items, setItems] = useState([]);
     const [nextCursor, setNextCursor] = useState(null);
