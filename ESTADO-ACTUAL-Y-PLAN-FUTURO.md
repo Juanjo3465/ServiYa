@@ -806,6 +806,34 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   **PENDIENTE (bloqueante antes de cerrar M46):** smoke test manual en runtime de TODAS las páginas migradas —
   en especial las dos con cambio de comportamiento (editar disponibilidad por servicio; editar/crear dirección
   con el mapa). Verificado sólo por build+lint.
+  **Smoke test ejecutado (2026-11-24, stack docker local):** flujos A/B/C verificados manualmente por el
+  usuario; M46 queda **validado en runtime**. Se levantó el stack completo (gateway+backend+mysql+redis-coord+
+  frontend); gotchas del entorno: el `.env` estaba pre-ES256 (hubo que generar par EC P-256), faltaban 3
+  passwords de Redis, y el rate limiter en frío devolvía 429/500 (se desactivó `RATE_LIMIT_ENABLED` solo para
+  la prueba). El smoke destapó varios bugs de UX **pre-existentes** (no de M46), corregidos aparte (ver M47).
+
+- **M47 — Correcciones de UX del smoke test + switcher de rol (IMPLEMENTADO 2026-11-24).** Hallazgos del smoke
+  test manual, todos **pre-existentes** (no regresiones de M46), resueltos:
+  • **Contraseña ver/ocultar:** componente reutilizable `PasswordInput` (icono `eyeOff`) en **todos** los
+  campos (login, registro, restablecer, perfil, crear usuario admin). Cambiar contraseña revoca la sesión
+  (min_iat) → ahora cierra sesión y redirige a `/login` con aviso (antes dejaba al usuario hasta un 401 seco).
+  • **Mapa (Leaflet):** `shared/leafletIcon.js` reconfigura el icono por defecto (Vite lo mostraba como imagen
+  rota) en Perfil y Registro; `RecenterMap` robusto (el `flyTo` en el montaje del modal con tamaño 0 lanzaba y
+  el error subía al Error Boundary → "error inesperado"): difiere + `invalidateSize`+`setView` + try/catch.
+  • **Servicio/disponibilidad:** icono de caneca al borrar franja; hora de solicitud con `<input type=time>`
+  libre; nombres de día correctos (0=Domingo) y rango en AM/PM (quitado "Día 0").
+  • **Switcher de rol (CLIENT/OFFERER/ADMIN):** nuevo concepto **rol activo** persistido (`getActiveRole`/
+  `setActiveRole`) que decide el menú de las páginas compartidas (`navForActiveRole`); componente reutilizable
+  `RoleSwitcher` en el `Sidebar` y el `AdminSidebar` (CLIENT/OFFERER cambian el modo del shell, ADMIN salta a
+  su área propia; solo con 2+ roles). Los paneles fijan el rol activo al entrar. Se retiró "Buscar servicios"
+  del menú de oferente. Commits `fde82db` (backend logging), `b227fbf` (frontend) en `api-gateway`.
+  **Nota menor abierta:** un usuario **solo-ADMIN** en una página compartida ve el menú de cliente por defecto
+  (cosmético, preexistente). **Backend:** el `GlobalExceptionHandler` ahora **loguea los 500 inesperados** con
+  stack+correlationId (antes se tragaban en silencio).
+
+- **M48 — Validación de auto-solicitud (deuda de backend, ABIERTA).** Un usuario con rol dual puede crear una
+  `ServiceRequest` sobre **su propio servicio** (clientId == offererId del servicio). Falta la validación de
+  negocio en el backend que lo rechace (422/409). Detectado en el smoke test (2026-11-24); no corregido aún.
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
