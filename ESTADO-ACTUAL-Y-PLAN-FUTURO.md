@@ -831,9 +831,21 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   (cosmético, preexistente). **Backend:** el `GlobalExceptionHandler` ahora **loguea los 500 inesperados** con
   stack+correlationId (antes se tragaban en silencio).
 
-- **M48 — Validación de auto-solicitud (deuda de backend, ABIERTA).** Un usuario con rol dual puede crear una
-  `ServiceRequest` sobre **su propio servicio** (clientId == offererId del servicio). Falta la validación de
-  negocio en el backend que lo rechace (422/409). Detectado en el smoke test (2026-11-24); no corregido aún.
+- **M48 — Validación de auto-solicitud (RESUELTO 2026-11-24).** Un usuario con rol dual podía crear una
+  `ServiceRequest` sobre **su propio servicio** (clientId == offererId del servicio). Añadida la guarda en
+  `ServiceRequestCommandService.createRequest` (tras `findById`): `service.offererId() == command.clientId()`
+  → `BusinessRuleException` (**400** `BUSINESS_RULE`, "No puedes solicitar tu propio servicio"). Verificado
+  e2e (auto-solicitud → 400; cliente distinto pasa la guarda). Commit en `api-gateway`.
+
+- **M49 — Extender React Query como patrón por defecto del estado de servidor (mejora, ABIERTA).** Hoy
+  `@tanstack/react-query` se usa **selectivamente** (12 páginas de listas/lectura migradas en M46); ~16 páginas
+  siguen con `useEffect`+fetch y **ninguna** acción usa `useMutation` (hacen `refetch()` manual). Plan por
+  valor: (a) **datos compartidos** — una query de `me/profile` (se re-pide en muchas páginas) y los
+  **contadores de no-leídos** de notificaciones/chat (hoy `setInterval` cada 30 s a mano en `DashboardLayout`)
+  → `refetchInterval` + caché compartida; (b) **`useMutation` + `invalidateQueries`** en las acciones
+  (cancel/accept/reschedule/ban/crear) en vez del `refetch()` manual; (c) resto de páginas de lectura (Profile,
+  ServiceDetail, RequestDetail, Admin) → también elimina las **5 warnings `exhaustive-deps`** restantes.
+  Adoptarlo como default para páginas nuevas; migración oportunista, no big-bang.
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
