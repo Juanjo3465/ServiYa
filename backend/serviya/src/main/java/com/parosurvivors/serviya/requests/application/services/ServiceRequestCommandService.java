@@ -58,6 +58,12 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Servicio no encontrado con id: " + command.serviceId()));
 
+        // Regla de negocio (M48): un usuario con rol dual no puede contratar su PROPIO servicio
+        // (el cliente de la solicitud no puede ser el oferente del servicio).
+        if (service.offererId() != null && service.offererId().equals(command.clientId())) {
+            throw new BusinessRuleException("No puedes solicitar tu propio servicio.");
+        }
+
         checkServiceAvailability(command.serviceId(), command.scheduledDate());
         checkWithinRadius(command.serviceId(), command.addressId());
 
