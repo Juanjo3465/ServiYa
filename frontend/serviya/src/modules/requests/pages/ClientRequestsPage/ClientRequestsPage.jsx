@@ -47,20 +47,39 @@ export function ClientRequestsPage() {
     const totalPages = requestsQuery.data?.totalPages ?? 1;
     const currentPage = requestsQuery.data?.number ?? page;
 
-    // M49: las acciones usan useMutation + invalidateQueries (invalida TODAS las vistas de la lista, no
-    // solo la página actual) en vez de refetch() manual; cada una gestiona su onSuccess/onError.
+    // M49: las acciones usan useMutation con ACTUALIZACIÓN OPTIMISTA. La caché de la lista cambia al
+    // instante (onMutate) para que el cambio se vea sin esperar el round-trip; se revierte si falla
+    // (onError) y se reconcilia con el servidor al terminar (onSettled → invalidateQueries, que invalida
+    // TODAS las vistas de la lista: filtros + páginas).
     const queryClient = useQueryClient();
-    const invalidateRequests = () => queryClient.invalidateQueries({ queryKey: ['client-requests-list'] });
+
+    // Cambia el estado de una solicitud en TODAS las entradas cacheadas de la lista (optimista).
+    const patchCachedStatus = (requestId, status) => {
+        queryClient.setQueriesData({ queryKey: ['client-requests-list'] }, (old) => {
+            if (!old?.content) return old;
+            return { ...old, content: old.content.map((r) => (r.requestId === requestId ? { ...r, status } : r)) };
+        });
+    };
+    // Cancela refetches en curso + guarda snapshot (para revertir) y aplica el cambio optimista.
+    const beginOptimistic = async (requestId, status) => {
+        await queryClient.cancelQueries({ queryKey: ['client-requests-list'] });
+        const snapshot = queryClient.getQueriesData({ queryKey: ['client-requests-list'] });
+        patchCachedStatus(requestId, status);
+        return { snapshot };
+    };
+    const rollback = (ctx) => ctx?.snapshot?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    const reconcile = () => queryClient.invalidateQueries({ queryKey: ['client-requests-list'] });
 
     const cancelMutation = useMutation({
         mutationFn: (id) => requestApi.cancelRequest(id),
+        onMutate: (id) => beginOptimistic(id, 'CANCELLED'),
+        onError: (err, _id, ctx) => { rollback(ctx); showToast('Error al cancelar: ' + err.message, 'danger'); },
         onSuccess: () => {
-            invalidateRequests();
             setCancelOpen(false);
             setCancelTarget(null);
             showToast('Solicitud cancelada. Oferente notificado', 'success');
         },
-        onError: (err) => showToast('Error al cancelar: ' + err.message, 'danger'),
+        onSettled: reconcile,
     });
 
     const confirmMutation = useMutation({
@@ -70,26 +89,28 @@ export function ClientRequestsPage() {
                 await feedbackApi.submitServiceFeedback(requestId, { rating: rating || null, comment: comment || null });
             }
         },
+        onMutate: ({ requestId }) => beginOptimistic(requestId, 'COMPLETED'),
+        onError: (err, _vars, ctx) => { rollback(ctx); showToast(err.message || 'No se pudo confirmar el servicio', 'danger'); },
         onSuccess: () => {
-            invalidateRequests();
             setConfirmOpen(false);
             setConfirmTarget(null);
             showToast('Servicio confirmado y reseña enviada', 'success');
         },
-        onError: (err) => showToast(err.message || 'No se pudo confirmar el servicio', 'danger'),
+        onSettled: reconcile,
     });
 
     const rescheduleMutation = useMutation({
         mutationFn: ({ requestId, newDate }) => requestApi.rescheduleRequest(requestId, { newDate }),
+        onMutate: ({ requestId }) => beginOptimistic(requestId, 'RESCHEDULED'),
+        onError: (err, _vars, ctx) => { rollback(ctx); showToast(err.message || 'No se pudo reprogramar', 'danger'); },
         onSuccess: () => {
-            invalidateRequests();
             setReschedOpen(false);
             setReschedTarget(null);
             setReschedDate('');
             setReschedTime('09:00');
             showToast('Solicitud reprogramada. Oferente notificado', 'success');
         },
-        onError: (err) => showToast(err.message || 'No se pudo reprogramar', 'danger'),
+        onSettled: reconcile,
     });
 
     const handleCancel = () => {
