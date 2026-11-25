@@ -56,13 +56,35 @@ export function userIdFromToken(token = getToken()) {
 // token, que viaja en una cookie HttpOnly (Path=/api/v1/auth) — el JS no la ve, por eso va en cookie.
 // Refresco ÚNICO compartido (T6.6): si varias peticiones reciben 401 a la vez, todas esperan la MISMA
 // promesa; así no se dispara una tormenta de refresh ni se rotan tokens en carrera.
+// T6.24: timeout de peticiones. Sin esto, si el backend se cuelga o tarda mucho en responder, el fetch
+// queda esperando hasta el timeout largo del navegador → la UI se queda colgada (spinner perpetuo). Se
+// envuelve TODO fetch con un AbortController; al abortar se lanza un error de red tratable (status 0).
+const REQUEST_TIMEOUT_MS = 15000;
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            const err = new Error('La petición tardó demasiado. Revisa tu conexión e inténtalo de nuevo.');
+            err.status = 0;
+            err.timeout = true;
+            throw err;
+        }
+        throw e;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 let refreshPromise = null;
 async function tryRefresh() {
     if (!refreshPromise) {
         refreshPromise = (async () => {
             try {
                 // Sin Authorization: la identidad del refresh sale de la cookie. credentials:'include' la envía.
-                const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+                const res = await fetchWithTimeout(`${API_BASE}/api/v1/auth/refresh`, {
                     method: 'POST',
                     credentials: 'include',
                 });
@@ -99,7 +121,7 @@ async function doRequest(path, { method = 'GET', body, auth = false, formData = 
         if (token) headers.Authorization = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetchWithTimeout(`${API_BASE}${path}`, {
         method,
         headers,
         // Envía/recibe la cookie de refresh (solo viaja a Path=/api/v1/auth); el gateway permite credenciales.
@@ -149,7 +171,7 @@ export const authApi = {
     // access local. Tolerante: aunque falle la llamada, el token local se limpia.
     logout: async () => {
         try {
-            await fetch(`${API_BASE}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' });
+            await fetchWithTimeout(`${API_BASE}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' });
         } catch {
             /* red caída: igualmente limpiamos el estado local */
         }
