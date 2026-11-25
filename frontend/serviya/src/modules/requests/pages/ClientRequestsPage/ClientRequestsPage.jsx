@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV, reportApi, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { STATUS_MAP, formatDate, timeAgo, getInitials, formatPrice, isTerminal } from '../../utils';
@@ -47,16 +47,54 @@ export function ClientRequestsPage() {
     const totalPages = requestsQuery.data?.totalPages ?? 1;
     const currentPage = requestsQuery.data?.number ?? page;
 
+    // M49: las acciones usan useMutation + invalidateQueries (invalida TODAS las vistas de la lista, no
+    // solo la página actual) en vez de refetch() manual; cada una gestiona su onSuccess/onError.
+    const queryClient = useQueryClient();
+    const invalidateRequests = () => queryClient.invalidateQueries({ queryKey: ['client-requests-list'] });
+
+    const cancelMutation = useMutation({
+        mutationFn: (id) => requestApi.cancelRequest(id),
+        onSuccess: () => {
+            invalidateRequests();
+            setCancelOpen(false);
+            setCancelTarget(null);
+            showToast('Solicitud cancelada. Oferente notificado', 'success');
+        },
+        onError: (err) => showToast('Error al cancelar: ' + err.message, 'danger'),
+    });
+
+    const confirmMutation = useMutation({
+        mutationFn: async ({ requestId, rating, comment }) => {
+            await requestApi.confirmCompletion(requestId);
+            if (rating > 0 || comment) {
+                await feedbackApi.submitServiceFeedback(requestId, { rating: rating || null, comment: comment || null });
+            }
+        },
+        onSuccess: () => {
+            invalidateRequests();
+            setConfirmOpen(false);
+            setConfirmTarget(null);
+            showToast('Servicio confirmado y reseña enviada', 'success');
+        },
+        onError: (err) => showToast(err.message || 'No se pudo confirmar el servicio', 'danger'),
+    });
+
+    const rescheduleMutation = useMutation({
+        mutationFn: ({ requestId, newDate }) => requestApi.rescheduleRequest(requestId, { newDate }),
+        onSuccess: () => {
+            invalidateRequests();
+            setReschedOpen(false);
+            setReschedTarget(null);
+            setReschedDate('');
+            setReschedTime('09:00');
+            showToast('Solicitud reprogramada. Oferente notificado', 'success');
+        },
+        onError: (err) => showToast(err.message || 'No se pudo reprogramar', 'danger'),
+    });
+
     const handleCancel = () => {
         if (!cancelTarget) return;
-        requestApi.cancelRequest(cancelTarget.requestId)
-            .then(() => {
-                requestsQuery.refetch();
-                setCancelOpen(false);
-                setCancelTarget(null);
-                showToast('Solicitud cancelada. Oferente notificado', 'success');
-            })
-            .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
+        cancelMutation.mutate(cancelTarget.requestId);
     };
 
     return (
@@ -143,20 +181,9 @@ export function ClientRequestsPage() {
                 ratingLabel="Calificación"
                 reviewLabel="Reseña"
                 confirmLabel="Confirmar"
-                onConfirm={async ({ rating, comment }) => {
+                onConfirm={({ rating, comment }) => {
                     if (!confirmTarget) return;
-                    try {
-                        await requestApi.confirmCompletion(confirmTarget.requestId);
-                        if (rating > 0 || comment) {
-                            await feedbackApi.submitServiceFeedback(confirmTarget.requestId, { rating: rating || null, comment: comment || null });
-                        }
-                        requestsQuery.refetch();
-                        setConfirmOpen(false);
-                        setConfirmTarget(null);
-                        showToast('Servicio confirmado y reseña enviada', 'success');
-                    } catch (err) {
-                        showToast(err.message || 'No se pudo confirmar el servicio', 'danger');
-                    }
+                    confirmMutation.mutate({ requestId: confirmTarget.requestId, rating, comment });
                 }}
             />
 
@@ -167,20 +194,9 @@ export function ClientRequestsPage() {
                 <div className="input-group"><label className="label">Nueva hora</label><select className="input" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)}><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option></select></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => { setReschedOpen(false); setReschedTarget(null); }}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" disabled={!reschedDate} onClick={async () => {
+                    <button className="btn btn-primary btn-full" disabled={!reschedDate || rescheduleMutation.isPending} onClick={() => {
                         if (!reschedTarget || !reschedDate) return;
-                        try {
-                            const newDate = `${reschedDate}T${reschedTime}:00`;
-                            await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
-                            requestsQuery.refetch();
-                            setReschedOpen(false);
-                            setReschedTarget(null);
-                            setReschedDate('');
-                            setReschedTime('09:00');
-                            showToast('Solicitud reprogramada. Oferente notificado', 'success');
-                        } catch (err) {
-                            showToast(err.message || 'No se pudo reprogramar', 'danger');
-                        }
+                        rescheduleMutation.mutate({ requestId: reschedTarget.requestId, newDate: `${reschedDate}T${reschedTime}:00` });
                     }}>Confirmar</button>
                 </div>
             </Modal>
