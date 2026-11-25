@@ -1,0 +1,10 @@
+# Provisioning de Grafana (T6.23): conecta automáticamente Grafana con Prometheus al arrancar, sin pasos
+# manuales. Los dashboards de las métricas de Fase 6 se añaden como provisioning aparte (pendiente menor).
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true

@@ -355,12 +355,47 @@ services:
     ports:
       - "8081:80"
 
+  # --- Observabilidad (Fase 6, T6.23) ---------------------------------------------------------------
+  # Prometheus scrapea /actuator/prometheus de monolito, gateway y notif por su puerto de gestión interno
+  # (9090, no publicado) y evalúa las reglas de observability/prometheus-alerts.yml. UI en el host :9091.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: serviya-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./documents/microservicios/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./documents/microservicios/observability/prometheus-alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9091:9090"   # host 9091 -> Prometheus 9090 (el 9090 interno es el puerto de gestión de los servicios)
+    restart: unless-stopped
+
+  # Grafana visualiza las métricas; se autoconfigura contra Prometheus (grafana-datasource.yml). UI :3000.
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: serviya-grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - ./documents/microservicios/observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   notifications_mysql_data:
   chat_mysql_data:
   rabbitmq_data:
   minio_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   # Red compartida con infra/redis/docker-compose.redis.yml. Declarada aquí también para que el compose
