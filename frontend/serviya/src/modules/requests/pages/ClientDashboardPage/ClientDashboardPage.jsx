@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, useMyProfile, CLIENT_NAV, setActiveRole, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, proposalApi } from '../../../../shared/api';
@@ -82,32 +82,64 @@ export function ClientDashboardPage() {
             .finally(() => setLoadingProposals(false));
     }, []);
 
+    // M49: acciones de solicitud con useMutation + actualización optimista sobre ['client-requests'].
+    const queryClient = useQueryClient();
+    const patchReqStatus = (requestId, status) => {
+        queryClient.setQueriesData({ queryKey: ['client-requests'] }, (old) => {
+            if (!old?.content) return old;
+            return { ...old, content: old.content.map((r) => (r.requestId === requestId ? { ...r, status } : r)) };
+        });
+    };
+    const beginReqOptimistic = async (requestId, status) => {
+        await queryClient.cancelQueries({ queryKey: ['client-requests'] });
+        const snapshot = queryClient.getQueriesData({ queryKey: ['client-requests'] });
+        patchReqStatus(requestId, status);
+        return { snapshot };
+    };
+    const rollbackReq = (ctx) => ctx?.snapshot?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    const reconcileReq = () => queryClient.invalidateQueries({ queryKey: ['client-requests'] });
+
+    const cancelMutation = useMutation({
+        mutationFn: (id) => requestApi.cancelRequest(id),
+        onMutate: (id) => beginReqOptimistic(id, 'CANCELLED'),
+        onError: (err, _id, ctx) => { rollbackReq(ctx); showToast('Error al cancelar: ' + err.message, 'danger'); },
+        onSuccess: () => { setCancelOpen(false); setCancelTarget(null); showToast('Solicitud cancelada. Oferente notificado', 'success'); },
+        onSettled: reconcileReq,
+    });
+    const confirmMutation = useMutation({
+        mutationFn: async ({ requestId, rating, comment }) => {
+            await requestApi.confirmCompletion(requestId);
+            if (rating > 0 || comment) {
+                await feedbackApi.submitServiceFeedback(requestId, { rating: rating || null, comment: comment || null });
+            }
+        },
+        onMutate: ({ requestId }) => beginReqOptimistic(requestId, 'COMPLETED'),
+        onError: (err, _v, ctx) => { rollbackReq(ctx); showToast(err.message || 'Error al confirmar servicio', 'danger'); },
+        onSuccess: () => { setConfirmOpen(false); setSelectedRequest(null); showToast('Servicio confirmado y reseña enviada', 'success'); },
+        onSettled: reconcileReq,
+    });
+    const rescheduleMutation = useMutation({
+        mutationFn: ({ requestId, newDate }) => requestApi.rescheduleRequest(requestId, { newDate }),
+        onMutate: ({ requestId }) => beginReqOptimistic(requestId, 'RESCHEDULED'),
+        onError: (err, _v, ctx) => { rollbackReq(ctx); showToast(err.message || 'No se pudo reprogramar', 'danger'); },
+        onSuccess: () => {
+            setReschedOpen(false);
+            setReschedTarget(null);
+            setReschedDate('');
+            setReschedTime('09:00');
+            showToast('Solicitud reprogramada. Oferente notificado', 'success');
+        },
+        onSettled: reconcileReq,
+    });
+
     const handleCancel = () => {
         if (!cancelTarget) return;
-        requestApi.cancelRequest(cancelTarget.requestId)
-            .then(() => {
-                requestsQuery.refetch();
-                setCancelOpen(false);
-                setCancelTarget(null);
-                showToast('Solicitud cancelada. Oferente notificado', 'success');
-            })
-            .catch(err => showToast('Error al cancelar: ' + err.message, 'danger'));
+        cancelMutation.mutate(cancelTarget.requestId);
     };
 
-    async function handleConfirmCompletion({ rating, comment } = {}) {
+    function handleConfirmCompletion({ rating, comment } = {}) {
         if (!selectedRequest) return;
-        try {
-            await requestApi.confirmCompletion(selectedRequest.requestId);
-            if (rating > 0 || comment) {
-                await feedbackApi.submitServiceFeedback(selectedRequest.requestId, { rating: rating || null, comment: comment || null });
-            }
-            setConfirmOpen(false);
-            setSelectedRequest(null);
-            showToast('Servicio confirmado y reseña enviada', 'success');
-            requestsQuery.refetch();
-        } catch (e) {
-            showToast(e.message || 'Error al confirmar servicio', 'danger');
-        }
+        confirmMutation.mutate({ requestId: selectedRequest.requestId, rating, comment });
     }
 
     function openConfirmModal(req) {
@@ -115,26 +147,31 @@ export function ClientDashboardPage() {
         setConfirmOpen(true);
     }
 
-    const handleAcceptProposal = async (proposal) => {
-        try {
-            await proposalApi.acceptProposal(proposal.proposalId);
-            setProposals(prev => prev.filter(p => p.proposalId !== proposal.proposalId));
-            requestsQuery.refetch();
-            showToast('Propuesta aceptada. Servicio reprogramado', 'success');
-        } catch (err) {
-            showToast(err.message || 'No se pudo aceptar la propuesta', 'danger');
-        }
-    };
+    // Las propuestas del dashboard son estado local (no una query): el optimista las quita de la lista al
+    // instante y las restaura si falla. Aceptar además reconcilia la lista de solicitudes (se reprograma).
+    const acceptProposalMutation = useMutation({
+        mutationFn: (proposalId) => proposalApi.acceptProposal(proposalId),
+        onMutate: (proposalId) => {
+            const snapshot = proposals;
+            setProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
+            return { snapshot };
+        },
+        onError: (err, _id, ctx) => { if (ctx) setProposals(ctx.snapshot); showToast(err.message || 'No se pudo aceptar la propuesta', 'danger'); },
+        onSuccess: () => { reconcileReq(); showToast('Propuesta aceptada. Servicio reprogramado', 'success'); },
+    });
+    const rejectProposalMutation = useMutation({
+        mutationFn: (proposalId) => proposalApi.rejectProposal(proposalId),
+        onMutate: (proposalId) => {
+            const snapshot = proposals;
+            setProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
+            return { snapshot };
+        },
+        onError: (err, _id, ctx) => { if (ctx) setProposals(ctx.snapshot); showToast(err.message || 'No se pudo rechazar la propuesta', 'danger'); },
+        onSuccess: () => showToast('Propuesta rechazada', 'success'),
+    });
 
-    const handleRejectProposal = async (proposal) => {
-        try {
-            await proposalApi.rejectProposal(proposal.proposalId);
-            setProposals(prev => prev.filter(p => p.proposalId !== proposal.proposalId));
-            showToast('Propuesta rechazada', 'success');
-        } catch (err) {
-            showToast(err.message || 'No se pudo rechazar la propuesta', 'danger');
-        }
-    };
+    const handleAcceptProposal = (proposal) => acceptProposalMutation.mutate(proposal.proposalId);
+    const handleRejectProposal = (proposal) => rejectProposalMutation.mutate(proposal.proposalId);
 
     const stats = clientMetrics ? [
         { icon: 'tasks', value: String(clientMetrics.activeRequests ?? 0), label: 'Solicitudes activas' },
@@ -264,20 +301,9 @@ export function ClientDashboardPage() {
                 <div className="input-group"><label className="label">Nueva hora</label><input type="time" className="input" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => { setReschedOpen(false); setReschedTarget(null); }}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" disabled={!reschedDate} onClick={async () => {
+                    <button className="btn btn-primary btn-full" disabled={!reschedDate || rescheduleMutation.isPending} onClick={() => {
                         if (!reschedTarget || !reschedDate) return;
-                        try {
-                            const newDate = `${reschedDate}T${reschedTime}:00`;
-                            await requestApi.rescheduleRequest(reschedTarget.requestId, { newDate });
-                            requestsQuery.refetch();
-                            setReschedOpen(false);
-                            setReschedTarget(null);
-                            setReschedDate('');
-                            setReschedTime('09:00');
-                            showToast('Solicitud reprogramada. Oferente notificado', 'success');
-                        } catch (err) {
-                            showToast(err.message || 'No se pudo reprogramar', 'danger');
-                        }
+                        rescheduleMutation.mutate({ requestId: reschedTarget.requestId, newDate: `${reschedDate}T${reschedTime}:00` });
                     }}>Confirmar reprogramación</button>
                 </div>
             </Modal>
