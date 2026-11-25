@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, Avatar, Icon, Modal, PasswordInput, ToastContainer, useToast, navForActiveRole, profileApi, addressApi, accountApi, isAuthenticated, saveToken, clearToken, rolesFromToken, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
@@ -240,10 +241,15 @@ export function ProfilePage() {
     const [editAddressOpen, setEditAddressOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [profile, setProfile] = useState(null);
-    const [addresses, setAddresses] = useState([]);
+    // M49: direcciones como query compartida; las acciones actualizan la caché con patchAddresses.
+    const queryClient = useQueryClient();
+    const addressesQuery = useQuery({ queryKey: ['my-addresses'], queryFn: () => addressApi.getMyAddresses() });
+    const addresses = addressesQuery.data ?? [];
+    const patchAddresses = (updater) => queryClient.setQueryData(['my-addresses'], (prev) => updater(prev ?? []));
     const [editedAddress, setEditedAddress] = useState(null);
     const [isOfferer, setIsOfferer] = useState(false);
-    const [offererForm, setOffererForm] = useState({ whatsappNumber: '', publicDescription: '', specialty: '' });
+    // M49: perfil público del oferente como query; `offererEdits` es el overlay editable (null = dato servidor).
+    const [offererEdits, setOffererEdits] = useState(null);
     const [savingOffererProfile, setSavingOffererProfile] = useState(false);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileInputRef = useRef(null);
@@ -366,24 +372,7 @@ export function ProfilePage() {
             .finally(() => setSavingProfile(false));
     };
 
-    useEffect(() => {
-        addressApi.getMyAddresses()
-            .then(setAddresses)
-            .catch((e) => showToast(e.message || 'No se pudieron cargar tus direcciones', 'danger'));
-    }, [profile?.id]);
 
-    useEffect(() => {
-        if (!isOfferer) return;
-        profileApi.getOffererProfile()
-            .then((data) => {
-                setOffererForm({
-                    whatsappNumber: data?.whatsappNumber || '',
-                    publicDescription: data?.publicDescription || '',
-                    specialty: data?.specialty || '',
-                });
-            })
-            .catch((e) => showToast(e.message || 'No se pudo cargar el perfil de oferente', 'danger'));
-    }, [isOfferer]);
 
     useEffect(() => {
         metricsApi.getMyMetrics()
@@ -414,6 +403,18 @@ export function ProfilePage() {
             .finally(() => setLoadingMetrics(false));
     }, [isOfferer]);
 
+    // Perfil público del oferente (M49): query + overlay editable (offererEdits).
+    const offererProfileQuery = useQuery({
+        queryKey: ['offerer-profile'],
+        queryFn: () => profileApi.getOffererProfile(),
+        enabled: isOfferer,
+    });
+    const offererForm = offererEdits ?? {
+        whatsappNumber: offererProfileQuery.data?.whatsappNumber || '',
+        publicDescription: offererProfileQuery.data?.publicDescription || '',
+        specialty: offererProfileQuery.data?.specialty || '',
+    };
+
     // Iniciales para el avatar a partir del nombre completo.
     const initials = (profile?.fullName || 'U')
         .split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
@@ -436,7 +437,7 @@ export function ProfilePage() {
         return profileApi
             .changeMainAddress({ addressId })
             .then(() => {
-                setAddresses(prev =>
+                patchAddresses(prev =>
                     prev.map(a => ({
                         ...a,
                         main: a.id === addressId
@@ -461,7 +462,7 @@ export function ProfilePage() {
         return profileApi
             .changeMainAddress({ addressId: null })
             .then(() => {
-                setAddresses(prev =>
+                patchAddresses(prev =>
                     prev.map(a => ({
                         ...a,
                         main: false
@@ -490,7 +491,7 @@ export function ProfilePage() {
         addressApi
             .createAddress(payload)
             .then((created) => {
-                setAddresses(prev => [
+                patchAddresses(prev => [
                     ...prev,
                     { ...created }
                 ]);
@@ -526,7 +527,7 @@ export function ProfilePage() {
         addressApi
             .updateAddress(payload.id, payload)
             .then(() => {
-                setAddresses(prev =>
+                patchAddresses(prev =>
                     prev.map(a =>
                         a.id === payload.id
                             ? payload
@@ -557,7 +558,7 @@ export function ProfilePage() {
         addressApi
             .deleteAddress(address.id)
             .then(() => {
-                setAddresses(prev => prev.filter(a => a.id !== address.id));
+                patchAddresses(prev => prev.filter(a => a.id !== address.id));
                 showToast('Dirección eliminada', 'danger');
             })
             .catch(e =>
@@ -572,12 +573,10 @@ export function ProfilePage() {
     const handleOffererProfileSave = () => {
         setSavingOffererProfile(true);
         profileApi.updateOffererProfile(offererForm)
-            .then((data) => {
-                setOffererForm({
-                    whatsappNumber: data?.whatsappNumber || '',
-                    publicDescription: data?.publicDescription || '',
-                    specialty: data?.specialty || '',
-                });
+            .then(() => {
+                // Descarta el overlay y refresca el dato del servidor (la query vuelve a leer).
+                setOffererEdits(null);
+                queryClient.invalidateQueries({ queryKey: ['offerer-profile'] });
                 showToast('Perfil público del oferente actualizado', 'success');
             })
             .catch((e) => showToast(e.message || 'No se pudo actualizar el perfil de oferente', 'danger'))
@@ -700,15 +699,15 @@ export function ProfilePage() {
                             <div className="card-title">Perfil público del oferente</div>
                             <div className="input-group">
                                 <label className="label">WhatsApp</label>
-                                <input className="input" value={offererForm.whatsappNumber} onChange={(e) => setOffererForm(prev => ({ ...prev, whatsappNumber: e.target.value }))} />
+                                <input className="input" value={offererForm.whatsappNumber} onChange={(e) => setOffererEdits({ ...offererForm, whatsappNumber: e.target.value })} />
                             </div>
                             <div className="input-group">
                                 <label className="label">Descripción pública</label>
-                                <textarea className="input" rows={4} value={offererForm.publicDescription} onChange={(e) => setOffererForm(prev => ({ ...prev, publicDescription: e.target.value }))} />
+                                <textarea className="input" rows={4} value={offererForm.publicDescription} onChange={(e) => setOffererEdits({ ...offererForm, publicDescription: e.target.value })} />
                             </div>
                             <div className="input-group">
                                 <label className="label">Especialidad</label>
-                                <input className="input" value={offererForm.specialty} onChange={(e) => setOffererForm(prev => ({ ...prev, specialty: e.target.value }))} />
+                                <input className="input" value={offererForm.specialty} onChange={(e) => setOffererEdits({ ...offererForm, specialty: e.target.value })} />
                             </div>
                             <button className="btn btn-primary" onClick={handleOffererProfileSave} disabled={savingOffererProfile}>
                                 {savingOffererProfile ? 'Guardando...' : 'Guardar perfil público'}
