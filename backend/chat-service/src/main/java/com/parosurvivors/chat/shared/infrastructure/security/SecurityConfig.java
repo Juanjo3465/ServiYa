@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -32,7 +31,10 @@ class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        // Actuator (health + /prometheus) en el puerto de gestión INTERNO 9090 (no publicado
+                        // al host): health para Docker y /prometheus para el scrape de Prometheus por la red
+                        // interna (T6.23). Mismo criterio que monolito/gateway/notif.
+                        .requestMatchers("/actuator/**").permitAll()
                         // Handshake WS: se autentica con el ticket en el propio handler.
                         .requestMatchers("/api/chat/v1/ws").permitAll()
                         .anyRequest().authenticated())

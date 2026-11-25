@@ -27,9 +27,11 @@ scrape_configs:
       - targets: ['notifications-service:9090']
         labels: { service: notifications-service }
 
-  # El chat-service entra como target cuando exponga /actuator|/metrics de Prometheus (ESTADO M41(a)).
-  # - job_name: chat-service
-  #   metrics_path: /actuator/prometheus
-  #   static_configs:
-  #     - targets: ['chat-service:9090']
-  #       labels: { service: chat-service }
+  # chat-service: ya expone /actuator/prometheus en el puerto de gestión 9090 (M41(a) hecho) y su
+  # SecurityConfig permite /actuator/** (T6.23). Métricas de dominio: chat_ws_connected_users (gauge),
+  # chat_outbox_events_published_total{routing_key} (eventos al bus; routing_key="chat.message.sent" = mensajes).
+  - job_name: chat-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['chat-service:9090']
+        labels: { service: chat-service }

@@ -663,7 +663,7 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
 |---|---|---|---|---|---|
 | Resource server ES256/JWKS | ✅ | ✅ | ✅ | ✅ (`JwtDecoderConfig`) | ❌ placeholder `permitAll` |
 | Error 4.4 (`code`+`correlationId`) | ✅ | ✅ | ✅ | ⚠️ `code` propio `CHAT_*`; verificar `correlationId` en el cuerpo | n/a |
-| Métricas `/actuator/prometheus` | ✅ | ✅ | ✅ | ❌ sin `micrometer-registry-prometheus`; expone solo `health` | pom listo, sin endpoints |
+| Métricas `/actuator/prometheus` | ✅ | ✅ | ✅ | ✅ (`micrometer-registry-prometheus` en 9090 + dominio: `chat_ws_connected_users`, `chat_outbox_events_published_total`; `/actuator/**` permitido; scrape + dashboard de Grafana, 2026-11-25) | pom listo, sin endpoints |
 | Correlation-id en MDC/logs | ✅ (`requestId`) | ✅ (`requestId`) | ⚠️ solo cabecera (reactor→MDC pendiente) | ✅ (clave `correlationId`, distinta) | patrón sí, filtro no |
 | Auditoría de seguridad | ✅ `security_audit` | ❌ | n/a | ❌ | n/a |
 
@@ -679,8 +679,15 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
     monolito/gateway/notif por `:9090/actuator/prometheus` + reglas `prometheus-alerts.yml`) y
     `grafana-datasource.yml` (autoconfig). Verificado: monolito UP, 7 reglas cargadas, Grafana healthy.
     Gateway/notif aparecen UP con sus imágenes actuales (rebuild del gateway por su imagen previa al puerto
-    9090; notif levantado); chat entra como target cuando tenga el endpoint (a). **Pendiente menor:**
-    dashboards de Grafana (provisioning aparte). Ver guía de auth T6.23.
+    9090; notif levantado). **Ampliación 2026-11-25:** **3 dashboards provisionados** (`observability/dashboards/`):
+    *Auth & Edge*, *Visión general de la plataforma* (por label `service`) y **ServiYa — Chat (tiempo real)**
+    (`chat_ws_connected_users`, `chat_outbox_events_published_total{routing_key}` + genéricas del chat). Se
+    **habilitó el scrape del chat** en `prometheus.yml` y se permitió `/actuator/**` en su `SecurityConfig`
+    (mismo fix que gateway/notif). **Verificado:** gateway+monolito+notif **UP** con datos; los 3 dashboards
+    provisionados en Grafana. El target `chat-service` queda presente y muestra datos cuando el stack de chat
+    se levanta (falta `CHAT_DB_ROOT_PASSWORD`/`CHAT_DB_PASSWORD` en `.env`). *Gotcha Grafana:* la contraseña
+    admin se fija solo en el 1.er init del volumen; cambiar por `grafana cli admin reset-admin-password`. Ver
+    guía de auth T6.23. **Pendiente menor:** dashboards de dominio/negocio del monolito.
   - (c) **Clave de MDC → RESUELTO 2026-11-22: unificada a `correlationId` en todo el sistema.** Se cambió el
     monolito (`AuditContextFilter` + patrón de log) y notif (`CorrelationIdMdcFilter` + patrón) de
     `requestId`→`correlationId`; el chat **ya la usaba** y además la tiene **ligada a su correlation/causation
