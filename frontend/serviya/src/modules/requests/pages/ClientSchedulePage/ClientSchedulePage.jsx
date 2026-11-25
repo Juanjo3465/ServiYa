@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, CLIENT_NAV, ToastContainer, useToast, clientAgendaApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
@@ -58,21 +59,16 @@ function groupByDay(requests) {
 
 export function ClientSchedulePage() {
     const navigate = useNavigate();
-    const { toasts, showToast } = useToast();
+    const { toasts } = useToast();
 
-    const [requests, setRequests] = useState([]);
     const [selectedDate, setSelectedDate] = useState(null);
 
-    useEffect(() => {
-        clientAgendaApi
-            .getClientAgenda()
-            .then((data) => {
-                setRequests(data.content ?? []);
-            })
-            .catch((err) => {
-                showToast(err.message || 'No se pudo cargar la agenda', 'error');
-            });
-    }, []);
+    // M49: agenda del cliente como query cacheada (antes fetch-en-efecto + warning exhaustive-deps).
+    const agendaQuery = useQuery({
+        queryKey: ['client-agenda'],
+        queryFn: () => clientAgendaApi.getClientAgenda(),
+    });
+    const requests = agendaQuery.data?.content ?? [];
 
     const allDays = groupByDay(requests);
     const visibleDays = selectedDate

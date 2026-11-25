@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AppNavbar, Avatar, ServiceImage, Icon, Modal, Stars, WhatsAppButton, ToastContainer, useToast, reportApi, serviceApi, addressApi, requestApi, getApiImageUrl } from '../../../../shared';
 
@@ -59,59 +60,40 @@ export function ServiceDetailPage() {
         }
     };
 
-    // Estados para la carga del detalle del servicio
-    const [service, setService] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    // M49: detalle del servicio como query cacheada (antes fetch-en-efecto).
+    const serviceQuery = useQuery({
+        queryKey: ['service-detail', id],
+        queryFn: () => serviceApi.getServiceDetail(id),
+        enabled: !!id,
+    });
+    const service = serviceQuery.data ?? null;
+    const loading = serviceQuery.isPending;
+    const error = serviceQuery.isError ? (serviceQuery.error?.message || 'Error') : null;
 
     // Estados para el formulario de solicitud
     const [date, setDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('09:00');
     const [selectedAddressId, setSelectedAddressId] = useState('');
-    const [addresses, setAddresses] = useState([]);
+    // M49: direcciones del usuario como query cacheada (antes fetch-en-efecto + exhaustive-deps).
+    const addressesQuery = useQuery({ queryKey: ['my-addresses'], queryFn: () => addressApi.getMyAddresses() });
+    const addresses = addressesQuery.data ?? [];
+    // Selección efectiva: la del usuario, o por defecto la primera dirección disponible.
+    const effectiveAddressId = selectedAddressId || (addresses[0] ? String(addresses[0].id) : '');
     const [submitting, setSubmitting] = useState(false);
     const [successOpen, setSuccessOpen] = useState(false);
     const [activePhotoIndex, setActivePhotoIndex] = useState(0);
     const [previewPhoto, setPreviewPhoto] = useState(null);
 
-    useEffect(() => {
-        const loadServiceDetail = async () => {
-            setLoading(true);
-            try {
-                const data = await serviceApi.getServiceDetail(id);
-                setService(data);
-                setActivePhotoIndex(0);
-            } catch (err) {
-                setError(err.message);
-                showToast("Error al cargar detalle del servicio: " + err.message, "error");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (id) {
-            loadServiceDetail();
-        }
-    }, [id]);
-
-    useEffect(() => {
-        addressApi.getMyAddresses()
-            .then((data) => {
-                setAddresses(data || []);
-                if (data && data.length > 0) setSelectedAddressId(String(data[0].id));
-            })
-            .catch(() => {/* usuario no autenticado o sin direcciones, se ignora silenciosamente */});
-    }, []);
 
     const handleRequestService = async () => {
         if (!date) { showToast('Por favor selecciona una fecha', 'error'); return; }
-        if (!selectedAddressId) { showToast('Por favor selecciona una dirección', 'error'); return; }
+        if (!effectiveAddressId) { showToast('Por favor selecciona una dirección', 'error'); return; }
 
         setSubmitting(true);
         try {
             await requestApi.createRequest({
                 serviceId: parseInt(id),
-                addressId: parseInt(selectedAddressId),
+                addressId: parseInt(effectiveAddressId),
                 scheduledDate: `${date}T${selectedTime}:00`,
             });
             setSuccessOpen(true);
@@ -374,7 +356,7 @@ export function ServiceDetailPage() {
                             {addresses.length > 0 ? (
                                 <select
                                     className="input"
-                                    value={selectedAddressId}
+                                    value={effectiveAddressId}
                                     onChange={(e) => {
                                         if (e.target.value === '__new') navigate('/profile');
                                         else setSelectedAddressId(e.target.value);
