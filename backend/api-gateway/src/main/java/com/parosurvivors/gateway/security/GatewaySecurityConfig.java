@@ -147,6 +147,10 @@ public class GatewaySecurityConfig {
                 .authorizeExchange(exchange -> exchange
                         // Preflight CORS sin token.
                         .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                        // Actuator (health + /prometheus) en el puerto de gestión INTERNO 9090 (no publicado
+                        // al host): lo scrapea Prometheus por la red interna, así que se deja sin auth (T6.23).
+                        // En el puerto público 8080 no hay actuator montado, así que no expone nada al borde.
+                        .pathMatchers("/actuator/**").permitAll()
                         // WebSocket del chat: lo autentica el chat-service con un ticket de un solo uso en la
                         // query (los navegadores no pueden poner Authorization en el handshake WS), así que el
                         // borde lo deja pasar. Va ANTES de /api/chat/** para no exigirle Bearer. El JWKS NO se
