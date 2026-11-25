@@ -846,9 +846,20 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   (cancel/accept/reschedule/ban/crear) en vez del `refetch()` manual; (c) resto de páginas de lectura (Profile,
   ServiceDetail, RequestDetail, Admin) → también elimina las **5 warnings `exhaustive-deps`** restantes.
   Adoptarlo como default para páginas nuevas; migración oportunista, no big-bang.
-  **Progreso M49 (2026-11-24):** (1) polling de no-leídos del `DashboardLayout` → `useQuery`+`refetchInterval`;
-  (2) hook compartido `useMyProfile` adoptado en los dashboards; (3) acciones de `ClientRequestsPage` →
-  `useMutation` + **actualización optimista** (onMutate/rollback/onSettled→invalidate) como plantilla.
+  **Progreso M49 (2026-11-24/25) — prácticamente COMPLETO:**
+  • **Datos compartidos:** polling de no-leídos del `DashboardLayout` → `useQuery`+`refetchInterval`; hook
+  compartido `useMyProfile` (adoptado en dashboards y OffererServices).
+  • **Acciones → `useMutation` + optimista:** ClientRequests (plantilla), ClientDashboard, OffererDashboard,
+  Reschedules (cliente/oferente), OffererSchedule, OffererServices (CRUD), y las acciones de NotificationsPage.
+  • **Lecturas → `useQuery`:** ClientSchedule, ServiceDetail, HomePage, OffererSchedule, AdminDashboard,
+  AdminReports, Notifications (paginada), RequestDetail (compuesta), OffererProfile, OffererServices,
+  ProfilePage (direcciones compartidas + overlay editable del perfil oferente).
+  • **Consistencia:** selectores de hora de reprogramar/proponer → `input type=time`.
+  • **Resultado: lint del frontend 0 errores y 0 warnings (100% limpio).** Ya se puede subir
+  `react-hooks/exhaustive-deps` a *error* en la config de eslint para blindar contra regresiones.
+  • **Pendiente (tanda aparte):** la migración del **chat** (ConversationView/MessagesPage) — mismo patrón,
+  pero su microservicio es otro dominio y no estaba levantado en el smoke. AdminServices/AdminFeedback no son
+  objetivos (ya buscan por acción del usuario, no fetch-en-efecto).
 
 - **M50 — Hallazgos del smoke test de acciones (2026-11-24).**
   • **Reprogramación libre del cliente fuera de disponibilidad (RESUELTO, backend).** `rescheduleRequest` no
