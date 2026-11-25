@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, OFFERER_NAV, setActiveRole, requestApi, feedbackApi } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, useMyProfile, OFFERER_NAV, setActiveRole, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
-import { metricsApi, notificationApi, profileApi, proposalApi } from '../../../../shared/api';
+import { metricsApi, notificationApi, proposalApi } from '../../../../shared/api';
 import { timeAgo } from '../../utils';
 
 import './OffererDashboardPage.css';
@@ -66,7 +66,7 @@ export function OffererDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState([]);
     const [loadingNotifications, setLoadingNotifications] = useState(true);
-    const [profile, setProfile] = useState(null);
+    const { data: profile } = useMyProfile();
     const [acting, setActing] = useState(null);
 
     // Entrar al panel de oferente fija el "rol activo" en OFERENTE (coherencia del menú compartido).
@@ -93,12 +93,6 @@ export function OffererDashboardPage() {
             .then(data => setNotifications(data.content || []))
             .catch(() => {})
             .finally(() => setLoadingNotifications(false));
-    }, []);
-
-    useEffect(() => {
-        profileApi.getMyProfile()
-            .then(data => setProfile(data))
-            .catch(() => {});
     }, []);
 
     const userName = profile?.fullName || profile?.name || '';

@@ -15,6 +15,7 @@ export { StatCard } from './components/StatCard/StatCard';
 export { WhatsAppButton } from './components/WhatsAppButton/WhatsAppButton';
 export { ToastContainer } from './components/Toast/Toast';
 export { useToast } from './hooks/useToast';
+export { useMyProfile } from './hooks/useMyProfile';
 export { ProtectedRoute } from './components/ProtectedRoute';
 export { CLIENT_NAV, OFFERER_NAV, navForActiveRole } from './navConfig';
 export {
