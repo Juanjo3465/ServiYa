@@ -1,7 +1,8 @@
 import { useForm } from 'react-hook-form';
 import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, serviceApi, profileApi, categoryApi, getApiImageUrl, isAuthenticated, ServiceImage } from '../../../../shared';
+import { DashboardLayout, Icon, Modal, ToastContainer, useToast, useMyProfile, OFFERER_NAV, serviceApi, categoryApi, getApiImageUrl, ServiceImage } from '../../../../shared';
 
 import './OffererServicesPage.css';
 
@@ -227,31 +228,44 @@ export function OffererServicesPage() {
     const { toasts, showToast } = useToast();
     const [newOpen, setNewOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
-    const [profile, setProfile] = useState(null);
-    const [services, setServices] = useState([]);
-    const [categories, setCategories] = useState([]);
     const [editedService, setEditedService] = useState(null);
     const [selectedPhotos, setSelectedPhotos] = useState([]);
 
-    useEffect(() => {
-        if (!isAuthenticated()) {
-            navigate('/login');
-            return;
-        }
-        profileApi.getMyProfile()
-            .then(setProfile)
-            .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
-        categoryApi.getCategories()
-            .then(setCategories)
-            .catch((e) => showToast(e.message || 'No se pudieron cargar las categorías', 'danger'));
-    }, []);
+    // M49: perfil (hook compartido), categorías y servicios como queries; CRUD con useMutation.
+    const queryClient = useQueryClient();
+    const { data: profile } = useMyProfile();
+    const categoriesQuery = useQuery({ queryKey: ['categories'], queryFn: () => categoryApi.getCategories() });
+    const categories = categoriesQuery.data ?? [];
+    const servicesQuery = useQuery({
+        queryKey: ['my-services', profile?.id],
+        queryFn: () => serviceApi.getMyServices(profile.id),
+        enabled: !!profile?.id,
+    });
+    const services = servicesQuery.data ?? [];
+    const invalidateServices = () => queryClient.invalidateQueries({ queryKey: ['my-services'] });
 
-    useEffect(() => {
-        if (!profile?.id) return;
-        serviceApi.getMyServices(profile.id)
-            .then(setServices)
-            .catch(() => setServices([]));
-    }, [profile?.id]);
+    const createMutation = useMutation({
+        mutationFn: (formDataToSend) => serviceApi.createService(formDataToSend, true),
+        onSuccess: () => { invalidateServices(); setNewOpen(false); setSelectedPhotos([]); showToast('Servicio creado exitosamente', 'success'); },
+        onError: (e) => showToast(e.message || 'No se pudo crear el servicio', 'danger'),
+    });
+    const updateMutation = useMutation({
+        mutationFn: ({ id, formDataToSend }) => serviceApi.updateService(id, formDataToSend, true),
+        onSuccess: () => { invalidateServices(); setEditOpen(false); setEditedService(null); setSelectedPhotos([]); showToast('Servicio actualizado exitosamente', 'success'); },
+        onError: (e) => showToast(e.message || 'No se pudo actualizar el servicio', 'danger'),
+    });
+    const deleteMutation = useMutation({
+        mutationFn: (id) => serviceApi.deleteService(id),
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['my-services'] });
+            const snapshot = queryClient.getQueriesData({ queryKey: ['my-services'] });
+            queryClient.setQueriesData({ queryKey: ['my-services'] }, (old) => (Array.isArray(old) ? old.filter((s) => s.id !== id) : old));
+            return { snapshot };
+        },
+        onError: (e, _id, ctx) => { ctx?.snapshot?.forEach(([key, data]) => queryClient.setQueryData(key, data)); showToast(e.message || 'No se pudo eliminar el servicio', 'danger'); },
+        onSuccess: () => showToast('Servicio eliminado', 'danger'),
+        onSettled: invalidateServices,
+    });
 
     const openEdit = (service) => () => {
         setEditedService({
@@ -281,7 +295,6 @@ export function OffererServicesPage() {
             return;
         }
 
-        const category = categories.find(c => c.id === categoryId);
         const formDataToSend = new FormData();
         formDataToSend.append('title', formData.title || '');
         formDataToSend.append('description', formData.description || '');
@@ -297,24 +310,7 @@ export function OffererServicesPage() {
 
         selectedPhotos.forEach((photo) => formDataToSend.append('photos', photo));
 
-        serviceApi
-            .createService(formDataToSend, true)
-            .then((created) => {
-                setServices(prev => [
-                    ...prev,
-                    { ...created, category: created.category || category }
-                ]);
-                setNewOpen(false);
-                setSelectedPhotos([]);
-                showToast('Servicio creado exitosamente', 'success');
-            })
-            .catch(e =>
-                showToast(
-                    e.message ||
-                    'No se pudo crear el servicio',
-                    'danger'
-                )
-            );
+        createMutation.mutate(formDataToSend);
     };
 
     const removePhoto = (index) => {
@@ -323,7 +319,6 @@ export function OffererServicesPage() {
 
     const saveEditedService = (formData) => {
         const categoryId = normalizeNumericValue(formData.categoryId);
-        const category = categories.find(c => c.id === categoryId);
         const formDataToSend = new FormData();
         if (formData.title != null) formDataToSend.append('title', formData.title || '');
         if (formData.description != null) formDataToSend.append('description', formData.description || '');
@@ -345,53 +340,10 @@ export function OffererServicesPage() {
         removedPhotos.forEach((photo) => formDataToSend.append('removedPhotos', photo));
         selectedPhotos.filter((photo) => photo instanceof File).forEach((photo) => formDataToSend.append('photos', photo));
 
-        serviceApi
-            .updateService(editedService.id, formDataToSend, true)
-            .then((updated) => {
-                const payload = {
-                    ...editedService,
-                    ...updated,
-                    category: category || editedService.category
-                };
-                setServices(prev =>
-                    prev.map(s =>
-                        s.id === payload.id
-                            ? payload
-                            : s
-                    )
-                );
-                setEditOpen(false);
-                setEditedService(null);
-                setSelectedPhotos([]);
-                showToast(
-                    'Servicio actualizado exitosamente',
-                    'success'
-                );
-            })
-            .catch(e =>
-                showToast(
-                    e.message ||
-                    'No se pudo actualizar el servicio',
-                    'danger'
-                )
-            );
+        updateMutation.mutate({ id: editedService.id, formDataToSend });
     }
 
-    const deleteService = (service) => () => {
-        serviceApi
-            .deleteService(service.id)
-            .then(() => {
-                setServices(prev => prev.filter(s => s.id !== service.id));
-                showToast('Servicio eliminado', 'danger');
-            })
-            .catch(e =>
-                showToast(
-                    e.message ||
-                    'No se pudo eliminar el servicio',
-                    'danger'
-                )
-            );
-    };
+    const deleteService = (service) => () => deleteMutation.mutate(service.id);
 
     return (
         <DashboardLayout sections={OFFERER_NAV} avatar="CM">
