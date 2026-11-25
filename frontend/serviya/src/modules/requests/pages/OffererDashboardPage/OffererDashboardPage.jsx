@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, StatCard, ToastContainer, useToast, useMyProfile, OFFERER_NAV, setActiveRole, requestApi, feedbackApi } from '../../../../shared';
 import { ReviewModal } from '../../components/ReviewModal/ReviewModal';
 import { metricsApi, notificationApi, proposalApi } from '../../../../shared/api';
@@ -61,7 +61,6 @@ export function OffererDashboardPage() {
     const [proposalDate, setProposalDate] = useState('');
     const [proposalTime, setProposalTime] = useState('09:00');
     const [proposalReason, setProposalReason] = useState('');
-    const [proposalSubmitting, setProposalSubmitting] = useState(false);
     const [offererMetrics, setOffererMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState([]);
@@ -110,53 +109,71 @@ export function OffererDashboardPage() {
         },
     ] : [];
 
-    async function handleAccept(req) {
-        setActing(req.requestId);
-        try {
-            await requestApi.acceptRequest(req.requestId);
-            showToast('Solicitud aceptada. Cliente notificado', 'success');
-            requestsQuery.refetch();
-        } catch (e) {
-            showToast(e.message || 'Error al aceptar solicitud', 'danger');
-        } finally {
-            setActing(null);
-        }
-    }
+    // M49: acciones del oferente con useMutation + actualización optimista sobre la lista del dashboard
+    // (onMutate cambia el estado al instante, onError revierte, onSettled reconcilia con el servidor).
+    const queryClient = useQueryClient();
+    const patchStatus = (requestId, status) => {
+        queryClient.setQueriesData({ queryKey: ['offerer-dashboard-requests'] }, (old) => {
+            if (!old?.content) return old;
+            return { ...old, content: old.content.map((r) => (r.requestId === requestId ? { ...r, status } : r)) };
+        });
+    };
+    const beginOptimistic = async (requestId, status) => {
+        await queryClient.cancelQueries({ queryKey: ['offerer-dashboard-requests'] });
+        const snapshot = queryClient.getQueriesData({ queryKey: ['offerer-dashboard-requests'] });
+        patchStatus(requestId, status);
+        return { snapshot };
+    };
+    const rollback = (ctx) => ctx?.snapshot?.forEach(([key, data]) => queryClient.setQueryData(key, data));
+    const reconcile = () => queryClient.invalidateQueries({ queryKey: ['offerer-dashboard-requests'] });
 
-    async function handleReject(req) {
-        setActing(req.requestId);
-        try {
-            await requestApi.rejectRequest(req.requestId);
-            showToast('Solicitud rechazada. Cliente notificado', 'success');
-            requestsQuery.refetch();
-        } catch (e) {
-            showToast(e.message || 'Error al rechazar solicitud', 'danger');
-        } finally {
-            setActing(null);
-        }
-    }
+    const acceptMutation = useMutation({
+        mutationFn: (requestId) => requestApi.acceptRequest(requestId),
+        onMutate: (requestId) => { setActing(requestId); return beginOptimistic(requestId, 'ACCEPTED'); },
+        onError: (e, _id, ctx) => { rollback(ctx); showToast(e.message || 'Error al aceptar solicitud', 'danger'); },
+        onSuccess: () => showToast('Solicitud aceptada. Cliente notificado', 'success'),
+        onSettled: () => { setActing(null); reconcile(); },
+    });
 
-    async function handleMarkCompleted({ rating, comment } = {}) {
-        if (!selectedRequest) return;
-        setActing(selectedRequest.requestId);
-        try {
-            await requestApi.markCompleted(selectedRequest.requestId);
+    const rejectMutation = useMutation({
+        mutationFn: (requestId) => requestApi.rejectRequest(requestId),
+        onMutate: (requestId) => { setActing(requestId); return beginOptimistic(requestId, 'REJECTED'); },
+        onError: (e, _id, ctx) => { rollback(ctx); showToast(e.message || 'Error al rechazar solicitud', 'danger'); },
+        onSuccess: () => showToast('Solicitud rechazada. Cliente notificado', 'success'),
+        onSettled: () => { setActing(null); reconcile(); },
+    });
+
+    const markCompleteMutation = useMutation({
+        mutationFn: async ({ requestId, clientId, rating, comment }) => {
+            await requestApi.markCompleted(requestId);
             if (rating > 0 || comment) {
-                await feedbackApi.submitClientFeedback(selectedRequest.requestId, {
-                    clientId: selectedRequest.counterpartyId,
-                    rating: rating || null,
-                    comment: comment || null,
-                });
+                await feedbackApi.submitClientFeedback(requestId, { clientId, rating: rating || null, comment: comment || null });
             }
-            setCompleteOpen(false);
-            setSelectedRequest(null);
-            showToast('Servicio marcado como realizado. Reseña enviada', 'success');
-            requestsQuery.refetch();
-        } catch (e) {
-            showToast(e.message || 'Error al marcar servicio', 'danger');
-        } finally {
-            setActing(null);
-        }
+        },
+        onMutate: ({ requestId }) => { setActing(requestId); return beginOptimistic(requestId, 'PRESUMABLY_COMPLETED'); },
+        onError: (e, _v, ctx) => { rollback(ctx); showToast(e.message || 'Error al marcar servicio', 'danger'); },
+        onSuccess: () => { setCompleteOpen(false); setSelectedRequest(null); showToast('Servicio marcado como realizado. Reseña enviada', 'success'); },
+        onSettled: () => { setActing(null); reconcile(); },
+    });
+
+    const proposalMutation = useMutation({
+        mutationFn: ({ requestId, reason, proposedDate }) => proposalApi.createProposal({ requestId, reason: reason || null, proposedDate }),
+        onSuccess: () => {
+            setProposalOpen(false);
+            setProposalTarget(null);
+            setProposalDate('');
+            setProposalTime('09:00');
+            setProposalReason('');
+            showToast('Propuesta enviada al cliente', 'success');
+        },
+        onError: (err) => showToast(err.message || 'No se pudo enviar la propuesta', 'danger'),
+    });
+
+    const handleAccept = (req) => acceptMutation.mutate(req.requestId);
+    const handleReject = (req) => rejectMutation.mutate(req.requestId);
+    function handleMarkCompleted({ rating, comment } = {}) {
+        if (!selectedRequest) return;
+        markCompleteMutation.mutate({ requestId: selectedRequest.requestId, clientId: selectedRequest.counterpartyId, rating, comment });
     }
 
     function openCompleteModal(req) {
@@ -275,31 +292,11 @@ export function OffererDashboardPage() {
                 <div className="input-group"><label className="label">Motivo de la reprogramación</label><textarea className="input" rows="3" placeholder="Explica brevemente el motivo..." value={proposalReason} onChange={(e) => setProposalReason(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => { setProposalOpen(false); setProposalTarget(null); }}>Cancelar</button>
-                    <button className="btn btn-primary btn-full" disabled={!proposalDate || proposalSubmitting} onClick={async () => {
-                        if (!proposalTarget || !proposalDate || proposalSubmitting) return;
-                        // Guard contra doble/triple envío: sin esto, clics rápidos o un freeze disparan
-                        // varios createProposal concurrentes y el backend crea varias PENDING (condición
-                        // de carrera; ver estado-frontend-pendientes.md / NOTAS.txt).
-                        setProposalSubmitting(true);
-                        try {
-                            const proposedDate = `${proposalDate}T${proposalTime}:00`;
-                            await proposalApi.createProposal({
-                                requestId: proposalTarget.requestId,
-                                reason: proposalReason || null,
-                                proposedDate,
-                            });
-                            setProposalOpen(false);
-                            setProposalTarget(null);
-                            setProposalDate('');
-                            setProposalTime('09:00');
-                            setProposalReason('');
-                            showToast('Propuesta enviada al cliente', 'success');
-                        } catch (err) {
-                            showToast(err.message || 'No se pudo enviar la propuesta', 'danger');
-                        } finally {
-                            setProposalSubmitting(false);
-                        }
-                    }}><Icon name="send" size={15} />{proposalSubmitting ? 'Enviando…' : 'Enviar propuesta'}</button>
+                    <button className="btn btn-primary btn-full" disabled={!proposalDate || proposalMutation.isPending} onClick={() => {
+                        // El isPending de la mutación ya evita el doble envío (antes causaba varias PENDING).
+                        if (!proposalTarget || !proposalDate || proposalMutation.isPending) return;
+                        proposalMutation.mutate({ requestId: proposalTarget.requestId, reason: proposalReason, proposedDate: `${proposalDate}T${proposalTime}:00` });
+                    }}><Icon name="send" size={15} />{proposalMutation.isPending ? 'Enviando…' : 'Enviar propuesta'}</button>
                 </div>
             </Modal>
 
