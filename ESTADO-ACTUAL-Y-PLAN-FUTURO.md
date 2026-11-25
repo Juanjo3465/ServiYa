@@ -840,7 +840,7 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   → `BusinessRuleException` (**400** `BUSINESS_RULE`, "No puedes solicitar tu propio servicio"). Verificado
   e2e (auto-solicitud → 400; cliente distinto pasa la guarda). Commit en `api-gateway`.
 
-- **M49 — Extender React Query como patrón por defecto del estado de servidor (mejora, ABIERTA).** Hoy
+- **M49 — Extender React Query como patrón por defecto del estado de servidor (CERRADO 2026-11-25).** Hoy
   `@tanstack/react-query` se usa **selectivamente** (12 páginas de listas/lectura migradas en M46); ~16 páginas
   siguen con `useEffect`+fetch y **ninguna** acción usa `useMutation` (hacen `refetch()` manual). Plan por
   valor: (a) **datos compartidos** — una query de `me/profile` (se re-pide en muchas páginas) y los
