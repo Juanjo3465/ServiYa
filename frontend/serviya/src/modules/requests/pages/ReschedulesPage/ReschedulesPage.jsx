@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV } from '../../../../shared';
 import { proposalApi, requestApi } from '../../../../shared/api';
 import { formatDate, getInitials } from '../../utils';
@@ -21,7 +21,6 @@ export function ReschedulesPage() {
     // Detalle de propuesta (modal) + tercera acción del cliente: elegir nueva fecha (supera la propuesta).
     const [detail, setDetail] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
-    const [acting, setActing] = useState(false);
     const [freeMode, setFreeMode] = useState(false);
     const [freeDate, setFreeDate] = useState('');
     const [freeTime, setFreeTime] = useState('09:00');
@@ -44,27 +43,54 @@ export function ReschedulesPage() {
     const history = proposalsQuery.data?.history ?? [];
     const loading = proposalsQuery.isPending;
 
-    const handleAccept = async (proposal) => {
-        try {
-            await proposalApi.acceptProposal(proposal.proposalId);
-            showToast('Propuesta aceptada. Servicio reprogramado', 'success');
-            setDetailOpen(false);
-            proposalsQuery.refetch();
-        } catch (err) {
-            showToast(err.message || 'No se pudo aceptar la propuesta', 'danger');
-        }
+    // M49: acciones de propuestas con useMutation + optimista. La caché ['client-proposals'] es
+    // {pending, history}; al aceptar/rechazar/superar, la propuesta se mueve de pending a history con su
+    // nuevo estado (onMutate), se revierte si falla (onError) y se reconcilia con el servidor (onSettled).
+    const queryClient = useQueryClient();
+    const moveToHistory = (proposalId, status) => {
+        queryClient.setQueryData(['client-proposals'], (old) => {
+            if (!old) return old;
+            const p = old.pending.find((x) => x.proposalId === proposalId);
+            return {
+                pending: old.pending.filter((x) => x.proposalId !== proposalId),
+                history: p ? [{ ...p, status }, ...old.history] : old.history,
+            };
+        });
     };
+    const beginOptimistic = async (proposalId, status) => {
+        await queryClient.cancelQueries({ queryKey: ['client-proposals'] });
+        const snapshot = queryClient.getQueryData(['client-proposals']);
+        moveToHistory(proposalId, status);
+        return { snapshot };
+    };
+    const rollback = (ctx) => { if (ctx && ctx.snapshot !== undefined) queryClient.setQueryData(['client-proposals'], ctx.snapshot); };
+    const reconcile = () => queryClient.invalidateQueries({ queryKey: ['client-proposals'] });
 
-    const handleReject = async (proposal) => {
-        try {
-            await proposalApi.rejectProposal(proposal.proposalId);
-            showToast('Propuesta rechazada', 'success');
-            setDetailOpen(false);
-            proposalsQuery.refetch();
-        } catch (err) {
-            showToast(err.message || 'No se pudo rechazar la propuesta', 'danger');
-        }
-    };
+    const acceptMutation = useMutation({
+        mutationFn: (proposalId) => proposalApi.acceptProposal(proposalId),
+        onMutate: (proposalId) => beginOptimistic(proposalId, 'ACCEPTED'),
+        onError: (err, _id, ctx) => { rollback(ctx); showToast(err.message || 'No se pudo aceptar la propuesta', 'danger'); },
+        onSuccess: () => { setDetailOpen(false); showToast('Propuesta aceptada. Servicio reprogramado', 'success'); },
+        onSettled: reconcile,
+    });
+    const rejectMutation = useMutation({
+        mutationFn: (proposalId) => proposalApi.rejectProposal(proposalId),
+        onMutate: (proposalId) => beginOptimistic(proposalId, 'REJECTED'),
+        onError: (err, _id, ctx) => { rollback(ctx); showToast(err.message || 'No se pudo rechazar la propuesta', 'danger'); },
+        onSuccess: () => { setDetailOpen(false); showToast('Propuesta rechazada', 'success'); },
+        onSettled: reconcile,
+    });
+    const freeRescheduleMutation = useMutation({
+        mutationFn: ({ requestId, newDate }) => requestApi.rescheduleRequest(requestId, { newDate }),
+        onMutate: () => beginOptimistic(detail?.proposalId, 'SUPERSEDED'),
+        onError: (err, _v, ctx) => { rollback(ctx); showToast(err.message || 'No se pudo reprogramar', 'danger'); },
+        onSuccess: () => { setDetailOpen(false); showToast('Elegiste una nueva fecha; la propuesta fue superada', 'success'); },
+        onSettled: reconcile,
+    });
+    const acting = acceptMutation.isPending || rejectMutation.isPending || freeRescheduleMutation.isPending;
+
+    const handleAccept = (proposal) => acceptMutation.mutate(proposal.proposalId);
+    const handleReject = (proposal) => rejectMutation.mutate(proposal.proposalId);
 
     const openDetail = (proposalId) => {
         setDetail(null);
@@ -79,19 +105,9 @@ export function ReschedulesPage() {
 
     // Tercera vía: el cliente elige libremente una nueva fecha. rescheduleRequest crea una nueva
     // solicitud y "supera" (SUPERSEDED) la propuesta pendiente del oferente.
-    const handleFreeReschedule = async () => {
+    const handleFreeReschedule = () => {
         if (!detail || !freeDate) return;
-        setActing(true);
-        try {
-            await requestApi.rescheduleRequest(detail.requestId, { newDate: `${freeDate}T${freeTime}:00` });
-            showToast('Elegiste una nueva fecha; la propuesta fue superada', 'success');
-            setDetailOpen(false);
-            proposalsQuery.refetch();
-        } catch (err) {
-            showToast(err.message || 'No se pudo reprogramar', 'danger');
-        } finally {
-            setActing(false);
-        }
+        freeRescheduleMutation.mutate({ requestId: detail.requestId, newDate: `${freeDate}T${freeTime}:00` });
     };
 
     return (

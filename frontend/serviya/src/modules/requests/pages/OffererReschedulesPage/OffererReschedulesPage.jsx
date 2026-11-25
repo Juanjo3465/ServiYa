@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV } from '../../../../shared';
 import { proposalApi } from '../../../../shared/api';
 import { formatDate, getInitials } from '../../utils';
@@ -26,7 +26,6 @@ export function OffererReschedulesPage() {
     // (cancelar la propuesta pendiente + ver la solicitud).
     const [detail, setDetail] = useState(null);
     const [detailOpen, setDetailOpen] = useState(false);
-    const [acting, setActing] = useState(false);
 
     // Propuestas enviadas (M46: React Query; una query hace el Promise.all, refetch() refresca).
     const proposalsQuery = useQuery({
@@ -46,19 +45,36 @@ export function OffererReschedulesPage() {
     const history = proposalsQuery.data?.history ?? [];
     const loading = proposalsQuery.isPending;
 
-    const handleCancel = async (proposal) => {
-        if (!window.confirm('¿Cancelar esta propuesta de reprogramación?')) return;
-        setActing(true);
-        try {
-            await proposalApi.cancelProposal(proposal.proposalId);
-            showToast('Propuesta cancelada', 'success');
-            setDetailOpen(false);
-            proposalsQuery.refetch();
-        } catch (err) {
+    // M49: cancelar propuesta con useMutation + optimista (mueve la propuesta de pending a history con
+    // estado CANCELLED; revierte si falla; reconcilia con el servidor al terminar).
+    const queryClient = useQueryClient();
+    const cancelMutation = useMutation({
+        mutationFn: (proposalId) => proposalApi.cancelProposal(proposalId),
+        onMutate: async (proposalId) => {
+            await queryClient.cancelQueries({ queryKey: ['offerer-proposals'] });
+            const snapshot = queryClient.getQueryData(['offerer-proposals']);
+            queryClient.setQueryData(['offerer-proposals'], (old) => {
+                if (!old) return old;
+                const p = old.pending.find((x) => x.proposalId === proposalId);
+                return {
+                    pending: old.pending.filter((x) => x.proposalId !== proposalId),
+                    history: p ? [{ ...p, status: 'CANCELLED' }, ...old.history] : old.history,
+                };
+            });
+            return { snapshot };
+        },
+        onError: (err, _id, ctx) => {
+            if (ctx && ctx.snapshot !== undefined) queryClient.setQueryData(['offerer-proposals'], ctx.snapshot);
             showToast(err.message || 'No se pudo cancelar la propuesta', 'danger');
-        } finally {
-            setActing(false);
-        }
+        },
+        onSuccess: () => { setDetailOpen(false); showToast('Propuesta cancelada', 'success'); },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['offerer-proposals'] }),
+    });
+    const acting = cancelMutation.isPending;
+
+    const handleCancel = (proposal) => {
+        if (!window.confirm('¿Cancelar esta propuesta de reprogramación?')) return;
+        cancelMutation.mutate(proposal.proposalId);
     };
 
     const openDetail = (proposalId) => {
