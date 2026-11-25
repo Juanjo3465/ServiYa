@@ -718,6 +718,15 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   > `notifications-service`, `chat-service`, `identity-service`; al extraer un servicio nuevo (p. ej. en
   > Fase 8) hay que **sumarlo ahí**.
 
+  > **✅ CONTRACT TESTS CERRADOS (2026-11-25) — T6.19/T6.20/T6.21:** verificados local (`mvn install` del
+  > monolito: `JwtDecoderTokenContractTest`, `ErrorResponseContractTest`, `JwksControllerTest` OK + stub jar
+  > instalado) y como gate en CI. **Stub-runner formal añadido:** `JwksStubRunnerContractTest` (gateway) corre
+  > el stub del productor y verifica el consumo del contrato JWKS → un cambio de forma del emisor rompe el
+  > build del consumidor. Va en un **job de CI dedicado** `contract-stub-runner` (instala el stub del monolito y
+  > corre el test `@Tag("stubrunner")` con `-Dgroups=stubrunner`); el build normal lo excluye
+  > (`excludedGroups=stubrunner`). **REGLA:** al mover el emisor del JWKS a `identity-service` (Fase 8A Slice 1),
+  > repuntar el productor del stub a ese servicio y actualizar el job dedicado.
+
 - **M43 — Endurecimiento de la sesión/refresh contra robo de cookie (mejora futura).** La cookie de refresh
   ya es `HttpOnly; SameSite=Strict; Secure(prod); Path=/api/v1/auth` + rotación + detección de reuso
   (revoca la familia) — inmune a robo por XSS; el riesgo residual es malware/acceso local y la **ventana de

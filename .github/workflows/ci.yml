@@ -3,7 +3,8 @@ name: CI
 # Gate de integración (T6.22 / contract tests M24): corre `mvn test` en cada módulo backend en cada push y
 # PR. Los contract tests de Spring Cloud Contract (JwksTest, AuthTest en el monolito) y los tests de rechazo
 # de token por servicio se ejecutan como parte de `mvn test`, así que romper un contrato FALLA el build.
-# Nota: el gate productor↔consumidor completo (stub-runner) depende de T6.20 consumer-side (diferido).
+# El gate productor↔consumidor completo (stub-runner, T6.20) corre en el job `contract-stub-runner`: instala
+# el stub del monolito y verifica que el gateway consume el contrato del JWKS tal como lo publica el emisor.
 
 on:
   push:
@@ -44,6 +45,33 @@ jobs:
         run: |
           chmod +x ./mvnw
           ./mvnw -B --no-transfer-progress test
+
+  contract-stub-runner:
+    name: contract stub-runner (productor↔consumidor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Publica el stub jar del PRODUCTOR (emisor del JWKS) en el repo Maven local del runner.
+      - name: install stub del productor (monolito)
+        working-directory: backend/serviya
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B --no-transfer-progress install -DskipTests
+
+      # Corre SOLO los tests @Tag("stubrunner") del CONSUMIDOR (gateway) contra ese stub.
+      - name: gateway contract (stub-runner)
+        working-directory: backend/api-gateway
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -B --no-transfer-progress test -DexcludedGroups= -Dgroups=stubrunner
 
   frontend-build:
     name: frontend lint + build
