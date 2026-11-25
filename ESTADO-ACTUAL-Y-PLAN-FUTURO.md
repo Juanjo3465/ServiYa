@@ -674,10 +674,13 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
     las métricas estándar (JVM, `http.server.requests`, …). **Métricas de dominio → HECHO 2026-11-22:** gauge
     `chat.ws.connected_users` (usuarios con sesión WS activa) + contador `chat.outbox.events.published{routing_key}`
     (throughput de eventos al bus; los **mensajes** se observan por el tag `routing_key="chat.message.sent"`).
-  - (b) **Servidor Prometheus + Grafana en `docker-compose`** (hoy solo hay endpoints, nada los *scrapea*).
-    **Decisión del usuario (2026-11-22): se adelanta a la Fase 6** (ya no Fase 7): añadir servicios
-    `prometheus` + `grafana` al compose + un `prometheus.yml` con los 3 targets (monolito, gateway, notif) y
-    el chat cuando tenga el endpoint (a).
+  - (b) **Servidor Prometheus + Grafana en `docker-compose` → HECHO 2026-11-25 (T6.23).** Servicios
+    `prometheus` (:9091) + `grafana` (:3000) en el compose raíz; `observability/prometheus.yml` (scrape de
+    monolito/gateway/notif por `:9090/actuator/prometheus` + reglas `prometheus-alerts.yml`) y
+    `grafana-datasource.yml` (autoconfig). Verificado: monolito UP, 7 reglas cargadas, Grafana healthy.
+    Gateway/notif aparecen UP con sus imágenes actuales (rebuild del gateway por su imagen previa al puerto
+    9090; notif levantado); chat entra como target cuando tenga el endpoint (a). **Pendiente menor:**
+    dashboards de Grafana (provisioning aparte). Ver guía de auth T6.23.
   - (c) **Clave de MDC → RESUELTO 2026-11-22: unificada a `correlationId` en todo el sistema.** Se cambió el
     monolito (`AuditContextFilter` + patrón de log) y notif (`CorrelationIdMdcFilter` + patrón) de
     `requestId`→`correlationId`; el chat **ya la usaba** y además la tiene **ligada a su correlation/causation
