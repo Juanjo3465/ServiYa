@@ -357,6 +357,11 @@ public class ServiceRequestCommandService implements ServiceRequestCommandServic
         ServiceRequest request = loadRequest(requestId);
         requireOwnership(request.getClientId(), clientId);
 
+        // Regla de negocio: la reprogramación LIBRE del cliente debe caer dentro de la disponibilidad del
+        // servicio (igual que al crear la solicitud). El oferente sí puede salirse, pero por el flujo de
+        // PROPUESTA de reprogramación (rescheduleProposalService), no por esta vía.
+        checkServiceAvailability(request.getServiceId(), newDate);
+
         RequestStatus previous = request.getStatus();
         request.markRescheduled(clientId);
         ServiceRequest replacement = request.rescheduleTo(newDate, RequestStatus.PENDING, clientId);
