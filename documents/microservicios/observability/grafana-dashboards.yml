@@ -1,0 +1,13 @@
+# Provisioning de dashboards de Grafana (T6.23). Carga automáticamente los JSON de la carpeta montada.
+apiVersion: 1
+providers:
+  - name: ServiYa
+    orgId: 1
+    folder: ServiYa
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: false
