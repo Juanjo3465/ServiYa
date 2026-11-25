@@ -846,6 +846,19 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   (cancel/accept/reschedule/ban/crear) en vez del `refetch()` manual; (c) resto de páginas de lectura (Profile,
   ServiceDetail, RequestDetail, Admin) → también elimina las **5 warnings `exhaustive-deps`** restantes.
   Adoptarlo como default para páginas nuevas; migración oportunista, no big-bang.
+  **Progreso M49 (2026-11-24):** (1) polling de no-leídos del `DashboardLayout` → `useQuery`+`refetchInterval`;
+  (2) hook compartido `useMyProfile` adoptado en los dashboards; (3) acciones de `ClientRequestsPage` →
+  `useMutation` + **actualización optimista** (onMutate/rollback/onSettled→invalidate) como plantilla.
+
+- **M50 — Hallazgos del smoke test de acciones (2026-11-24).**
+  • **Reprogramación libre del cliente fuera de disponibilidad (RESUELTO, backend).** `rescheduleRequest` no
+  validaba disponibilidad; añadido `checkServiceAvailability`. El flujo de propuesta del oferente
+  (`acceptProposal`) es independiente y sigue pudiendo salirse (por diseño). Verificado e2e (fuera→400,
+  dentro→201). Commit en `api-gateway`.
+  • **Error intermitente al cancelar (REVISADO, sin acción).** No se reproduce como error del servidor: un
+  cancel limpio devuelve 204, **0 `500` en el log** (que ahora se registran), rate limiting off, y el código
+  optimista solo toca la caché del cliente. Hipótesis: borde de expiración del access token (15 min) →
+  401+refresh+retry; transitorio. Si recurre con error real del servidor, el logging del handler lo capturará.
 
 ### 6.6 Adopción de Redis (sustrato de coordinación) — decisiones y aplazamientos (2026-10-10)
 
