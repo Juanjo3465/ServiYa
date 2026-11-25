@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Navbar } from '../../../../shared/components/Navbar/Navbar';
 import { Footer } from '../../../../shared/components/Footer/Footer';
 import { ToastContainer } from '../../../../shared/components/Toast/Toast';
@@ -29,69 +29,21 @@ const DEFAULT_ICON = <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5
 
 
 function HomePage() {
-    const { toasts, showToast } = useToast();
-    const [categories, setCategories] = useState([]);
-    const [featServices, setFeatServices] = useState([]);
-    const [loadingServices, setLoadingServices] = useState(false);
-    const [stats, setStats] = useState({
-        activeOfferers: 0,
-        completedServices: 0,
-        averageRating: 0,
-        totalCategories: 0
+    const { toasts } = useToast();
+
+    // M49: lecturas públicas de la home como queries cacheadas (antes 3 fetch-en-efecto).
+    const categoriesQuery = useQuery({ queryKey: ['categories-public'], queryFn: () => categoryApi.getCategories() });
+    const categories = categoriesQuery.data ?? [];
+
+    const featuredQuery = useQuery({
+        queryKey: ['featured-services'],
+        queryFn: () => serviceApi.searchServices({ page: 0, size: 4, available: true, sort: 'createdAt,desc' }),
     });
+    const featServices = featuredQuery.data?.content ?? [];
+    const loadingServices = featuredQuery.isPending;
 
-    useEffect(() => {
-        const loadCategories = async () => {
-            try {
-                const data = await categoryApi.getCategories();
-                setCategories(data || []);
-            } catch (err) {
-                console.error('Error loading categories:', err);
-                showToast("Error al cargar categorías: " + err.message, "error");
-            }
-        };
-        loadCategories();
-    }, [showToast]);
-
-    useEffect(() => {
-        const loadFeaturedServices = async () => {
-            setLoadingServices(true);
-            try {
-                // Busca servicios activos, ordenados por fecha de creación descendente
-                const data = await serviceApi.searchServices({
-                    page: 0,
-                    size: 4,
-                    available: true,
-                    sort: 'createdAt,desc'
-                });
-                setFeatServices(data?.content || []);
-            } catch (err) {
-                console.error('Error loading featured services:', err);
-                // Silenciosamente, la sección queda vacía si falla
-            } finally {
-                setLoadingServices(false);
-            }
-        };
-        loadFeaturedServices();
-    }, []);
-
-    useEffect(() => {
-        const loadStats = async () => {
-            try {
-                const data = await platformApi.getStats();
-                setStats(data || {
-                    activeOfferers: 0,
-                    completedServices: 0,
-                    averageRating: 0,
-                    totalCategories: 0
-                });
-            } catch (err) {
-                console.error('Error loading platform stats:', err);
-                // Mantiene los valores por defecto si falla
-            }
-        };
-        loadStats();
-    }, []);
+    const statsQuery = useQuery({ queryKey: ['platform-stats'], queryFn: () => platformApi.getStats() });
+    const stats = statsQuery.data ?? { activeOfferers: 0, completedServices: 0, averageRating: 0, totalCategories: 0 };
 
     return (
         <>

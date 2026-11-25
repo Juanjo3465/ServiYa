@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, Icon, Modal, ToastContainer, useToast, OFFERER_NAV, offererAgendaApi, reportApi, requestApi } from '../../../../shared';
 import { MonthCalendar } from '../../components/MonthCalendar/MonthCalendar';
@@ -61,7 +62,6 @@ export function OffererSchedulePage() {
     const navigate = useNavigate();
     const { toasts, showToast } = useToast();
 
-    const [requests, setRequests] = useState([]);
     const [selectedDate, setSelectedDate] = useState(null);
 
     // RF-073 (lado oferente): reporte de incumplimiento del cliente.
@@ -102,24 +102,29 @@ export function OffererSchedulePage() {
         }
     };
 
-    const loadAgenda = useCallback(() => {
-        offererAgendaApi
-            .getOffererAgenda()
-            .then((data) => setRequests(data.content ?? []))
-            .catch((err) => showToast(err.message || 'No se pudo cargar la agenda', 'error'));
-    }, [showToast]);
+    // M49: agenda del oferente -> useQuery; aceptar -> useMutation + optimista sobre ['offerer-agenda'].
+    const queryClient = useQueryClient();
+    const agendaQuery = useQuery({ queryKey: ['offerer-agenda'], queryFn: () => offererAgendaApi.getOffererAgenda() });
+    const requests = agendaQuery.data?.content ?? [];
 
-    useEffect(() => { loadAgenda(); }, [loadAgenda]);
-
-    const handleAccept = async (event) => {
-        try {
-            await requestApi.acceptRequest(event.id);
-            showToast('Solicitud aceptada. Cliente notificado', 'success');
-            loadAgenda();
-        } catch (err) {
+    const acceptMutation = useMutation({
+        mutationFn: (id) => requestApi.acceptRequest(id),
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ['offerer-agenda'] });
+            const snapshot = queryClient.getQueryData(['offerer-agenda']);
+            queryClient.setQueryData(['offerer-agenda'], (old) => (old?.content
+                ? { ...old, content: old.content.map((r) => (r.id === id ? { ...r, status: 'ACCEPTED' } : r)) }
+                : old));
+            return { snapshot };
+        },
+        onError: (err, _id, ctx) => {
+            if (ctx && ctx.snapshot !== undefined) queryClient.setQueryData(['offerer-agenda'], ctx.snapshot);
             showToast(err.message || 'No se pudo aceptar la solicitud', 'danger');
-        }
-    };
+        },
+        onSuccess: () => showToast('Solicitud aceptada. Cliente notificado', 'success'),
+        onSettled: () => queryClient.invalidateQueries({ queryKey: ['offerer-agenda'] }),
+    });
+    const handleAccept = (event) => acceptMutation.mutate(event.id);
 
     const allDays = groupByDay(requests);
     const visibleDays = selectedDate
