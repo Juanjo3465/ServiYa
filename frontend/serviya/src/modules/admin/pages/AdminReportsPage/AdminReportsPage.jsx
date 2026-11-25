@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
 import { AdminSidebar } from '../../components/AdminSidebar/AdminSidebar';
 import { ReportCard } from '../../components/ReportCard/ReportCard';
@@ -52,52 +53,44 @@ export function AdminReportsPage() {
     const { toasts, showToast } = useToast();
     const [activeTab, setActiveTab] = useState('Todos');
     const [selectedReport, setSelectedReport] = useState(null);
-    const [reports, setReports] = useState([]);
-    const [loading, setLoading] = useState(true);
     // Detalle enriquecido (GET /reports/{id}) + historial de acciones (GET /reports/{id}/actions).
     const [detailOpen, setDetailOpen] = useState(false);
     const [detail, setDetail] = useState(null);
     const [detailActions, setDetailActions] = useState([]);
 
-    useEffect(() => {
-        const loadReports = async () => {
-            try {
-                const data = await reportApi.getAll();
-                const mapped = await Promise.all((data.content ?? []).map(async (report) => {
-                    const [reporterName, reportedName] = await Promise.all([
-                        userApi.getDisplayName(report.reporterId),
-                        userApi.getDisplayName(report.reportedUserId),
-                    ]);
-
-                    return {
-                        id: `#RPT-${String(report.id).padStart(3, '0')}`,
-                        rawId: report.id,
-                        rawReportType: report.reportType,
-                        date: new Date(report.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
-                        type: REPORT_TYPE_LABELS[report.reportType] ?? report.reportType,
-                        priority: PRIORITY_LABELS[report.priority] ?? report.priority,
-                        status: report.status === 'PENDING' ? 'Pendiente' : report.status === 'RESOLVED' ? 'Resuelto' : 'Cerrado',
-                        reporterInitials: getInitials(reporterName),
-                        reporterName,
-                        reportedInitials: getInitials(reportedName),
-                        reportedName,
-                        reason: report.category,
-                        description: report.reason,
-                        category: report.category,
-                        rawStatus: report.status,
-                    };
-                }));
-
-                setReports(mapped);
-            } catch {
-                showToast('No fue posible cargar los reportes', 'danger');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadReports();
-    }, [showToast]);
+    const queryClient = useQueryClient();
+    // M49: reportes (con nombres resueltos) como query cacheada; las acciones quitan el reporte de la caché.
+    const reportsQuery = useQuery({
+        queryKey: ['admin-reports'],
+        queryFn: async () => {
+            const data = await reportApi.getAll();
+            return Promise.all((data.content ?? []).map(async (report) => {
+                const [reporterName, reportedName] = await Promise.all([
+                    userApi.getDisplayName(report.reporterId),
+                    userApi.getDisplayName(report.reportedUserId),
+                ]);
+                return {
+                    id: `#RPT-${String(report.id).padStart(3, '0')}`,
+                    rawId: report.id,
+                    rawReportType: report.reportType,
+                    date: new Date(report.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
+                    type: REPORT_TYPE_LABELS[report.reportType] ?? report.reportType,
+                    priority: PRIORITY_LABELS[report.priority] ?? report.priority,
+                    status: report.status === 'PENDING' ? 'Pendiente' : report.status === 'RESOLVED' ? 'Resuelto' : 'Cerrado',
+                    reporterInitials: getInitials(reporterName),
+                    reporterName,
+                    reportedInitials: getInitials(reportedName),
+                    reportedName,
+                    reason: report.category,
+                    description: report.reason,
+                    category: report.category,
+                    rawStatus: report.status,
+                };
+            }));
+        },
+    });
+    const reports = reportsQuery.data ?? [];
+    const loading = reportsQuery.isPending;
 
     const handleOpenManagement = (report) => {
         setSelectedReport(report);
@@ -142,13 +135,13 @@ export function AdminReportsPage() {
                     showToast('Reporte cerrado sin penalización', 'success');
                     break;
             }
-            setReports((prev) => prev.filter((r) => r.rawId !== rawId));
+            queryClient.setQueryData(['admin-reports'], (old) => (old ?? []).filter((r) => r.rawId !== rawId));
         } catch (err) {
             showToast(err.message || 'No fue posible ejecutar la acción', 'danger');
         } finally {
             setSelectedReport(null);
         }
-    }, [selectedReport, showToast]);
+    }, [selectedReport, showToast, queryClient]);
 
     const handleDeleteFeedback = useCallback(async (report) => {
         try {
@@ -158,11 +151,11 @@ export function AdminReportsPage() {
                 await moderationApi.revertFeedback(report.rawId);
             }
             showToast('Reseña eliminada correctamente', 'success');
-            setReports((prev) => prev.filter((r) => r.rawId !== report.rawId));
+            queryClient.setQueryData(['admin-reports'], (old) => (old ?? []).filter((r) => r.rawId !== report.rawId));
         } catch (err) {
             showToast(err.message || 'No fue posible eliminar la reseña', 'danger');
         }
-    }, [showToast]);
+    }, [showToast, queryClient]);
 
     return (
         <>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { Icon, StatCard, adminApi, adminServiceApi, reportApi, userApi } from '../../../../shared';
 import { AdminNavbar } from '../../components/AdminNavbar/AdminNavbar';
@@ -18,39 +18,40 @@ const initialsOf = (name) => (name || '?').split(' ').filter(Boolean).slice(0, 2
 
 export function AdminDashboardPage() {
     const navigate = useNavigate();
-    const [stats, setStats] = useState(null);
-    const [reports, setReports] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        Promise.all([
-            adminApi.searchUsers({ page: 0, size: 6 }),                 // total + usuarios recientes
-            adminApi.searchUsers({ banned: true, page: 0, size: 1 }),   // conteo de baneados (campo real: banned)
-            adminServiceApi.search({ available: 'true', page: 0, size: 1 }), // conteo de servicios activos
-            reportApi.getAll(0, 5, 'PENDING'),                          // reportes pendientes (top 5 + total)
-        ])
-            .then(async ([usersPage, bannedPage, servicesPage, reportsPage]) => {
-                setUsers(usersPage.content ?? []);
-                setStats({
+    // M49: dashboard admin (solo lectura) como una query compuesta cacheada (antes un Promise.all en efecto).
+    const dashboardQuery = useQuery({
+        queryKey: ['admin-dashboard'],
+        queryFn: async () => {
+            const [usersPage, bannedPage, servicesPage, reportsPage] = await Promise.all([
+                adminApi.searchUsers({ page: 0, size: 6 }),                 // total + usuarios recientes
+                adminApi.searchUsers({ banned: true, page: 0, size: 1 }),   // conteo de baneados (campo real: banned)
+                adminServiceApi.search({ available: 'true', page: 0, size: 1 }), // conteo de servicios activos
+                reportApi.getAll(0, 5, 'PENDING'),                          // reportes pendientes (top 5 + total)
+            ]);
+            // Resolver nombres de las partes de los reportes (top 5, N+1 aceptable).
+            const reports = await Promise.all((reportsPage.content ?? []).map(async (r) => {
+                const [reporterName, reportedName] = await Promise.all([
+                    userApi.getDisplayName(r.reporterId),
+                    userApi.getDisplayName(r.reportedUserId),
+                ]);
+                return { ...r, reporterName, reportedName };
+            }));
+            return {
+                users: usersPage.content ?? [],
+                stats: {
                     totalUsers: usersPage.totalElements ?? 0,
                     banned: bannedPage.totalElements ?? 0,
                     activeServices: servicesPage.totalElements ?? 0,
                     pendingReports: reportsPage.totalElements ?? 0,
-                });
-                // Resolver nombres de las partes de los reportes (top 5, N+1 aceptable).
-                const mapped = await Promise.all((reportsPage.content ?? []).map(async (r) => {
-                    const [reporterName, reportedName] = await Promise.all([
-                        userApi.getDisplayName(r.reporterId),
-                        userApi.getDisplayName(r.reportedUserId),
-                    ]);
-                    return { ...r, reporterName, reportedName };
-                }));
-                setReports(mapped);
-            })
-            .catch(() => { /* dashboard de solo lectura; si algo falla, se muestra vacío */ })
-            .finally(() => setLoading(false));
-    }, []);
+                },
+                reports,
+            };
+        },
+    });
+    const stats = dashboardQuery.data?.stats ?? null;
+    const users = dashboardQuery.data?.users ?? [];
+    const reports = dashboardQuery.data?.reports ?? [];
+    const loading = dashboardQuery.isPending;
 
     const statCards = stats ? [
         { icon: 'users', value: String(stats.totalUsers), label: 'Usuarios registrados' },
