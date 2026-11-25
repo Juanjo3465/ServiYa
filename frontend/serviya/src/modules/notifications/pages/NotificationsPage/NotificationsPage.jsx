@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout, Icon, ToastContainer, useToast, navForActiveRole } from '../../../../shared';
 import { notificationApi } from '../../../../shared/api';
 
@@ -33,55 +34,64 @@ function timeAgo(dateStr) {
     });
 }
 
-function loadNotifications(tab, showToast, setPage, setLoading) {
-    setLoading(true);
-    const params = { page: 0, size: 20 };
-    if (tab === 1) params.read = false;
-    if (tab === 2) params.read = true;
-    notificationApi.getNotifications(params)
-        .then(data => setPage(data))
-        .catch(() => showToast('Error al cargar notificaciones', 'danger'))
-        .finally(() => setLoading(false));
-}
-
 export function NotificationsPage() {
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
-    const [page, setPage] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [pageNum, setPageNum] = useState(0);
+    const queryClient = useQueryClient();
 
-    useEffect(() => {
-        loadNotifications(tab, showToast, setPage, setLoading);
-    }, [tab, showToast]);
-
-    const handleMarkAsRead = (deliveryId) => {
-        notificationApi.markAsRead(deliveryId)
-            .then(() => {
-                setPage(prev => ({
-                    ...prev,
-                    content: prev.content.map(n =>
-                        n.deliveryId === deliveryId ? { ...n, readAt: new Date().toISOString(), deliveryStatus: 'READ' } : n
-                    ),
-                }));
-            })
-            .catch(() => showToast('Error al marcar como leída', 'danger'));
-    };
-
-    const handleMarkAllAsRead = () => {
-        const unread = page?.content?.filter(n => !n.readAt) || [];
-        if (unread.length === 0) {
-            showToast('No hay notificaciones sin leer', 'info');
-            return;
-        }
-        Promise.all(unread.map(n => notificationApi.markAsRead(n.deliveryId)))
-            .then(() => {
-                showToast('Todas marcadas como leídas', 'success');
-                loadNotifications(tab, showToast, setPage, setLoading);
-            })
-            .catch(() => showToast('Error al marcar como leídas', 'danger'));
-    };
-
+    // M49: notificaciones por pestaña+página como query cacheada (antes fetch-en-efecto).
+    const notifsQuery = useQuery({
+        queryKey: ['notifications', tab, pageNum],
+        queryFn: () => {
+            const params = { page: pageNum, size: 20 };
+            if (tab === 1) params.read = false;
+            if (tab === 2) params.read = true;
+            return notificationApi.getNotifications(params);
+        },
+    });
+    const page = notifsQuery.data ?? null;
+    const loading = notifsQuery.isPending;
     const notifications = page?.content || [];
+
+    // Marcar una como leída: optimista en la pestaña actual + invalida el contador del navbar.
+    const markAsReadMutation = useMutation({
+        mutationFn: (deliveryId) => notificationApi.markAsRead(deliveryId),
+        onMutate: async (deliveryId) => {
+            await queryClient.cancelQueries({ queryKey: ['notifications', tab, pageNum] });
+            const snapshot = queryClient.getQueryData(['notifications', tab, pageNum]);
+            queryClient.setQueryData(['notifications', tab, pageNum], (old) => (old?.content ? {
+                ...old,
+                content: old.content.map((n) => (n.deliveryId === deliveryId
+                    ? { ...n, readAt: new Date().toISOString(), deliveryStatus: 'READ' } : n)),
+            } : old));
+            return { snapshot };
+        },
+        onError: (err, _id, ctx) => {
+            if (ctx && ctx.snapshot !== undefined) queryClient.setQueryData(['notifications', tab, pageNum], ctx.snapshot);
+            showToast('Error al marcar como leída', 'danger');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
+        },
+    });
+    const handleMarkAsRead = (deliveryId) => markAsReadMutation.mutate(deliveryId);
+
+    const markAllMutation = useMutation({
+        mutationFn: (ids) => Promise.all(ids.map((id) => notificationApi.markAsRead(id))),
+        onSuccess: () => {
+            showToast('Todas marcadas como leídas', 'success');
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: ['unread-notifications'] });
+        },
+        onError: () => showToast('Error al marcar como leídas', 'danger'),
+    });
+    const handleMarkAllAsRead = () => {
+        const unread = page?.content?.filter((n) => !n.readAt) || [];
+        if (unread.length === 0) { showToast('No hay notificaciones sin leer', 'info'); return; }
+        markAllMutation.mutate(unread.map((n) => n.deliveryId));
+    };
 
     return (
         <DashboardLayout sections={navForActiveRole()} avatar="JP">
@@ -97,7 +107,7 @@ export function NotificationsPage() {
 
             <div className="tabs">
                 {TABS.map((t, i) => (
-                    <div key={t} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</div>
+                    <div key={t} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => { setTab(i); setPageNum(0); }}>{t}</div>
                 ))}
             </div>
 
@@ -133,15 +143,8 @@ export function NotificationsPage() {
                     {Array.from({ length: page.totalPages }, (_, i) => (
                         <button
                             key={i}
-                            className={`btn btn-sm ${i === page.number ? 'btn-primary' : 'btn-ghost'}`}
-                            onClick={() => {
-                                const params = { page: i, size: 20 };
-                                if (tab === 1) params.read = false;
-                                if (tab === 2) params.read = true;
-                                notificationApi.getNotifications(params)
-                                    .then(data => setPage(data))
-                                    .catch(() => showToast('Error al cargar', 'danger'));
-                            }}
+                            className={`btn btn-sm ${i === (page?.number ?? pageNum) ? 'btn-primary' : 'btn-ghost'}`}
+                            onClick={() => setPageNum(i)}
                         >
                             {i + 1}
                         </button>

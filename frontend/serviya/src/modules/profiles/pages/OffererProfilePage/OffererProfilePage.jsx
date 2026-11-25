@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppNavbar, Avatar, Icon, Stars, WhatsAppButton, ToastContainer, useToast, profileApi, getApiImageUrl } from '../../../../shared';
 import { metricsApi } from '../../../../shared/api';
@@ -23,37 +24,38 @@ export function OffererProfilePage() {
     const { id } = useParams();
     const { toasts, showToast } = useToast();
     const [tab, setTab] = useState(0);
-    const [profile, setProfile] = useState(null);
-    const [userProfile, setUserProfile] = useState(null);
-    const [metrics, setMetrics] = useState(null);
-    const [loadingMetrics, setLoadingMetrics] = useState(true);
-    const [offererPhotoSrc, setOffererPhotoSrc] = useState(null);
 
-    useEffect(() => {
-        Promise.all([
-            profileApi.getProfile(id),
-            profileApi.getMyProfile().catch(() => null),
-        ])
-            .then(async ([offererData, currentUserData]) => {
-                setProfile(offererData);
-                setUserProfile(currentUserData);
-                
-                // Obtener los datos del usuario del oferente (para la foto)
-                if (offererData?.userId) {
-                    try {
-                        const offererUserData = await profileApi.getUserById(offererData.userId);
-                        setOffererPhotoSrc(getApiImageUrl(offererUserData?.profilePhotoUrl || null));
-                    } catch (e) {
-                        console.warn('No se pudo obtener datos del usuario oferente:', e);
-                    }
-                }
-            })
-            .catch((e) => showToast(e.message || 'No se pudo cargar tu perfil', 'danger'));
-        metricsApi.getOffererMetrics(id)
-            .then(setMetrics)
-            .catch(() => showToast('Error al cargar métricas del oferente', 'danger'))
-            .finally(() => setLoadingMetrics(false));
-    }, [id, showToast]);
+    // M49: perfil del oferente + usuario actual + foto como una query; métricas como otra. Antes todo en un
+    // único useEffect con Promise.all anidado.
+    const profileQuery = useQuery({
+        queryKey: ['offerer-profile-page', id],
+        queryFn: async () => {
+            const [offererData, currentUserData] = await Promise.all([
+                profileApi.getProfile(id),
+                profileApi.getMyProfile().catch(() => null),
+            ]);
+            let offererPhotoSrc = null;
+            if (offererData?.userId) {
+                try {
+                    const u = await profileApi.getUserById(offererData.userId);
+                    offererPhotoSrc = getApiImageUrl(u?.profilePhotoUrl || null);
+                } catch { /* la foto es opcional */ }
+            }
+            return { profile: offererData, userProfile: currentUserData, offererPhotoSrc };
+        },
+        enabled: !!id,
+    });
+    const profile = profileQuery.data?.profile ?? null;
+    const userProfile = profileQuery.data?.userProfile ?? null;
+    const offererPhotoSrc = profileQuery.data?.offererPhotoSrc ?? null;
+
+    const metricsQuery = useQuery({
+        queryKey: ['offerer-metrics', id],
+        queryFn: () => metricsApi.getOffererMetrics(id),
+        enabled: !!id,
+    });
+    const metrics = metricsQuery.data ?? null;
+    const loadingMetrics = metricsQuery.isPending;
 
     // Derivado (no efecto): el avatar del navbar sale directamente del perfil del usuario actual.
     const navbarAvatarSrc = getApiImageUrl(userProfile?.profilePhotoUrl || null);

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
     DashboardLayout, Avatar, Icon, Modal, ToastContainer, useToast,
@@ -27,15 +28,9 @@ export function RequestDetailPage() {
     const counterpartyLabel = isOfferer ? 'Cliente' : 'Oferente';
     const sections = isOfferer ? OFFERER_NAV : CLIENT_NAV;
 
-    const [detail, setDetail] = useState(null);
-    const [history, setHistory] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [acting, setActing] = useState(false);
 
     // Existencia de feedback (null = aún no comprobado). Decide mostrar "Calificar ...".
-    const [hasServiceFeedback, setHasServiceFeedback] = useState(null);
-    const [hasClientFeedback, setHasClientFeedback] = useState(null);
 
     // Modal de reseña: 'confirm' (cliente confirma+califica servicio) | 'rateService' (solo califica
     // servicio) | 'complete' (oferente marca completado+califica cliente) | 'rateClient' (solo califica cliente)
@@ -46,26 +41,33 @@ export function RequestDetailPage() {
     const [timeVal, setTimeVal] = useState('09:00');
     const [reasonVal, setReasonVal] = useState('');
 
-    const loadDetail = useCallback(() => {
-        requestApi.getRequestDetail(id)
-            .then((d) => {
-                setDetail(d);
-                // ¿Ya hay calificación? Endpoint booleano dedicado. Solo se consulta la que aplica.
-                if (!isOfferer && d.status === 'COMPLETED') {
-                    feedbackApi.serviceFeedbackExists(id).then(setHasServiceFeedback).catch(() => setHasServiceFeedback(false));
-                }
-                if (isOfferer && (d.status === 'PRESUMABLY_COMPLETED' || d.status === 'COMPLETED')) {
-                    feedbackApi.clientFeedbackExists(id).then(setHasClientFeedback).catch(() => setHasClientFeedback(false));
-                }
-            })
-            .catch((err) => setError(err.message || 'No se pudo cargar la solicitud'))
-            .finally(() => setLoading(false));
-        requestApi.getRequestHistory(id)
-            .then((data) => setHistory(Array.isArray(data) ? data : []))
-            .catch(() => { /* el historial es opcional */ });
-    }, [id, isOfferer]);
-
-    useEffect(() => { loadDetail(); }, [loadDetail]);
+    // M49: detalle + historial + existencia de reseña como una query compuesta (antes loadDetail en efecto).
+    const detailQuery = useQuery({
+        queryKey: ['request-detail', id, isOfferer],
+        queryFn: async () => {
+            const d = await requestApi.getRequestDetail(id);
+            const history = await requestApi.getRequestHistory(id)
+                .then((x) => (Array.isArray(x) ? x : []))
+                .catch(() => []);
+            // ¿Ya hay calificación? Endpoint booleano dedicado. Solo se consulta la que aplica.
+            let hasServiceFeedback = null;
+            let hasClientFeedback = null;
+            if (!isOfferer && d.status === 'COMPLETED') {
+                hasServiceFeedback = await feedbackApi.serviceFeedbackExists(id).catch(() => false);
+            }
+            if (isOfferer && (d.status === 'PRESUMABLY_COMPLETED' || d.status === 'COMPLETED')) {
+                hasClientFeedback = await feedbackApi.clientFeedbackExists(id).catch(() => false);
+            }
+            return { detail: d, history, hasServiceFeedback, hasClientFeedback };
+        },
+        enabled: !!id,
+    });
+    const detail = detailQuery.data?.detail ?? null;
+    const history = detailQuery.data?.history ?? [];
+    const hasServiceFeedback = detailQuery.data?.hasServiceFeedback ?? null;
+    const hasClientFeedback = detailQuery.data?.hasClientFeedback ?? null;
+    const loading = detailQuery.isPending;
+    const error = detailQuery.error?.message ?? null;
 
     // --- Acciones simples (con refresco) ---
     const runAction = async (fn, okMsg) => {
@@ -73,7 +75,7 @@ export function RequestDetailPage() {
         try {
             await fn();
             showToast(okMsg, 'success');
-            loadDetail();
+            detailQuery.refetch();
         } catch (e) {
             showToast(e.message || 'No se pudo completar la acción', 'danger');
         } finally {
@@ -102,7 +104,7 @@ export function RequestDetailPage() {
             if (result && (result.requestId || result.id)) {
                 navigate(`/requests/${result.requestId || result.id}`, { state: { as: viewerAs } });
             } else {
-                loadDetail();
+                detailQuery.refetch();
             }
         } catch (e) {
             showToast(e.message || 'No se pudo reprogramar', 'danger');
@@ -123,7 +125,7 @@ export function RequestDetailPage() {
             });
             closeDialogs();
             showToast('Propuesta de reprogramación enviada al cliente', 'success');
-            loadDetail();
+            detailQuery.refetch();
         } catch (e) {
             showToast(e.message || 'No se pudo enviar la propuesta', 'danger');
         } finally {
@@ -154,7 +156,7 @@ export function RequestDetailPage() {
                 showToast('Cliente calificado', 'success');
             }
             setReviewAction(null);
-            loadDetail();
+            detailQuery.refetch();
         } catch (e) {
             showToast(e.message || 'No se pudo completar la acción', 'danger');
         } finally {
