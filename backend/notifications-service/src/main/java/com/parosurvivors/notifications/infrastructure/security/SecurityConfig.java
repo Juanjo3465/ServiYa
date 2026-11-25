@@ -77,8 +77,10 @@ public class SecurityConfig {
                 // Bandeja del usuario autenticado: la identidad sale del JWT (CurrentUser.id()).
                 .requestMatchers("/api/v1/notifications", "/api/v1/notifications/**").authenticated()
                 .requestMatchers("/api/v1/notification-channels").authenticated()
-                // Liveness/readiness para Docker y el balanceador.
-                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                // Actuator (health + /prometheus) en el puerto de gestión INTERNO 9090 (no publicado al host):
+                // health para Docker/balanceador y /prometheus para el scrape de Prometheus por la red interna
+                // (T6.23). No se expone al borde público.
+                .requestMatchers("/actuator/**").permitAll()
                 // Documentación OpenAPI del servicio.
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                 .anyRequest().denyAll()
