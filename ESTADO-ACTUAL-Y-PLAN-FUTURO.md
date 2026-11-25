@@ -857,9 +857,24 @@ las métricas**. Nota: el **chat es Java/Spring** (no Python, como se asumía), 
   • **Consistencia:** selectores de hora de reprogramar/proponer → `input type=time`.
   • **Resultado: lint del frontend 0 errores y 0 warnings (100% limpio).** Ya se puede subir
   `react-hooks/exhaustive-deps` a *error* en la config de eslint para blindar contra regresiones.
-  • **Pendiente (tanda aparte):** la migración del **chat** (ConversationView/MessagesPage) — mismo patrón,
-  pero su microservicio es otro dominio y no estaba levantado en el smoke. AdminServices/AdminFeedback no son
-  objetivos (ya buscan por acción del usuario, no fetch-en-efecto).
+  • **Decisión: el chat (ConversationView/MessagesPage) QUEDA EXCLUIDO de M49 (2026-11-25).** No es el
+  antipatrón que M49 ataca ("fetch-en-efecto que solo se muestra"): es **estado de tiempo real**. Los mensajes
+  llegan por **WebSocket** (`onMessage → setMessages(merge)`), hay **envío optimista con cola de pendientes**
+  (sending/enviado/fallido), **scroll infinito por cursor** y `bump` para actualizar la lista en vivo. Su
+  `useEffect` inicial **siembra estado local que luego vive mutado por el WS** — eso es legítimamente estado
+  local, no estado de servidor cacheable.
+    - *Rendimiento:* no gana nada. El cuello es el WebSocket y el render, no el fetch; y la caché de RQ aporta
+    poco con datos tan volátiles (se invalidan casi tan seguido como se actualizan). El único beneficio sería
+    menor (mostrar mensajes cacheados al reabrir una conversación).
+    - *Calidad:* `useInfiniteQuery` + `setQueryData` (patrón RQ para WS) sería algo más limpio en la paginación
+    y la carga inicial, **pero el núcleo custom se mantiene igual** (cola de envío optimista + `mergeMessages`/
+    dedup por `seq`), así que la ganancia es marginal y no justifica el riesgo de reescribir realtime (orden de
+    mensajes, duplicados, scroll) — más aún sin poder smoke-testearlo (chat-service no levantado). El chat **ya
+    pasa el lint** (incluido `exhaustive-deps` en error), así que no hay deuda de lint que lo empuje.
+    - *Reconsiderar solo si:* el chat crece mucho (más features/devs y la consistencia pesa) o se quiere
+    explícitamente el "instantáneo al reabrir"; en ese caso, con el chat-service arriba para verificar.
+  • **AdminServices/AdminFeedback** tampoco son objetivos (ya buscan por acción del usuario, no fetch-en-efecto).
+  **Con el chat excluido y justificado, M49 queda CERRADO.**
 
 - **M50 — Hallazgos del smoke test de acciones (2026-11-24).**
   • **Reprogramación libre del cliente fuera de disponibilidad (RESUELTO, backend).** `rescheduleRequest` no
