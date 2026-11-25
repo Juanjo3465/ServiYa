@@ -261,7 +261,7 @@ export function ClientDashboardPage() {
                 <div className="modal-title">Reprogramar solicitud</div>
                 <div className="modal-sub">Elige una nueva fecha y hora disponible del oferente</div>
                 <div className="input-group"><label className="label">Nueva fecha</label><input className="input" type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} /></div>
-                <div className="input-group"><label className="label">Nueva hora</label><select className="input" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)}><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option></select></div>
+                <div className="input-group"><label className="label">Nueva hora</label><input type="time" className="input" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => { setReschedOpen(false); setReschedTarget(null); }}>Cancelar</button>
                     <button className="btn btn-primary btn-full" disabled={!reschedDate} onClick={async () => {

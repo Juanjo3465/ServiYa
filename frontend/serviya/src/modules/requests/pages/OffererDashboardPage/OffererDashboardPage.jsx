@@ -271,7 +271,7 @@ export function OffererDashboardPage() {
                 <div className="modal-title">Proponer reprogramación</div>
                 <div className="modal-sub">El cliente recibirá tu propuesta y podrá aceptarla o rechazarla.</div>
                 <div className="input-group"><label className="label">Nueva fecha propuesta</label><input className="input" type="date" value={proposalDate} onChange={(e) => setProposalDate(e.target.value)} min={new Date().toISOString().split('T')[0]} /></div>
-                <div className="input-group"><label className="label">Nueva hora propuesta</label><select className="input" value={proposalTime} onChange={(e) => setProposalTime(e.target.value)}><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="11:00">11:00 AM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option></select></div>
+                <div className="input-group"><label className="label">Nueva hora propuesta</label><input type="time" className="input" value={proposalTime} onChange={(e) => setProposalTime(e.target.value)} /></div>
                 <div className="input-group"><label className="label">Motivo de la reprogramación</label><textarea className="input" rows="3" placeholder="Explica brevemente el motivo..." value={proposalReason} onChange={(e) => setProposalReason(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn btn-ghost btn-full" onClick={() => { setProposalOpen(false); setProposalTarget(null); }}>Cancelar</button>

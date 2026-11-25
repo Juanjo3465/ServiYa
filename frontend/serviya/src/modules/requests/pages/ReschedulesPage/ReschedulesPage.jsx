@@ -5,11 +5,6 @@ import { DashboardLayout, Icon, Modal, ToastContainer, useToast, CLIENT_NAV } fr
 import { proposalApi, requestApi } from '../../../../shared/api';
 import { formatDate, getInitials } from '../../utils';
 
-const TIME_OPTIONS = [
-    ['09:00', '9:00 AM'], ['10:00', '10:00 AM'], ['11:00', '11:00 AM'],
-    ['14:00', '2:00 PM'], ['15:00', '3:00 PM'], ['16:00', '4:00 PM'],
-];
-
 import './ReschedulesPage.css';
 
 const PROPOSAL_STATUS_MAP = {
@@ -227,9 +222,7 @@ export function ReschedulesPage() {
                                     </div>
                                     <div className="input-group">
                                         <label className="label">Nueva hora</label>
-                                        <select className="input" value={freeTime} onChange={(e) => setFreeTime(e.target.value)}>
-                                            {TIME_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                                        </select>
+                                        <input type="time" className="input" value={freeTime} onChange={(e) => setFreeTime(e.target.value)} />
                                     </div>
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <button className="btn btn-ghost btn-full" onClick={() => setFreeMode(false)}>Volver</button>
