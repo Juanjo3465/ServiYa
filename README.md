@@ -4,11 +4,11 @@ Este documento explica **qué se hizo, por qué y cómo usarlo** al separar el m
 en un **microservicio independiente**, con un **API gateway** delante. Es el primer paso de la migración a
 microservicios definida en [`ESTADO-ACTUAL-Y-PLAN-FUTURO.md`](ESTADO-ACTUAL-Y-PLAN-FUTURO.md) (§7.4, paso 1).
 
-> 📚 La referencia técnica completa (contrato del mensaje, modos de fallo, migración de datos) está en
+> La referencia técnica completa (contrato del mensaje, modos de fallo, migración de datos) está en
 > [`documents/microservicios/notifications-service.md`](documents/microservicios/notifications-service.md).
 > Este README es la versión explicada para leer de corrido.
 >
-> 🔐 **Lab 04 — Security (2026-II):** this repository also implements the **Secure Channel**
+> **Lab 04 — Security (2026-II):** this repository also implements the **Secure Channel**
 > pattern at the edge. See [Lab 04 — Security: Secure Channel](#lab-04--security-secure-channel-2026-ii)
 > at the end of this document, and the captured evidence in
 > [`docs/lab04/`](docs/lab04/).
@@ -74,7 +74,7 @@ Antes de separar algo hay que saber **de qué depende** y **quién depende de é
 | `CoordinationAvailability` (Redis) | Saber si Redis está caído para aplazar correos | Se movió al servicio, que era su único usuario. |
 | Publicador de eventos y excepciones de `shared` | Uso interno | El servicio tiene sus propias versiones. |
 
-👉 **Conclusión:** era una "hoja" del sistema. Solo tenía **una** dependencia de negocio (`users`), por eso es el
+**Conclusión:** era una "hoja" del sistema. Solo tenía **una** dependencia de negocio (`users`), por eso es el
 mejor candidato para ser el primer microservicio.
 
 ### 3.2 Quién usaba el módulo de notificaciones (dependencias entrantes)
@@ -212,7 +212,7 @@ Ejemplo: **Ana se registra** en ServiYa.
 6. **Microservicio:** revisa si ese mensaje ya se procesó (por su `eventId`). Si es nuevo, guarda la notificación
    con una entrega por canal: INTERNAL queda `SENT` al instante y EMAIL queda `PENDING`.
 7. **Microservicio:** cuando la transacción termina, envía el correo por Brevo. Si funciona queda `SENT`; si falla, `FAILED`.
-8. **Navegador:** Ana abre "Notificaciones". La petición pasa por el gateway, que la manda al microservicio, y Ana ve su bienvenida. 🎉
+8. **Navegador:** Ana abre "Notificaciones". La petición pasa por el gateway, que la manda al microservicio, y Ana ve su bienvenida.
 
 ---
 
@@ -248,7 +248,7 @@ Estas decisiones se tomaron con el equipo antes de implementar.
 
 | Si… | Entonces… |
 |---|---|
-| La operación de negocio falla (rollback) | La notificación tampoco sale. ✅ |
+| La operación de negocio falla (rollback) | La notificación tampoco sale. |
 | **RabbitMQ se cae** | La app **sigue funcionando**. Las notificaciones esperan en el outbox y salen solas cuando RabbitMQ vuelve. |
 | **El microservicio se cae** | Los mensajes esperan en la cola de RabbitMQ. La bandeja da error hasta que el servicio vuelva. |
 | Llega el mismo mensaje dos veces | Se ignora el repetido (se reconoce por su `eventId`). |
@@ -257,7 +257,7 @@ Estas decisiones se tomaron con el equipo antes de implementar.
 | Brevo falla al enviar un correo | La entrega queda `FAILED` y se reintenta cada 15 min (máximo 3 intentos). El correo de "recuperar contraseña" **no** se reintenta, porque sin el enlace no sirve. |
 | Redis se cae | Los correos se aplazan hasta que vuelva (protocolo D-07/1a). |
 
-> ⏱️ **Un cambio que se nota:** la notificación aparece en la bandeja **alrededor de 1 segundo después** de la
+> ⏱ **Un cambio que se nota:** la notificación aparece en la bandeja **alrededor de 1 segundo después** de la
 > acción, no al instante. Es normal en sistemas distribuidos y se llama *consistencia eventual*.
 
 ---
@@ -291,7 +291,7 @@ Para apagar:
 ```bash
 docker compose -f docker-compose.yml -f infra/redis/docker-compose.redis.yml down
 ```
-⚠️ **No** agregues `-v`: borra las bases de datos.
+ **No** agregues `-v`: borra las bases de datos.
 
 > **Si corres el monolito sin Docker (desde el IDE):** borra antes la carpeta `backend/serviya/target`. Ahí quedan
 > compilados viejos del módulo eliminado que Spring cargaría por error.
@@ -327,7 +327,7 @@ La plantilla con explicaciones es [`.env.example`](.env.example).
 - `JWT_SECRET` y `ENCRYPTION_KEY` deben tener **al menos 32 caracteres** y no ser valores de ejemplo. Si no, el monolito no arranca (esto ya era así antes de este cambio).
 - `EMAIL_API_KEY` (la clave de Brevo) ahora la usa el **microservicio**. Si está vacía, la app funciona igual, pero los correos quedan `FAILED`.
 
-> 💡 Para generar una clave aleatoria fuerte: `openssl rand -base64 36`
+> Para generar una clave aleatoria fuerte: `openssl rand -base64 36`
 
 ---
 
@@ -336,23 +336,23 @@ La plantilla con explicaciones es [`.env.example`](.env.example).
 ### Prueba 1: usar la app (la más importante)
 1. Entra a http://localhost:8081 y **regístrate**.
 2. Ve a **Notificaciones** (http://localhost:8081/notifications).
-3. ✅ Debe aparecer **"¡Bienvenido a ServiYa!"**.
-4. Márcala como leída y recarga la página. ✅ Debe seguir leída.
+3. Debe aparecer **"¡Bienvenido a ServiYa!"**.
+4. Márcala como leída y recarga la página. Debe seguir leída.
 
 ### Prueba 2: ver RabbitMQ
 1. Entra a http://localhost:15672 → **Queues and Streams**.
-2. ✅ La cola `notifications-service.notification-requested` está en 0 mensajes (el servicio los consume al instante), y la `...dlq` también en 0.
+2. La cola `notifications-service.notification-requested` está en 0 mensajes (el servicio los consume al instante), y la `...dlq` también en 0.
 
-### Prueba 3: apagar RabbitMQ y ver que nada se pierde ⭐
+### Prueba 3: apagar RabbitMQ y ver que nada se pierde
 ```bash
 docker stop serviya-rabbitmq      # 1) apagar el "cartero"
 # 2) registrar otro usuario en la app → funciona, pero aún no tiene notificaciones
 docker start serviya-rabbitmq     # 3) prenderlo de nuevo
-# 4) esperar ~30 segundos y recargar → ✅ aparece la bienvenida
+# 4) esperar ~30 segundos y recargar → aparece la bienvenida
 ```
 
 ### Prueba 4: seguridad
-- Abre http://localhost:8080/api/v1/notifications sin iniciar sesión. ✅ Debe responder **401**.
+- Abre http://localhost:8080/api/v1/notifications sin iniciar sesión. Debe responder **401**.
 
 ---
 
@@ -373,7 +373,7 @@ docker start serviya-rabbitmq     # 3) prenderlo de nuevo
 - Que el JWT del monolito es aceptado por el microservicio.
 - Que el relay solo borra del outbox lo que RabbitMQ confirmó.
 
-> ℹ️ **¿Por qué `-Dapi.version=1.44`?** Con Docker 29, la librería Testcontainers no detecta Docker y **se salta**
+>  **¿Por qué `-Dapi.version=1.44`?** Con Docker 29, la librería Testcontainers no detecta Docker y **se salta**
 > los tests de integración sin avisar. Ese parámetro lo arregla.
 
 Además, todo se probó **de punta a punta en Docker**: registro → bienvenida en la bandeja, marcar como leída, y
