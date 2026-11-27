@@ -160,9 +160,9 @@ private Page<AdminFeedbackSearchResult> searchServiceFeedback(AdminFeedbackSearc
 
 ## Verificación
 
-- ✅ Compilación exitosa (`./mvnw clean compile`)
-- ✅ Tests unitarios pasan: `ReportServiceTest` (9 tests), `AdminServiceTest` (5 tests)
-- ✅ No se rompieron tests existentes
+- Compilación exitosa (`./mvnw clean compile`)
+- Tests unitarios pasan: `ReportServiceTest` (9 tests), `AdminServiceTest` (5 tests)
+- No se rompieron tests existentes
 
 ## Impacto
 

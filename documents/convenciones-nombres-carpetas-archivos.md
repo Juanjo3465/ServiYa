@@ -106,12 +106,12 @@ En Java las reglas son más estrictas: no son solo preferencias, sino convencion
 Los nombres de paquetes van **siempre en minúsculas**, aunque tengan varias palabras. **No se usa camelCase, snake_case ni guiones.** Cuando hay varias palabras, lo recomendado es pegarlas todas juntas en minúsculas.
 
 ```
-✅ com.tuempresa.proyecto.userprofile
-✅ com.tuempresa.proyecto.ordermanagement
+com.tuempresa.proyecto.userprofile
+com.tuempresa.proyecto.ordermanagement
 
-❌ com.tuempresa.proyecto.userProfile    (camelCase, no)
-❌ com.tuempresa.proyecto.user_profile   (snake_case, no)
-❌ com.tuempresa.proyecto.user-profile   (los guiones ni siquiera son válidos)
+com.tuempresa.proyecto.userProfile    (camelCase, no)
+com.tuempresa.proyecto.user_profile   (snake_case, no)
+com.tuempresa.proyecto.user-profile   (los guiones ni siquiera son válidos)
 ```
 
 Como `userprofile` todo junto cuesta leerlo, en la práctica muchos equipos prefieren **mantener los nombres de paquetes cortos, de una sola palabra**, para evitar el problema. Así el árbol queda limpio:

@@ -156,8 +156,8 @@ The fix can be tested by:
 
 ## Verification
 
-- ✅ Build passes (`npm run build`)
-- ✅ Category dropdown renders with loaded categories
-- ✅ Name resolution triggered on search results
-- ✅ Cache prevents duplicate API calls
-- ✅ Fallback to ID display while names load
+- Build passes (`npm run build`)
+- Category dropdown renders with loaded categories
+- Name resolution triggered on search results
+- Cache prevents duplicate API calls
+- Fallback to ID display while names load

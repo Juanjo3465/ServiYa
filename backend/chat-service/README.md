@@ -409,7 +409,7 @@ python3 stub_producer.py status-changed --request 77 --status CANCELLED   # → 
 mvn test -DargLine="-Dapi.version=1.44"
 ```
 
-- **⚠ `-Dapi.version=1.44`:** con Docker Engine ≥ 29, el cliente de Testcontainers que trae Spring Boot 3.5.5 habla
+- ** `-Dapi.version=1.44`:** con Docker Engine ≥ 29, el cliente de Testcontainers que trae Spring Boot 3.5.5 habla
   la API 1.32 y Docker la rechaza. **Sin esa opción las pruebas de integración se SALTAN en silencio** (Maven dice
   `BUILD SUCCESS` con menos pruebas). Con Docker < 25 no la uses.
 

@@ -113,7 +113,7 @@ springdoc OpenAPI 2.8.9; java-dotenv; **Bucket4j** (rate limiting); devtools.
 
 #### Módulo 2 — `profiles` (76 archivos)
 - **Estado: implementado**, con 2 placeholders reales y deuda de limpieza.
-- **Hallazgos**: 🔴 **2 IDOR** (direcciones y slots de disponibilidad, §4); placeholders
+- **Hallazgos**: **2 IDOR** (direcciones y slots de disponibilidad, §4); placeholders
   `AddressService.verifyAddress`/`getCoordinates` (geocodificación, el endpoint `/addresses/verify`
   devuelve 500); fotos en **disco local** (no apto microservicios); casi-ciclo `profiles↔services`
   resuelto partiendo en 2 beans; duplicidad de creación de perfil de oferente (llamada directa +
@@ -123,9 +123,9 @@ springdoc OpenAPI 2.8.9; java-dotenv; **Bucket4j** (rate limiting); devtools.
 #### Módulo 3 — `services` (57 archivos)
 - **Estado: implementado** (CRUD, búsqueda por `Specification`, categorías, disponibilidad, fotos,
   detalle compuesto). Es el "template" hexagonal.
-- **Hallazgos**: 🔴🔴 **IDOR masivo y sin autenticar** en todas las escrituras
+- **Hallazgos**:  **IDOR masivo y sin autenticar** en todas las escrituras
   (`PATCH/DELETE /services/{id}`, activate/deactivate/soft-delete, `POST /categories`) — ver §3.1/§4;
-  🔴 **el dominio importa dominio de otros módulos** (`ServiceDetail`→metrics/profiles,
+  **el dominio importa dominio de otros módulos** (`ServiceDetail`→metrics/profiles,
   `FeedbackUser`→feedback/profiles); `MarketplaceService` es un hub (feedback+metrics+profiles);
   N+1 y doble lectura de métricas en `getDetailById`; fotos en disco local.
 
@@ -133,24 +133,24 @@ springdoc OpenAPI 2.8.9; java-dotenv; **Bucket4j** (rate limiting); devtools.
 - **Estado: el más maduro.** Máquina de estados (8 estados, transiciones idempotentes, patrón
   Prototype para reprogramar), split CQRS (command/query/maintenance/proposals), eventos para
   métricas, **control de propiedad correcto** (`requireOwnership`/`requireParticipant`).
-- **Hallazgos**: 🔴 propuestas PENDING duplicadas por carrera (sin índice único/lock); 🔴 sin
-  `@Version` (lost-update en transiciones); 🔴 `@Scheduled` (4 tareas) **sin lock distribuido**
+- **Hallazgos**: propuestas PENDING duplicadas por carrera (sin índice único/lock); sin
+  `@Version` (lost-update en transiciones); `@Scheduled` (4 tareas) **sin lock distribuido**
   (doble ejecución al escalar); acoplamiento profundo: lee **puertos de persistencia** de `services`
   y `profiles` (lee sus tablas conceptualmente); javadoc "reads placeholder" obsoleto.
 
 #### Módulo 5 — `feedback` (62 archivos)
 - **Estado: implementado y simétrico** (ServiceFeedback / ClientFeedback, rating+reseña+tags
   unificados, catálogo de tags por sentimiento).
-- **Hallazgos**: 🗑️ **código muerto confirmado**: `FeedbackFlow` + `FeedbackFlowPort` (nadie los
+- **Hallazgos**:  **código muerto confirmado**: `FeedbackFlow` + `FeedbackFlowPort` (nadie los
   usa); doc-rot en los `*TagCatalogService`; N+1 + escaneo completo de catálogo por ítem en lecturas
   de lista; eventos **autocontenidos** hacia métricas (buen diseño).
 
 #### Módulo 6 — `metrics` (67 archivos)
 - **Estado: implementado, muy simétrico.** Lado de escritura = **puro consumidor de eventos**
   (8 `@TransactionalEventListener` AFTER_COMMIT); nadie lo llama para escribir.
-- **Hallazgos**: 🔴 **lost-update confirmado** (read-modify-write sin `@Version` ni SQL atómico;
+- **Hallazgos**: **lost-update confirmado** (read-modify-write sin `@Version` ni SQL atómico;
   `REQUIRES_NEW` agrava la carrera; `registerRating` recalcula media → especialmente frágil);
-  🔴 fiabilidad: eventos AFTER_COMMIT **sin outbox/reintento/reconciliación** ni idempotencia
+  fiabilidad: eventos AFTER_COMMIT **sin outbox/reintento/reconciliación** ni idempotencia
   (al migrar a broker con entrega ≥1, duplicaría contadores); el lado de **lectura NO es
   event-driven** (importa `requests` y `feedback`). Mitigación elegante: fila de métricas creada
   BEFORE_COMMIT al asignar rol.
@@ -164,14 +164,14 @@ springdoc OpenAPI 2.8.9; java-dotenv; **Bucket4j** (rate limiting); devtools.
   REQUIRES_NEW); **reintentos con tope** y salto inteligente de tipos inservibles sin
   `protectedData`. Integra con **Brevo** (única llamada externa), adaptador que **nunca lanza**,
   `@ConditionalOnProperty`.
-- **Hallazgos**: 🟠 IDOR leve en `markAsRead` (sin dueño + permitAll); `@Scheduled` de reintento sin
+- **Hallazgos**: IDOR leve en `markAsRead` (sin dueño + permitAll); `@Scheduled` de reintento sin
   lock distribuido; **`notify()` es el servicio más dependido** (lo llaman users/requests/feedback);
   depende de `users` para el correo del destinatario.
 
 #### Módulo 8 — `reports` (68 archivos)
 - **Estado: implementado y verificado.** Reporte polimórfico (base + 3 subtipos), `ReportActionType`
   como enum con comportamiento, trazabilidad de acciones, detalle resiliente a objetivos revertidos.
-- **Hallazgos**: 🟠 `getReports` **carga tabla completa** y pagina en memoria (no escala); N+1 de
+- **Hallazgos**: `getReports` **carga tabla completa** y pagina en memoria (no escala); N+1 de
   nombres; **read-hub**: depende de los puertos de entrada de 5 módulos (profiles/requests/feedback/
   notifications/users). Separación correcta: transiciona estado + traza; los efectos de moderación
   viven en `admin`.
@@ -179,10 +179,10 @@ springdoc OpenAPI 2.8.9; java-dotenv; **Bucket4j** (rate limiting); devtools.
 #### Módulo 9 — `admin` (24 archivos)
 - **Estado: orquestador puro** (sin entidades ni persistencia). Gestión de usuarios/roles +
   `ModerationService`. Es el **ápice del grafo** (importa de los 8 módulos).
-- **Hallazgos**: 🔴 **sin guard de auto-acción ni de "último admin"** (auto-ban/auto-delete →
-  lockout si es el único admin); 🟠 `searchFeedback` carga todo con `Integer.MAX_VALUE` y pagina en
-  memoria; 🔴 **violaciones de capa** (importa `infrastructure` de requests/metrics/users y puertos
-  de **persistencia** de feedback); 🔴 **transacciones cross-módulo** (ban+resolve+notify;
+- **Hallazgos**: **sin guard de auto-acción ni de "último admin"** (auto-ban/auto-delete →
+  lockout si es el único admin); `searchFeedback` carga todo con `Integer.MAX_VALUE` y pagina en
+  memoria; **violaciones de capa** (importa `infrastructure` de requests/metrics/users y puertos
+  de **persistencia** de feedback); **transacciones cross-módulo** (ban+resolve+notify;
   revoke+cascada) = bloqueante para microservicios. Conceptualmente es un **BFF/orquestador**.
 
 ### 2.4 Frontend
@@ -371,7 +371,7 @@ escrituras multi-módulo en una sola `@Transactional` (válido con una BD, no co
 
 ## 4. Catálogo de bugs (accionable)
 
-> **✅ ESTADO (2026-10-12): B1–B15 y F1–F5 RESUELTOS** e integrados en la rama `redis` (merge desde
+> ** ESTADO (2026-10-12): B1–B15 y F1–F5 RESUELTOS** e integrados en la rama `redis` (merge desde
 > `main`). Auditados **uno por uno** (código real verificado en el árbol mergeado, no solo los docs de
 > `documents/fixes/`) + smoke test e2e. Veredicto por fix y salvedades en **§4.1**. La tabla se conserva
 > como referencia histórica del problema original.
@@ -483,7 +483,7 @@ Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuer
 
 > **Backlog preliminar** sembrado desde el diagnóstico del backend. Se consolidará y priorizará al
 > cerrar el diagnóstico (frontend + docs). Marcadas con su valor y si son **prerrequisito de
-> microservicios** (⚙️).
+> microservicios** ().
 
 ### 6.1 Fundacionales (habilitan todo lo demás)
 
@@ -494,23 +494,23 @@ Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuer
 - **M2 — Bloqueo optimista (`@Version`) + contadores atómicos.** `@Version` en todas las entidades;
   para métricas, `UPDATE … SET x = x + ?` atómico (o reproyección) en vez de read-modify-write.
   Resuelve B7, B8, B10.
-- **M3 — ⚙️ Transactional Outbox + consumidores idempotentes.** Persistir los eventos de dominio en
+- **M3 —  Transactional Outbox + consumidores idempotentes.** Persistir los eventos de dominio en
   una tabla outbox dentro de la transacción de negocio y publicarlos tras commit con reintento;
   consumidores con clave de idempotencia. Da fiabilidad a métricas HOY y es **la base del
   event-driven entre microservicios** (reemplaza los `@TransactionalEventListener` in-process).
-- **M4 — ⚙️ Lock distribuido para `@Scheduled`** (ShedLock o equivalente). Prerrequisito para
+- **M4 —  Lock distribuido para `@Scheduled`** (ShedLock o equivalente). Prerrequisito para
   escalar a >1 instancia. Resuelve B9.
-- **M5 — ⚙️ Almacenamiento de objetos externo** (S3/MinIO) detrás de un puerto `FileStoragePort`,
+- **M5 —  Almacenamiento de objetos externo** (S3/MinIO) detrás de un puerto `FileStoragePort`,
   en vez de disco local. Prerrequisito para réplicas/contenedores efímeros.
 - **M6 — Gestión de secretos sin defaults**: fail-fast si falta `JWT_SECRET`/`ENCRYPTION_KEY` en
   prod; perfiles Spring (`dev`/`prod`) que separen config de desarrollo (stacktraces, DEBUG, CORS).
-- **M25 — ⚙️ Herramienta de migraciones (Flyway).** Reemplazar `create_database.sql` (solo volumen
+- **M25 —  Herramienta de migraciones (Flyway).** Reemplazar `create_database.sql` (solo volumen
   limpio) + `ddl-auto: update` por **Flyway** con `ddl-auto: validate`: `V1__baseline.sql` derivado del
   SQL actual y cambios futuros como migraciones versionadas (`V2__`, …). Recomendado **Flyway** sobre
   Liquibase (el equipo ya escribe SQL, MySQL, modelo simple). En microservicios, **cada servicio** versiona
   su propio esquema con sus migraciones. Da esquema reproducible entre entornos y migraciones de datos
   seguras; prerrequisito de la BD-por-servicio.
-- **M24 — ⚙️ Estrategia de pruebas (red de seguridad de la migración).** Prerrequisito real del
+- **M24 —  Estrategia de pruebas (red de seguridad de la migración).** Prerrequisito real del
   estrangulamiento: sin tests que fijen el comportamiento, refactorizar fronteras y partir servicios es
   a ciegas. Incluye: **(a)** tests de **integración con Testcontainers** (MySQL real) por módulo/flujo;
   **(b)** tests de **controlador + seguridad** (`@WebMvcTest` + `spring-security-test`/`@WithMockUser`)
@@ -644,29 +644,29 @@ Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuer
 > registro de decisiones tipo ADR). Esta sección es el **resumen + tracker de aplazamientos**, para no
 > perder de vista lo postergado. Resuelve la **deuda #1 (M4)** y, por fases, **#6/M13** y **M34**.
 
-> **Estado de implementación (rama `redis`):** Fase 0 (fundamentos) ✅ · Fase 1 (entorno local seguro:
-> `redis-coord` + ACL + health por PING) ✅ verificada en runtime · **Fase 2 (lock distribuido) ✅**:
+> **Estado de implementación (rama `redis`):** Fase 0 (fundamentos) · Fase 1 (entorno local seguro:
+> `redis-coord` + ACL + health por PING) verificada en runtime · **Fase 2 (lock distribuido) **:
 > interfaz `DistributedLock`/`LockHandle` + `RedisDistributedLock` (protocolo propio, scripts Lua
 > `lock_acquire`/`_fenced`/`release`/`renew`), los **6 `@Scheduled` envueltos**, prueba de exclusión mutua
 > con Testcontainers, `protocolo-lock.md` escrito y las 6 claves `lock:{sched:...}` en el catálogo. Con esto
 > la **deuda #1 queda resuelta**: el monolito puede correr en ≥2 instancias sin doble ejecución de los
 > schedulers.
 >
-> **Fase 3 (rate limiting distribuido, #6/M13) ✅ (2026-10-11):** interfaz `RateLimiter` +
+> **Fase 3 (rate limiting distribuido, #6/M13) (2026-10-11):** interfaz `RateLimiter` +
 > `RedisRateLimiter` sobre `redis-coord` con **dos algoritmos Lua** — token bucket (techo global
 > `api-default`) y **ventana deslizante** (auth/costosos). **Bucket4j eliminado** (contador local → clave
 > `rl:v1:{...}` compartida). Dos niveles: (1) `GlobalRateLimitFilter` tras el JWT, por user/IP; (2)
-> `@RateLimit` + interceptor en endpoints 🔴 (requests/propuestas que notifican, subidas multipart,
+> `@RateLimit` + interceptor en endpoints (requests/propuestas que notifican, subidas multipart,
 > geocoding) + stats. Auth migrado (login/registro/reset) con el sujeto estandarizado **D-09** (correo solo
 > en reset; login sin correo → evita DoS de bloqueo) y endurecido el XFF (`forward-headers-strategy=native`).
 > **D-07 mixto** (login OPEN; registro/reset/costosos CLOSED) + **compensación 1a**: si Redis cae, las
 > notificaciones externas se difieren (`CoordinationAvailability` → FAILED → las reenvía el retry scheduler
-> al recuperarse). Con esto la **deuda #6 queda resuelta** (superficie de auth + techo global + 🔴).
+> al recuperarse). Con esto la **deuda #6 queda resuelta** (superficie de auth + techo global + ).
 > Verificado e2e (login 429 al 11º, stats 429 al 31º, claves `rl:*` en `redis-coord`). ACL ampliado
 > (`+time` + comandos ZSET). Pendientes menores completados (search/report-create/account-security
 > anotados, commit `4c9ce35`).
 >
-> **Fase 4 (resiliencia) ✅ (2026-10-11):** circuit breaker **Resilience4j** (`resilience4j-spring-boot3`
+> **Fase 4 (resiliencia) (2026-10-11):** circuit breaker **Resilience4j** (`resilience4j-spring-boot3`
 > 2.3.0) sobre `redis-coord`. (1) **Timeouts diferenciados**: `coordHotRedisTemplate` con
 > `hot-command-timeout=300ms` para el rate limit (hot-path de cada petición); el lock de schedulers sigue
 > en 2s (background). (2) **Una** instancia de breaker `redis-coord` compartida por `RedisRateLimiter` y
@@ -679,7 +679,7 @@ Salvedades de config ya accionadas por el usuario: **M38** (secretos de dev fuer
 > (Redis colgado): primeras req ~650ms (2×300ms), breaker abre, resto fast-fail ~20ms, todas 401 (OPEN
 > sigue sirviendo); al recuperar, 429 vuelve a aplicar; arranque con Redis detenido OK.
 >
-> **Fase 5 (observabilidad + pruebas) — slice A ✅ (2026-10-11):** observabilidad **del lado de la
+> **Fase 5 (observabilidad + pruebas) — slice A (2026-10-11):** observabilidad **del lado de la
 > aplicación**. Métricas en `/actuator/prometheus` (`micrometer-registry-prometheus`), servido en un
 > **puerto de management separado (9090) NO publicado al host** (solo red interna; adelanta parte de Fase 7;
 > evita filtrar métricas internas por el 8080 público). Métricas: `ratelimit.decision`,
@@ -715,8 +715,8 @@ reset-tokens) → habilita el despliegue en **≥2 instancias** sin doble ejecuc
 - **Secretos:** `.env` local (**D-14** local DECIDIDO); gestor de prod PENDIENTE.
 
 **Aplazado para fases posteriores (tracker):** `redis-cache` + caché M34 (Fase 6); ~~rate limiting
-distribuido **#6/M13** (Fase 3)~~ ✅; ~~resiliencia/circuit breaker (Fase 4)~~ ✅; observabilidad del lado
-de la app (Fase 5, slice A) ✅ — **observabilidad externa diferida** (`redis_exporter`/Prometheus/Grafana/
+distribuido **#6/M13** (Fase 3)~~ ; ~~resiliencia/circuit breaker (Fase 4)~~ ; observabilidad del lado
+de la app (Fase 5, slice A) — **observabilidad externa diferida** (`redis_exporter`/Prometheus/Grafana/
 dashboards/alertas + CI → Fase 7); TLS +
 secretos de prod + backups + runbooks + **Actuator en puerto de management separado y no publicado**
 (Fase 7 — el puerto separado **ya se adelantó en Fase 5** (9090 no publicado); en Fase 1 el grupo de health
@@ -900,7 +900,7 @@ Candidatos de servicio derivados del grafo (§3.3), agrupando lo que está fuert
 
 1. **notifications** — la más fácil: ya es hoja + I/O externo. Requiere: recibir `notify` como
    **evento** (no llamada síncrona) y conocer el email (API a identity o réplica). Primer servicio real.
-   ✅ **HECHO (2026-10-12, rama `feature/notifications-microservice`)**: outbox transaccional en el monolito →
+   **HECHO (2026-10-12, rama `feature/notifications-microservice`)**: outbox transaccional en el monolito →
    RabbitMQ → `notifications-service` (BD propia con Flyway, consumidor idempotente, DLQ); el correo viaja en el
    mensaje, sellado con AES-GCM; **API gateway** (Spring Cloud Gateway) levantado como fachada del
    estrangulamiento. Ver `documents/microservicios/notifications-service.md`.
@@ -1195,7 +1195,7 @@ Flyway; **no** hay `@PreAuthorize` (autorización = URL-matchers + `permitAll`);
   5 sub-commits (`1ad4436` núcleo, `682db9e` auth, `1e0d52d` techo global, `89f5909` @RateLimit, `067dca5`
   modo degradado notif): interfaz `RateLimiter` + `RedisRateLimiter` sobre `redis-coord` con dos algoritmos
   Lua (token bucket + ventana deslizante), **Bucket4j eliminado**; dos niveles (filtro global `api-default`
-  + `@RateLimit`/interceptor en endpoints 🔴 + stats); auth/reset migrados con sujeto estandarizado **D-09**;
+  + `@RateLimit`/interceptor en endpoints + stats); auth/reset migrados con sujeto estandarizado **D-09**;
   **D-06/D-07/D-09 cerradas**; compensación 1a (notificaciones externas diferidas si Redis cae). **Deuda #6
   resuelta.** Verificado e2e (login/stats → 429, claves `rl:*`). Hallazgos (en NOTAS.txt): ACL necesitaba
   `+time`+comandos ZSET; YAML flow-map exige espacio tras `:`; regresión de slice `@WebMvcTest` por

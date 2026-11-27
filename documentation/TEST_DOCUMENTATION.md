@@ -63,19 +63,19 @@
 #### Domain Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `ServiceTest` | 8 | ✅ Pass | Domain entity behavior: activate/deactivate, soft delete, availability checks |
-| `ServiceAvailabilityTest` | 3 | ✅ Pass | Domain entity: availability slot validation |
-| `CategoryPersistenceAdapterTest` | 4 | ✅ Pass | Repository adapter: category CRUD operations |
-| `ServicePersistenceAdapterTest` | 7 | ✅ Pass | Repository adapter: service CRUD, search, find by offerer |
-| `ServiceAvailabilityPersistenceAdapterTest` | 6 | ✅ Pass | Repository adapter: availability slot CRUD |
+| `ServiceTest` | 8 | Pass | Domain entity behavior: activate/deactivate, soft delete, availability checks |
+| `ServiceAvailabilityTest` | 3 | Pass | Domain entity: availability slot validation |
+| `CategoryPersistenceAdapterTest` | 4 | Pass | Repository adapter: category CRUD operations |
+| `ServicePersistenceAdapterTest` | 7 | Pass | Repository adapter: service CRUD, search, find by offerer |
+| `ServiceAvailabilityPersistenceAdapterTest` | 6 | Pass | Repository adapter: availability slot CRUD |
 
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `MarketplaceServiceTest` | 31 | ✅ Pass | Service lifecycle: create, read, update, delete, softDelete, activate/deactivate, search, metrics, IDOR protection (B1) |
-| `ServiceAvailabilityServiceTest` | 11 | ✅ Pass | Availability slot management: CRUD, validation, overlap detection |
-| `ServicePhotoStorageServiceTest` | 8 | ✅ Pass | Photo upload/delete, storage limits, file validation |
-| `MarketplaceCategoryTest` | 4 | ✅ Pass | Category hierarchy and validation |
+| `MarketplaceServiceTest` | 31 | Pass | Service lifecycle: create, read, update, delete, softDelete, activate/deactivate, search, metrics, IDOR protection (B1) |
+| `ServiceAvailabilityServiceTest` | 11 | Pass | Availability slot management: CRUD, validation, overlap detection |
+| `ServicePhotoStorageServiceTest` | 8 | Pass | Photo upload/delete, storage limits, file validation |
+| `MarketplaceCategoryTest` | 4 | Pass | Category hierarchy and validation |
 
 ---
 
@@ -84,16 +84,16 @@
 #### Domain Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `ServiceRequestTest` | 43 | ✅ Pass | Request domain logic: state transitions (PENDING→ACCEPTED→IN_PROGRESS→COMPLETED/CANCELLED), expiration, rescheduling |
-| `RescheduleProposalTest` | 20 | ✅ Pass | Reschedule proposal domain: creation, acceptance, rejection, expiration |
+| `ServiceRequestTest` | 43 | Pass | Request domain logic: state transitions (PENDING→ACCEPTED→IN_PROGRESS→COMPLETED/CANCELLED), expiration, rescheduling |
+| `RescheduleProposalTest` | 20 | Pass | Reschedule proposal domain: creation, acceptance, rejection, expiration |
 
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `ServiceRequestCommandServiceTest` | 33 | ✅ Pass | Write operations: create, accept, reject, cancel, complete, reschedule, IDOR protection |
-| `ServiceRequestQueryServiceTest` | 14 | ✅ Pass | Read operations: find by ID, by client, by offerer, filters, pagination |
-| `RescheduleProposalServiceTest` | 21 | ✅ Pass | Reschedule workflow: propose, accept, reject, auto-expire |
-| `RequestMaintenanceServiceTest` | 9 | ✅ Pass | Scheduled maintenance: expire old requests, cleanup |
+| `ServiceRequestCommandServiceTest` | 33 | Pass | Write operations: create, accept, reject, cancel, complete, reschedule, IDOR protection |
+| `ServiceRequestQueryServiceTest` | 14 | Pass | Read operations: find by ID, by client, by offerer, filters, pagination |
+| `RescheduleProposalServiceTest` | 21 | Pass | Reschedule workflow: propose, accept, reject, auto-expire |
+| `RequestMaintenanceServiceTest` | 9 | Pass | Scheduled maintenance: expire old requests, cleanup |
 
 ---
 
@@ -102,14 +102,14 @@
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `OffererAvailabilityServiceTest` | 14 | ✅ Pass | Availability slot management: CRUD, validation, conflict detection |
-| `OffererProfileServiceTest` | 1 | ✅ Pass | Offerer profile CRUD |
-| `UserProfileServiceTest` | 4 | ✅ Pass | User profile management: update, avatar, preferences |
+| `OffererAvailabilityServiceTest` | 14 | Pass | Availability slot management: CRUD, validation, conflict detection |
+| `OffererProfileServiceTest` | 1 | Pass | Offerer profile CRUD |
+| `UserProfileServiceTest` | 4 | Pass | User profile management: update, avatar, preferences |
 
 #### Integration Tests (Controller)
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `OffererAvailabilityControllerIntegrationTest` | 7 | ✅ Pass | **IDOR (B4)**: Verify controller passes JWT identity to service for ownership checks on delete/activate/deactivate slots |
+| `OffererAvailabilityControllerIntegrationTest` | 7 | Pass | **IDOR (B4)**: Verify controller passes JWT identity to service for ownership checks on delete/activate/deactivate slots |
 
 ---
 
@@ -118,12 +118,12 @@
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `NotificationDeliveryServiceTest` | 6 | ✅ Pass | Delivery retry logic, channel selection, failure handling |
+| `NotificationDeliveryServiceTest` | 6 | Pass | Delivery retry logic, channel selection, failure handling |
 
 #### Infrastructure Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `EmailApiAdapterTest` | 2 | ✅ Pass | Email sending: missing email handling, send failures |
+| `EmailApiAdapterTest` | 2 | Pass | Email sending: missing email handling, send failures |
 
 ---
 
@@ -132,9 +132,9 @@
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `AdminActionGuardTest` | 7 | ✅ Pass | Admin authorization: role checks, self-action prevention |
-| `AdminServiceTest` | 5 | ✅ Pass | Admin operations: user ban/unban, delete, role management |
-| `ModerationServiceTest` | 13 | ✅ Pass | Content moderation: report review, service suspension, user warnings |
+| `AdminActionGuardTest` | 7 | Pass | Admin authorization: role checks, self-action prevention |
+| `AdminServiceTest` | 5 | Pass | Admin operations: user ban/unban, delete, role management |
+| `ModerationServiceTest` | 13 | Pass | Content moderation: report review, service suspension, user warnings |
 
 ---
 
@@ -143,9 +143,9 @@
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `ReportActionServiceTest` | 3 | ✅ Pass | Report actions: resolve, dismiss, escalate |
-| `ReportServiceTest` | 9 | ✅ Pass | Report CRUD: create, list, filter by status/type |
-| `RequestReportServiceTest` | 5 | ✅ Pass | Service request specific reports |
+| `ReportActionServiceTest` | 3 | Pass | Report actions: resolve, dismiss, escalate |
+| `ReportServiceTest` | 9 | Pass | Report CRUD: create, list, filter by status/type |
+| `RequestReportServiceTest` | 5 | Pass | Service request specific reports |
 
 ---
 
@@ -154,23 +154,23 @@
 #### Application Service Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `UserAuthenticationServiceTest` | 15 | ✅ Pass | **HU-001, RF-003**: Login (bcrypt, banned/deleted checks), registration (role restriction), password reset flow (request, validate, confirm) |
-| `UserCreationServiceTest` | 8 | ✅ Pass | User account creation: validation, role assignment, email uniqueness |
-| `UserRoleServiceTest` | 4 | ✅ Pass | Role management: assignment, removal, validation |
-| `UserServiceTest` | 5 | ✅ Pass | User CRUD and queries |
-| `PasswordResetTokenServiceTest` | 12 | ✅ Pass | Token lifecycle: create, validate, consume, expiration, anti-enumeration |
+| `UserAuthenticationServiceTest` | 15 | Pass | **HU-001, RF-003**: Login (bcrypt, banned/deleted checks), registration (role restriction), password reset flow (request, validate, confirm) |
+| `UserCreationServiceTest` | 8 | Pass | User account creation: validation, role assignment, email uniqueness |
+| `UserRoleServiceTest` | 4 | Pass | Role management: assignment, removal, validation |
+| `UserServiceTest` | 5 | Pass | User CRUD and queries |
+| `PasswordResetTokenServiceTest` | 12 | Pass | Token lifecycle: create, validate, consume, expiration, anti-enumeration |
 
 #### Security Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `JwtAuthenticationFilterTest` | 1 | ✅ Pass | JWT filter chain integration |
-| `JwtServiceTest` | 4 | ✅ Pass | Token generation, validation, parsing, expiration |
-| `RateLimiterServiceTest` | 6 | ✅ Pass | Rate limiting: bucket consumption, refill, key resolution |
+| `JwtAuthenticationFilterTest` | 1 | Pass | JWT filter chain integration |
+| `JwtServiceTest` | 4 | Pass | Token generation, validation, parsing, expiration |
+| `RateLimiterServiceTest` | 6 | Pass | Rate limiting: bucket consumption, refill, key resolution |
 
 #### Integration Tests (Controller)
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `AccountControllerIntegrationTest` | 4 | ✅ Pass | Account endpoints: profile, password change, deletion |
+| `AccountControllerIntegrationTest` | 4 | Pass | Account endpoints: profile, password change, deletion |
 
 ---
 
@@ -179,12 +179,12 @@
 #### Security Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `PiiAttributeConverterTest` | 3 | ❌ 2 Fail, 1 Pass | **RNF-005**: PII encryption (AES-GCM), round-trip, random IV, null handling |
+| `PiiAttributeConverterTest` | 3 | 2 Fail, 1 Pass | **RNF-005**: PII encryption (AES-GCM), round-trip, random IV, null handling |
 
 #### Text Filter Tests
 | Test Class | Tests | Status | Purpose |
 |------------|-------|--------|---------|
-| `ConfigurableWordFilterAdapterTest` | 4 | ✅ Pass | Profanity filtering: word matching, case insensitivity, replacement |
+| `ConfigurableWordFilterAdapterTest` | 4 | Pass | Profanity filtering: word matching, case insensitivity, replacement |
 
 ---
 

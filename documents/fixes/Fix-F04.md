@@ -120,12 +120,12 @@ The fix can be tested by:
 
 ## Verification
 
-- ✅ Build passes (`npm run build`)
-- ✅ Route requires CLIENT role authentication
-- ✅ Service data loaded from API
-- ✅ Availability loaded from API
-- ✅ Addresses loaded from API
-- ✅ New address creation works
-- ✅ Request creation via API works
-- ✅ Success redirect to `/requests`
-- ✅ Error handling with toasts
+- Build passes (`npm run build`)
+- Route requires CLIENT role authentication
+- Service data loaded from API
+- Availability loaded from API
+- Addresses loaded from API
+- New address creation works
+- Request creation via API works
+- Success redirect to `/requests`
+- Error handling with toasts

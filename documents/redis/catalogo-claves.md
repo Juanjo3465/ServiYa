@@ -55,7 +55,7 @@ máx. ~200 caracteres. La versión `v<N>` sube cuando cambia el **formato** del 
 | `rl:v1:{ip:<addr>}:stats` / `rl:v1:{user:<id>}:stats` | coord | zset | 1 min | stats públicas | v1 |
 
 > Políticas definidas pero aún **sin anotar** (no crean claves todavía): `report-create`,
-> `account-security`, `search` (prioridad media, fuera del alcance 🔴 de Fase 3).
+> `account-security`, `search` (prioridad media, fuera del alcance de Fase 3).
 
 ## Claves en uso — revocación de sesión `min_iat` (auth centralizada, **Fase 2B** — implementada)
 

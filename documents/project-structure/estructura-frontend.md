@@ -81,16 +81,16 @@ frontend/serviya/
     ├── main.jsx          ← arranque: monta React en el #root del HTML
     ├── app/
     │   ├── App.jsx       ← componente raíz (hoy un envoltorio mínimo)
-    │   └── routes.jsx    ← ★ el mapa URL → página (react-router)
+    │   └── routes.jsx    ← el mapa URL → página (react-router)
     ├── styles/
     │   └── globals.css   ← sistema de diseño global (variables + clases .btn, .input…)
     ├── shared/           ← código REUTILIZABLE entre módulos
-    │   ├── api.js        ← ★ toda la comunicación con el backend + manejo del JWT
+    │   ├── api.js        ← toda la comunicación con el backend + manejo del JWT
     │   ├── index.js      ← "barrel": re-exporta todo lo compartido en un punto
     │   ├── navConfig.js  ← definición de los menús laterales por rol
     │   ├── components/    ← componentes compartidos (Navbar, Modal, Icon, Stars…)
     │   └── hooks/        ← hooks reutilizables (useToast)
-    └── modules/          ← ★ un folder por área de negocio (espejo del backend)
+    └── modules/          ← un folder por área de negocio (espejo del backend)
         ├── users/        ← login, registro, recuperar contraseña
         ├── profiles/     ← perfil propio y perfil público del oferente
         ├── services/     ← home, búsqueda, detalle, servicios del oferente, disponibilidad

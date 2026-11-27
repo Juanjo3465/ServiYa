@@ -19,5 +19,5 @@ cuando aparezcan servicios en otros lenguajes (Fase 9), momento en que se defini
 ## Scripts
 
 - `lock_acquire.lua` (sin fencing), `lock_acquire_fenced.lua` (con fencing), `lock_release.lua`,
-  `lock_renew.lua` — **Fase 2 ✅** (deuda #1, lock de `@Scheduled`). Ver `documents/redis/protocolo-lock.md`.
+  `lock_renew.lua` — **Fase 2 ** (deuda #1, lock de `@Scheduled`). Ver `documents/redis/protocolo-lock.md`.
 - `ratelimit_token_bucket.lua` — **Fase 3** (rate limiting distribuido, #6 / M13).

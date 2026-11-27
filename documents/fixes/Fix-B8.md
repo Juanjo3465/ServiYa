@@ -65,9 +65,9 @@ try {
 
 ## Verificación
 
-- ✅ Todos los tests existentes pasan (21 tests en `RescheduleProposalServiceTest`, 20 en `RescheduleProposalTest`, 90 en tests de `ServiceRequest`)
-- ✅ El patrón de reintento maneja la carrera correctamente
-- ✅ La restricción a nivel de BD previene duplicados incluso si falla el reintento
+- Todos los tests existentes pasan (21 tests en `RescheduleProposalServiceTest`, 20 en `RescheduleProposalTest`, 90 en tests de `ServiceRequest`)
+- El patrón de reintento maneja la carrera correctamente
+- La restricción a nivel de BD previene duplicados incluso si falla el reintento
 
 ## Archivos Modificados
 

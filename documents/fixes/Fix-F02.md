@@ -92,8 +92,8 @@ fetch('/api/v1/users/me/profile', { headers: { Authorization: `Bearer ${localSto
 
 ## Verification
 
-- ✅ Build passes (`npm run build`)
-- ✅ No TypeScript errors (project uses JSX without TS)
-- ✅ Authenticated requests with 401 now redirect to login
-- ✅ Public endpoints unaffected
-- ✅ Token cleared from localStorage on 401
+- Build passes (`npm run build`)
+- No TypeScript errors (project uses JSX without TS)
+- Authenticated requests with 401 now redirect to login
+- Public endpoints unaffected
+- Token cleared from localStorage on 401

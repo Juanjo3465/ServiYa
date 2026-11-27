@@ -88,7 +88,7 @@ Placed immediately after the `@Id` field. Used `Integer` type for consistency ac
 ```bash
 cd backend/serviya && ./mvnw clean compile
 ```
-**Result:** ✅ BUILD SUCCESS
+**Result:** BUILD SUCCESS
 
 ### Test Execution
 ```bash

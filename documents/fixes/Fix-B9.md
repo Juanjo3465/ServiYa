@@ -118,10 +118,10 @@ CREATE TABLE shedlock (
 
 ## Verificación
 
-- ✅ Compilación exitosa (`mvn compile`)
-- ✅ No hay errores de sintaxis o dependencias
-- ✅ La tabla `shedlock` se crea automáticamente al iniciar la aplicación (Hibernate `ddl-auto: update`)
-- ✅ Los locks son únicos por nombre de tarea, permitiendo ejecución paralela de tareas diferentes
+- Compilación exitosa (`mvn compile`)
+- No hay errores de sintaxis o dependencias
+- La tabla `shedlock` se crea automáticamente al iniciar la aplicación (Hibernate `ddl-auto: update`)
+- Los locks son únicos por nombre de tarea, permitiendo ejecución paralela de tareas diferentes
 
 ## Notas Importantes
 

@@ -61,12 +61,12 @@ Lanza `IllegalStateException` al detectar valores débiles.
 
 ## Verificación
 
-- ✅ Compilación exitosa
-- ✅ 344 tests unitarios/integración pasan (excluyendo `ServiyaApplicationTests` que tiene dependencia H2 pre-existente faltante)
-- ✅ La app falla al arrancar con:
+- Compilación exitosa
+- 344 tests unitarios/integración pasan (excluyendo `ServiyaApplicationTests` que tiene dependencia H2 pre-existente faltante)
+- La app falla al arrancar con:
   - `JWT_SECRET` vacía o valor débil conocido
   - `ENCRYPTION_KEY` vacía o valor débil conocido
-- ✅ La app arranca correctamente con valores seguros (≥32 chars aleatorios)
+- La app arranca correctamente con valores seguros (≥32 chars aleatorios)
 
 ## Impacto
 

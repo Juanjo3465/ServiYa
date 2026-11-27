@@ -109,7 +109,7 @@ deliberadamente vago (no revela si la cuota fue por IP o por correo → no es or
 ## Aplazado (deuda, anotado también en la guía §2.1 y ESTADO §6.6)
 
 - Anotar `@RateLimit` en `search`, `report-create`, `account-security` (políticas ya definidas; eran
-  prioridad media, fuera del alcance 🔴 elegido).
+  prioridad media, fuera del alcance elegido).
 - Análisis de abuso antes de vaciar el backlog de notificaciones diferidas (opción b).
 - Caché de `/platform/stats` (Fase 6): hoy recomputa en cada llamada.
 - Batería de carga/observabilidad del rate limit (Fase 5).

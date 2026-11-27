@@ -106,11 +106,11 @@ Este documento propone **recomendaciones**, no imposiciones. Los nombres de exch
 
 | Claim | Uso en el chat | Estado en ServiYa |
 |---|---|---|
-| `sub` | ID del usuario — es un **`BIGINT`** (mismo tipo que usan los eventos y las proyecciones), no UUID | ✅ Emitido (`sub` = userId) |
-| `roles` | Distinguir `CLIENT`, `OFFERER` y `ADMIN` (los administradores atienden el soporte) | ✅ Emitido como lista `["CLIENT"\|"OFFERER"\|"ADMIN"]` |
-| `iss`, `aud` | Validar emisor y audiencia | ✅ **Se emiten** con el nuevo token ES256 (`aud` = `marketplace-api`; `iss` = URL lógica estable del emisor). El chat **debe** validarlos. |
-| `kid`, `typ` | Selección de clave (rotación) y tipo de token | ✅ `kid` en el header para elegir la clave del JWKS; `typ` = `at+jwt` |
-| `exp`, `iat` | Expiración | ✅ `exp`/`iat` emitidos |
+| `sub` | ID del usuario — es un **`BIGINT`** (mismo tipo que usan los eventos y las proyecciones), no UUID | Emitido (`sub` = userId) |
+| `roles` | Distinguir `CLIENT`, `OFFERER` y `ADMIN` (los administradores atienden el soporte) | Emitido como lista `["CLIENT"\|"OFFERER"\|"ADMIN"]` |
+| `iss`, `aud` | Validar emisor y audiencia | **Se emiten** con el nuevo token ES256 (`aud` = `marketplace-api`; `iss` = URL lógica estable del emisor). El chat **debe** validarlos. |
+| `kid`, `typ` | Selección de clave (rotación) y tipo de token | `kid` en el header para elegir la clave del JWKS; `typ` = `at+jwt` |
+| `exp`, `iat` | Expiración | `exp`/`iat` emitidos |
 
 - [ ] Política de rotación de claves documentada (con JWKS, publicar la nueva clave antes de empezar a firmar con ella).
 
