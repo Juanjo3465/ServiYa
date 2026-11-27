@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Build the Lab 04 submission PDF from README.md + docs/lab04 evidence.
+"""Build the Lab 04 submission PDF from the Lab 04 section of README.md.
 
 Usage:
     python3 docs/lab04/build-pdf.py [output.pdf]
 
 Default output: ~/Downloads/Lab_04_Security_2026-II_ServiYa.pdf
 Requires: node/npx (marked) and google-chrome (headless print).
+
+The evidence files under docs/lab04/ are part of the repository/PR but are
+deliberately NOT printed in the PDF.
 """
 import pathlib
 import re
@@ -23,8 +26,6 @@ start = readme.find("\n# Lab 04 — Security")
 if start < 0:
     raise SystemExit("Lab 04 section not found in README.md")
 lab = readme[start:].strip()
-baseline = (ROOT / "docs/lab04/evidence-baseline.md").read_text()
-after = (ROOT / "docs/lab04/evidence-after.md").read_text()
 
 diagram = """
 <div class="diagram">
@@ -57,9 +58,7 @@ lab = re.sub(r"```mermaid\n.*?\n```", diagram, lab, flags=re.S)
 _m = re.search(r"\| Pull Request \| (\S+) \|", lab)
 PR_URL = _m.group(1) if _m else "see repository"
 
-md = (lab + "\n\n---\n\n# Evidence — baseline (before the change)\n\n" + baseline
-      + "\n\n---\n\n# Evidence — after the change\n\n" + after)
-
+md = lab
 res = subprocess.run(["npx", "-y", "marked@12"], input=md, text=True,
                      capture_output=True, cwd=TMP)
 if res.returncode != 0:
@@ -78,7 +77,6 @@ cover = """
     <tr><th>Repository</th><td>github.com/Juanjo3465/ServiYa</td></tr>
     <tr><th>Branch</th><td>feat/lab04-secure-channel</td></tr>
     <tr><th>Pull Request</th><td>__PR_URL__</td></tr>
-    <tr><th>Evidence</th><td>docs/lab04/evidence-baseline.md &middot; docs/lab04/evidence-after.md</td></tr>
   </table>
 </section>
 """
@@ -88,51 +86,49 @@ css = """
 @page { size: A4; margin: 17mm 15mm 18mm 15mm; }
 * { box-sizing: border-box; }
 body { font-family: "DejaVu Sans", "Segoe UI", Arial, sans-serif; font-size: 9.6pt;
-       line-height: 1.42; color: #17202a; margin: 0; }
-h1 { font-size: 17pt; color: #0f3d5c; border-bottom: 2px solid #0f3d5c;
-     padding-bottom: 3px; margin: 0 0 10px; page-break-before: always; }
-h2 { font-size: 12.6pt; color: #14506e; margin-top: 16px; page-break-after: avoid; }
-h3 { font-size: 10.8pt; color: #1d5f7d; margin-top: 13px; page-break-after: avoid; }
+       line-height: 1.38; color: #000; margin: 0; }
+h1, h2, h3, h4, p, li, td, th, code, blockquote, figcaption { color: #000; }
+h1 { font-size: 17pt; border-bottom: 1px solid #000; padding-bottom: 3px;
+     margin: 0 0 10px; page-break-before: always; page-break-after: avoid; }
+h2 { font-size: 12.8pt; margin-top: 16px; page-break-after: avoid; }
+h3 { font-size: 11pt; margin-top: 13px; page-break-after: avoid; }
 p, li { orphans: 3; widows: 3; }
-code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.4pt;
-       background: #f2f4f6; padding: 0 3px; border-radius: 2px; }
-pre { background: #f6f8fa; border: 1px solid #d8dee4; border-radius: 4px;
-      padding: 7px 9px; overflow: hidden; page-break-inside: avoid; }
-pre code { background: none; padding: 0; font-size: 8px; white-space: pre-wrap;
+code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.8pt;
+       background: #f0f0f0; padding: 0 3px; }
+pre { background: #f7f7f7; border: 1px solid #333; padding: 7px 9px;
+      page-break-inside: avoid; }
+pre code { background: none; padding: 0; font-size: 8.6pt; white-space: pre-wrap;
            word-break: break-word; }
-table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 8.8pt; }
-th, td { border: 1px solid #c9d1d9; padding: 4px 6px; vertical-align: top; text-align: left; }
-th { background: #eef3f7; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 8.9pt; }
+th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; text-align: left; }
+th { background: #ededed; }
 tr { page-break-inside: avoid; }
-blockquote { border-left: 3px solid #b8c4ce; margin: 8px 0; padding: 2px 10px;
-             color: #4a5a68; background: #fafbfc; }
-a { color: #14506e; text-decoration: none; }
-hr { border: 0; border-top: 1px solid #d8dee4; margin: 14px 0; }
+blockquote { border-left: 3px solid #000; margin: 8px 0; padding: 2px 10px;
+             background: #f7f7f7; }
+a { color: #000; text-decoration: underline; }
+hr { border: 0; border-top: 1px solid #000; margin: 14px 0; }
 .cover { page-break-after: always; padding-top: 22mm; }
-.kicker { color: #6b7a88; letter-spacing: .12em; font-size: 9pt; text-transform: uppercase; }
+.kicker { color: #000; letter-spacing: .10em; font-size: 9pt; text-transform: uppercase; }
 .cover-title { border: 0; page-break-before: avoid; font-size: 27pt; margin: 12px 0 2px; }
-.cover-sub { font-size: 16pt; color: #14506e; margin: 0 0 26px; }
-table.meta th { width: 26%; background: #eef3f7; }
-table.meta td, table.meta th { font-size: 9.6pt; }
+.cover-sub { font-size: 16pt; margin: 0 0 26px; }
+table.meta th { width: 26%; background: #ededed; }
+table.meta td, table.meta th { font-size: 9.8pt; }
 .diagram { display: flex; align-items: stretch; gap: 7px; margin: 12px 0 4px;
            page-break-inside: avoid; }
-.zone { border: 1px dashed #9fb3c2; border-radius: 5px; padding: 7px 7px 9px;
-        background: #fbfcfd; flex: 1; }
-.zone-title { font-size: 7.4pt; text-transform: uppercase; letter-spacing: .06em;
-              color: #6b7a88; margin-bottom: 6px; }
-.zone.untrusted { background: #fdf6f4; border-color: #d9a79d; }
-.zone.edge { background: #f3f8fb; border-color: #8fb6ca; }
-.box { border: 1px solid #8aa4b5; border-radius: 4px; background: #fff;
-       padding: 6px 7px; font-size: 8.2pt; text-align: center; margin-bottom: 5px; }
+.zone { border: 1px solid #000; padding: 7px 7px 9px; flex: 1; }
+.zone-title { font-size: 7.6pt; text-transform: uppercase; letter-spacing: .05em;
+              margin-bottom: 6px; }
+.box { border: 1px solid #000; padding: 6px 7px; font-size: 8.4pt;
+       text-align: center; margin-bottom: 5px; }
 .zone .box:last-child { margin-bottom: 0; }
-.box.small { font-size: 7.6pt; padding: 5px 4px; }
+.box.small { font-size: 7.8pt; padding: 5px 4px; }
 .row { display: flex; gap: 4px; }
 .row .box { flex: 1; margin-bottom: 0; }
 .arrow { display: flex; flex-direction: column; justify-content: center;
-         align-items: center; text-align: center; font-size: 7.2pt; color: #14506e;
+         align-items: center; text-align: center; font-size: 7.4pt;
          min-width: 62px; }
 .arrow span { font-weight: bold; }
-.caption { font-size: 8pt; color: #5b6b79; font-style: italic; margin-top: 2px; }
+.caption { font-size: 9pt; margin-top: 2px; }
 """
 
 html_file = TMP / "lab04.html"
