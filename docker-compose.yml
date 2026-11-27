@@ -15,7 +15,9 @@ services:
       CHAT_SERVICE_URI: ${CHAT_SERVICE_URI:-http://chat-service:8000}
       CHAT_WS_URI: ${CHAT_WS_URI:-ws://chat-service:8000}
       # Mismos orígenes que tenía el CORS del monolito (incluida la IP de red local y el túnel ngrok).
-      GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081,http://192.168.1.2:8081,https://nonfervently-expiational-amani.ngrok-free.dev}
+      # Lab 04 (Secure Channel): el borde HTTPS es https://<host>:8443; se conservan los orígenes
+      # http para el dev server de Vite (:5173) que habla directo con el gateway.
+      GATEWAY_CORS_ALLOWED_ORIGINS: ${GATEWAY_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8081,http://127.0.0.1:8081,http://192.168.1.2:8081,https://localhost:8443,https://127.0.0.1:8443,https://192.168.1.2:8443,https://nonfervently-expiational-amani.ngrok-free.dev}
       # Validacion del access token ES256 (Fase 3): el JWKS lo sirve el monolito en la red interna.
       JWT_JWKS_URI: ${JWT_JWKS_URI:-http://backend:8080/.well-known/jwks.json}
       JWT_ISSUER: ${JWT_ISSUER:-https://auth.serviya.local}
@@ -60,11 +62,13 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-https://auth.serviya.local}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-marketplace-api}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
-      # Refresh token rotativo (Fase 2A) + revocacion min_iat (Fase 2B). En prod (https) poner
-      # JWT_REFRESH_COOKIE_SECURE=true; en dev http se queda false para que la cookie viaje.
+      # Refresh token rotativo (Fase 2A) + revocacion min_iat (Fase 2B).
+      # Lab 04 (Secure Channel): el borde (frontend/nginx) sirve TLS, así que la cookie de refresh
+      # se marca Secure por defecto. El dev server de Vite (:5173, HTTP plano) lo sobreescribe a
+      # false en docker-compose.dev.yml; si no, el navegador no devolvería la cookie en /auth/refresh.
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
       JWT_REFRESH_GRACE: ${JWT_REFRESH_GRACE:-15s}
-      JWT_REFRESH_COOKIE_SECURE: ${JWT_REFRESH_COOKIE_SECURE:-false}
+      JWT_REFRESH_COOKIE_SECURE: ${JWT_REFRESH_COOKIE_SECURE:-true}
       JWT_REFRESH_COOKIE_SAME_SITE: ${JWT_REFRESH_COOKIE_SAME_SITE:-Strict}
       JWT_REVOCATION_CLOCK_SKEW: ${JWT_REVOCATION_CLOCK_SKEW:-60s}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
@@ -353,7 +357,13 @@ services:
     depends_on:
       - gateway
     ports:
+      # :8081 se mantiene solo para demostrar el rechazo de HTTP plano (301 -> :8443).
       - "8081:80"
+      - "8443:443"
+    volumes:
+      # Certificado dev autofirmado generado por 40-dev-tls.sh; persiste entre reinicios
+      # (nunca se versiona la clave).
+      - frontend_certs:/etc/nginx/certs
 
 volumes:
   mysql_data:
@@ -361,6 +371,7 @@ volumes:
   chat_mysql_data:
   rabbitmq_data:
   minio_data:
+  frontend_certs:
 
 networks:
   # Red compartida con infra/redis/docker-compose.redis.yml. Declarada aquí también para que el compose

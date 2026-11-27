@@ -11,3 +11,8 @@ AGENTS.md
 /infra/redis/acl/users*.acl
 *.rdb
 *.aof
+
+# Lab 04 (Secure Channel) — certificado dev exportado para `curl --cacert`.
+# La clave privada se genera en runtime dentro del volumen frontend_certs y NUNCA se versiona.
+/docs/lab04/*.crt
+/docs/lab04/*.key
