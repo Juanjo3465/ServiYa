@@ -54,6 +54,9 @@ network; everything right of it runs on a single Docker host).</p>
 """
 lab = re.sub(r"```mermaid\n.*?\n```", diagram, lab, flags=re.S)
 
+_m = re.search(r"\| Pull Request \| (\S+) \|", lab)
+PR_URL = _m.group(1) if _m else "see repository"
+
 md = (lab + "\n\n---\n\n# Evidence — baseline (before the change)\n\n" + baseline
       + "\n\n---\n\n# Evidence — after the change\n\n" + after)
 
@@ -74,11 +77,12 @@ cover = """
     <tr><th>Team members</th><td>Fabian Andres Rozo Rodriguez<br>Juan Jos&eacute; Sanchez Mora<br>Ana Sofia Rodriguez Neira<br>Cristian David Arcia Quintero</td></tr>
     <tr><th>Repository</th><td>github.com/Juanjo3465/ServiYa</td></tr>
     <tr><th>Branch</th><td>feat/lab04-secure-channel</td></tr>
-    <tr><th>Pull Request</th><td>github.com/Juanjo3465/ServiYa/compare/main...feat/lab04-secure-channel</td></tr>
+    <tr><th>Pull Request</th><td>__PR_URL__</td></tr>
     <tr><th>Evidence</th><td>docs/lab04/evidence-baseline.md &middot; docs/lab04/evidence-after.md</td></tr>
   </table>
 </section>
 """
+cover = cover.replace("__PR_URL__", PR_URL)
 
 css = """
 @page { size: A4; margin: 17mm 15mm 18mm 15mm; }
