@@ -10,6 +10,10 @@ services:
       # En dev el frontend corre en :5173 (Vite), no en :8081 (Nginx de prod). El enlace de
       # recuperación de contraseña debe apuntar a ese puerto. Sobreescribe el default de prod.
       FRONTEND_RESET_URL: ${FRONTEND_RESET_URL:-http://localhost:5173/reset-password}
+      # Lab 04: Vite sirve por HTTP plano, así que la cookie de refresh NO puede ir marcada
+      # Secure o el navegador no la devuelve en /api/v1/auth/refresh. El flujo con TLS se
+      # prueba con el compose base en https://localhost:8443.
+      JWT_REFRESH_COOKIE_SECURE: "false"
 
   frontend:
     build:
