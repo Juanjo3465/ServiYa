@@ -448,7 +448,7 @@ ServiYa project, its quality scenario, how it was implemented, and the evidence.
 | Team members | Fabian Andres Rozo Rodriguez · Juan José Sanchez Mora · Ana Sofia Rodriguez Neira · Cristian David Arcia Quintero |
 | Repository | `ServiYa` |
 | Feature branch | `feat/lab04-secure-channel` |
-| Pull Request | `TODO: PR URL (targets main)` |
+| Pull Request | https://github.com/Juanjo3465/ServiYa/compare/main...feat/lab04-secure-channel |
 
 ## 2. Architectural view
 
